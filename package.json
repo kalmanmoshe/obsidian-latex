@@ -1,24 +1,24 @@
 {
-  "name": "doing-it-myself",
-  "version": "1.0.0",
-  "description": "A plugin for Obsidian that I am building myself.",
-  "main": "index.js",
-  "scripts": {
-    "build": "webpack --mode production",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/kalmanmoshe/Doing-it-myself.git"
-  },
-  "author": "moshe",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/kalmanmoshe/Doing-it-myself/issues"
-  },
-  "homepage": "https://github.com/kalmanmoshe/Doing-it-myself#readme",
-  "devDependencies": {
-    "webpack": "^5.1.4",
-    "webpack-cli": "^4.0.0"
-  }
+	"name": "obsidian-sample-plugin",
+	"version": "1.0.0",
+	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"main": "main.js",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"version": "node version-bump.mjs && git add manifest.json versions.json"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^16.11.6",
+		"@typescript-eslint/eslint-plugin": "5.29.0",
+		"@typescript-eslint/parser": "5.29.0",
+		"builtin-modules": "3.3.0",
+		"esbuild": "0.17.3",
+		"obsidian": "latest",
+		"tslib": "2.4.0",
+		"typescript": "4.7.4"
+	}
 }
