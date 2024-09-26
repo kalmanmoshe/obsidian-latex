@@ -1,0 +1,24 @@
+{
+  "name": "doing-it-myself",
+  "version": "1.0.0",
+  "description": "A plugin for Obsidian that I am building myself.",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack --mode production",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kalmanmoshe/Doing-it-myself.git"
+  },
+  "author": "moshe",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kalmanmoshe/Doing-it-myself/issues"
+  },
+  "homepage": "https://github.com/kalmanmoshe/Doing-it-myself#readme",
+  "devDependencies": {
+    "webpack": "^5.1.4",
+    "webpack-cli": "^4.0.0"
+  }
+}
