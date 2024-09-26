@@ -1,1 +1,7 @@
 main.js filter=lfs diff=lfs merge=lfs -text
+main.js !text !filter !merge !diff
+node_modules/esbuild/lib/main.js !text !filter !merge !diff
+node_modules/resolve/test/module_dir/zmodules/bbb/main.js !text !filter !merge !diff
+node_modules/resolve/test/precedence/aaa/main.js !text !filter !merge !diff
+node_modules/resolve/test/precedence/bbb/main.js !text !filter !merge !diff
+node_modules/resolve/test/resolver/without_basedir/main.js !text !filter !merge !diff
