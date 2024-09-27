@@ -1,0 +1,90 @@
+/* Overall Container */
+.math-container {
+    background-color: #1e1e1e; /* Darker background for sleek look */
+    border-radius: 6px;
+    margin-bottom: 8px;
+    padding: 0px; /* Remove extra padding */
+}
+
+
+
+
+/* Flexbox for input and result separation */
+.math-line-container {
+    display: flex;
+    justify-content: space-between; /* Input on left, result on right */
+    align-items: center;
+    padding: 4px 6px; /* Tight padding for modern look */
+    font-size: 0.95em;
+}
+
+/* Alternating row colors */
+.math-row-even {
+    background-color: #2a2a2a; /* Darker row background */
+}
+
+.math-row-odd {
+    background-color: #262626; /* Slightly lighter row background */
+}
+
+/* Input styling (left-aligned) */
+.math-input {
+    font-family: "Courier New", monospace; /* Monospaced font for structure */
+    font-size: 1em;
+    color: #f8f8f2;
+    margin-right: 20px;
+    flex-grow: 1;
+    max-width: 100%; /* Keep the width within the container */
+    
+    overflow-x: auto;
+}
+
+/* Separated result styling (right-aligned) */
+.math-result-separate {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end; /* Align result all the way to the right */
+    background-color: #383838; /* Lighter background for result area */
+    border-left: 1px solid #505050; /* Thin dividing line */
+    padding-left: 15px; /* Space between result and line */
+    min-width: 200px; /* Ensures the result area is separated */
+}
+
+/* Result text */
+.math-result-text {
+    color: #f8f8f2; /* Neutral white for result text */
+    font-weight: 500;
+    padding-right: 5px;
+}
+
+/* Subtle magnifying glass icon */
+.math-result-icon {
+    color: #999999; /* Neutral gray for the icon */
+    cursor: pointer;
+}
+
+.math-result-icon:hover {
+    color: #cccccc; /* Light gray hover effect */
+}
+
+/* Modal / Info Section */
+.info-section {
+    background-color: #44475a; /* Slightly darker modal background */
+    color: #f8f8f2;
+    padding: 15px;
+    border-radius: 8px;
+    font-size: 0.9em;
+    font-family: "Courier New", monospace;
+}
+
+/* Styling the 🛈 info icon */
+.math-result-icon {
+    font-size: 16px;  /* Adjust size */
+    color: #999999;   /* Subtle gray color */
+    cursor: pointer;
+    margin-left: 10px; /* Space between result and icon */
+}
+
+.math-result-icon:hover {
+    color: #cccccc;  /* Lighter hover color */
+}
