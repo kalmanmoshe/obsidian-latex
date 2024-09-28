@@ -16,9 +16,15 @@
       "ES5",
       "ES6",
       "ES7"
-    ]
+    ],
+    "outDir": "./dist",  // Ensure compiled files go to the 'dist' directory
+    "rootDir": "./"   // Your TypeScript source files
   },
   "include": [
-    "**/*.ts"
+    "**/*.ts"  // Include TypeScript files from the root and subdirectories
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"  // Exclude the output directory
   ]
 }

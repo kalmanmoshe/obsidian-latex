@@ -1,20 +1,24 @@
 export function controller(mathExpression) {
     let Error = [];
-    let debugInfo = ''; 
+    let mathInfo = ''; 
+    let SolutionInfo = ''; 
 
     let math = `${mathExpression}`
-    .replace(/\s/g, "") 
-    .replace(/_\{[\w]*\}/g, "") 
-    .replace(/{/g, "(") 
-    .replace(/}/g, ")")
-    .replace(/\\cdot/g, "*")
-    .replace(/arc/g, "a")
-    .replace(/Math./g, "\\\\");
+  .replace(/(\s|_\{[\w]*\})/g, "") 
+  .replace(/{/g, "(") 
+  .replace(/}/g, ")")
+  .replace(/\\\\cdot/g, "*")
+  .replace(/arc/g, "a")
+  .replace(/Math./g, "\\")
+  .replace(/(?<!\\)(tan|sin|cos|binom|frac|asin|acos|atan|sqrt)/g, "\\$1");
     
   
-  function addDebugInfo(msg, value) {
-      debugInfo += `${msg}: ${JSON.stringify(value)}\n`;
+  function addmathInfo(value) {
+    mathInfo += value;
   }
+  function addSolutionInfo(value) {
+    SolutionInfo += value;
+}
   
   //return math;
   function tokenize(math) {
@@ -39,13 +43,13 @@ export function controller(mathExpression) {
           if (math[i] === ')') {
               unmatched--;
               if (unmatched < 0) {
-                  Error.push(`Error: Unmatched closing bracket at position ` + i + `\n`);
+                  Error.push(`Unmatched closing bracket at position ` + i + `\n`);
                   unmatched = 0; 
               }
               brackets--; 
               
               if (brackets < 0) {
-                  Error.push(`Error: More closing brackets than opening brackets at position ` + i + `\n`);
+                  Error.push(`More closing brackets than opening brackets at position ` + i + `\n`);
                   brackets = 0; 
               }
               let ID = levelCount[brackets] - 1;
@@ -146,7 +150,7 @@ export function controller(mathExpression) {
       }
   
       if (unmatched > 0) {
-          Error.push(`Error: Unmatched opening bracket(s)\n`);
+          Error.push(`Unmatched opening bracket(s)\n`);
       }
   
       return { tokens: tokens, math: math };
@@ -165,9 +169,7 @@ export function controller(mathExpression) {
               i--;  
           }
       }
-  
   const num = Number(value);
-  return isNaN(num) ? 0 : num;
   return isNaN(num) ? 0 : num;
   }
   
@@ -295,8 +297,6 @@ export function controller(mathExpression) {
       for (let i = index + 1; i < breakChar; i++) {
           right += tokens[i].value; 
       }
-      //addDebugInfo('right',right);
-  
       return { value: safeToNumber(right), breakChar: breakChar }; 
   }
   function praseVariable(tokens, index) {
@@ -321,7 +321,6 @@ export function controller(mathExpression) {
           left = tokens[i].value + left; 
           variable=tokens[i].variable;
       }
-      //addDebugInfo('left',left)
       return {variable: variable, value: safeToNumber(left), breakChar: breakChar };
   }
   function position(tokens) {
@@ -330,9 +329,7 @@ export function controller(mathExpression) {
       let leftObj, rightObj;
       if (tokens[index].value==='='){
           leftObj = praseVariable(tokens, index);
-          addDebugInfo('leftObj',leftObj)
           rightObj = parseRight(tokens, index);
-          addDebugInfo('rightObj',rightObj)
           return { 
               operator: tokens[index].value, 
               left: leftObj ? leftObj.value : null,
@@ -453,7 +450,7 @@ export function controller(mathExpression) {
   
   function controller(math) {
       
-      addDebugInfo('//math', math);
+    addmathInfo(`${math}\n`);
   
       let tokensArr=tokenize(math);
       let tokens = tokensArr.tokens; 
@@ -461,8 +458,6 @@ export function controller(mathExpression) {
       
       let expression = position(tokens); 
   
-      addDebugInfo('Parsed expression from tokens', expression);
-      // This expression should be in the operator phase
       if (expression === null && !(tokens.some(token => token.type === 'operator' && token.value !== '='))&& tokens.some(token => token.type === 'variable')) 
       {
           return math;
@@ -479,7 +474,7 @@ export function controller(mathExpression) {
           expression.right !== null ?expression.right : null)
       ;
   
-      addDebugInfo('solved', `${expression.left} ${expression.operator} ${expression.right} = ${solved}`)
+      addSolutionInfo(`${expression.left} ${expression.operator} ${expression.right} -> ${solved}\n`)
   
       if (solved === null) {
           return null;  
@@ -494,8 +489,9 @@ export function controller(mathExpression) {
       math = math.slice(0, leftPos) + solved + math.slice(rightPos);
       
       return math!=='true'&&math!=='false'?controller(math):math;
-  }
-      Solution=controller(math);
-
-    return { Solution: Solution, info: debugInfo };
+    }
+    Solution=controller(math);
+    if (Error.length > 0) { return Error; } 
+    else { 
+return { Solution: Solution, info: mathInfo, SolutionInfo: SolutionInfo};}
 }

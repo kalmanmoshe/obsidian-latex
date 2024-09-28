@@ -6,9 +6,6 @@
     padding: 0px; /* Remove extra padding */
 }
 
-
-
-
 /* Flexbox for input and result separation */
 .math-line-container {
     display: flex;
@@ -20,40 +17,44 @@
 
 /* Alternating row colors */
 .math-row-even {
-    background-color: #2a2a2a; /* Darker row background */
+    background-color: #44475A; /* Darker row background */
 }
 
 .math-row-odd {
-    background-color: #262626; /* Slightly lighter row background */
+    background-color: #747688; /* Slightly lighter row background */
 }
 
 /* Input styling (left-aligned) */
 .math-input {
     font-family: "Courier New", monospace; /* Monospaced font for structure */
     font-size: 1em;
-    color: #f8f8f2;
+    color: #ffffff;
     margin-right: 20px;
     flex-grow: 1;
     max-width: 100%; /* Keep the width within the container */
-    
     overflow-x: auto;
+    min-height: 25px;
 }
 
 /* Separated result styling (right-aligned) */
 .math-result-separate {
     display: flex;
-    align-items: center;
-    justify-content: flex-end; /* Align result all the way to the right */
-    background-color: #383838; /* Lighter background for result area */
-    border-left: 1px solid #505050; /* Thin dividing line */
+    justify-content: flex-start;   
+    background-color: #666a86; 
+    border-left: 0.7px solid #dadada; 
     padding-left: 15px; /* Space between result and line */
-    min-width: 200px; /* Ensures the result area is separated */
+    width: 140px;  
+  /*height: 20px;  */
 }
 
 /* Result text */
 .math-result-text {
-    color: #f8f8f2; /* Neutral white for result text */
-    font-weight: 500;
+    color: #ffffff; /* Neutral white for result text */
+    /*font-weight: 500;*/
+    padding-right: 5px;
+}
+.error-text {
+    color: #dd4e4e; 
     padding-right: 5px;
 }
 
@@ -68,15 +69,59 @@
 }
 
 /* Modal / Info Section */
+.column-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.6px; 
+    background-color: rgb(123, 141, 158); 
+    border-radius: 10px;
+}
+  
+  .left-column, .right-column {
+    flex: 1;
+    padding: 15px;
+    background-color: #002B36; /* Background color */
+    color: #f8f8f2; /* Text color */
+  }
+  
+  .left-column {
+    max-width: 60%; /* Make left column wider */
+    border-top-left-radius: 8px;
+    border-bottom-left-radius: 8px;
+    color:  rgb(255, 255, 255);
+    font-size: 120%;
+  }
+  
+  .right-column {
+    max-width: 40%; /* Make right column narrower */
+    border-bottom-right-radius: 8px;
+    border-top-right-radius: 8px;
+    color: rgb(255, 255, 255);
+    font-size: 120%;
+  }
+  
+.custom-modal-style {
+    background-color: #44475a;
+    padding: 20px;
+    border-radius: 10px;
+    overflow-x: auto; /* Allow horizontal scrolling */
+}
+
 .info-section {
-    background-color: #44475a; /* Slightly darker modal background */
+    background-color: #002B36;
     color: #f8f8f2;
     padding: 15px;
     border-radius: 8px;
-    font-size: 0.9em;
+    font-size: 120%;
     font-family: "Courier New", monospace;
+    white-space: nowrap; /* Prevent line breaks */
+    overflow-x: auto; /* Horizontal scroll for long lines */
 }
-
+  .modal-title {
+    color: #007acc;
+    font-size: 1.5em;
+  }
+  
 /* Styling the 🛈 info icon */
 .math-result-icon {
     font-size: 16px;  /* Adjust size */
@@ -88,3 +133,24 @@
 .math-result-icon:hover {
     color: #cccccc;  /* Lighter hover color */
 }
+
+.modal-action-button {
+    padding: 10px 15px;
+    margin: 10px;
+    border: none;
+    border-radius: 5px;
+    background-color: #007acc;
+    color: white;
+    cursor: pointer;
+  }
+  
+  .modal-action-button:hover {
+    background-color: #005fa3;
+  }
+  
+  
+  .button-container {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+  }

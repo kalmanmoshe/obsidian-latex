@@ -1,25 +1,16 @@
-import { Plugin, MarkdownView, MarkdownRenderer , PluginSettingTab, App, Setting, Modal } from 'obsidian';
+import { Plugin, MarkdownView, MarkdownRenderer , PluginSettingTab, App, Setting, Modal,  Notice, Component } from 'obsidian';
 import { controller } from './mathEngine.js';
 
-interface MathPluginSettings {
-  defaultMathEngine: string;
-}
-
-const DEFAULT_SETTINGS: MathPluginSettings = {
-  defaultMathEngine: 'default'
-}
 
 export default class MathPlugin extends Plugin {
-  settings: MathPluginSettings;
 
   async onload() {
-    await this.loadSettings();
 
     this.registerMarkdownCodeBlockProcessor('math-engine', (source, el, ctx) => {
 		const rawSource = String.raw`${source}`;
 		const expressions = rawSource.split('\n');
 
-      expressions.forEach((expression, index) => {
+      	expressions.forEach((expression, index) => {
         const container = el.createEl('div', { cls: 'math-line-container' });
 
         // Add alternating row colors for distinction
@@ -32,95 +23,69 @@ export default class MathPlugin extends Plugin {
         // Display the input (left side)
 		const inputDiv = container.createEl('div', { cls: 'math-input' });
 		const latexExpression = String.raw`${expression}`;
+		const resultDiv = container.createEl('div', { cls: 'math-result-separate' });
+		const result = controller(expression);
+		if (expression.length !== 0) {
 
-		MarkdownRenderer.renderMarkdown(`$\{${latexExpression}\}$`, inputDiv, '', this);
+			MarkdownRenderer.renderMarkdown(`$\{${latexExpression.replace(/(?<!\\)(tan|sin|cos|binom|frac|asin|acos|atan|sqrt)/g, "\\$1")}\}$`,inputDiv,'',this);
+			
+			if (Array.isArray(result) && result.length > 0) {
+				resultDiv.innerHTML = `<span class="error-text">Error: ${result[0]}</span>`;
+		} else if (typeof result === 'object' && !Array.isArray(result)) {
 
+			resultDiv.innerHTML = `<span class="math-result-text">${result.Solution}</span> <span class="math-result-icon">🛈</span>`;
 
-
-
-		const result=controller(expression);
-
-        // Create a separate answer area (right side)
-        const resultDiv = container.createEl('div', { cls: 'math-result-separate' });
-        resultDiv.innerHTML = `<span class="math-result-text">${result.Solution}</span> <span class="math-result-icon">🛈</span>`;
-
-
-        resultDiv.querySelector('.math-result-icon')?.addEventListener('click', () => {
-          new InfoModal(this.app, `${result.info}`).open();
-        });
+			resultDiv.querySelector('.math-result-icon')?.addEventListener('click', () => {
+			new InfoModal(this.app, result.info, result.SolutionInfo).open();
+			});
+		} else {
+			resultDiv.innerHTML = `<span class="error-text">Unexpected result format. Please check your input.</span>`;
+		}
+		}
       });
     });
 
-    this.addSettingTab(new MathSettingTab(this.app, this));
   }
-
   onunload() {}
-
-  processMath(source: string): string {
-    try {
-      const result = "1";  
-      return result.toString();
-    } catch (error) {
-      return `Error: ${error.message}`;
-    }
-  }
-
-  async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-  }
-
-  async saveSettings() {
-    await this.saveData(this.settings);
-  }
 }
 
 // Custom Modal for extra information
 class InfoModal extends Modal {
-	result: string;
-  
-	constructor(app: App, result: string) {
-	  super(app);
-	  this.result = result;
-	}
-  
-	onOpen() {
-	  const { contentEl } = this;
-	  contentEl.createEl('h2', { text: 'Result Details' });
-  
-	  const infoSection = contentEl.createEl('div', { cls: 'info-section' });
-	  
-	  infoSection.innerHTML = `Details:<br>${this.result.replace(/\n/g, '<br>')}`;
-	}
-  
-	onClose() {
-	  const { contentEl } = this;
-	  contentEl.empty();
-	}
-  }
-  
+    result: string;
+    SolutionInfo: string;
+    constructor(app: App, result: string, SolutionInfo: string) {
+        super(app);
+        this.result = result;
+        this.SolutionInfo = SolutionInfo;
+    }
+    onOpen() {
+        const { contentEl } = this;
 
-class MathSettingTab extends PluginSettingTab {
-  plugin: MathPlugin;
+        contentEl.addClass('custom-modal-style');
+        // Render title
+        contentEl.createEl('h2', { text: 'Result Details', cls: 'modal-title' });
 
-  constructor(app: App, plugin: MathPlugin) {
-    super(app, plugin);
-    this.plugin = plugin;
-  }
+        // Create a flex container for two columns
+        const columnContainer = contentEl.createEl('div', { cls: 'column-container' });
 
-  display(): void {
-    const { containerEl } = this;
+        // Left column (e.g., results)
+        const leftColumn = columnContainer.createEl('div', { cls: 'left-column' });
+        leftColumn.innerHTML = `${this.result.replace(/\n/g, '<br>')}`;
 
-    containerEl.empty();
+        // Right column (e.g., actions or additional info)
+        const rightColumn = columnContainer.createEl('div', { cls: 'right-column' });
+        rightColumn.innerHTML = `${this.SolutionInfo.replace(/\n/g, '<br>')}`;
 
-    new Setting(containerEl)
-      .setName('Math Engine')
-      .setDesc('Select the math engine to use for processing.')
-      .addText(text => text
-        .setPlaceholder('Enter engine name')
-        .setValue(this.plugin.settings.defaultMathEngine)
-        .onChange(async (value) => {
-          this.plugin.settings.defaultMathEngine = value;
-          await this.plugin.saveSettings();
-        }));
-  }
+        // Button container
+        const buttonContainer = contentEl.createEl('div', { cls: 'button-container' });
+        const actionButton = buttonContainer.createEl('button', { text: 'Copy Details', cls: 'modal-action-button' });
+        actionButton.addEventListener('click', () => {
+            navigator.clipboard.writeText(this.result);
+            new Notice('Details copied to clipboard!');
+        });
+    }
+    onClose() {
+        const { contentEl } = this;
+        contentEl.empty();
+    }
 }
