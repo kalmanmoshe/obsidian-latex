@@ -7,10 +7,11 @@ export default class MathPlugin extends Plugin {
   async onload() {
 
     this.registerMarkdownCodeBlockProcessor('math-engine', (source, el, ctx) => {
-		const rawSource = String.raw`${source}`;
-		const expressions = rawSource.split('\n');
+      const rawSource = String.raw`${source}`;
+      const expressions = rawSource.split('\n');
+      let lastResult: string | null = null;  // Variable to store result of lines starting with '::'
 
-      	expressions.forEach((expression, index) => {
+      expressions.forEach((expression, index) => {
         const container = el.createEl('div', { cls: 'math-line-container' });
 
         // Add alternating row colors for distinction
@@ -20,34 +21,57 @@ export default class MathPlugin extends Plugin {
           container.addClass('math-row-odd');
         }
 
-        // Display the input (left side)
-		const inputDiv = container.createEl('div', { cls: 'math-input' });
-		const latexExpression = String.raw`${expression}`;
-		const resultDiv = container.createEl('div', { cls: 'math-result-separate' });
-		const result = controller(expression);
-		if (expression.length !== 0) {
+        // Check if the line starts with "::"
+        if (expression.trim().startsWith('::')) {
+          const actualExpression = expression.trim().slice(2).trim(); // Remove the "::" for evaluation
+          const result = controller(actualExpression);  // Evaluate the expression
 
-			MarkdownRenderer.renderMarkdown(`$\{${latexExpression.replace(/(?<!\\)(tan|sin|cos|binom|frac|asin|acos|atan|sqrt)/g, "\\$1")}\}$`,inputDiv,'',this);
-			
-			if (Array.isArray(result) && result.length > 0) {
-				resultDiv.innerHTML = `<span class="error-text">Error: ${result[0]}</span>`;
-		} else if (typeof result === 'object' && !Array.isArray(result)) {
+          if (typeof result === 'object' && !Array.isArray(result)) {
+            lastResult = result.Solution;  // Store the solution for future lines
+          } else {
+            lastResult = null;  // Reset if result is not an object
+          }
+        }
 
-			resultDiv.innerHTML = `<span class="math-result-text">${result.Solution}</span> <span class="math-result-icon">🛈</span>`;
+        const inputDiv = container.createEl('div', { cls: 'math-input' });
+        const resultDiv = container.createEl('div', { cls: 'math-result-separate' });
+        const result = controller(expression);
 
-			resultDiv.querySelector('.math-result-icon')?.addEventListener('click', () => {
-			new InfoModal(this.app, result.info, result.SolutionInfo).open();
-			});
-		} else {
-			resultDiv.innerHTML = `<span class="error-text">Unexpected result format. Please check your input.</span>`;
-		}
-		}
+        // Render input expression as LaTeX
+        MarkdownRenderer.renderMarkdown(`$\{${expression.replace(/(?<!\\)(tan|sin|cos|binom|frac|asin|acos|atan|sqrt)/g, "\\$1")}\}$`, inputDiv, '', this);
+
+        if (Array.isArray(result) && result.length > 0) {
+          resultDiv.innerHTML = `<span class="error-text">Error: ${result[0]}</span>`;
+        } else if (typeof result === 'object' && !Array.isArray(result)) {
+          resultDiv.innerHTML = `<span class="math-result-text">${result.Solution}</span> <span class="math-result-icon">🛈</span> <span class="math-debug-icon">🐞</span>`;
+
+          resultDiv.querySelector('.math-result-icon')?.addEventListener('click', () => {
+            new InfoModal(this.app, result.info, result.SolutionInfo).open();
+          });
+
+          resultDiv.querySelector('.math-debug-icon')?.addEventListener('click', () => {
+            new DebugModal(this.app, result.debugInfo).open();
+          });
+        } else {
+          resultDiv.innerHTML = `<span class="error-text">Unexpected result format. Please check your input.</span>`;
+        }
+
+        // If the line does not start with "::", compare its result with the last stored result
+        if (!expression.trim().startsWith('::') && lastResult !== null) {
+          if (typeof result === 'object' && !Array.isArray(result) && result.Solution !== lastResult) {
+            container.addClass('math-error-line');  // Add a class to color the line red
+          }
+        }
+
+        container.appendChild(resultDiv);
       });
     });
-
   }
+
   onunload() {}
 }
+
+
 
 // Custom Modal for extra information
 class InfoModal extends Modal {
@@ -88,4 +112,29 @@ class InfoModal extends Modal {
         const { contentEl } = this;
         contentEl.empty();
     }
+}
+
+// Custom Modal for debugging information
+class DebugModal extends Modal {
+  debugInfo: string;
+  constructor(app: App, debugInfo: string) {
+      super(app);
+      this.debugInfo = debugInfo;
+  }
+  onOpen() {
+      const { contentEl } = this;
+
+      contentEl.addClass('custom-modal-style');
+      // Render title
+      contentEl.createEl('h2', { text: 'Debug Information', cls: 'modal-title' });
+
+      // Debug information display
+      const debugContent = contentEl.createEl('div', { cls: 'debug-info-container' });
+      MarkdownRenderer.renderMarkdown(`\`\`\`js\n${this.debugInfo}\n\`\`\``, debugContent, '', new Component());
+
+  }
+  onClose() {
+      const { contentEl } = this;
+      contentEl.empty();
+  }
 }

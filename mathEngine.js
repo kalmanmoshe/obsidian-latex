@@ -2,17 +2,22 @@ export function controller(mathExpression) {
     let Error = [];
     let mathInfo = ''; 
     let SolutionInfo = ''; 
+    let debugInfo = ''; 
 
+    addDebugInfo('mathExpression',mathExpression);
     let math = `${mathExpression}`
-  .replace(/(\s|_\{[\w]*\})/g, "") 
+  .replace(/(\s|_\{[\w]*\}|:)/g, "") 
   .replace(/{/g, "(") 
   .replace(/}/g, ")")
-  .replace(/\\\\cdot/g, "*")
+  .replace(/\\cdot/g, "*")
   .replace(/arc/g, "a")
   .replace(/Math./g, "\\")
   .replace(/(?<!\\)(tan|sin|cos|binom|frac|asin|acos|atan|sqrt)/g, "\\$1");
-    
-  
+
+  addDebugInfo('math',math)
+  function addDebugInfo(msg, value) {
+    debugInfo += `${msg}: ${JSON.stringify(value)}\n`;
+}
   function addmathInfo(value) {
     mathInfo += value;
   }
@@ -454,10 +459,11 @@ export function controller(mathExpression) {
   
       let tokensArr=tokenize(math);
       let tokens = tokensArr.tokens; 
+      addDebugInfo('tokens',tokens)
       math=tokensArr.math;
       
       let expression = position(tokens); 
-  
+      addDebugInfo('expression',expression)
       if (expression === null && !(tokens.some(token => token.type === 'operator' && token.value !== '='))&& tokens.some(token => token.type === 'variable')) 
       {
           return math;
@@ -493,5 +499,5 @@ export function controller(mathExpression) {
     Solution=controller(math);
     if (Error.length > 0) { return Error; } 
     else { 
-return { Solution: Solution, info: mathInfo, SolutionInfo: SolutionInfo};}
+return { Solution: Solution, info: mathInfo, SolutionInfo: SolutionInfo, debugInfo:debugInfo};}
 }
