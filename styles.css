@@ -154,3 +154,9 @@
     justify-content: space-between;
     margin-top: 20px;
   }
+  .math-error-line {
+    border: 2px solid red;  /* Red border around the line */
+    padding: 4px;  /* Optional padding to make the border stand out */
+    border-radius: 4px;  /* Rounded corners to make it look smoother */
+  }
+  
