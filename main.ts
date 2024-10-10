@@ -8,11 +8,14 @@ export default class MathPlugin extends Plugin {
 
     this.registerMarkdownCodeBlockProcessor('math-engine', (source, el, ctx) => {
       const rawSource = String.raw`${source}`;
-      const expressions = rawSource.split('\n');
+      let expressions = rawSource.split('\n').filter(line => line.trim() !== '');
+      if (expressions.length === 0) {
+        expressions = ['0']; 
+      }
       let lastResult: string | null = null;  // Variable to store result of lines starting with '::'
-
+      
       expressions.forEach((expression, index) => {
-        const container = el.createEl('div', { cls: 'math-line-container' });
+      const container = el.createEl('div', { cls: 'math-line-container' });
 
         // Add alternating row colors for distinction
         if (index % 2 === 0) {
@@ -21,32 +24,35 @@ export default class MathPlugin extends Plugin {
           container.addClass('math-row-odd');
         }
 
-        // Check if the line starts with "::"
         if (expression.trim().startsWith('::')) {
-          const actualExpression = expression.trim().slice(2).trim(); // Remove the "::" for evaluation
+          const actualExpression = expression.trim().slice(2).trim(); 
           const result = controller(actualExpression);  // Evaluate the expression
 
           if (typeof result === 'object' && !Array.isArray(result)) {
-            lastResult = result.Solution;  // Store the solution for future lines
+            lastResult = result.solution;  // Store the solution for future lines
           } else {
             lastResult = null;  // Reset if result is not an object
           }
         }
-
+        
         const inputDiv = container.createEl('div', { cls: 'math-input' });
-        const resultDiv = container.createEl('div', { cls: 'math-result-separate' });
+        const resultDiv = container.createEl('div', { cls: 'math-result' });
         const result = controller(expression);
-
+        
         // Render input expression as LaTeX
-        MarkdownRenderer.renderMarkdown(`$\{${expression.replace(/(?<!\\)(tan|sin|cos|binom|frac|asin|acos|atan|sqrt)/g, "\\$1")}\}$`, inputDiv, '', this);
+        MarkdownRenderer.renderMarkdown(`$\{${expression.replace(/(?<!\\|[a-z])(tan|sin|cos|binom|frac|asin|acos|atan|sqrt)/g, "\\\\$1")}\}$`, inputDiv, '', this);
 
-        if (Array.isArray(result) && result.length > 0) {
-          resultDiv.innerHTML = `<span class="error-text">Error: ${result[0]}</span>`;
+        if (Array.isArray(result) && result) {
+          resultDiv.innerHTML = `<span class="error-text">${result[0]}</span>`;
         } else if (typeof result === 'object' && !Array.isArray(result)) {
-          resultDiv.innerHTML = `<span class="math-result-text">${result.Solution}</span> <span class="math-result-icon">🛈</span> <span class="math-debug-icon">🐞</span>`;
-
-          resultDiv.querySelector('.math-result-icon')?.addEventListener('click', () => {
-            new InfoModal(this.app, result.info, result.SolutionInfo).open();
+          resultDiv.innerHTML = `
+          <div class="math-result-text">${result.solution}</div>
+          <div class="math-icons">
+            <span class="math-info-icon">🛈</span>
+            <span class="math-debug-icon">🐞</span>
+          </div>`;
+          resultDiv.querySelector('.math-info-icon')?.addEventListener('click', () => {
+            new InfoModal(this.app, result.info, result.solutionInfo).open();
           });
 
           resultDiv.querySelector('.math-debug-icon')?.addEventListener('click', () => {
@@ -58,7 +64,7 @@ export default class MathPlugin extends Plugin {
 
         // If the line does not start with "::", compare its result with the last stored result
         if (!expression.trim().startsWith('::') && lastResult !== null) {
-          if (typeof result === 'object' && !Array.isArray(result) && result.Solution !== lastResult) {
+          if (typeof result === 'object' && !Array.isArray(result) && result.solution !== lastResult) {
             container.addClass('math-error-line');  // Add a class to color the line red
           }
         }
@@ -83,31 +89,40 @@ class InfoModal extends Modal {
         this.SolutionInfo = SolutionInfo;
     }
     onOpen() {
-        const { contentEl } = this;
-
-        contentEl.addClass('custom-modal-style');
-        // Render title
-        contentEl.createEl('h2', { text: 'Result Details', cls: 'modal-title' });
-
-        // Create a flex container for two columns
-        const columnContainer = contentEl.createEl('div', { cls: 'column-container' });
-
-        // Left column (e.g., results)
-        const leftColumn = columnContainer.createEl('div', { cls: 'left-column' });
-        leftColumn.innerHTML = `${this.result.replace(/\n/g, '<br>')}`;
-
-        // Right column (e.g., actions or additional info)
-        const rightColumn = columnContainer.createEl('div', { cls: 'right-column' });
-        rightColumn.innerHTML = `${this.SolutionInfo.replace(/\n/g, '<br>')}`;
-
-        // Button container
-        const buttonContainer = contentEl.createEl('div', { cls: 'button-container' });
-        const actionButton = buttonContainer.createEl('button', { text: 'Copy Details', cls: 'modal-action-button' });
-        actionButton.addEventListener('click', () => {
-            navigator.clipboard.writeText(this.result);
-            new Notice('Details copied to clipboard!');
-        });
-    }
+      const { contentEl } = this;
+      contentEl.addClass('info-modal-style');
+      contentEl.createEl('h2', { text: 'Result Details', cls: 'info-modal-title' });
+  
+      const columnContainer = contentEl.createEl('div', { cls: 'info-modal-main-container' });
+  
+      // Split the result and solution into lines
+      const resultLines = this.result.split('\n');
+      const solutionLines = this.SolutionInfo.split('\n');
+      resultLines.pop()
+      resultLines.forEach((line, index) => {
+          const lineContainer = columnContainer.createEl('div', { cls: 'info-modal-line-container' });
+  
+          // Left column line (result)
+          const leftLine = lineContainer.createEl('div', { cls: 'info-modal-left-line' });
+          MarkdownRenderer.renderMarkdown(`\$\\begin{aligned}&${line}\\end{aligned}\$`, leftLine, '', new Component());
+  
+          // Right column line (solution)
+          const rightLine = lineContainer.createEl('div', { cls: 'info-modal-right-line' });
+          MarkdownRenderer.renderMarkdown(`\$\\begin{aligned}&${solutionLines[index] || ''}\\end{aligned}\$`, rightLine, '', new Component());
+          //rightLine.innerHTML = `${solutionLines[index] || ''}`; // Ensure that if solutionLines is shorter, it adds an empty line
+      });
+  
+      // Button container
+      const buttonContainer = contentEl.createEl('div', { cls: 'info-modal-Copy-button-container' });
+      const actionButton = buttonContainer.createEl('button', { text: 'Copy Details', cls: 'info-modal-Copy-button' });
+      
+      actionButton.addEventListener('click', () => {
+          navigator.clipboard.writeText(this.result);
+          new Notice('Details copied to clipboard!');
+      });
+  }
+  
+  
     onClose() {
         const { contentEl } = this;
         contentEl.empty();
@@ -126,7 +141,7 @@ class DebugModal extends Modal {
 
       contentEl.addClass('custom-modal-style');
       // Render title
-      contentEl.createEl('h2', { text: 'Debug Information', cls: 'modal-title' });
+      contentEl.createEl('h2', { text: 'Debug Information', cls: 'debug-Modal-title' });
 
       // Debug information display
       const debugContent = contentEl.createEl('div', { cls: 'debug-info-container' });
