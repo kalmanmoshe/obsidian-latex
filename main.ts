@@ -12,7 +12,7 @@ export default class MathPlugin extends Plugin {
       if (expressions.length === 0) {
         expressions = ['0']; 
       }
-      let lastResult: string | null = null;  // Variable to store result of lines starting with '::'
+      let lastResult: string | null = null;  
       
       expressions.forEach((expression, index) => {
       const container = el.createEl('div', { cls: 'math-line-container' });
