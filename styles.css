@@ -1,162 +1,190 @@
-/* Overall Container */
-.math-container {
-    background-color: #1e1e1e; /* Darker background for sleek look */
-    border-radius: 6px;
-    margin-bottom: 8px;
-    padding: 0px; /* Remove extra padding */
-}
-
-/* Flexbox for input and result separation */
+/* main 
+math-line-container
+math-row-even
+math-row-odd
+math-input
+math-result
+error-text
+math-result-text
+math-info-icon
+math-debug-icon
+math-error-line
+*/
 .math-line-container {
     display: flex;
-    justify-content: space-between; /* Input on left, result on right */
+    justify-content: space-between; 
     align-items: center;
-    padding: 4px 6px; /* Tight padding for modern look */
     font-size: 0.95em;
+    padding: 5px 20px 5px 20px;
 }
-
-/* Alternating row colors */
 .math-row-even {
-    background-color: #44475A; /* Darker row background */
+    background-color: #44475A; 
 }
-
 .math-row-odd {
-    background-color: #747688; /* Slightly lighter row background */
+    background-color: #747688; 
 }
 
-/* Input styling (left-aligned) */
 .math-input {
     font-family: "Courier New", monospace; /* Monospaced font for structure */
     font-size: 1em;
     color: #ffffff;
-    margin-right: 20px;
     flex-grow: 1;
-    max-width: 100%; /* Keep the width within the container */
+    max-width: 100%; 
     overflow-x: auto;
-    min-height: 25px;
 }
 
-/* Separated result styling (right-aligned) */
-.math-result-separate {
-    display: flex;
-    justify-content: flex-start;   
-    background-color: #666a86; 
-    border-left: 0.7px solid #dadada; 
-    padding-left: 15px; /* Space between result and line */
-    width: 140px;  
-  /*height: 20px;  */
+.math-result {
+  display: flex;
+  justify-content: space-between; 
+  align-items: center;            
+  background-color: #666a86; 
+  border-left: 0.7px solid #dadada; 
+  padding: 0px 15px;
+  width: 30%;               
+  border-radius: 0px;  
 }
 
-/* Result text */
 .math-result-text {
-    color: #ffffff; /* Neutral white for result text */
-    /*font-weight: 500;*/
-    padding-right: 5px;
+  color: #ffffff;         
+  padding-right: 10px;
+  flex-grow: 1;
 }
+
 .error-text {
-    color: #dd4e4e; 
-    padding-right: 5px;
+  color: #dd4e4e;
+  padding-right: 10px;
 }
 
-/* Subtle magnifying glass icon */
-.math-result-icon {
-    color: #999999; /* Neutral gray for the icon */
-    cursor: pointer;
+.math-icons {
+  display: flex;
+  align-items: center;
+  gap: 5px; 
 }
 
-.math-result-icon:hover {
-    color: #cccccc; /* Light gray hover effect */
+.math-info-icon, .math-debug-icon {
+  font-size: 16px;                
+  color: #999999; 
+  cursor: pointer;
+  transition: color 0.2s ease-in;  
 }
 
-/* Modal / Info Section */
-.column-container {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.6px; 
-    background-color: rgb(123, 141, 158); 
-    border-radius: 10px;
+.math-info-icon:hover, .math-debug-icon:hover {
+  color: #cccccc; 
 }
-  
-  .left-column, .right-column {
-    flex: 1;
-    padding: 15px;
-    background-color: #002B36; /* Background color */
-    color: #f8f8f2; /* Text color */
+
+.math-error-line {
+  border: 2px solid red;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+
+
+
+
+
+
+/* 
+info modal:
+info-modal-style
+info-modal-title
+info-modal-main-container_???
+info-modal-line-container
+info-modal-left-line
+info-modal-right-line
+info-modal-Copy-button-container_???
+info-modal-Copy-button
+
+*/
+.info-modal-style {
+  background-color: #44475a;
+  padding: 20px;
+  border-radius: 10px;
+  overflow-x: auto; 
+} 
+
+.info-modal-title {
+color: #007acc;
+font-size: 1.5em;
+}
+.info-modal-main-container{
+  background-color: #002B36;
+  border: 0.2px solid gray;
+  border-radius: 10px;
+}
+.info-modal-line-container {
+  display: flex;
+  justify-content: space-evenly;
+  overflow-x: auto;
+  width: 100%;
+  border-bottom: 0.2px solid gray;
   }
-  
-  .left-column {
-    max-width: 60%; /* Make left column wider */
-    border-top-left-radius: 8px;
-    border-bottom-left-radius: 8px;
-    color:  rgb(255, 255, 255);
-    font-size: 120%;
-  }
-  
-  .right-column {
-    max-width: 40%; /* Make right column narrower */
-    border-bottom-right-radius: 8px;
-    border-top-right-radius: 8px;
-    color: rgb(255, 255, 255);
-    font-size: 120%;
-  }
-  
-.custom-modal-style {
-    background-color: #44475a;
-    padding: 20px;
-    border-radius: 10px;
-    overflow-x: auto; /* Allow horizontal scrolling */
-}
 
-.info-section {
-    background-color: #002B36;
-    color: #f8f8f2;
-    padding: 15px;
-    border-radius: 8px;
-    font-size: 120%;
-    font-family: "Courier New", monospace;
-    white-space: nowrap; /* Prevent line breaks */
-    overflow-x: auto; /* Horizontal scroll for long lines */
-}
-  .modal-title {
-    color: #007acc;
-    font-size: 1.5em;
-  }
   
-/* Styling the 🛈 info icon */
-.math-result-icon {
-    font-size: 16px;  /* Adjust size */
-    color: #999999;   /* Subtle gray color */
-    cursor: pointer;
-    margin-left: 10px; /* Space between result and icon */
-}
+  .info-modal-right-line {
+    width: auto;  
+    padding: 5px; 
+  }
 
-.math-result-icon:hover {
-    color: #cccccc;  /* Lighter hover color */
-}
+  .info-modal-left-line,
+  .info-modal-right-line {
+  width: auto;  
+  padding: 5px;  
+  }
 
-.modal-action-button {
+  .info-modal-Copy-button {
     padding: 10px 15px;
     margin: 10px;
     border: none;
     border-radius: 5px;
-    background-color: #007acc;
     color: white;
     cursor: pointer;
   }
-  
-  .modal-action-button:hover {
-    background-color: #005fa3;
+  .info-modal-Copy-button:hover{
+    background-color: #007acc;
   }
-  
-  
-  .button-container {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 20px;
-  }
-  .math-error-line {
-    border: 2px solid red;  /* Red border around the line */
-    padding: 4px;  /* Optional padding to make the border stand out */
-    border-radius: 4px;  /* Rounded corners to make it look smoother */
-  }
-  
+
+/*
+  debug modal:
+  debug-Modal-title_???
+  debug-info-container_???
+*/
+
+/*
+.info-section {
+  background-color: #002B36;
+  color: #f8f8f2;
+  padding: 15px;
+  border-radius: 8px;
+  font-size: 120%;
+  font-family: "Courier New", monospace;
+  white-space: nowrap; 
+  overflow-x: auto; 
+}
+
+
+/*
+.modal-action-button:hover {
+  background-color: #005fa3;
+}*/
+
+/*
+.button-container {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}*/
+
+/*
+*/
+
+/* The new stuff
+.custom-modal-style {
+  width: 80%;
+  padding: 20px;
+}*/
+
+/*.column-container {
+  display: flex;
+  flex-direction: column;
+}
