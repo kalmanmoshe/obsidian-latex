@@ -1,3 +1,9 @@
 {
-  "mySetting": "defaultws"
+  "background": "#62657a",
+  "evenRowBackground": "#62657a",
+  "oddRowBackground": "#747688",
+  "infoModalBackground": "#002B36",
+  "fontSize": "0.85em",
+  "rowPadding": "0px 0px",
+  "iconSize": "14px"
 }
