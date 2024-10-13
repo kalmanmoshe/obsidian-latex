@@ -1,190 +1,106 @@
-/* main 
-math-line-container
-math-row-even
-math-row-odd
-math-input
-math-result
-error-text
-math-result-text
-math-info-icon
-math-debug-icon
-math-error-line
-*/
-.math-line-container {
-    display: flex;
-    justify-content: space-between; 
-    align-items: center;
-    font-size: 0.95em;
-    padding: 5px 20px 5px 20px;
-}
-.math-row-even {
-    background-color: #44475A; 
-}
-.math-row-odd {
-    background-color: #747688; 
-}
-
-.math-input {
-    font-family: "Courier New", monospace; /* Monospaced font for structure */
-    font-size: 1em;
-    color: #ffffff;
-    flex-grow: 1;
-    max-width: 100%; 
-    overflow-x: auto;
-}
-
-.math-result {
-  display: flex;
-  justify-content: space-between; 
-  align-items: center;            
-  background-color: #666a86; 
-  border-left: 0.7px solid #dadada; 
-  padding: 0px 15px;
-  width: 30%;               
-  border-radius: 0px;  
-}
-
-.math-result-text {
-  color: #ffffff;         
-  padding-right: 10px;
-  flex-grow: 1;
-}
-
-.error-text {
-  color: #dd4e4e;
-  padding-right: 10px;
-}
-
-.math-icons {
-  display: flex;
-  align-items: center;
-  gap: 5px; 
-}
-
-.math-info-icon, .math-debug-icon {
-  font-size: 16px;                
-  color: #999999; 
-  cursor: pointer;
-  transition: color 0.2s ease-in;  
-}
-
-.math-info-icon:hover, .math-debug-icon:hover {
-  color: #cccccc; 
-}
-
-.math-error-line {
-  border: 2px solid red;
-  padding: 4px;
-  border-radius: 4px;
-}
-
-
-
-
-
-
-
-/* 
-info modal:
-info-modal-style
-info-modal-title
-info-modal-main-container_???
-info-modal-line-container
-info-modal-left-line
-info-modal-right-line
-info-modal-Copy-button-container_???
-info-modal-Copy-button
-
-*/
-.info-modal-style {
-  background-color: #44475a;
-  padding: 20px;
-  border-radius: 10px;
-  overflow-x: auto; 
-} 
-
-.info-modal-title {
-color: #007acc;
-font-size: 1.5em;
-}
-.info-modal-main-container{
-  background-color: #002B36;
-  border: 0.2px solid gray;
-  border-radius: 10px;
-}
-.info-modal-line-container {
-  display: flex;
-  justify-content: space-evenly;
-  overflow-x: auto;
-  width: 100%;
-  border-bottom: 0.2px solid gray;
-  }
-
-  
-  .info-modal-right-line {
-    width: auto;  
-    padding: 5px; 
-  }
-
-  .info-modal-left-line,
-  .info-modal-right-line {
-  width: auto;  
-  padding: 5px;  
-  }
-
-  .info-modal-Copy-button {
-    padding: 10px 15px;
-    margin: 10px;
-    border: none;
-    border-radius: 5px;
-    color: white;
-    cursor: pointer;
-  }
-  .info-modal-Copy-button:hover{
-    background-color: #007acc;
-  }
-
-/*
-  debug modal:
-  debug-Modal-title_???
-  debug-info-container_???
-*/
-
-/*
-.info-section {
-  background-color: #002B36;
-  color: #f8f8f2;
-  padding: 15px;
+/* General Styles for the Plugin */
+.math-container {
+  background-color: var(--background, #62657A);
+  padding: 10px;
   border-radius: 8px;
-  font-size: 120%;
-  font-family: "Courier New", monospace;
-  white-space: nowrap; 
-  overflow-x: auto; 
+  font-size: var(--font-size, 0.85em);
 }
 
-
-/*
-.modal-action-button:hover {
-  background-color: #005fa3;
-}*/
-
-/*
-.button-container {
+/* Line Container Styling */
+.math-line-container {
   display: flex;
   justify-content: space-between;
-  margin-top: 20px;
-}*/
+  align-items: center;
+  padding: var(--row-padding, 5px 10px);
+  border-bottom: 1px solid #ddd;
+}
 
-/*
-*/
+/* Alternating Row Styles */
+.math-row-even {
+  background-color: var(--even-row-background, #f9f9f9);
+}
 
-/* The new stuff
-.custom-modal-style {
-  width: 80%;
-  padding: 20px;
-}*/
+.math-row-odd {
+  background-color: var(--odd-row-background, #747688);
+}
 
-/*.column-container {
+/* Error Row Styling */
+.math-error-line {
+  background-color: #ffebeb;
+  color: #b00020;
+}
+
+/* Input and Result Container Styling */
+.math-input, .math-result {
+  flex: 1;
+  margin-right: 10px;
+  padding: 5px;
+  border-radius: 5px;
+}
+
+/* Styling for Icons */
+.math-icons {
   display: flex;
-  flex-direction: column;
+  gap: 8px;
+  font-size: var(--icon-size, 14px);
+  cursor: pointer;
+}
+
+/* Custom Modal Styles */
+.info-modal-style, .custom-modal-style {
+  background-color: var(--background, #62657A);
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.info-modal-title, .debug-Modal-title {
+  font-size: 1.2em;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+/* Modal Line Container */
+.info-modal-line-container {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+/* Modal Left and Right Column Styling */
+.info-modal-left-line, .info-modal-right-line {
+  width: 45%;
+  background-color: var(--info-modal-column--background,#002B36);
+  padding: 8px;
+  border-radius: 5px;
+}
+
+/* Button Container */
+.info-modal-Copy-button-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 15px;
+}
+
+.info-modal-Copy-button {
+  background-color: #534caf;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.info-modal-Copy-button:hover {
+  background-color: #45a049;
+}
+
+/* Debug Information Container */
+.debug-info-container {
+  background-color: var(--background, #62657A);
+  padding: 15px;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 0.9em;
+  white-space: pre-wrap;
 }
