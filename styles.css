@@ -64,15 +64,17 @@
 .info-modal-line-container {
   display: flex;
   justify-content: space-between;
-  padding: 8px 0;
+  padding: 5px 5;
+  background-color: var(--info-modal-column--background,#002B36);
+  border-radius: 10px;
 }
 
 /* Modal Left and Right Column Styling */
 .info-modal-left-line, .info-modal-right-line {
-  width: 45%;
+  /*width: 45%;*/
   background-color: var(--info-modal-column--background,#002B36);
-  padding: 8px;
-  border-radius: 5px;
+  padding: 0px;
+  border-radius: 0px;
 }
 
 /* Button Container */
@@ -92,7 +94,7 @@
 }
 
 .info-modal-Copy-button:hover {
-  background-color: #45a049;
+  background-color: #534caf;
 }
 
 /* Debug Information Container */
