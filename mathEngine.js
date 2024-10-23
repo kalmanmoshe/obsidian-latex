@@ -1,3 +1,4 @@
+const settings = require('./data.json');
 export function controller(mathExpression) {
     
 let processedinput='',  debugInfo = '', mathInfo = [], solutionInfo=[] 
@@ -6,16 +7,18 @@ let latex = String.raw``;
 function addDebugInfo(msg, value) {
     debugInfo += (typeof msg==="object"?JSON.stringify(msg):msg)+` : `+(typeof value==="object"?JSON.stringify(value):value)+ `\n `;
 }
-//error
+
+
 let math = `${mathExpression}`
-  .replace(/(\s|_\{[\w]*\})/g, "") 
-  .replace(/{/g, "(") 
-  .replace(/}/g, ")")
-  .replace(/(\\cdot|cdot)/g, "*")
-  .replace(/Math./g, "\\")
-  .replace(/(?<!\\|[a-zA-Z])(tan|sin|cos|binom|frac|asin|acos|atan|arccos|arcsin|arctan|cdot)/g, "\\$1");
-  
-//addDebugInfo(`//math`,math)
+.replace(/(\s)/g, "") 
+.replace(/{/g, "(") 
+.replace(/}/g, ")")
+.replace(/(\\cdot|cdot)/g, "*")
+.replace(/Math./g, "\\")
+.replace(/(?<!\\|[a-zA-Z])(tan|sin|cos|binom|frac|asin|acos|atan|arccos|arcsin|arctan|cdot)/g, "\\$1");
+
+addDebugInfo(math)
+
 
 let tokens = [];
 let brackets = 0,  levelCount = {};
@@ -24,17 +27,21 @@ for (let i = 0; i < math.length; i++) {
     j++;
     if(j>500){break;}
     let number=0,  startPos = i,vari='';
-    if (/[+-]/.test(math[i])||i+math.slice(i).search(/[0-9.]+([a-zA-Z])/)===i){continue;}
-    // Multiplication before parentheses
+
+    if(/[(\\]/.test(math[i])&&i>0){
+        const beforeParentheses=/(number|variable|powVariable)/.test(tokens[tokens.length-1].type)
+        
+        const lastIndex = tokens.map(token => token.id).indexOf(tokens[tokens.length - 1].id) - 1;
+        const betweenParentheses=math[i-1] === ')'&&(lastIndex<0||!/(frac|binom|)/.test(tokens[lastIndex].value))
+        
+        if ((tokens.length-1>=0&&beforeParentheses)||(betweenParentheses)) {
+            if(math[i-1]==='-'){math = math.slice(0, i)+ '1' +math.slice(i)}
+            tokens.push({ type: 'operator', value: '*', index: tokens.length?tokens.length:0 });
+            if(math[i+1]==='-'){math = math.slice(0, i)+ '1' +math.slice(i)}
+        }
+    }
+
     if (math[i] === '(') {
-        if (tokens.length-1>=0&&/(number|variable)/.test(tokens[tokens.length-1].type)&&math[i-1]&&!/[+-=]/.test(math[i-1])) {
-            math = math.slice(0, i) + '*' + math.slice(i);
-            i--; continue;
-        }
-        else if(i>0&&math[i-1]==='-'){
-            math = math.slice(0, i-1) + '-1*' + math.slice(i);
-            i-=2; continue;
-        }
         if (!levelCount[brackets]) {
             levelCount[brackets] = 0;
         }
@@ -45,33 +52,20 @@ for (let i = 0; i < math.length; i++) {
     }
     if (math[i] === ')') {
         brackets--; 
-        
         if (brackets < 0) {
             throw new Error("Unmatched closing bracket at position");
-            brackets = 0; 
         }
         let ID = levelCount[brackets] - 1;
         tokens.push({ type: 'paren', value: ')', id: brackets + '.' + (ID >= 0 ? ID : 0), index: tokens.length });
-        // Multiplication between parentheses. and multiplication after parentheses
-        const lastIndex = tokens.map(token => token.id).indexOf(tokens[tokens.length - 1].id) - 1;
-        if ((math[i+1] === '('&&(lastIndex<0||!/(frac|binom)/.test(tokens[lastIndex].value)))
-            ||(i+1<math.length&&/[0-9A-Za-z.]/.test(math[i+1]))) {
-        math = math.slice(0, i+1) + '*' + math.slice(i+1);
-        }
-        else if(i+1<math.length&&math[i+1]==='-'){
-            math = math.slice(0, i+1) + '*-1' + math.slice(i+1);
+        
+        if (i+1<math.length&&/[0-9A-Za-z.]/.test(math[i+1]))
+        {
+            math = math.slice(0, i+1) + '*' + math.slice(i+1);
         }
         continue;
     }
-    if (/[\*\/^=]/.test(math[i])) {
-        tokens.push({ type: 'operator', value: math[i], index: tokens.length?tokens.length:0 });
-        continue;
-    }
-    if (math[i] === '\\') {  
-        if (i!==0&&math.length>0&&!/[-+]/.test(math[i-1])&&/[1-9A-Za-z]/.test(math[i-1])) {
-            math = math.slice(0, i) + '*' + math.slice(i);
-            i--; continue;
-        }
+
+    if (math[i] === '\\') {
         i+=1;  
         let operator = (math.slice(i).match(/[a-zA-Z]+/) || [""])[0]
         
@@ -85,27 +79,20 @@ for (let i = 0; i < math.length; i++) {
         i--;
         continue;
     }
-
-    if (i+math.slice(i).search(/[0-9.]+(?![a-zA-Z])/)===i)
+    let match = math.slice(i).match(/^([0-9.]+)([a-zA-Z]?)/);
+    if (match&&!match[2])
     {
-        number=(math.slice(i).match(/[0-9.]+(?![a-zA-Z])/)||0)[0]
-
+        number=match[0]
         i+=number.length>1?number.length-1:0;
         if(/[+-]/.test(math[startPos-1])){number=math[startPos-1]+number}
         
-        
         if (math[i+1]&&/[a-zA-Z]/.test(math[i+1])){continue;}
-        if (1===2&&math[startPos-1] === ')') {
-            
-            math = math.slice(0, startPos) + '*' + math.slice(startPos);  
-            i++;
-        }
         tokens.push({ type: 'number', value: parseFloat(number), index: tokens.length?tokens.length:0 });
         continue;
     }
     
     if (/[a-zA-Z]/.test(math[i])) {
-        vari= (math.slice(i).match(/[a-zA-Z]+/) || [""])[0];
+        vari= (math.slice(i).match(/[a-zA-Z]+(_\([a-zA-Z0-9]*\))*/) || [""])[0];
         if (vari&&vari.length===0){vari=math.slice(i,math.length)}
         number=math.slice(i+vari.length,vari.length+i+math.slice(i+vari.length).search(/[^0-9]/))
         
@@ -113,15 +100,20 @@ for (let i = 0; i < math.length; i++) {
         number=safeToNumber(number.length>0?number:1);
         if (/[0-9]/.test(math[startPos>0?startPos-1:0])&&tokens)
         {
-            number=(math.slice(0,startPos).match(/[0-9]+(?=[^0-9]*$)/)|| [""])[0];
+            number=(math.slice(0,startPos).match(/[0-9.]+(?=[^0-9.]*$)/)|| [""])[0];
             number=math[startPos-number.length-1]&&math[startPos-number.length-1]==='-'?'-'+number:number;
         }
         else if(/[-]/.test(math[startPos-1])){number=math[startPos-1]+number}
-        tokens.push({type: 'variable',variable: vari,value: safeToNumber(number), index: tokens.length});
+        tokens.push({type: 'variable',variable: vari.replace('(','{').replace(')','}'),value: safeToNumber(number), index: tokens.length});
         
         continue;
     }
-    throw new Error("Unknown char \"${math[i]}\"");
+    if (/[\*\/\^=]/.test(math[i])||(!/[a-zA-Z0-9]/.test(math[i+1])&&/[+-]/.test(math[i]))) {
+        tokens.push({ type: 'operator', value: math[i], index: tokens.length?tokens.length:0 });
+        continue;
+    }
+    if (/[+-]/.test(math[i])){continue;}
+    //throw new Error(`Unknown char \"${math[i]}\"`);
 }
 
 if (brackets!==0)
@@ -342,18 +334,17 @@ function position(tokens,index) {
 }
 
 function parse(tokens,operator,specialChar, left, leftVar, right, rightVar,rightPow) {
-    if (!left&&!/(sqrt|cos|sin|tan)/.test(operator)) {
+    if (typeof operator==='string'&&typeof right!==`number`&&!/(sqrt|cos|sin|tan)/.test(operator)) {
         throw new Error(`Left side of `+operator+` must have a value`);
-        return null;
     }
-    if (!right) {
+    if (typeof operator==='string'&&typeof right!==`number`) {
         throw new Error(`Right side of `+operator+` must have a value`);
-        return null;
     }
     //const readyForFinalPraising = tokens.every(token => !/(operator)/.test(token.type)||/(=)/.test(token.value));
     //const allNumbers = tokens.every(token => /(number)/.test(token.type)||/(=)/.test(token.value));
     const areThereOperators=tokens.some(token=>/(operator)/.test(token.type)&&!/(=)/.test(token.value))
     //(readyForFinalPraising&&!allNumbers)
+    //addDebugInfo(areThereOperators)
     if (!areThereOperators)
     {
         tokens=simplifiy(tokens)
@@ -371,10 +362,15 @@ function parse(tokens,operator,specialChar, left, leftVar, right, rightVar,right
                 powIndex[0].variable,
             );
         }
+        
         if (powIndex.length===0&&variableIndex.length!==0&&numberIndex!==0)
         {
-            addDebugInfo(`${variableIndex[0].variable} = ${(numberIndex[0].value)/(variableIndex[0].value)}`)
+            addDebugInfo(`${variableIndex[0].variable} = \\frac{${numberIndex[0].value}}{${variableIndex[0].value}} = ${(numberIndex[0].value)/(variableIndex[0].value)}`)
+            solutionInfo.push(`${variableIndex[0].variable} = \\frac{${numberIndex[0].value}}{${variableIndex[0].value}} = ${(numberIndex[0].value)/(variableIndex[0].value)}`)
             return `${variableIndex[0].variable} = ${(numberIndex[0].value)/(variableIndex[0].value)}`
+        }
+        else if(tokens.length===1&&numberIndex){
+            return JSON.stringify(numberIndex.value===0)
         }
     }
     let solved={value: 0,variable: '',pow: ''};
@@ -420,9 +416,6 @@ function parse(tokens,operator,specialChar, left, leftVar, right, rightVar,right
             }
             solved.value = res;
             break;
-        case '=':
-            solved.value = left === right;
-            break;
         case 'sin':
             solved.value = (Math.sin(right*Math.PI / 180));
             break;
@@ -458,6 +451,7 @@ function parse(tokens,operator,specialChar, left, leftVar, right, rightVar,right
 }
 
 function controller(tokens) {
+    
     if (!processedinput){processedinput=reconstruct(tokens);}
     tokens=connect(tokens);
     math=reconstruct(tokens);
@@ -472,7 +466,9 @@ function controller(tokens) {
     let expression = position(tokens,null); 
     addDebugInfo('Parsed expression', JSON.stringify(expression, null, 0.01));
     if (expression === null&&tokens.length>1){
-        return solution(tokens);
+        addDebugInfo(`parse(tokens)`,parse(tokens))
+        return `d`
+       // return solution(tokens);
     }
     else if (expression === null){
         return Math.round(parseFloat(reconstruct(tokens)) * 10000) / 10000;
@@ -581,10 +577,13 @@ function reIDparentheses(tokens) {
 
 
 function expandExpression(tokens, expression) {
-    let replacementCell = [];
     let left = tokens.slice(expression.leftBreak, expression.index).filter(item => /(number|variable|powerVariable)/.test(item.type));
     let right = tokens.slice(expression.index, expression.rightBreak).filter(item => /(number|variable|powerVariable)/.test(item.type));
-
+    if (expression.operator==='-'&&expandExpression.leftMultiStep===undefined){
+        left = [{ "type": "number", "value": -1, "index": 0 }]
+        
+    }
+    let replacementCell = [];
     for (let i = 0; i < left.length; i++) {
         for (let j = 0; j < right.length; j++) {
             replacementCell.push(left[i]);
@@ -592,7 +591,12 @@ function expandExpression(tokens, expression) {
             replacementCell.push(right[j]);
         }
     }
-    tokens.splice(expression.leftBreak, expression.rightBreak -  expression.leftBreak, ...replacementCell);
+    if (expression.operator==='-'&&expandExpression.leftMultiStep===undefined){
+        tokens.splice(expression.index, expression.rightBreak -  expression.index, ...replacementCell);
+    }
+    else{
+        tokens.splice(expression.leftBreak, expression.rightBreak -  expression.leftBreak, ...replacementCell);
+    }
     tokens=reorder(tokens)
     addDebugInfo(`expandExpression`,reconstruct(tokens))
     solutionInfo.push(reconstruct(tokens))
@@ -602,14 +606,14 @@ function expandExpression(tokens, expression) {
 function addSolution(expression,solved){
     let solution=reconstruct([solved]);
     let left=expression.left?reconstruct([{type: expression.leftType, value: expression.left, variable: expression.leftVariable, pow: expression.leftPow}]):'';
-    let right=expression.right?reconstruct([{type: expression.rightType, value: expression.right, variable: expression.rightVariable, pow: expression.rightPow}]):'';
+    let right=typeof expression.right==='number'?reconstruct([{type: expression.rightType, value: expression.right, variable: expression.rightVariable, pow: expression.rightPow}]):'';
     switch (expression.operator){
         case '^':
             return  `${left} ^ {${right}} = ${solution}`
         case '+':
         case '-':
         case '*':
-            return  `${left} ${expression.operator.replace(/\*/g, "\\cdot")} ${right} = ${reconstruct(solution)}`
+            return  `${left} ${expression.operator.replace(/\*/g, "\\cdot")} ${right} = ${solution}`
         case '=':
             return `\\frac{${left}}{${right}} = ${solution}`
         case 'sqrt':
@@ -631,7 +635,9 @@ function addSolution(expression,solved){
     }
     return null
 }
-
+function curlyBracketsValidityCheck(check){
+    return /(frac|sqrt|\^|\/|binom)/.test(check)
+}
 function reconstruct(tokens){
     let math = '';
     for (let i=0;i<tokens.length;i++){
@@ -646,11 +652,11 @@ function reconstruct(tokens){
                 break;
             case 'paren':
                 let temp=tokens[tokens.findIndex(token => token.id === tokens[i].id)-1]
-                if ((typeof temp !== "undefined"&&/(frac|sqrt|\^|\/)/.test(temp.value)))
+                if ((typeof temp !== "undefined"&&curlyBracketsValidityCheck(temp.value)))
                 {
                    math+=tokens[i].value.replace(/\(/,'\{').replace(/\)/,'\}');break;
                 }
-                else if (typeof temp !== "undefined"&&/\)/.test(temp.value)&&/(frac|sqrt|\^|\/)/.test(tokens[tokens.findIndex(token => token.id === temp.id)-1].value))
+                else if (typeof temp !== "undefined"&&/\)/.test(temp.value)&&curlyBracketsValidityCheck(tokens[tokens.findIndex(token => token.id === temp.id)-1].value))
                 {
                     math+=tokens[i].value.replace(/\(/,'\{').replace(/\)/,'\}');break;
                 }
@@ -659,7 +665,7 @@ function reconstruct(tokens){
                 break;
             case 'operator':
                     if (tokens[i].value !== '/') {
-                    math+=(tokens[i].value).replace(/([^\*\^=\/])/,"\\$1").replace(/\*/g,`\\cdot `);
+                    math+=(tokens[i].value).replace(/([^\*\^=\/+-])/,"\\$1").replace(/\*/g,`\\cdot `);
                     }
                 break;
             case 'variable':
@@ -773,7 +779,6 @@ function quad(a,b,c,variable) {
     return x1===x2?`${variable} = ${x1}`:`${variable}_1 = ${x1},${variable}_2 = ${x2.toFixed(3)}`;
 }
     solution=controller(tokens);
-    
     if (typeof mathExpression === "undefined")
     {
         return `latex: ${latex},\nprocessedinput: ${processedinput},\nLength: ${latex.length},\nTokens: ${tokens.length}\nsolution: ${solution}\nDebug Info:\n${debugInfo}`; 
