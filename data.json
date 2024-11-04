@@ -1,7 +1,8 @@
 {
+  "invertColorsInDarkMode": false,
   "numberFormatting": "100000",
   "background": "#62657a",
-  "evenRowBackground": "#62657a",
+  "evenRowBackground": "#5d6074",
   "oddRowBackground": "#747688",
   "infoModalBackground": "#002B36",
   "fontSize": "0.85em",

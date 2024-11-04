@@ -4,27 +4,31 @@
     "inlineSourceMap": true,
     "inlineSources": true,
     "module": "ESNext",
-    "target": "ES6",
+    "target": "ES2021",
     "allowJs": true,
+    //"checkJs": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
     "noImplicitAny": true,
     "moduleResolution": "node",
     "importHelpers": true,
     "isolatedModules": true,
     "strictNullChecks": true,
     "lib": [
+      "ES2021",
       "DOM",
       "ES5",
       "ES6",
       "ES7"
     ],
-    "outDir": "./dist",  // Ensure compiled files go to the 'dist' directory
-    "rootDir": "./"   // Your TypeScript source files
+    "outDir": "./dist", 
+    "rootDir": "./"
   },
   "include": [
-    "**/*.ts"  // Include TypeScript files from the root and subdirectories
+    "**/*.ts" 
   ],
   "exclude": [
     "node_modules",
-    "dist"  // Exclude the output directory
+    "dist" 
   ]
 }
