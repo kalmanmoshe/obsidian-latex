@@ -1,0 +1,171 @@
+{
+    "invertColorsInDarkMode": false,
+    "numberFormatting": "100000",
+    "background": "#62657a",
+    "evenRowBackground": "#5d6074",
+    "oddRowBackground": "#747688",
+    "infoModalBackground": "#002B36",
+    "fontSize": "0.85em",
+    "rowPadding": "0px 0px",
+    "iconSize": "14px",
+    "sessionHistory": [
+        {
+            "input": "1",
+            "result": "Result: 1 characters"
+        },
+        {
+            "input": "e",
+            "result": "Result:  characters"
+        },
+        {
+            "input": "e",
+            "result": "Result:  characters"
+        },
+        {
+            "input": "eqwe",
+            "result": "Result:  characters"
+        },
+        {
+            "input": "2",
+            "result": "Result:  characters"
+        },
+        {
+            "input": "3",
+            "result": "Result:  characters"
+        },
+        {
+            "input": "3",
+            "result": "Result: 3"
+        },
+        {
+            "input": "36",
+            "result": "Result: 36"
+        },
+        {
+            "input": "1=",
+            "result": "Result: 1="
+        },
+        {
+            "input": "q",
+            "result": "Result: q"
+        },
+        {
+            "input": "123",
+            "result": {
+                "meetsMinRequirements": true,
+                "coordinates": [],
+                "sides": [
+                    {
+                        "value": 123
+                    }
+                ],
+                "angles": [
+                    {
+                        "value": 123
+                    }
+                ]
+            }
+        },
+        {
+            "input": "3",
+            "result": {
+                "meetsMinRequirements": true,
+                "coordinates": [],
+                "sides": [
+                    {
+                        "value": 2
+                    }
+                ],
+                "angles": [
+                    {
+                        "value": 3
+                    }
+                ]
+            }
+        },
+        {
+            "input": "",
+            "result": {
+                "meetsMinRequirements": true,
+                "coordinates": [],
+                "sides": [
+                    {
+                        "value": 2
+                    }
+                ],
+                "angles": []
+            }
+        },
+        {
+            "input": "1",
+            "result": {
+                "meetsMinRequirements": true,
+                "coordinates": [],
+                "sides": [
+                    {
+                        "value": 1
+                    },
+                    {
+                        "value": 2
+                    }
+                ],
+                "angles": [
+                    {
+                        "value": 1
+                    }
+                ]
+            }
+        },
+        {
+            "input": "",
+            "result": {
+                "meetsMinRequirements": true,
+                "shape": "line",
+                "coordinates": [
+                    {
+                        "x": 0,
+                        "y": 0,
+                        "name": "a"
+                    },
+                    {
+                        "x": 3,
+                        "y": 4,
+                        "name": "b"
+                    }
+                ],
+                "sides": [
+                    {
+                        "value": 1
+                    }
+                ],
+                "angles": []
+            }
+        },
+        {
+            "input": "",
+            "result": {
+                "meetsMinRequirements": true,
+                "shape": "line",
+                "coordinates": [
+                    {
+                        "x": 0,
+                        "y": 0,
+                        "name": "A"
+                    },
+                    {
+                        "x": 1,
+                        "y": 0,
+                        "name": "B"
+                    },
+                    {
+                        "x": 1,
+                        "y": 1,
+                        "name": "C"
+                    }
+                ],
+                "sides": [],
+                "angles": []
+            }
+        }
+    ]
+}
