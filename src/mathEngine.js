@@ -474,7 +474,7 @@ export class MathPraiser{
     }
     processInput(){
         this.input=this.input
-        .replace(/(\s)/g, "") 
+        .replace(/(\s|\\left|\\right)/g, "") 
         .replace(/{/g, "(") 
         .replace(/}/g, ")")
         .replace(/(\\cdot|cdot)/g, "*")

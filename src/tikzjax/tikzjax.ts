@@ -171,9 +171,10 @@ class FormatTikzjax {
     debugInfo = "";
 	constructor(source: string) {
 		this.source=source;
+        this.debugInfo+=this.source;
         this.tokens = this.tokenize();
-        this.midPoint = this.findMidpoint();
-        this.tokens = this.applyQuadrants();
+        this.findMidpoint();
+        this.applyQuadrants();
         this.debugInfo+=JSON.stringify(this.tokens,null,0.01)+"\n\n"
         this.processedCode += this.reconstruct();
         this.debugInfo+=this.processedCode;
@@ -265,11 +266,12 @@ class FormatTikzjax {
     }
 
     findMidpoint() {
+        console.log(this.tokens)
         let coordinates = this.tokens.filter((token: any) => token.type && token.type === "coordinate");
         
         if (coordinates.length === 0) {
-            this.tokens = this.tokens.filter((token: any) => token.type && token.type === "draw");
-            this.tokens.forEach((object: any) => {
+            const tempTokens = this.tokens.filter((token: any) => token.type && token.type === "draw");
+            tempTokens.forEach((object: any) => {
             coordinates = coordinates.concat(object.coordinates.filter((token: any) => token.type && token.type === "coordinate"));
           });
         }
@@ -278,10 +280,9 @@ class FormatTikzjax {
           sumOfX += Number(coordinate.X);
           sumOfY += Number(coordinate.Y); 
         });
-      
-        return {
-          X: sumOfX / coordinates.length,
-          Y: sumOfY / coordinates.length
+        this.midPoint= {
+          X: sumOfX / coordinates.length!==0?coordinates.length:1,
+          Y: sumOfY / coordinates.length!==0?coordinates.length:1,
         };
     }
     applyQuadrants() {
@@ -290,7 +291,6 @@ class FormatTikzjax {
             token.quadrant = findQuadrant(token,this.midPoint)
           }
         });
-        return this.tokens;
     }
     reconstruct(){
         let codeBlockOutput = "",temp: string | { center: { X: number; Y: number; }; radius: number; equation: string; } | null;
