@@ -644,28 +644,12 @@ class Tokens{
         {return Infinity}
     }
     insertTokens(start, length, objects) {
-        objects = this.flattenArray(objects);
+        objects = flattenArray(objects);
         if (!Array.isArray(objects)) {
             console.error("Expected `objects` to be an array, but received:", objects);
             return;
         }
         this.tokens.splice(start, length, ...objects);
-    }
-
-    flattenArray(arr) {
-        let result = [];
-        let stack = Array.isArray(arr) ? [...arr] : [arr];  // Ensure arr is an array or wrap it in one
-    
-        while (stack.length) {
-            const next = stack.pop();
-            if (Array.isArray(next)) {
-                stack.push(...next);  // Spread the array items to the stack
-            } else {
-                result.push(next);  // Add non-array items to the result
-            }
-        }
-    
-        return result.reverse();  // Reverse to maintain original order
     }
     
     reorder(){
@@ -790,3 +774,33 @@ const plusSymbolCheck = (tokens, index) => {
     if (!index > 0) return false;
     return tokens[index].value >= 0 && /(number|variable|powerVariable)/.test(tokens[index - 1].type);
 };
+
+export function flattenArray(arr) {
+    let result = [];
+    
+    arr.forEach(item => {
+        if (Array.isArray(item)) {
+            result = result.concat(flattenArray(item));  // Recursively flatten nested arrays
+        } else {
+            result.push(item);  // Add non-array items to result
+        }
+    });
+
+    return result;
+}
+
+/*export function flattenArray(arr) {
+    let result = [];
+    let stack = Array.isArray(arr) ? [...arr] : [arr];  // Ensure arr is an array or wrap it in one
+
+    while (stack.length) {
+        const next = stack.pop();
+        if (Array.isArray(next)) {
+            stack.push(...next);  // Spread the array items to the stack
+        } else {
+            result.push(next);  // Add non-array items to the result
+        }
+    }
+
+    return result.reverse();  // Reverse to maintain original order
+}*/
