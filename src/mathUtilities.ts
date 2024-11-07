@@ -1,3 +1,4 @@
+import exp from "constants";
 import settings from "../data.json";
 import { Coordinate } from "./tikzjax/tikzjax";
 
@@ -24,6 +25,7 @@ export function findAngleByCosineRule(side1:number, side2:number, oppositeSide:n
 export function degreesToRadians(degrees: number){
     return degrees * (Math.PI / 180);
 }
+
 export function radiansToDegrees(radians: number){
     return radians * (180 / Math.PI );
 }
@@ -42,19 +44,23 @@ export function  quad(a: number,b: number,c:number,variable:number) {
     return x1===x2?`${variable} = ${x1}`:`${variable}_1 = ${x1},${variable}_2 = ${x2}`;
 }
 
+
 export function getUsableDegrees(degrees: number): number {
     return ((degrees % 360) + 360) % 360;
 }
 
-export const polarToCartesian = (coord: string) => {
-    const [angle, length] = coord.split(":").map(parseFloat);
-    if (isNaN(angle) || isNaN(length)) {
-        console.error("Invalid polar coordinates:", coord);
-        return { X: 0, Y: 0 };
-    }
+export const cartesianToPolar=(x: number,y:number)=>{
+    const length=Math.sqrt(x ** 2 +y ** 2);
+    const angle=getUsableDegrees(radiansToDegrees(Math.atan2(x, y)));
+    return {length: length,angle: angle}
+}
+
+
+export const polarToCartesian = (angle: number, length: number) => {
     const radians = degreesToRadians(angle);
     return { X: length * Math.cos(radians), Y: length * Math.sin(radians) };
 };
+
 
 export function findIntersectionPoint(coordinate1: Coordinate, coordinate2: Coordinate, slope1: number, slope2: number) {
     const xValue = ((slope2 * coordinate2.X) - (slope1 * coordinate1.X) + (coordinate1.Y - coordinate2.Y)) / (slope2 - slope1);
@@ -64,17 +70,20 @@ export function findIntersectionPoint(coordinate1: Coordinate, coordinate2: Coor
     };
 }
 
+
 function createLineFunction(coordinate: Coordinate, slope: number) {
     return function(x: number) {
         return slope * (x - coordinate.X) + coordinate.Y;
     };
 }
 
+
 export function findSlope(coordinate1: Coordinate, coordinate2: Coordinate) {
     const deltaY = coordinate2.Y - coordinate1.Y;
     const deltaX = coordinate2.X - coordinate1.X;
     return deltaY / deltaX;
 }
+
 
 export function calculateCircle(point1: Coordinate, point2: Coordinate, point3: Coordinate) {
     const x1 = point1.X, y1 = point1.Y;

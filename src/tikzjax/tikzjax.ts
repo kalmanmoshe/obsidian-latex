@@ -3,22 +3,19 @@ import MathPlugin from "src/main";
 import { optimize } from "./svgo.browser.js";
 // @ts-ignore
 import tikzjaxJs from "inline:./tikzjax.js";
-import { degreesToRadians, findIntersectionPoint, findSlope, polarToCartesian } from "src/mathUtilities.js";
+import { cartesianToPolar, degreesToRadians, findIntersectionPoint, findSlope, polarToCartesian } from "src/mathUtilities.js";
 import { DebugModal } from "src/desplyModals.js";
 
 import { EditorView } from "@codemirror/view";
 import { error } from "console";
-
-interface CodeMirrorEditor extends Editor {
-    cm: EditorView;
-}
+import { flattenArray } from "src/mathEngine.js";
 
 
 export class Tikzjax {
     app: App;
     plugin: MathPlugin;
     activeView: MarkdownView | null;
-//const editor = activeView?.editor as CodeMirrorEditor | null;
+
     constructor(app: App,plugin: MathPlugin) {
       this.app=app;
       this.activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -104,7 +101,6 @@ export class Tikzjax {
                 errorDisplay.classList.add("error-text");
                 console.error("TikZ Processing Error:", e);
             }
-            
           });
       }
   
@@ -138,9 +134,6 @@ export class Tikzjax {
   
   
       optimizeSVG(svg: string) {
-          // Optimize the SVG using SVGO
-          // Fixes misaligned text nodes on mobile
-  
           return optimize(svg, {plugins:
               [
                   {
@@ -187,8 +180,6 @@ export class Tikzjax {
 
 
 
-
-
 interface token  {
     X?: number;
     Y?: number;
@@ -200,38 +191,71 @@ interface token  {
 
 
 
-
-
-
 const parseNumber = (value: string) => {
     console.log("value",value,parseFloat("-0.5"))
     const numberValue = parseFloat(value);
     return isNaN(numberValue) ? 0 : numberValue;
 };
 
+flattenArray(){
+    
+}
 
-function parseCoordinates(
-    coordinate: string,
-    tokens: Array<Coordinate | string | Draw | token>,
-    formatting?: string,
-    coordinatesArray?: Array<Coordinate | string>
-): { X: number; Y: number;} {
-    let xValue = 0, yValue = 0;
 
-    const findOriginalValue = (value: string) => {
-        const og = tokens.find(
-            (token: token) =>
-                (token instanceof Coordinate || token?.type === "node") && token.coordinateName === value
-        );
-        return og instanceof Coordinate ? og : undefined;
-    };
+class Axis {
+    private cartesianX: number;
+    private cartesianY: number;
+    private polarAngle: number;
+    private polarLength: number;
+    ancer: Axis;
+    makeAMFDeszen(coordinate: string, tokens: FormatTikzjax){
+        const a=getRegex();
+        const coordinates=coordinate.match(new RegExp(String.raw`${(a.basic)}`));
+        if (!coordinates||coordinates.length<1){
+            throw new Error("coordinate isnt valed expected a valed coord");
+        }
+        let coordinateArr: Array<Axis>=[];
+        coordinates.forEach((coordinate: string)=> {
+            let axis: Axis;
+            switch (true) {
+                case /,/.test(coordinate):
+                    axis=new Axis()
+                    axis.addCartesian(coordinate);
+                    coordinateArr.push(axis)
+                    break;
+                case /:/.test(coordinate):
+                    axis=new Axis();
+                    axis.addPloar(coordinate);
+                    coordinateArr.push(axis);
+                case (/[\d\w]+/).test(coordinate):
+                    axis=tokens.findOriginalValue(coordinate);
+                    if (axis===undefined){
+                        throw new Error(`codint find the coordinit ${coordinate}`);
+                    }
+                    coordinateArr.push(axis);
+                    break;
+                default:
+                    throw new Error("this coord fomate is nut sported");
+            }
+        });
+        return this;
+    }
 
-    const parseCartesian = (coord: string) => {
-        const [x, y] = coord.split(",").map(parseNumber);
-        return { X: x, Y: y };
-    };
+    addCartesian(polarAngle: any,polarLength?: any){
+        if(!polarLength){
+            [polarAngle,polarLength]=polarAngle.split(',').map(Number);
+        }
+        ({X: this.cartesianX,Y:this.cartesianY} = polarToCartesian(this.polarAngle,this.polarLength))
+    }
 
-    const parseIntersection = (coord: string) => {
+    addPloar(x: string|number,y?:number){
+        if(!y&&typeof x==="string"){
+            [x,y]=x.split(':').map(Number);
+        }
+        ({angle: this.polarAngle, length: this.polarLength}=cartesianToPolar(this.cartesianX,this.cartesianY))
+    }
+
+    intersection(){
         const originalCoords = coord
             .replace(/intersection\s?of\s?/g, "")
             .replace(/(\s*and\s?|--)/g, " ")
@@ -248,6 +272,19 @@ function parseCoordinates(
         ];
         return findIntersectionPoint(originalCoords[0], originalCoords[2], slopes[0], slopes[1]);
     };
+
+    getAxis(): Axis{
+        return this;
+    }
+}
+
+function parseCoordinates(
+    coordinate: string,
+    tokens: Array<Coordinate | string | Draw | token>,
+    formatting?: string,
+    coordinatesArray?: Array<Coordinate | string>
+): { X: number; Y: number;} {
+    let xValue = 0, yValue = 0;
 
     const handleFormatting = (): { X: number; Y: number } => {
         let coor = { X: 0, Y: 0 };
@@ -275,17 +312,14 @@ function parseCoordinates(
     if (match) {
         const coordinate1 = parseCoordinates(match[1], tokens);
         const coordinate2 = parseCoordinates(match[3], tokens);
-        [xValue, yValue] = [coordinate1.X + coordinate2.X, coordinate1.Y + coordinate2.Y];
-    } else if (coordinate.includes(",")) {
-        ({ X: xValue, Y: yValue } = parseCartesian(coordinate));
-    } else if (coordinate.includes(":")) {
-        ({ X: xValue, Y: yValue } = polarToCartesian(coordinate));
-    } else if (coordinate.includes("intersection")) {
-        ({ X: xValue, Y: yValue } = parseIntersection(coordinate));
-    } else {
-        const tokenMatch = findOriginalValue(coordinate);
-        if (tokenMatch) {
-            [xValue, yValue] = [tokenMatch.X, tokenMatch.Y];
+        let matchTwo=match[2].match(new RegExp(String.raw`!(${ca})!`));
+        if (matchTwo){
+            if(matchTwo[1]!==null)
+            [xValue, yValue] = [(coordinate1.X + coordinate2.X)*parseNumber(matchTwo[1]?.toString()), (coordinate1.Y + coordinate2.Y)*parseNumber(matchTwo[1]?.toString())];
+        }
+
+        else {
+            [xValue, yValue] = [coordinate1.X + coordinate2.X, coordinate1.Y + coordinate2.Y];
         }
     }
 
@@ -297,34 +331,29 @@ function parseCoordinates(
     if(typeof xValue!=="number"||typeof yValue!=="number"){
         throw new Error("Raising the coordinates failed. Couldn't find appropriate Xvalue or Yvalue");
     }
-    return {
-        X: xValue,
-        Y: yValue,
-    };
 }
 
 
 export class Coordinate {
     mode: string;
-    X: number;
-    Y: number;
+    axis: Axis;
     original: string;
     coordinateName: string|undefined;
     formatting: string;
     label: string;
     quadrant: number;
 
-    asCoordinate(match: RegExpMatchArray, tokens: Array<any>) {
+    asCoordinate(match: RegExpMatchArray, tokens: FormatTikzjax) {
         this.mode="coordinate";
         [this.original, this.coordinateName, this.label, this.formatting] = [match[1], match[2], match[3], match[4]];
-        Object.assign(this, parseCoordinates(this.original, tokens));
+        this.axis=new Axis().makeAMFDeszen(this.original,tokens);
         return this;
     }
 
-    asNode(match: RegExpMatchArray, tokens: Array<any>) {
+    asNode(match: RegExpMatchArray, tokens: FormatTikzjax) {
         this.mode="node";
         [this.original, this.coordinateName, this.label, this.formatting] = [match[1], match[2], match[3], match[4]];
-        Object.assign(this, parseCoordinates(this.original, tokens));
+        this.axis=new Axis().makeAMFDeszen(this.original,tokens);
         return this;
     }
 
@@ -358,12 +387,12 @@ class Draw {
     formatting: string;
     coordinates: CoordinateType;
 
-    constructor(match: RegExpMatchArray, tokens: Array<token>) {
+    constructor(match: RegExpMatchArray, tokens: FormatTikzjax) {
         this.formatting = match[1];
         this.coordinates = this.fillCoordinates(this.getSchematic(match[2]), tokens);
     }
 
-    fillCoordinates(schematic: any[], tokens: Array<token>) {
+    fillCoordinates(schematic: any[], tokens: FormatTikzjax) {
         const coorArr: CoordinateType=[];
         for (let i = 0; i < schematic.length; i++) {
             if (schematic[i].type === "coordinate") {
@@ -374,7 +403,7 @@ class Draw {
                 } else if (i > 1 && schematic[i - 1].type === "node" && schematic[i - 2].type === "formatting") {
                     previousFormatting = schematic[i - 2].value;
                 }
-                coorArr.push(new Coordinate().simpleXY(schematic[i].value, tokens, previousFormatting, coorArr));
+                coorArr.push(new Coordinate().simpleXY(schematic[i].value, tokens.tokens, previousFormatting, coorArr));
             } else{
                 coorArr.push({...schematic[i]});
             }
@@ -518,7 +547,7 @@ class FormatTikzjax {
         const circleRegex = new RegExp(String.raw`\\circle\{(${c}+)\}\{(${c}+)\}\{(${c}+)\}\{([\w\s\d]*)\}`, "g");
         const massRegex = new RegExp(String.raw`\\mass\{(${c}+)\}\{(${t}*)\}\{?([-|>]*)?\}?\{?([-.\s\d]*)?\}?`, "g");
         const vecRegex = new RegExp(String.raw`\\vec\{(${c}+)\}\{(${c}+)\}\{(${t}*)\}\{?([-|>]*)?\}?`, "g");
-    
+        
         const regexPatterns = [coorRegex, se, ss, nodeRegex, drawRegex, xyaxisRegex, gridRegex, circleRegex, massRegex, vecRegex];
         const matches = regexPatterns.flatMap(pattern => [...this.source.matchAll(pattern)]);
         
@@ -538,7 +567,7 @@ class FormatTikzjax {
             //console.log(match)
             this.tokens.push(new Coordinate().asCoordinate(match,this.tokens));
           } else if (match[0].startsWith("\\draw")) {
-            this.tokens.push(new Draw(match, this.tokens));
+            this.tokens.push(new Draw(match, this));
           } else if (match[0].startsWith("\\xyaxis")) {
             this.tokens.push(dissectXYaxis(match));
           } else if (match[0].startsWith("\\grid")) {
@@ -607,7 +636,13 @@ class FormatTikzjax {
             ,sumOfY / coordinates.length!==0?coordinates.length:1
         )
     }
-    
+    findOriginalValue = (value: string) => {
+        const og = this.tokens.find(
+            (token: token) =>
+                (token instanceof Coordinate || token?.type === "node") && token.coordinateName === value
+        );
+        return og instanceof Coordinate ? og : undefined;
+    };
     applyQuadrants() {
         this.tokens.forEach((token: any) => {
           if (typeof token === "object" && token !== null&&token.type==="coordinate") {
@@ -694,12 +729,15 @@ function dissectXYaxis(match: RegExpMatchArray) {
     };
 }
 
-const ca = String.raw`[\w\d\s-,.:]`;
-        //const c=`$\((${ca})\)(!([\d.])!|${ca}|+)\((${ca})\)$`;
-        const c=`(${ca}+|1)`;
-        const cn = String.raw`[\w_\d\s]`;//coor name
-        const t = String.raw`[\w\d\s-,.:$(!)_\-\{}+\\]`;//text
-        const f = String.raw`[\w\s\d=:,!';&*[\]\{\}%-<>]`;//Formatting.
+function getRegex(){
+    return {
+        basic: `[\w\d\s-,.:]`,
+        coordinate: new RegExp(String.raw`(${this.basic}+|1)`),
+        coordinateName:new RegExp(String.raw`[\w_\d\s]`),
+        text: new RegExp(String.raw`[\w\d\s-,.:$(!)_\-\{}+\\]`),
+        formatting: new RegExp(String.raw`[\w\s\d=:,!';&*[\]\{\}%-<>]`),
+    }
+}
 
   
 
