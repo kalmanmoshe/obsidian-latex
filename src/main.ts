@@ -3,7 +3,7 @@ import { MathInfo, MathPraiser } from "./mathEngine.js";
 import { InfoModal, DebugModal } from "./desplyModals";
 import { CustomInputModal, HistoryModal, InputModal, vecInpotModel } from "./temp";
 import {MathPluginSettings, DEFAULT_SETTINGS, MathPluginSettingTab,} from "./settings";
-import { calculateBinom, degreesToRadians, findAngleByCosineRule, radiansToDegrees, roundBySettings } from "./mathUtilities.js";
+import { calculateBinom, degreesToRadians, findAngleByCosineRule, getUsableDegrees, polarToCartesian, radiansToDegrees, roundBySettings } from "./mathUtilities.js";
 import { Tikzjax } from "./tikzjax/tikzjax";
 
 export default class MathPlugin extends Plugin {
@@ -272,17 +272,7 @@ class VecProcessor {
 
   // Handle polar input
   calculateComponents(mathInput: string) {
-    let [angle, length] = mathInput.split(":").map(Number);
-
-    this.vecInfo.addDebugInfo("Initial angle", angle);
-    this.vecInfo.addDebugInfo("Initial length", length);
-
-    angle = getUsableDegrees(angle + this.modifier);
-    this.vecInfo.addDebugInfo("Adjusted angle", angle);
-
-    this.Xcomponent = Math.cos(degreesToRadians(angle)) * length;
-    this.Ycomponent = Math.sin(degreesToRadians(angle)) * length;
-
+    ({X: this.Xcomponent, Y: this.Ycomponent} = polarToCartesian(mathInput));
     this.vecInfo.addDebugInfo("X component", this.Xcomponent);
     this.vecInfo.addDebugInfo("Y component", this.Ycomponent);
     this.result = `x = ${roundBySettings(this.Xcomponent)}, \\quad y = ${roundBySettings(this.Ycomponent)}`;
@@ -373,9 +363,7 @@ class tikzGraph extends Modal {
 }
 
 
-function getUsableDegrees(degrees: number): number {
-  return ((degrees % 360) + 360) % 360;
-}
+
 
 
 

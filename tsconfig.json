@@ -4,9 +4,8 @@
     "inlineSourceMap": true,
     "inlineSources": true,
     "module": "ESNext",
-    "target": "ES2021",
+    "target": "esnext",               // Latest JavaScript features
     "allowJs": true,
-    //"checkJs": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "noImplicitAny": true,
@@ -14,12 +13,10 @@
     "importHelpers": true,
     "isolatedModules": true,
     "strictNullChecks": true,
+    "downlevelIteration": true,       // Enables iteration over `RegExpMatchArray`
     "lib": [
-      "ES2021",
-      "DOM",
-      "ES5",
-      "ES6",
-      "ES7"
+      "esnext",                       // Latest JavaScript features
+      "dom"
     ],
     "outDir": "./dist", 
     "rootDir": "./"
