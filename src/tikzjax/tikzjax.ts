@@ -3,12 +3,13 @@ import MathPlugin from "src/main";
 import { optimize } from "./svgo.browser.js";
 // @ts-ignore
 import tikzjaxJs from "inline:./tikzjax.js";
-import { cartesianToPolar, degreesToRadians, findIntersectionPoint, findSlope, polarToCartesian } from "src/mathUtilities.js";
+import { cartesianToPolar, degreesToRadians, findIntersectionPoint, findSlope, polarToCartesian, toNumber } from "src/mathUtilities.js";
 import { DebugModal } from "src/desplyModals.js";
 
 import { EditorView } from "@codemirror/view";
 import { error } from "console";
 import { flattenArray } from "src/mathEngine.js";
+import { match } from "assert";
 
 
 export class Tikzjax {
@@ -33,52 +34,50 @@ export class Tikzjax {
     
   
     loadTikZJax(doc: Document) {
-          const s = document.createElement("script");
-          s.id = "tikzjax";
-          s.type = "text/javascript";
-          s.innerText = tikzjaxJs;
-          doc.body.appendChild(s);
+        const s = document.createElement("script");
+        s.id = "tikzjax";
+        s.type = "text/javascript";
+        s.innerText = tikzjaxJs;
+        doc.body.appendChild(s);
+        doc.addEventListener("tikzjax-load-finished", this.postProcessSvg);
+    }
   
+    unloadTikZJax(doc: Document) {
+        const s = doc.getElementById("tikzjax");
+        s?.remove();
+
+        doc.removeEventListener("tikzjax-load-finished", this.postProcessSvg);
+    }
   
-          doc.addEventListener("tikzjax-load-finished", this.postProcessSvg);
-      }
+    loadTikZJaxAllWindows() {
+        for (const window of this.getAllWindows()) {
+            this.loadTikZJax(window.document);
+        }
+    }
   
-      unloadTikZJax(doc: Document) {
-          const s = doc.getElementById("tikzjax");
-          s?.remove();
+    unloadTikZJaxAllWindows() {
+        for (const window of this.getAllWindows()) {
+            this.unloadTikZJax(window.document);
+        }
+    }
   
-          doc.removeEventListener("tikzjax-load-finished", this.postProcessSvg);
-      }
-  
-      loadTikZJaxAllWindows() {
-          for (const window of this.getAllWindows()) {
-              this.loadTikZJax(window.document);
-          }
-      }
-  
-      unloadTikZJaxAllWindows() {
-          for (const window of this.getAllWindows()) {
-              this.unloadTikZJax(window.document);
-          }
-      }
-  
-      getAllWindows() {
-          const windows = [];
-          
-          // push the main window's root split to the list
-          windows.push(this.app.workspace.rootSplit.win);
-          
-          // @ts-ignore floatingSplit is undocumented
-          const floatingSplit = this.app.workspace.floatingSplit;
-          floatingSplit.children.forEach((child: any) => {
-              // if this is a window, push it to the list 
-              if (child instanceof WorkspaceWindow) {
-                  windows.push(child.win);
-              }
-          });
-  
-          return windows;
-      }
+    getAllWindows() {
+        const windows = [];
+        
+        // push the main window's root split to the list
+        windows.push(this.app.workspace.rootSplit.win);
+        
+        // @ts-ignore floatingSplit is undocumented
+        const floatingSplit = this.app.workspace.floatingSplit;
+        floatingSplit.children.forEach((child: any) => {
+            // if this is a window, push it to the list 
+            if (child instanceof WorkspaceWindow) {
+                windows.push(child.win);
+            }
+        });
+
+        return windows;
+    }
   
   
     registerTikzCodeBlock() {
@@ -115,7 +114,6 @@ export class Tikzjax {
       }
   
     tidyTikzSource(tikzSource: string,icon: HTMLElement) {
-        
         const remove = "&nbsp;";
         tikzSource = tikzSource.replaceAll(remove, "");let lines = tikzSource.split("\n");
         lines = lines.map(line => line.trim());
@@ -165,8 +163,22 @@ export class Tikzjax {
       }
 }
 
+function regExp(pattern: string | RegExp, flags: string = ''): RegExp {
+    pattern=pattern instanceof RegExp?pattern.source:pattern;
+    return new RegExp(String.raw`${pattern}`, flags?flags:'');
+}
 
-
+function getRegex(){
+    const basic = String.raw`[\w\d\s-,.:]`;
+    return {
+        basic: basic,
+        merge: String.raw`[\+\-\|!\d.]`,
+        //coordinate: new RegExp(String.raw`(${basic}+|1)`),
+        coordinateName: String.raw`[\w_\d\s]`,
+        text: String.raw`[\w\s-,.:$(!)_+\\{}]`,
+        formatting: String.raw`[\w\s\d=:,!';&*[\]{}%-<>]`
+    };
+}
 
 
 
@@ -192,70 +204,261 @@ interface token  {
 
 
 const parseNumber = (value: string) => {
-    console.log("value",value,parseFloat("-0.5"))
     const numberValue = parseFloat(value);
     return isNaN(numberValue) ? 0 : numberValue;
 };
 
-flattenArray(){
-    
-}
 
 
-class Axis {
-    private cartesianX: number;
-    private cartesianY: number;
-    private polarAngle: number;
-    private polarLength: number;
-    ancer: Axis;
-    makeAMFDeszen(coordinate: string, tokens: FormatTikzjax){
-        const a=getRegex();
-        const coordinates=coordinate.match(new RegExp(String.raw`${(a.basic)}`));
-        if (!coordinates||coordinates.length<1){
-            throw new Error("coordinate isnt valed expected a valed coord");
-        }
-        let coordinateArr: Array<Axis>=[];
-        coordinates.forEach((coordinate: string)=> {
-            let axis: Axis;
+
+export class Axis {
+    cartesianX: number;
+    cartesianY: number;
+    polarAngle: number;
+    polarLength: number;
+
+    universal(coordinate: string, tokens: FormatTikzjax,anchorArr?: any,anchor?: string): Axis {
+        const matches=this.getCoordinateMatches(coordinate);
+
+        const coordinateArr: Array<Axis|string> = [];
+        matches.forEach((match: any,index: number) => {
+            match=match.fullMatch;
+            let axis: Axis|undefined;
             switch (true) {
-                case /,/.test(coordinate):
-                    axis=new Axis()
-                    axis.addCartesian(coordinate);
-                    coordinateArr.push(axis)
-                    break;
-                case /:/.test(coordinate):
-                    axis=new Axis();
-                    axis.addPloar(coordinate);
+                case /,/.test(match):
+                    axis = new Axis();
+                    axis.addCartesian(match);
                     coordinateArr.push(axis);
-                case (/[\d\w]+/).test(coordinate):
-                    axis=tokens.findOriginalValue(coordinate);
-                    if (axis===undefined){
-                        throw new Error(`codint find the coordinit ${coordinate}`);
+                    break;
+                case /:/.test(match):
+                    axis = new Axis();
+                    axis.addPolar(match);
+                    axis.polarToCartesian()
+                    coordinateArr.push(axis);
+                    break;
+                case /![\d.]+!/.test(match):
+                    coordinateArr.push(match);
+                    break;
+                case (/[\d\w]+/).test(match):
+                    axis = tokens.findOriginalValue(match)?.axis;
+                    if (axis === undefined) {
+                        throw new Error(`Couldn't find the coordinate ${match} from ${coordinate}`);
                     }
                     coordinateArr.push(axis);
                     break;
                 default:
-                    throw new Error("this coord fomate is nut sported");
+                    coordinateArr.push(match);
             }
         });
+        this.mergeAxis(coordinateArr)
+        if(anchorArr&&anchor&&anchor.match(/(--\+|--\+\+)/)){
+            let a: Coordinate
+            if (anchor.match(/(--\+)/)){
+                a=anchorArr.find((coor: any)=> coor instanceof Coordinate)
+            }else{
+                a=anchorArr.findLast((coor: any)=> coor instanceof Coordinate)
+            }
+            
+            this.complexCartesianAdd(a.axis,"addition")
+        }
         return this;
     }
 
-    addCartesian(polarAngle: any,polarLength?: any){
-        if(!polarLength){
-            [polarAngle,polarLength]=polarAngle.split(',').map(Number);
+
+    getCoordinateMatches(coordinate: string){
+        const regexPattern = getRegex();
+        const regexPatterns = [
+            regExp(String.raw`(${regexPattern.basic}+)`, "g"),
+            regExp(String.raw`(${regexPattern.merge}+)`, "g")
+        ];
+        
+        // Step 1: Extract matches for each pattern separately
+        const basicMatches = Array.from(coordinate.matchAll(regexPatterns[0])).map((match: RegExpExecArray) => ({
+            fullMatch: match[0].replace(/-$/g, ""), // Remove trailing hyphen only
+            index: match.index ?? 0,
+            length: match[0].length
+        }));
+        
+        const mergeMatches = Array.from(coordinate.matchAll(regexPatterns[1])).map((match: RegExpExecArray) => ({
+            fullMatch: match[0],
+            index: match.index ?? 0,
+            length: match[0].length
+        }));
+        
+        const matches: Array<{ fullMatch: string, index: number, length: number }> = [];
+
+        function isOverlapping(match1: { index: number; length: number }, match2: { index: number; length: number }) {
+            return match1.index < match2.index + match2.length && match2.index < match1.index + match1.length;
         }
-        ({X: this.cartesianX,Y:this.cartesianY} = polarToCartesian(this.polarAngle,this.polarLength))
+
+        [...basicMatches, ...mergeMatches].forEach(match => {
+            const overlappingIndex = matches.findIndex(existingMatch => isOverlapping(existingMatch, match));
+            
+            if (overlappingIndex !== -1) {
+                const existingMatch = matches[overlappingIndex];
+                
+                // If the current match covers a larger range, replace the existing one
+                if (match.length > existingMatch.length) {
+                    matches[overlappingIndex] = match;
+                }
+            } else {
+                matches.push(match);
+            }
+        });
+        
+        // Step 3: Sort the final matches by index
+        matches.sort((a, b) => a.index - b.index);
+        
+        // Step 4: Validate the result
+        if (matches.length === 0) {
+            throw new Error("Coordinate is not valid; expected a valid coordinate.");
+        }
+        
+        return matches;
+        
     }
 
-    addPloar(x: string|number,y?:number){
-        if(!y&&typeof x==="string"){
-            [x,y]=x.split(':').map(Number);
+
+    complexCartesianAdd(axis: Axis,mode: string,modifier?: any){
+        switch (mode) {
+            case "addition":
+                this.cartesianX+=axis.cartesianX;
+                this.cartesianY+=axis.cartesianY;
+                break;
+            case "subtraction":
+                break;
+            case "rightProjection":
+                this.cartesianX=axis.cartesianX
+                break;
+            case "internalPoint":
+                this.cartesianX=(this.cartesianX+axis.cartesianX)*modifier;
+                this.cartesianY=(this.cartesianY+axis.cartesianY)*modifier;
+                break;
+            default:
         }
-        ({angle: this.polarAngle, length: this.polarLength}=cartesianToPolar(this.cartesianX,this.cartesianY))
+        this.cartesianToPolar()
+        return this
+    };
+    
+    findBeforeAfter(axes: Array<Axis | string>, index: number): { before: number, after: number } {
+       
+        const beforeIndex = axes.slice(0,index).findLastIndex((axis: any) => axis instanceof Axis)
+        const afterIndex = axes.findIndex((axis: any,idx: number) => axis instanceof Axis&&idx>index);
+
+
+        if (beforeIndex === -1 || afterIndex === -1) {
+            throw new Error("Couldn't find valid Axis objects.");
+        }
+        if (beforeIndex === afterIndex) {
+            throw new Error("Praised axis as same token");
+        }
+    
+        return { before: beforeIndex, after: afterIndex };
+    }
+    constructor(cartesianX?: number, cartesianY?: number, polarLength?: number, polarAngle?: number) {
+        if (cartesianX !== undefined) this.cartesianX = cartesianX;
+        if (cartesianY !== undefined) this.cartesianY = cartesianY;
+        if (polarLength !== undefined) this.polarLength = polarLength;
+        if (polarAngle !== undefined) this.polarAngle = polarAngle;
     }
 
-    intersection(){
+    clone(): Axis {
+        return new Axis(this.cartesianX, this.cartesianY,this.polarLength,this.polarAngle);
+    }
+    
+    
+    mergeAxis(axes: Array<Axis | string>) {
+        if (!axes.some((axis: any) => typeof axis === "string")) {
+            Object.assign(this, (axes[0] as Axis).clone());
+            return;
+        }
+        for (let i = 0; i < axes.length; i++) {
+            const current = axes[i];
+            if (typeof current !== "string") continue;
+            const sides = this.findBeforeAfter(axes, i);
+            const beforeAxis = axes[sides.before] as Axis;
+            const afterAxis = axes[sides.after] as Axis;
+
+            let  match = current.match(/^\+$/);
+            let mode,modifiers;
+            if (match){
+                mode = "addition"
+            }
+            match=current.match(/^-\|$/)
+            if(!mode&&match){
+                mode = "rightProjection"
+            }
+            match=current.match(/^\!([\d.]+)\!$/)
+            if(!mode&&match){
+                mode = "internalPoint"
+                modifiers=toNumber(match[1])
+            }
+
+            if(mode){
+                axes.splice(sides.before, sides.after - sides.before + 1, beforeAxis.complexCartesianAdd(afterAxis,mode,modifiers));
+                i = sides.before;
+            }
+
+        }
+
+        if (axes.length === 1 && axes[0] instanceof Axis) {
+            Object.assign(this, (axes[0] as Axis).clone());
+        }
+    }
+    
+    
+
+    projection(axis1: Axis|undefined,axis2: Axis|undefined):any{
+        if (!axis1||!axis2){throw new Error("axis's were undefined at projection");}
+        return [{X: axis1.cartesianX,Y: axis2.cartesianY},{X: axis2.cartesianX,Y: axis1.cartesianY}]
+    }
+    combine(coordinateArr: any){
+        let x=0,y=0;
+        coordinateArr.forEach((coordinate: Axis)=>{
+            x+=coordinate.cartesianX;
+            y+=coordinate.cartesianY;
+        })
+        
+        this.cartesianX=x;this.cartesianY=y;
+    }
+    addCartesian(x: string | number, y?: number): void {
+        
+        if (!y && typeof x === "string") {
+            [x, y] = x.split(",").map(Number);
+        }
+        if (x === undefined || y === undefined) {
+            throw new Error("Invalid Cartesian coordinates provided.");
+        }
+        this.cartesianX = x as number;
+        this.cartesianY = y as number;
+    }
+    
+    polarToCartesian(){
+        const temp=polarToCartesian(this.polarAngle, this.polarLength)
+        this.addCartesian(temp.X,temp.Y)
+    }
+
+    cartesianToPolar(){
+        const temp=cartesianToPolar(this.cartesianX, this.cartesianY)
+        this.addPolar(temp.angle,temp.length)
+    }
+
+    addPolar(angle: string | number, length?: number): void {
+        if (!length && typeof angle === "string") {
+            [angle, length] = angle.split(":").map(Number);
+        }
+        if (angle === undefined || length === undefined) {
+            throw new Error("Invalid polar coordinates provided.");
+        }
+        this.polarAngle = angle as number;
+        this.polarLength = length as number;
+    }
+
+    toString(){
+        return this.cartesianX+","+this.cartesianY;
+    }
+
+    intersection(coord: string, findOriginalValue: (coord: string) => Coordinate | undefined): {X:number,Y:number} {
         const originalCoords = coord
             .replace(/intersection\s?of\s?/g, "")
             .replace(/(\s*and\s?|--)/g, " ")
@@ -264,132 +467,251 @@ class Axis {
             .filter((token): token is Coordinate => token !== undefined);
 
         if (originalCoords.length < 4) {
-            throw new Error("Intersection had undefined coordinates or insufficient data");
+            throw new Error("Intersection had undefined coordinates or insufficient data.");
         }
+
         const slopes = [
-            findSlope(originalCoords[0], originalCoords[1]),
-            findSlope(originalCoords[2], originalCoords[3]),
+            findSlope(originalCoords[0].axis, originalCoords[1].axis),
+            findSlope(originalCoords[2].axis, originalCoords[3].axis),
         ];
-        return findIntersectionPoint(originalCoords[0], originalCoords[2], slopes[0], slopes[1]);
-    };
 
-    getAxis(): Axis{
-        return this;
+        return findIntersectionPoint(originalCoords[0].axis, originalCoords[2].axis, slopes[0], slopes[1]);
     }
 }
 
-function parseCoordinates(
-    coordinate: string,
-    tokens: Array<Coordinate | string | Draw | token>,
-    formatting?: string,
-    coordinatesArray?: Array<Coordinate | string>
-): { X: number; Y: number;} {
-    let xValue = 0, yValue = 0;
+interface Formatting {
+    mode?: string
+    rotate?: number;
+    anchor?: string;
+    lineWidth?: number
+    color?: string;
+    textColor?: string;
+    fill?: string;
+    fillOpacity?: number
+    arrow?: string;
+    draw?: string;
+    text?: string;
+    rest: string;
+    pathType?: string;
+    tikzset?: string;
+}
 
-    const handleFormatting = (): { X: number; Y: number } => {
-        let coor = { X: 0, Y: 0 };
+class Formatting implements Formatting{
     
-        if (formatting && coordinatesArray && coordinatesArray.length > 0) {
-            if (formatting === "--+") {
-                const found = coordinatesArray.find((token: string | Coordinate) => token instanceof Coordinate);
-                coor = found && typeof found !== "string" ? found : coor;
-            } else if (formatting === "--++") {
-                const found = [...coordinatesArray].reverse().find((token: string | Coordinate) => token instanceof Coordinate);
-                coor = found && typeof found !== "string" ? found : coor;
+    addRotate(){
+
+    }
+    
+    quickAdd(mode: string,formatting: any,formattingForInterpretation?:string ){
+        this.mode=mode;
+        this.interpretFormatting(formattingForInterpretation||"")
+        this.rotate=toNumber(formatting?.rotate)??this.rotate;
+        this.anchor=formatting?.anchor?.replace(/-\|/,"south")?.replace(/\|-/,"north")??this.anchor;
+    }
+    interpretFormatting(formatting: string){
+        const splitFormatting=formatting.replace(/ /g,"").split(',');
+        splitFormatting.forEach(formatting => {
+            switch (true) {
+                case formatting.includes("linewidth"): {
+                    // Extract the number and optional unit
+                    const match = formatting.match(/linewidth=([\d.]+)(\w*)/);
+                    if (match) {
+                        this.lineWidth = parseFloat(match[1]);
+                        const unit = match[2] || "";
+                    }
+                    break;
+                }
+                case formatting.includes("fill="): {
+                    const match = formatting.match(/fill=([\d.\w!]+)/);
+                    if (match) {
+                        this.fill = match[1];
+                        const unit = match[2] || "";
+                    }
+                    break;
+                }
+                case formatting.includes("fillopacity"): {
+                    const match = formatting.match(/fillopacity=([\d.]+)/);
+                    if (match) {
+                        this.fillOpacity = parseFloat(match[1]);
+                    }
+                    break;
+                }
+                case !!formatting.match(/^(->|<-|-*{Stealth}-*)$/): {
+                    this.arrow = formatting
+                    break;
+                }
+                case !!formatting.match(/^draw=/): {
+                    this.split("draw",formatting)
+                    break;
+                }
+                case !!formatting.match(/^text=/): {
+                    this.split("text",formatting)
+                    break;
+                }
+                case !!formatting.match(/^draw$/):
+                    this.pathType = formatting;break;
+                case !!formatting.match(/^helplines$/):
+                    this.tikzset = formatting.replace(/helplines/g,"help lines");break;
+                default:
+                    this.rest+=formatting+',';
             }
-        }
-        return coor;
-    };
-    
-    
-
-    if(typeof coordinate!=="string"){
-        throw new Error(`Expected coordinate to be string coordinate was ${typeof coordinate}`);
+        });
     }
-    const ca = String.raw`[\w\d\s\-,.:]`; 
-    const regex = new RegExp(String.raw`\$\((${ca}+)\)([\d+\w:!.]+)\((${ca}+)\)\$`);
-    const match = coordinate.match(regex);
-    if (match) {
-        const coordinate1 = parseCoordinates(match[1], tokens);
-        const coordinate2 = parseCoordinates(match[3], tokens);
-        let matchTwo=match[2].match(new RegExp(String.raw`!(${ca})!`));
-        if (matchTwo){
-            if(matchTwo[1]!==null)
-            [xValue, yValue] = [(coordinate1.X + coordinate2.X)*parseNumber(matchTwo[1]?.toString()), (coordinate1.Y + coordinate2.Y)*parseNumber(matchTwo[1]?.toString())];
+    split(key: keyof Formatting,formatting: string){
+        const match=formatting.split("=");
+        let value;
+        if(typeof this[key] === "number"){
+            (this[key] as number|undefined)=toNumber(match[1])
         }
-
-        else {
-            [xValue, yValue] = [coordinate1.X + coordinate2.X, coordinate1.Y + coordinate2.Y];
-        }
+        else
+        (this[key] as string|undefined)=match[1]??undefined
     }
-
-    // Apply formatting adjustments if available
-    const formattingAdjustment = handleFormatting();
-    xValue += formattingAdjustment.X;
-    yValue += formattingAdjustment.Y;
+    toString(): string {
+        return this.stringafyMode()+[
+            this.lineWidth  ? `line width=${this.lineWidth},` : '',
+            this.fill  ? `fill=${this.fill},` : '',
+            this.fillOpacity  ? `fill opacity=${this.fillOpacity},` : '',
+            this.rotate  ? `rotate=${this.rotate},` : '',
+            this.anchor ? `anchor=${this.anchor},` : '',
+            this.draw ? `draw=${this.draw},` : '',
+            this.text ? `text=${this.text},` : '',
+            this.arrow ? `${this.arrow},` : '',
+            this.pathType ? `${this.pathType},` : '',
+            this.tikzset? `${this.tikzset},` : '',
+        ]
+        .filter(Boolean)
+        .join(' ');
+    }
     
-    if(typeof xValue!=="number"||typeof yValue!=="number"){
-        throw new Error("Raising the coordinates failed. Couldn't find appropriate Xvalue or Yvalue");
+    stringafyMode(){
+        switch (this.mode) {
+            case "node-mass":
+                return "fill=yellow!60,draw,text=black,";
+        }
+        return '';
     }
 }
-
 
 export class Coordinate {
-    mode: string;
+    mode: string|undefined;
     axis: Axis;
-    original: string;
+    original?: string|undefined;
     coordinateName: string|undefined;
-    formatting: string;
-    label: string;
-    quadrant: number;
-
+    formatting: Formatting;
+    label?: string;
+    quadrant?: number;
+    
+    constructor(
+        mode?: string,
+        axis?: Axis,
+        original?: string,
+        coordinateName?: string,
+        formatting?: Formatting,
+        label?: string,
+        quadrant?: number
+    ) {
+        // Assign properties only if they are not undefined
+        if (mode !== undefined) this.mode = mode;
+        if (axis !== undefined) this.axis = axis;
+        if (original !== undefined) this.original = original;
+        if (coordinateName !== undefined) this.coordinateName = coordinateName;
+        if (formatting !== undefined) this.formatting = formatting;
+        this.label = label;
+        this.quadrant = quadrant;
+    }
+    clone(): Coordinate {
+        return new Coordinate(
+            this.mode,
+            this.axis.clone(),
+            this.original,
+            this.coordinateName,
+            this.formatting,
+            this.label,
+            this.quadrant
+        );
+    }
     asCoordinate(match: RegExpMatchArray, tokens: FormatTikzjax) {
         this.mode="coordinate";
-        [this.original, this.coordinateName, this.label, this.formatting] = [match[1], match[2], match[3], match[4]];
-        this.axis=new Axis().makeAMFDeszen(this.original,tokens);
+        [this.original, this.coordinateName, this.label] = [match[1], match[2], match[3]];
+        this.axis=new Axis().universal(this.original,tokens);
+        //this.formatting=match[4]
+        return this;
+    }
+    asInLineCoordinates(){
+
+    }
+    asNode(match: RegExpMatchArray, tokens: FormatTikzjax,formatting?: any,typeofNode?: string) {
+        this.mode=`node${typeofNode?"-"+typeofNode:""}`;
+        [this.original, this.coordinateName, this.label] = [match[1], match[2], match[3]];
+        this.axis=new Axis().universal(this.original,tokens);
+        this.formatting=new Formatting();
+        this.formatting.quickAdd(this.mode,formatting,match[4]);
         return this;
     }
 
-    asNode(match: RegExpMatchArray, tokens: FormatTikzjax) {
-        this.mode="node";
-        [this.original, this.coordinateName, this.label, this.formatting] = [match[1], match[2], match[3], match[4]];
-        this.axis=new Axis().makeAMFDeszen(this.original,tokens);
-        return this;
-    }
-
-    simpleXY(coordinate: string, tokens: Array<any>, previousFormatting?: string, coordinatesArray?: any) {
-        Object.assign(this, parseCoordinates(coordinate, tokens,previousFormatting,coordinatesArray));
-        return this;
-    }
-
-    addXY(X: number, Y: number) {
-        [this.X, this.Y] = [X, Y];
+    simpleXY(coordinate: string, tokens: FormatTikzjax, previousFormatting?: string, coordinatesArray?: any) {
+        this.axis = new Axis().universal(coordinate, tokens, coordinatesArray, previousFormatting);
         return this;
     }
 
     toString() {
-        return `\\coor{${this.X},${this.Y}}{${this.coordinateName || ""}}{${this.label || ""}}{${generateFormatting(this) || ""}}`;
+        switch (this.mode) {
+            case "coordinate":
+                return `\\coor{${this.axis.toString()}}{${this.coordinateName || ""}}{${this.label || ""}}{}`;
+            case "node":
+            case "node-mass":
+                return `\\node ${this.coordinateName?'('+this.coordinateName+')':''} at (${this.axis.toString()}) [${this.formatting.toString()}] {${this.label}};`
+            default:
+                break;
+        }
+        
     }
 
-    toStringDraw() {
-        return `(${this.coordinateName ? this.coordinateName : this.X + "," + this.Y})`;
-    }
-
-    addQuadrant(midPoint: Coordinate) {
-        const xDirection = this.X > midPoint.X ? 1 : -1;
-        const yDirection = this.Y > midPoint.Y ? 1 : -1;
+    addQuadrant(midPoint: Axis) {
+        const xDirection = this.axis.cartesianX > midPoint.cartesianX ? 1 : -1;
+        const yDirection = this.axis.cartesianY > midPoint.cartesianY ? 1 : -1;
         this.quadrant = yDirection === 1 ? (xDirection === 1 ? 1 : 2) : (xDirection === 1 ? 4 : 3);
     }
 }
 type CoordinateType =Array<Coordinate | { type: string; text: any; formatting: any, value?: any}>;
 
 class Draw {
-    formatting: string;
+    mode?: string
+    formatting: Formatting=new Formatting();
     coordinates: CoordinateType;
 
-    constructor(match: RegExpMatchArray, tokens: FormatTikzjax) {
-        this.formatting = match[1];
-        this.coordinates = this.fillCoordinates(this.getSchematic(match[2]), tokens);
+    constructor(match: RegExpMatchArray|any, tokens: FormatTikzjax,mode?: string,formatting?: any) {
+        this.mode=mode;
+        this.mode=`draw${mode?"-"+mode:""}`;
+        this.formatting.quickAdd(`draw`,{},match[1]);
+        if (formatting===undefined){
+            //this.formatting.quickAdd("draw",{},match[1])
+            this.coordinates = this.fillCoordinates(this.getSchematic(match[2]), tokens);
+        }else{
+            this.formatting.quickAdd("draw",{},formatting);
+            this.coordinates = this.fillCoordinates(this.createFromArray(match), tokens);
+        }
+    }
+    createFromArray(match: any){
+        const coordinatesArray = [];
+        for (let i=0;i<match.length;i++){
+
+            if(match[i].node){
+                coordinatesArray.push({ type: "node", value: match[i].node,formatting: match[i].formatting || "", });
+                continue;
+            }
+            if(!match[i].node&&!match[i].formatting)
+            coordinatesArray.push({ type: "coordinate", value: match[i] });
+
+            if(i<match.length-1){
+                if(match[i].formatting){
+                    coordinatesArray.push({ type: "formatting", value: match[i].formatting });
+                    continue;
+                }
+                coordinatesArray.push({ type: "formatting", value: '--' });
+            }
+        }
+        return coordinatesArray;
     }
 
     fillCoordinates(schematic: any[], tokens: FormatTikzjax) {
@@ -403,7 +725,7 @@ class Draw {
                 } else if (i > 1 && schematic[i - 1].type === "node" && schematic[i - 2].type === "formatting") {
                     previousFormatting = schematic[i - 2].value;
                 }
-                coorArr.push(new Coordinate().simpleXY(schematic[i].value, tokens.tokens, previousFormatting, coorArr));
+                coorArr.push(new Coordinate().simpleXY(schematic[i].value, tokens, previousFormatting, coorArr));
             } else{
                 coorArr.push({...schematic[i]});
             }
@@ -412,18 +734,19 @@ class Draw {
     }
 
     getSchematic(draw: string) {
+        const regex=getRegex();
         const coordinatesArray = [];
-        const nodeRegex = new RegExp(String.raw`node\s*\[(${f}*)\]\s*{(${t}+)}`);
+        const nodeRegex = regExp(String.raw`node\s*\[(${regex.formatting}*)\]\s*{(${regex.text}*)}`);
         const formattingRegex = /(--cycle|cycle|--\+\+|--\+|--|-\||\|-|grid|circle|rectangle)/;
         const ca = String.raw`\w\d\s\-,.:`; // Define allowed characters for `ca`
         const coordinateRegex = new RegExp(String.raw`(\([${ca}]+\)|\(\$\([${ca}]+\)[${ca}!:+\-]+\([${ca}]+\)\$\))`);
-        
         let i = 0;
         let loops = 0;
         while (i < draw.length && loops < 100) { // Increase loop limit or add condition based on parsed length
             loops++;
             const coordinateMatch = draw.slice(i).match(coordinateRegex);
-            console.log(coordinateMatch)
+            
+
             if (coordinateMatch?.index === 0) {
                 coordinatesArray.push({ type: "coordinate", value: coordinateMatch[1] });
                 i += coordinateMatch[0].length;
@@ -457,7 +780,7 @@ class Draw {
     }
 
     toString() {
-        let result = `\\draw [${this.formatting}]`;
+        let result = `\\draw [${this.formatting.toString()}]`;
         let beforeToken: Coordinate | undefined;
         let afterToken: Coordinate | undefined;
         let slope;
@@ -477,7 +800,7 @@ class Draw {
                     beforeToken = beforeCoordinates.length > 0 ? beforeCoordinates[0] : undefined;
 
                     if (beforeToken && afterToken) {
-                        slope = findSlope(beforeToken, afterToken);
+                        slope = findSlope(beforeToken.axis, afterToken.axis);
                         result += `node [${sideNodeFormatting(coordinate.formatting, slope, beforeToken, afterToken)}] {${coordinate.value}} `;
                     } else {
                         result += `node [${coordinate.formatting}] {${coordinate.value}} `;
@@ -485,13 +808,13 @@ class Draw {
                     break;
                 }
                 case "formatting": {
-                    result += coordinate.value.match(/(--\+\+|--\+|--)/)?"--":coordinate.value;
+                    result += /(--\+\+|--\+)/.test(coordinate.value)?"--":coordinate.value;
                     break;
                 }
                 default: {
-                    result += coordinate.coordinateName
-                        ? `(${coordinate.coordinateName})`
-                        : `(${coordinate.X},${coordinate.Y})`;
+                    result += `(${coordinate.coordinateName
+                        ? coordinate.coordinateName
+                        : coordinate.axis.toString()})`;
                     break;
                     
                 }
@@ -501,13 +824,10 @@ class Draw {
         return result + ";";
     }
 }
-
-
-
 class FormatTikzjax {
 	source: string;
     tokens: Array<token | string|any>=[];
-    midPoint: Coordinate;
+    midPoint: Axis;
 	processedCode="";
     debugInfo = "";
     
@@ -517,8 +837,8 @@ class FormatTikzjax {
         this.tokenize();
         this.findMidpoint();
         this.applyQuadrants();
-        this.debugInfo+="\n"+JSON.stringify(this.midPoint,null,0.01)+"\n"
-        this.debugInfo+=JSON.stringify(this.tokens,null,0.01)+"\n\n"
+        this.debugInfo+="\n\nthis.midPoint:\n"+JSON.stringify(this.midPoint,null,1)+"\n"
+        this.debugInfo+=JSON.stringify(this.tokens,null,1)+"\n\n"
 
         this.processedCode += this.reconstruct();
         this.debugInfo+=this.processedCode;
@@ -528,44 +848,45 @@ class FormatTikzjax {
     }
     tokenize() {
         
-        const ca = String.raw`\w\d\s\-,.:`; // Define allowed characters for `ca`
-        const c = new RegExp(String.raw`([${ca}]+|\$\([${ca}]+\)[${ca}!:+\-]+\([${ca}]+\)\$)`, "g");
-
+        const ca = String.raw`\w\d\s-,.:|`; // Define allowed characters for `ca`
+        const c = String.raw`[$(]{0,2}[${ca}]+[)$]{0,2}|\$\([${ca}]+\)[${ca}!:+]+\([${ca}]+\)\$`;
         // Define `coorRegex` with escaped characters for specific matching
         const cn = String.raw`[\w_\d\s]`; // Coordinate name
-        const t = String.raw`[\w\d\s\-,.:$(!)_\-\{}\+\\]`; // Text with specific characters
-        const f = String.raw`[\w\s\d=:,!';&*\{\}%\-<>]`; // Formatting with specific characters
+        const t = String.raw`\$[\w\d\s\-,.:(!)\-\{\}\+\\]*\$|[\w\d\s\-,.:(!)_\-\+\\]*`; // Text with specific characters
+        const f = String.raw`[\w\s\d=:,!';.&*\{\}%\-<>]`; // Formatting with specific characters
 
         // Define `coorRegex` using escaped braces and patterns
-        const coorRegex = new RegExp(String.raw`\\coor\{(${c.source})\}\{(${cn}*)\}\{(${t}*)\}\{(${f}*)\}`, "g");
-        const nodeRegex = new RegExp(String.raw`\\node\{(${c})\}\{(${cn}*)\}\{(${t}*)\}\{(${f}*)\}`, "g");
-        const se = new RegExp(String.raw`\\node\s*(${t}*)\s*at\s*(${c}*)\s*\[(${f}*)\]\s*\{(${t}*)\}`, "g");
-        const ss = new RegExp(String.raw`\\coordinate\s*(\[label=\{\[(.*?)\]:\\\w*\s*([\w\s]*)\}\])?\s*\((${cn}+)\)\s*at\s*\((${c.source})\);`, "g");
+        const coorRegex = new RegExp(String.raw`\\coor\{(${c})\}\{(${cn}*)\}\{(${t})\}\{(${f}*)\}`, "g");
+        const nodeRegex = new RegExp(String.raw`\\node\{(${c})\}\{(${cn}*)\}\{(${t})\}\{(${f}*)\}`, "g");
+        const se = new RegExp(String.raw`\\node\s*\(*(${cn})\)*\s*at\s*\((${c})\)\s*\[(${f}*)\]\s*\{(${t})\}`, "g");
+        const ss = new RegExp(String.raw`\\coordinate\s*(\[label=\{\[(.*?)\]:\\\w*\s*([\w\s]*)\}\])?\s*\((${cn}+)\)\s*at\s*\((${c})\);`, "g");
         const drawRegex = new RegExp(String.raw`\\draw\[(${f}*)\]([^;]*);`, "g");
         const xyaxisRegex = new RegExp(String.raw`\\xyaxis({['"\`\w\d-<>\$,]+})?({['"\`\w\d-<>$,]+})?`, "g");
         const gridRegex = new RegExp(String.raw`\\grid({[\d-.]+})?`, "g");
         const circleRegex = new RegExp(String.raw`\\circle\{(${c}+)\}\{(${c}+)\}\{(${c}+)\}\{([\w\s\d]*)\}`, "g");
-        const massRegex = new RegExp(String.raw`\\mass\{(${c}+)\}\{(${t}*)\}\{?([-|>]*)?\}?\{?([-.\s\d]*)?\}?`, "g");
-        const vecRegex = new RegExp(String.raw`\\vec\{(${c}+)\}\{(${c}+)\}\{(${t}*)\}\{?([-|>]*)?\}?`, "g");
-        
+        const massRegex = new RegExp(String.raw`\\mass\{(${c})\}\{(${t})\}\{(-\||\||>)\}\{([\d.]*)\}`,"g");
+
+        const vecRegex = new RegExp(String.raw`\\vec\{(${c})\}\{(${c})\}\{(${t})\}\{(${f}*)\}`, "g");
         const regexPatterns = [coorRegex, se, ss, nodeRegex, drawRegex, xyaxisRegex, gridRegex, circleRegex, massRegex, vecRegex];
-        const matches = regexPatterns.flatMap(pattern => [...this.source.matchAll(pattern)]);
+        let matches: any[]=[];
+        regexPatterns.forEach(ab => {
+            matches.push(...[...this.source.matchAll(ab)])
+        });
         
-        // Sort matches by their index to ensure correct order
         matches.sort((a, b) => (a.index || 0) - (b.index || 0));
-      
+
         let currentIndex = 0;
         for (const match of matches) {
           if (match.index !== undefined && match.index > currentIndex) {
             this.tokens.push(this.source.slice(currentIndex, match.index));
-          } 
-
+          }
+          
           if (match[0].startsWith("\\coor")) {
             if(match[0].startsWith("\\coordinate")){
-                ([match[1],match[2],match[4],match[5]]=[match[5],match[4],match[1],match[2]])
+                ([match[1],match[2],match[3],match[4],match[5]]=[match[5],match[4],match[3],match[2],match[1]])
+                match.pop()
             }
-            //console.log(match)
-            this.tokens.push(new Coordinate().asCoordinate(match,this.tokens));
+            this.tokens.push(new Coordinate().asCoordinate(match,this));
           } else if (match[0].startsWith("\\draw")) {
             this.tokens.push(new Draw(match, this));
           } else if (match[0].startsWith("\\xyaxis")) {
@@ -576,36 +897,28 @@ class FormatTikzjax {
             if (match[0].match(/\\node\s*\(/)){
                 ([match[1],match[3],match[4],match[3]]=[match[2],match[1],match[3],match[4]])
             }
-            this.tokens.push(new Coordinate().asNode(match, this.tokens));
+            this.tokens.push(new Coordinate().asNode(match, this));
           } else if (match[0].startsWith("\\circle")) {
             this.tokens.push({
               type: "circle",
               formatting: match[4],
               coordinates: [
-                new Coordinate().simpleXY(match[1], this.tokens),
-                new Coordinate().simpleXY(match[2], this.tokens),
-                new Coordinate().simpleXY(match[3], this.tokens),
+                //new Coordinate().simpleXY(match[1], this.tokens),
+                //new Coordinate().simpleXY(match[2], this.tokens),
+                //new Coordinate().simpleXY(match[3], this.tokens),
               ],
             });
           } else if (match[0].startsWith("\\mass")) {
-            this.tokens.push({
-              type: "mass",
-              text: match[2] || "",
-              formatting: match[3] || null,
-              rotate: Number(match[4]) || 0,
-              ...(({ X, Y }) => ({ X, Y }))(parseCoordinates(match[1], this.tokens)),
-            });
+            //The order is important
+            const temp={anchor: match[3],rotate: match[4]};
+            [match[3],match[2]]=[match[2],undefined]
+            this.tokens.push(new Coordinate().asNode(match,this,temp,"mass"))
           } else if (match[0].startsWith("\\vec")) {
-            this.tokens.push({
-              type: "vec",
-              text: match[3] || "",
-              formatting: match[4] || null,
-              rotate: Number(match[5]) || 0,
-              anchor:{...(({ X, Y }) => ({ X, Y }))(parseCoordinates(match[1], this.tokens)),},
-              ...(({ X, Y }) => ({ X, Y }))(parseCoordinates(match[2], this.tokens)),
-            });
+            match[2]=`(${match[1]})--+node[]{${match[3]}}(${match[2]})`
+            match[1]=match[4]+',->'
+            this.tokens.push(new Draw(match,this))
           }
-      
+
           if (match.index !== undefined) {
             currentIndex = match.index + match[0].length;
           }
@@ -631,18 +944,21 @@ class FormatTikzjax {
           sumOfY += Number(coordinate.Y); 
         });
 
-        this.midPoint=new Coordinate().addXY(
+        this.midPoint=new Axis();
+        this.midPoint.addCartesian(
             sumOfX / coordinates.length!==0?coordinates.length:1
             ,sumOfY / coordinates.length!==0?coordinates.length:1
         )
     }
-    findOriginalValue = (value: string) => {
-        const og = this.tokens.find(
+
+    findOriginalValue(value: string) {
+        const og = this.tokens.slice().reverse().find(
             (token: token) =>
                 (token instanceof Coordinate || token?.type === "node") && token.coordinateName === value
         );
-        return og instanceof Coordinate ? og : undefined;
-    };
+        return og instanceof Coordinate ? og.clone() : undefined;
+    }
+    
     applyQuadrants() {
         this.tokens.forEach((token: any) => {
           if (typeof token === "object" && token !== null&&token.type==="coordinate") {
@@ -660,7 +976,7 @@ class FormatTikzjax {
                 codeBlockOutput +=token.toString()
             }
           if (typeof token === "object") {
-            /*switch(token.type){
+            switch(token.type){/*
                 case "coordinate":
                     codeBlockOutput += token.toString();
                     break;
@@ -688,13 +1004,9 @@ class FormatTikzjax {
                     temp=calculateCircle(token.coordinates[0],token.coordinates[1],token.coordinates[2])
                     codeBlockOutput+=`\\draw [line width=1pt,${token.formatting}] (${temp?.center.X},${temp?.center.Y}) circle [radius=${temp?.radius}];`
                     break;
-                case "mass":
-                    temp=token.formatting!==null?token.formatting==="-|"?"south":"north":"north";
-                    codeBlockOutput+=`\\node[fill=yellow!60,draw,text=black,anchor= ${temp},rotate=${token.rotate}] at (${token.X},${token.Y}){${token.text}};`
-                    break;
                 case "vec":
                     codeBlockOutput+=`\\draw [-{Stealth},${token.formatting||""}](${token.anchor.X},${token.anchor.Y})--node [] {${token.text}}(${token.X+token.anchor.X},${token.Y+token.anchor.Y});`
-            }*/
+            */}
           } else {
             codeBlockOutput += token;
           }
@@ -728,19 +1040,6 @@ function dissectXYaxis(match: RegExpMatchArray) {
         Ynode: Ynode,
     };
 }
-
-function getRegex(){
-    return {
-        basic: `[\w\d\s-,.:]`,
-        coordinate: new RegExp(String.raw`(${this.basic}+|1)`),
-        coordinateName:new RegExp(String.raw`[\w_\d\s]`),
-        text: new RegExp(String.raw`[\w\d\s-,.:$(!)_\-\{}+\\]`),
-        formatting: new RegExp(String.raw`[\w\s\d=:,!';&*[\]\{\}%-<>]`),
-    }
-}
-
-  
-
 
 
 
@@ -801,7 +1100,7 @@ function sideNodeFormatting(formatting: string,slope: number,beforeToken: Coordi
     }
     return formatting;
 }
-
+/*
 function generateFormatting(coordinate: Coordinate){
     if (typeof coordinate.label !== "string"){ return ""; }
     const formatting = coordinate.formatting?.split(",") || [];
@@ -825,7 +1124,7 @@ function generateFormatting(coordinate: Coordinate){
     }
     return formatting.join("");
 }
-
+*/
 
 
 function getPreamble():string{

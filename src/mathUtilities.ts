@@ -1,6 +1,6 @@
 import exp from "constants";
 import settings from "../data.json";
-import { Coordinate } from "./tikzjax/tikzjax";
+import { Axis, Coordinate } from "./tikzjax/tikzjax";
 
 export function calculateBinom(n: number, k: number, p: number): number {
     return calculateFactorial(n,k) * Math.pow(p, k) * Math.pow(1 - p, n - k);
@@ -52,7 +52,7 @@ export function getUsableDegrees(degrees: number): number {
 export const cartesianToPolar=(x: number,y:number)=>{
     const length=Math.sqrt(x ** 2 +y ** 2);
     const angle=getUsableDegrees(radiansToDegrees(Math.atan2(x, y)));
-    return {length: length,angle: angle}
+    return {angle: angle, length: length,}
 }
 
 
@@ -62,33 +62,39 @@ export const polarToCartesian = (angle: number, length: number) => {
 };
 
 
-export function findIntersectionPoint(coordinate1: Coordinate, coordinate2: Coordinate, slope1: number, slope2: number) {
-    const xValue = ((slope2 * coordinate2.X) - (slope1 * coordinate1.X) + (coordinate1.Y - coordinate2.Y)) / (slope2 - slope1);
+export function findIntersectionPoint(coordinate1: Axis, coordinate2: Axis, slope1: number, slope2: number) {
+    const xValue = ((slope2 * coordinate2.cartesianX) - (slope1 * coordinate1.cartesianX) + (coordinate1.cartesianY - coordinate2.cartesianY)) / (slope2 - slope1);
     return {
         X: xValue, 
         Y: createLineFunction(coordinate1, slope1)(xValue)
     };
 }
 
+export function toNumber(input: string | number): number|undefined {
+    if (typeof input === 'number') return input;
+    const parsedNumber = Number(input);
+    return isNaN(parsedNumber) ? undefined : parsedNumber;
+}
+  
 
-function createLineFunction(coordinate: Coordinate, slope: number) {
+function createLineFunction(coordinate: Axis, slope: number) {
     return function(x: number) {
-        return slope * (x - coordinate.X) + coordinate.Y;
+        return slope * (x - coordinate.cartesianX) + coordinate.cartesianY;
     };
 }
 
 
-export function findSlope(coordinate1: Coordinate, coordinate2: Coordinate) {
-    const deltaY = coordinate2.Y - coordinate1.Y;
-    const deltaX = coordinate2.X - coordinate1.X;
+export function findSlope(coordinate1: Axis, coordinate2: Axis) {
+    const deltaY = coordinate2.cartesianY - coordinate1.cartesianY;
+    const deltaX = coordinate2.cartesianX - coordinate1.cartesianX;
     return deltaY / deltaX;
 }
 
 
-export function calculateCircle(point1: Coordinate, point2: Coordinate, point3: Coordinate) {
-    const x1 = point1.X, y1 = point1.Y;
-    const x2 = point2.X, y2 = point2.Y;
-    const x3 = point3.X, y3 = point3.Y;
+export function calculateCircle(point1: Axis, point2: Axis, point3: Axis) {
+    const x1 = point1.cartesianX, y1 = point1.cartesianY;
+    const x2 = point2.cartesianX, y2 = point2.cartesianY;
+    const x3 = point3.cartesianX, y3 = point3.cartesianY;
 
     // Calculate the determinants needed for solving the system
     const A = x1 * (y2 - y3) - y1 * (x2 - x3) + (x2 * y3 - y2 * x3);

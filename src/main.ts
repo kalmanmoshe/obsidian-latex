@@ -272,7 +272,8 @@ class VecProcessor {
 
   // Handle polar input
   calculateComponents(mathInput: string) {
-    ({X: this.Xcomponent, Y: this.Ycomponent} = polarToCartesian(mathInput));
+    const [angle, length] = mathInput.split(":").map(Number);
+    ({X: this.Xcomponent, Y: this.Ycomponent} = polarToCartesian(angle, length));
     this.vecInfo.addDebugInfo("X component", this.Xcomponent);
     this.vecInfo.addDebugInfo("Y component", this.Ycomponent);
     this.result = `x = ${roundBySettings(this.Xcomponent)}, \\quad y = ${roundBySettings(this.Ycomponent)}`;
