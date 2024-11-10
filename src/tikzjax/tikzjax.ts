@@ -486,14 +486,14 @@ interface Formatting {
     lineWidth?: {key: "rotate",value: number};
     color?: {key: "rotate",value: string};
     textColor?: {key: "rotate",value: string};
-    fill?: {key: "rotate",value: string};string;
-    fillOpacity?: {key: "rotate",value: number};number
-    arrow?: {key: "rotate",value: string};string;
-    draw?: {key: "rotate",value: string};string;
-    text?: {key: "rotate",value: string};string;
-    rest: {key: "rotate",value: string};string;
-    pathType?: {key: "rotate",value: string};string;
-    tikzset?: {key: "rotate",value: string};;
+    fill?: {key: "rotate",value: string};
+    fillOpacity?: {key: "rotate",value: number};
+    arrow?: {key: "rotate",value: string};
+    draw?: {key: "rotate",value: string};
+    text?: {key: "rotate",value: string};
+    rest: {key: "rotate",value: string};
+    pathType?: {key: "rotate",value: string};
+    tikzset?: {key: "rotate",value: string};
 }
 function covort(value: number,convrsin: string){
 
