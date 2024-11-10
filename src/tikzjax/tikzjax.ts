@@ -9,7 +9,7 @@ import { DebugModal } from "src/desplyModals.js";
 import { EditorView } from "@codemirror/view";
 import { error } from "console";
 import { flattenArray } from "src/mathEngine.js";
-import { match } from "assert";
+import { match, match } from "assert";
 
 
 export class Tikzjax {
@@ -481,25 +481,27 @@ export class Axis {
 
 interface Formatting {
     mode?: string
-    rotate?: number;
-    anchor?: string;
-    lineWidth?: number
-    color?: string;
-    textColor?: string;
-    fill?: string;
-    fillOpacity?: number
-    arrow?: string;
-    draw?: string;
-    text?: string;
-    rest: string;
-    pathType?: string;
-    tikzset?: string;
+    rotate?: {key: "rotate",value: number};
+    anchor?: {key: "rotate",value: string};
+    lineWidth?: {key: "rotate",value: number};
+    color?: {key: "rotate",value: string};
+    textColor?: {key: "rotate",value: string};
+    fill?: {key: "rotate",value: string};string;
+    fillOpacity?: {key: "rotate",value: number};number
+    arrow?: {key: "rotate",value: string};string;
+    draw?: {key: "rotate",value: string};string;
+    text?: {key: "rotate",value: string};string;
+    rest: {key: "rotate",value: string};string;
+    pathType?: {key: "rotate",value: string};string;
+    tikzset?: {key: "rotate",value: string};;
 }
+function covort(value: number,convrsin: string){
 
-class Formatting implements Formatting{
+}
+class Formatting{
     
     addRotate(){
-
+        
     }
     
     quickAdd(mode: string,formatting: any,formattingForInterpretation?:string ){
@@ -557,16 +559,22 @@ class Formatting implements Formatting{
             }
         });
     }
+
     split(key: keyof Formatting,formatting: string){
         const match=formatting.split("=");
-        let value;
         if(typeof this[key] === "number"){
+            const split=formatting.match(/([\d.]+)([a-zA-Z]+)/);
             (this[key] as number|undefined)=toNumber(match[1])
         }
         else
         (this[key] as string|undefined)=match[1]??undefined
     }
+
     toString(): string {
+        Object.entries(this).forEach(([key, value]) => {
+            console.log(`${key}: ${value}`);
+        });
+
         return this.stringafyMode()+[
             this.lineWidth  ? `line width=${this.lineWidth},` : '',
             this.fill  ? `fill=${this.fill},` : '',
@@ -593,11 +601,11 @@ class Formatting implements Formatting{
 }
 
 export class Coordinate {
-    mode: string|undefined;
+    mode: string;
     axis: Axis;
-    original?: string|undefined;
-    coordinateName: string|undefined;
-    formatting: Formatting;
+    original?: string;
+    coordinateName?: string;
+    formatting?: Formatting;
     label?: string;
     quadrant?: number;
     
@@ -613,9 +621,9 @@ export class Coordinate {
         // Assign properties only if they are not undefined
         if (mode !== undefined) this.mode = mode;
         if (axis !== undefined) this.axis = axis;
-        if (original !== undefined) this.original = original;
-        if (coordinateName !== undefined) this.coordinateName = coordinateName;
-        if (formatting !== undefined) this.formatting = formatting;
+        this.original = original;
+        this.coordinateName = coordinateName;
+        this.formatting = formatting;
         this.label = label;
         this.quadrant = quadrant;
     }
@@ -640,14 +648,17 @@ export class Coordinate {
     asInlineCoordinates(){
 
     }
-    asInlineNode(match: RegExpMatchArray, tokens: FormatTikzjax,formatting?: any,typeofNode?: string) {
+    asInlineNode(match: {original: string,coordinateName: string,label: string,formatting: string|object}, tokens: FormatTikzjax,formatting?: any,typeofNode?: string) {
         this.mode=`node${typeofNode?"-"+typeofNode:""}`;
-        [this.original, this.coordinateName, this.label] = [match[1], match[2], match[3]];
+        ([{original: this.original,coordinateName: this.coordinateName,label: this.label}]=[match])
+        
+        //[this.original, this.coordinateName, this.label] = [match[1], match[2], match[3]];
         this.axis=new Axis().universal(this.original,tokens);
         this.formatting=new Formatting();
         this.formatting.quickAdd(this.mode,formatting,match[4]);
         return this;
     }
+
     asNode(match: RegExpMatchArray, tokens: FormatTikzjax,formatting?: any,typeofNode?: string) {
         this.mode=`node${typeofNode?"-"+typeofNode:""}`;
         [this.original, this.coordinateName, this.label] = [match[1], match[2], match[3]];
