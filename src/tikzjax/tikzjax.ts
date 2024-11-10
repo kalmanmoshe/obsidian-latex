@@ -637,8 +637,16 @@ export class Coordinate {
         //this.formatting=match[4]
         return this;
     }
-    asInLineCoordinates(){
+    asInlineCoordinates(){
 
+    }
+    asInlineNode(match: RegExpMatchArray, tokens: FormatTikzjax,formatting?: any,typeofNode?: string) {
+        this.mode=`node${typeofNode?"-"+typeofNode:""}`;
+        [this.original, this.coordinateName, this.label] = [match[1], match[2], match[3]];
+        this.axis=new Axis().universal(this.original,tokens);
+        this.formatting=new Formatting();
+        this.formatting.quickAdd(this.mode,formatting,match[4]);
+        return this;
     }
     asNode(match: RegExpMatchArray, tokens: FormatTikzjax,formatting?: any,typeofNode?: string) {
         this.mode=`node${typeofNode?"-"+typeofNode:""}`;
@@ -673,7 +681,7 @@ export class Coordinate {
         this.quadrant = yDirection === 1 ? (xDirection === 1 ? 1 : 2) : (xDirection === 1 ? 4 : 3);
     }
 }
-type CoordinateType =Array<Coordinate | { type: string; text: any; formatting: any, value?: any}>;
+type CoordinateType =Array<Axis| Coordinate | string>;
 
 class Draw {
     mode?: string
@@ -725,9 +733,9 @@ class Draw {
                 } else if (i > 1 && schematic[i - 1].type === "node" && schematic[i - 2].type === "formatting") {
                     previousFormatting = schematic[i - 2].value;
                 }
-                coorArr.push(new Coordinate().simpleXY(schematic[i].value, tokens, previousFormatting, coorArr));
+                coorArr.push(new Axis().universal(schematic[i].value, tokens, coorArr, previousFormatting, ));
             } else{
-                coorArr.push({...schematic[i]});
+                coorArr.push(new Coordinate().asInlineNode());
             }
         }
         return coorArr;
