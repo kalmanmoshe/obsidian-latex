@@ -521,7 +521,6 @@ export class Formatting{
         this.interpretFormatting(formattingForInterpretation||"")
 
         for (const [key, value] of Object.entries(this)) {
-            if (key==="mode"){continue;}
             if(typeof value === 'object'){
                 string+=this.handleObjectToString(value,key)
             }
