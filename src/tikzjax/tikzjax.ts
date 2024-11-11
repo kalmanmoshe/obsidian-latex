@@ -1040,7 +1040,7 @@ export class FormatTikzjax {
     }
 
     findMidpoint() {
-        let coordinates = this.tokens.filter((token: Token) => token instanceof Coordinate);
+        /*let coordinates = this.tokens.filter((token: Token) => token instanceof Coordinate);
         this.tokens
         .filter((token: Token) => token instanceof Draw)
         .forEach((object: Draw) => {
