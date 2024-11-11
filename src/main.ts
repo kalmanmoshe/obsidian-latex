@@ -318,8 +318,8 @@ class tikzGraph extends Modal {
     script.setAttribute("data-show-console", "true");
     script.setText(this.tikz.getCode());
     
-    const debugContent = contentEl.createEl("div", { cls: "debug-info-container" });
-      MarkdownRenderer.renderMarkdown(`\`\`\`js\n${this.debugInfo}\n\`\`\``, debugContent, "", new Component());
+    const a = contentEl.createEl("div", { cls: "debug-info-container" });
+    MarkdownRenderer.renderMarkdown(`\`\`\`tikz\n${this.debugInfo}\n\`\`\``, debugContent, "", new Component());
     const actionButton = contentEl.createEl("button", { text: "Copy graph", cls: "info-modal-Copy-button" });
 
     actionButton.addEventListener("click", () => {
