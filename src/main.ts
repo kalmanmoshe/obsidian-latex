@@ -288,7 +288,7 @@ class VecProcessor {
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
     ])
-    
+
     
     this.vecInfo.addDebugInfo("this.graph",JSON.stringify(this.graph.tokens,null,1));
     this.vecInfo.addDebugInfo("this.graph.toString()",JSON.stringify(this.graph.toString()));
@@ -316,7 +316,7 @@ class tikzGraph extends Modal {
     const script = contentEl.createEl("script");
     script.setAttribute("type", "text/tikz");
     script.setAttribute("data-show-console", "true");
-    script.setText(this.tikz.getCode());
+    script.setText(``);
     
     const actionButton = contentEl.createEl("button", { text: "Copy graph", cls: "info-modal-Copy-button" });
 
