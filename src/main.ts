@@ -317,7 +317,7 @@ class tikzGraph extends Modal {
     script.setAttribute("type", "text/tikz");
     script.setAttribute("data-show-console", "true");
     script.setText(String.raw`[scale=3pt, x=1cm, y=1cm,white]
-\draw [line width=1pt,->,draw=green] (-0.3,-0.5)--+(-90:0.5)node [] {${w}$};
+\draw [line width=1pt,->,draw=green] (-0.3,-0.5)--+(-90:0.5)node [] {\${w}$};
 %\draw [decoration={brace,amplitude=10pt},decorate] (1,0) -- (0,0);`);
     
     const actionButton = contentEl.createEl("button", { text: "Copy graph", cls: "info-modal-Copy-button" });
