@@ -272,8 +272,8 @@ class VecProcessor {
     // i need to make it "to X axis"
     //const vectorAngle = getUsableDegrees(radiansToDegrees(Math.atan2(scaledY, scaledX)));
     
-    const ancer=new Axis().addCartesian(0,0);
-    ancer
+    const ancer=new Axis();
+    ancer.addCartesian(0,0)
     const c1=new Coordinate();
     c1.addAxis(this.axis.cartesianX,0)
 
