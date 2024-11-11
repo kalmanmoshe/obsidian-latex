@@ -1003,7 +1003,7 @@ class FormatTikzjax {
           } else if (match[0].startsWith("\\xyaxis")) {
             //this.tokens.push(dissectXYaxis(match));
           } else if (match[0].startsWith("\\grid")) {
-            this.tokens.push({type: "grid", rotate: match[1]});
+            //this.tokens.push({type: "grid", rotate: match[1]});
           } else if (match[0].startsWith("\\node")) {
             let i={original: match[1],coordinateName: match[3],label: match[4],formatting: match[3]}
             if (match[0].match(/\\node\s*\(/)){
