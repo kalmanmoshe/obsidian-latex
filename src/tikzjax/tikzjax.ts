@@ -1058,7 +1058,7 @@ export class FormatTikzjax {
         this.midPoint.addCartesian(
             sumOfX / coordinates.length!==0?coordinates.length:1
             ,sumOfY / coordinates.length!==0?coordinates.length:1
-        )
+        )*/
     }
 
     findOriginalValue(value: string) {
