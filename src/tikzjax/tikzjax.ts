@@ -927,7 +927,8 @@ export class FormatTikzjax {
     
 	constructor(source: string|Array<Token>) {
         if(typeof source==="string"){
-		this.source = this.tidyTikzSource(source);this.tokenize();
+		this.source = this.tidyTikzSource(source);
+        this.tokenize();
         }
         else this.tokens=source
 
