@@ -1010,7 +1010,7 @@ class FormatTikzjax {
                 Object.assign(i,{original: match[2],coordinateName: match[1],label: match[3],formatting: match[4]});
             }
             this.tokens.push(new Coordinate().addInfo(i, this,"node"));
-          } else if (match[0].startsWith("\\circle")) {
+          } else if (match[0].startsWith("\\circle")) {/*
             this.tokens.push({
               type: "circle",
               formatting: match[4],
@@ -1019,7 +1019,7 @@ class FormatTikzjax {
                 new Coordinate().simpleXY(match[2], this.tokens),
                 new Coordinate().simpleXY(match[3], this.tokens),
               ],
-            });
+            });*/
           } else if (match[0].startsWith("\\mass")) {
             let i={original: match[1], label: match[2]}
             this.tokens.push(new Coordinate().addInfo(i,this,"node-mass",{anchor: match[3],rotate: match[4]}))
