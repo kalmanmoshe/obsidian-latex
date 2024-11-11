@@ -696,6 +696,7 @@ export class Formatting{
         }
         return string+"]";
     }
+    
     handleObjectToString(obj: object, parentKey: string): string {
         let result = matchKeyWithValue(parentKey)+'{';
         for (const [key, value] of Object.entries(obj)) {
