@@ -1015,9 +1015,9 @@ class FormatTikzjax {
               type: "circle",
               formatting: match[4],
               coordinates: [
-            /new Coordinate().simpleXY(match[1], this.tokens),
+                new Coordinate().simpleXY(match[1], this.tokens),
                 new Coordinate().simpleXY(match[2], this.tokens),
-                //new Coordinate().simpleXY(match[3], this.tokens),
+                new Coordinate().simpleXY(match[3], this.tokens),
               ],
             });
           } else if (match[0].startsWith("\\mass")) {
