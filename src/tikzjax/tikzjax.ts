@@ -528,8 +528,8 @@ export class Formatting{
                 this.setProperty(key as keyof Formatting,formatting)
             }
         }
-        this.rotate=toNumber(formatting?.rotate)??this.rotate;
-        this.anchor=formatting?.anchor?.replace(/-\|/,"south")?.replace(/\|-/,"north")??this.anchor;
+        //this.rotate=toNumber(formatting?.rotate)??this.rotate;
+        //this.anchor=formatting?.anchor?.replace(/-\|/,"south")?.replace(/\|-/,"north")??this.anchor;
         
         return this;
     }
