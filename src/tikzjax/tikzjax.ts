@@ -942,8 +942,7 @@ class FormatTikzjax {
         tikzSource = tikzSource.replaceAll(remove, "");let lines = tikzSource.split("\n");
         lines = lines.map(line => line.trim());
         lines = lines.filter(line => line);
-        relines.join('\n').replace(/(?<=[^\w]) | (?=[^\w])/g, "").replace(/(?<!\\)%.*$/gm, "");;
-        
+        return lines.join('\n').replace(/(?<=[^\w]) | (?=[^\w])/g, "").replace(/(?<!\\)%.*$/gm, "");;
     }
 
     applyPostProcessing(){
