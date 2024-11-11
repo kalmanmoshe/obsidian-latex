@@ -1086,7 +1086,7 @@ export class FormatTikzjax {
         const extremeXY=getExtremeXY(this.tokens);
         this.tokens.forEach((token: any) => {
 
-            if(token instanceof Coordinate||token instanceof Draw||token instanceof Draw){
+            if(token instanceof Coordinate||token instanceof Draw||token instanceof F){
                 codeBlockOutput +=token.toString()
             }
           if (typeof token === "object") {
