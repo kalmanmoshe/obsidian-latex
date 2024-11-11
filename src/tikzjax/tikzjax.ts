@@ -803,7 +803,7 @@ export class Draw {
             this.coordinates = this.fillCoordinates(this.getSchematic(match.draw), tokens);
         }
         else{
-            this.coordinates=this.createFromArray(match.draw)
+            this.coordinates=this.createFromArray(match.d)
         }
     }
 
