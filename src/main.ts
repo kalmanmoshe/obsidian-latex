@@ -299,7 +299,7 @@ class tikzGraph extends Modal {
   tikz: FormatTikzjax
   constructor(app: App,tikzCode: FormatTikzjax){
     super(app);
-    this.tikzCode=tikzCode;
+    this.tikz=tikzCode;
   }
 
   onOpen() {
