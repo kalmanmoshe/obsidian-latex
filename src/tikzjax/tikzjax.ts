@@ -803,7 +803,7 @@ export class Draw {
             this.coordinates = this.fillCoordinates(this.getSchematic(match.draw), tokens);
         }
         else{
-            this.coordinates=this.createFromArray(match.d)
+            this.coordinates=this.createFromArray(match.draw)
         }
     }
 
@@ -815,25 +815,6 @@ export class Draw {
             }
             if(typeof arr==="string"){
                 coordinatesArray.push(arr[i])
-            }
-        }
-
-        for (let i = 1; i < coordinatesArray.length; i++) {
-            if (coordinatesArray[i] instanceof Coordinate) {
-                let found = false;
-                while (i < coordinatesArray.length && !found) {
-                    i++;
-                    if (typeof coordinatesArray[i] === "string") {
-                        break;
-                    }
-                    if (coordinatesArray[i] instanceof Coordinate) {
-                        found = true;
-                    }
-                }
-                i--; 
-                if (found) {
-                    coordinatesArray.push('--');
-                }
             }
         }
         return coordinatesArray;
