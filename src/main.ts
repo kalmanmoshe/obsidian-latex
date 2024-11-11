@@ -269,8 +269,6 @@ class VecProcessor {
     } else if (maxComponent > targetSize) {
       scale = targetSize / maxComponent;
     }
-
-    const vectorLength = Math.sqrt(scaledX ** 2 + scaledY ** 2);
     // i need to make it "to X axis"
     const vectorAngle = getUsableDegrees(radiansToDegrees(Math.atan2(scaledY, scaledX)));
     
