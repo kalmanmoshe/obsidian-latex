@@ -565,8 +565,8 @@ export class Formatting{
     }
 
     interpretFormatting(formattingString: string,formattingArr: any){
-        
-        for (const [key, value] of Object.entries(formatting)) {
+
+        for (const [key, value] of Object.entries(formattingArr)) {
             if(typeof value === 'object'){
                 //this.setProperty(key as keyof Formatting,formatting)
             }
