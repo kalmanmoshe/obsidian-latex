@@ -770,7 +770,7 @@ export class Coordinate {
     }
 }
 
-type Token =Axis | Coordinate |Draw|Formatting string;
+type Token =Axis | Coordinate |Draw|Formatting| string;
 
 export class Draw {
     mode?: string
