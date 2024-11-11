@@ -728,8 +728,7 @@ export class Coordinate {
         if (axis !== undefined) this.axis = axis;
         this.original = original;
         this.coordinateName = coordinateName;
-        if (formatting !== undefined)
-        this.formatting = formatting;
+        if (formatting !== undefined) this.formatting = formatting;
         this.label = label;
         this.quadrant = quadrant;
     }
