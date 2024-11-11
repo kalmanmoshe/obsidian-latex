@@ -780,7 +780,7 @@ export class Draw {
     constructor(match: {formatting: string|any,draw: string|any}, tokens?: FormatTikzjax,mode?: string) {
         this.mode=mode;
         this.mode=`draw${mode?"-"+mode:""}`;
-        
+        if ()
         this.formatting.quickAdd(`draw`,{},match.formatting);
         if(typeof match.draw==="string")
         this.coordinates = this.fillCoordinates(this.getSchematic(match.draw), tokens);
