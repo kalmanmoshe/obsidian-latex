@@ -306,7 +306,7 @@ class tikzGraph extends Modal {
     const script = this.contentEl.createEl("script");
     script.setAttribute("type", "text/tikz");
     script.setAttribute("data-show-console", "true");
-    script.setText(new FormatTikzjax(this.tikzCode).getCode());
+    script.setText(this.tikz.getCode());
     
     const actionButton = this.contentEl.createEl("button", { text: "Copy graph", cls: "info-modal-Copy-button" });
 
