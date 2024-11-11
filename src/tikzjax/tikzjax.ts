@@ -923,6 +923,7 @@ class FormatTikzjax {
     
 	constructor(source: string|Array<Token>) {
         if(typeof source==="string")
+            
 		this.source = source.replace(/(?<=[^\w]) | (?=[^\w])/g, "").replace(/(?<!\\)%.*$/gm, "");
         else this.tokens=source
         this.debugInfo+=this.source;
@@ -935,7 +936,7 @@ class FormatTikzjax {
         this.processedCode += this.reconstruct();
         this.debugInfo+=this.processedCode;
 	}
-    
+
     tidyTikzSource(tikzSource: string,icon: HTMLElement) {
         const remove = "&nbsp;";
         tikzSource = tikzSource.replaceAll(remove, "");let lines = tikzSource.split("\n");
