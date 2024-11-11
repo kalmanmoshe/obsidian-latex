@@ -711,7 +711,7 @@ export class Coordinate {
     original?: string;
     coordinateName?: string;
     formatting = new Formatting();
-    label?: string;
+    label?: '';
     quadrant?: number;
     
     constructor(
