@@ -519,8 +519,10 @@ export class Formatting{
         this.mode=mode;
         this.formattingSpecificToMode();
         this.interpretFormatting(formattingForInterpretation||"")
+
         this.rotate=toNumber(formatting?.rotate)??this.rotate;
         this.anchor=formatting?.anchor?.replace(/-\|/,"south")?.replace(/\|-/,"north")??this.anchor;
+        
         return this;
     }
 
@@ -533,7 +535,7 @@ export class Formatting{
                 break;
         }
     }
-    
+
     addSplopAndPosition(arr: any,index: number){
         const beforeAfter=findBeforeAfterAxis(arr,index);
         const [before, after]=[arr[beforeAfter.before],arr[beforeAfter.after]]
