@@ -521,13 +521,13 @@ export class Formatting{
         this.interpretFormatting(formattingForInterpretation||"")
 
         for (const [key, value] of Object.entries(formatting)) {
+            console.log()
             if(typeof value === 'object'){
                 //this.setProperty(key as keyof Formatting,formatting)
             }
             if (value) {
                 this.setProperty(key as keyof Formatting,formatting)
             }
-            
         }
         //this.rotate=toNumber(formatting?.rotate)??this.rotate;
         //this.anchor=formatting?.anchor?.replace(/-\|/,"south")?.replace(/\|-/,"north")??this.anchor;
