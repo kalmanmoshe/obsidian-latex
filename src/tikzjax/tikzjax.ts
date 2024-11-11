@@ -926,7 +926,7 @@ class Draw {
 }
 class FormatTikzjax {
 	source: string;
-    tokens: Array<Tokens=[];
+    tokens: Array<Token>=[];
     midPoint: Axis;
 	processedCode="";
     debugInfo = "";
