@@ -278,10 +278,10 @@ class VecProcessor {
     axis.cartesianY=0
     const c1=new Coordinate("node-inline",axis);
     const formatting={lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}
-    const draw= 
+    const draw= [ancer,'--',c1,ancer]
     this.graph=new FormatTikzjax([
       new Formatting().quickAdd("globol",{color: "white",scale: "1",}),
-      new Draw({formatting: formatting,draw: [ancer,'--',c1,ancer]},undefined,"draw",),
+      new Draw({formatting: formatting,draw: },undefined,"draw",),
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
     ])
