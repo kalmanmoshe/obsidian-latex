@@ -783,7 +783,7 @@ export class Draw {
         if (typeof match.formatting ==="string")
         this.formatting.quickAdd(`draw`,{},match.formatting);
         else
-        this.formatting.quickAdd(`draw`,{},match.formatting);
+        this.formatting.quickAdd(`draw`,match.formatting,'');
         if(typeof match.draw==="string")
         this.coordinates = this.fillCoordinates(this.getSchematic(match.draw), tokens);
         else{
