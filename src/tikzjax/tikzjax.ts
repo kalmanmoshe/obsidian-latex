@@ -760,7 +760,6 @@ export class Coordinate {
     }
 
     toString() {
-        console.log(this)
         switch (this.mode) {
             case "coordinate":
                 return `\\coor{${this.axis.toString()}}{${this.coordinateName || ""}}{${this.label || ""}}{}`;
