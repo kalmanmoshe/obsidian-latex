@@ -915,7 +915,7 @@ class Draw {
         return result + ";";
     }
 }
-class FormatTikzjax {
+export class FormatTikzjax {
 	source: string;
     tokens: Array<Token>=[];
     midPoint: Axis;
