@@ -522,7 +522,7 @@ export class Formatting{
 
         for (const [key, value] of Object.entries(this)) {
             if(typeof value === 'object'){
-                this.setProperty(key as keyof Formatting,formatting)
+                //this.setProperty(key as keyof Formatting,formatting)
             }
             else if (value) {
                 this.setProperty(key as keyof Formatting,formatting)
