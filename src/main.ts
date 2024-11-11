@@ -253,7 +253,7 @@ class VecProcessor {
 
     this.modifier = modifier.length > 0 ? getUsableDegrees(Number(modifier)) : 0;
 
-    this.axis=new Axis().universal(mathInput, FormatTikzjax,anchorArr,anchor?: string)
+    this.axis=new Axis().universal(mathInput, undefined,anchorArr,anchor?: string)
     this.addGraph();
   }
 
