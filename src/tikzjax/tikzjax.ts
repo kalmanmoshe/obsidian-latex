@@ -776,7 +776,7 @@ type Token =Axis | Coordinate |Draw| string;
 class Draw {
     mode?: string
     formatting: Formatting=new Formatting();
-    coordinates: <Axis | Coordinate |Draw| string>;
+    coordinates: Array<Axis | Coordinate |string>;
 
     constructor(match: {formatting: string,draw: string|any}, tokens?: FormatTikzjax,mode?: string) {
         this.mode=mode;
