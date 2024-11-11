@@ -283,7 +283,7 @@ class VecProcessor {
     const draw= [ancer,'--',c1,ancer]
 
     this.graph=new FormatTikzjax([
-      new Formatting().quickAdd("globol",{color: "white",scale: "1",}),
+      new Formatting().quickAdd("globol",{color: "white",scale: 1,}),
       new Draw({formatting: formatting,draw: draw},undefined,"draw",),
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
