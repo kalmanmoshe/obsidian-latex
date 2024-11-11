@@ -250,7 +250,7 @@ export class Axis {
                     coordinateArr.push(match);
                     break;
                 case (/[\d\w]+/).test(match):
-                    if ()
+                    if (to)
                     axis = tokens.findOriginalValue(match)?.axis;
                     if (axis === undefined) {
                         throw new Error(`Couldn't find the coordinate ${match} from ${coordinate}`);
