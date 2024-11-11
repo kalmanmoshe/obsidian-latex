@@ -785,7 +785,7 @@ class Draw {
     formatting: Formatting=new Formatting();
     coordinates: CoordinateType;
 
-    constructor(match: {formatting: string,draw: string|any}, tokens: FormatTikzjax,mode?: string) {
+    constructor(match: {formatting: string,draw: string|any}, tokens?: FormatTikzjax,mode?: string) {
         this.mode=mode;
         this.mode=`draw${mode?"-"+mode:""}`;
         this.formatting.quickAdd(`draw`,{},match.formatting);
