@@ -766,7 +766,7 @@ export class Coordinate {
             case "node":
                 return
             case "node-inline":
-                return `node ${this.formatting?.toString()} {${this.label}}`
+                return `node ${this.formatting?.toString()} {${this.label||''}}`
             case "node-mass":
                 return `\\node ${this.coordinateName?'('+this.coordinateName+')':''} at (${this.axis.toString()}) ${this.formatting?.toString()} {${this.label}};`
             default:
