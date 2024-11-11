@@ -931,7 +931,7 @@ class FormatTikzjax {
 	processedCode="";
     debugInfo = "";
     
-	constructor(source: string|) {
+	constructor(source: string|Tokens) {
 		this.source = source.replace(/(?<=[^\w]) | (?=[^\w])/g, "").replace(/(?<!\\)%.*$/gm, "");
         this.debugInfo+=this.source;
         this.tokenize();
