@@ -734,7 +734,7 @@ export class Coordinate {
         );
     }
     addAxis(){
-        this.axis=new
+        this.axis=new Axis();
     }
     addInfo(match: {original?: string,coordinateName?: string,label?: string,formatting?: string}, mode: string,tokens?: FormatTikzjax,formatting?: object) {
         this.mode=mode;
