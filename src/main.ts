@@ -274,7 +274,7 @@ class VecProcessor {
     
     const ancer=new Axis(0,0);
 
-    const axis1=new Axis(0,0);this.axis.clone();
+    const axis1=new Axis(this.axis.c,0);this.axis.clone();
     axis.cartesianY=0
 
     const c1=new Coordinate("node-inline",axis);
