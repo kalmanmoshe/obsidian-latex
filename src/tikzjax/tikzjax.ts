@@ -776,7 +776,7 @@ type Token =Axis | Coordinate |Draw| string;
 class Draw {
     mode?: string
     formatting: Formatting=new Formatting();
-    coordinates: Array<Axis | Coordinate |string>;
+    coordinates: Array<Token>;
 
     constructor(match: {formatting: string,draw: string|any}, tokens?: FormatTikzjax,mode?: string) {
         this.mode=mode;
@@ -822,7 +822,7 @@ class Draw {
     }
 
     fillCoordinates(schematic: any[], tokens?: FormatTikzjax) {
-        const coorArr: CoordinateType=[];
+        const coorArr: Array<Token>=[];
         for (let i = 0; i < schematic.length; i++) {
             if (schematic[i].type === "coordinate") {
                 let previousFormatting;
