@@ -311,7 +311,7 @@ class tikzGraph extends Modal {
     const actionButton = this.contentEl.createEl("button", { text: "Copy graph", cls: "info-modal-Copy-button" });
 
     actionButton.addEventListener("click", () => {
-      navigator.clipboard.writeText(this.tikzCode);
+      navigator.clipboard.writeText(this.tikzCode.getCode());
       new Notice("Graph copied to clipboard!");
     });
   }
