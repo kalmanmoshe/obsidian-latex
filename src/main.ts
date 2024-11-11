@@ -290,7 +290,7 @@ class VecProcessor {
     ])
     
     this.vecInfo.addDebugInfo(JSON.stringify("this.graph",this.graph.tokens,null,1));
-    this.vecInfo.addDebugInfo(JSON.stringify("this.graph.toString()",this.graph.toString(),));
+    this.vecInfo.addDebugInfo(JSON.stringify("this.graph.toString()",this.graph.toString()));
     /* Generate LaTeX code for vector components and main vector
     const t = String.raw`
 
