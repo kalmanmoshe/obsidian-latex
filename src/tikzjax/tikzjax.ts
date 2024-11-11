@@ -935,6 +935,7 @@ class FormatTikzjax {
         this.processedCode += this.reconstruct();
         this.debugInfo+=this.processedCode;
 	}
+    
     tidyTikzSource(tikzSource: string,icon: HTMLElement) {
         const remove = "&nbsp;";
         tikzSource = tikzSource.replaceAll(remove, "");let lines = tikzSource.split("\n");
@@ -945,6 +946,7 @@ class FormatTikzjax {
         icon.onclick = () => new DebugModal(this.app,tikzjax.debugInfo).open();
         return tikzjax.getCode();
     }
+
     applyPostProcessing(){
         for(let i=0;i<this.tokens.length;i++){
             
