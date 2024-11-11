@@ -276,8 +276,6 @@ class VecProcessor {
     this.graph=[
       new Formatting().quickAdd("globol",{color: "white",scale: "1",}),
       new Draw([formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]],undefined,"draw",),
-      new Draw([{lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},[ancer,'--',new Coordinate(),new Axis()]],undefined,"draw",{lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}),
-      new Draw(['',[ancer,'--',new Coordinate(),new Axis()]],undefined,"draw",{lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}),
     ]
     
     // Generate LaTeX code for vector components and main vector
