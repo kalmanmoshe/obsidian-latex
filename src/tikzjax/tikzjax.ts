@@ -1039,7 +1039,7 @@ class FormatTikzjax {
             this.tokens.push(this.source.slice(currentIndex));
         }
     }
-
+    
     findMidpoint() {
         let coordinates = this.tokens.filter((token: token) => token instanceof Coordinate);
         this.tokens
