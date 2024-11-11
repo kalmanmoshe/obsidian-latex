@@ -710,7 +710,7 @@ export class Coordinate {
     axis: Axis;
     original?: string;
     coordinateName?: string;
-    formatting?: Formatting;
+    formatting?: new;
     label?: string;
     quadrant?: number;
     
