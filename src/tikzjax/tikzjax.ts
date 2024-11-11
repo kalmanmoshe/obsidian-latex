@@ -782,6 +782,8 @@ export class Draw {
         this.mode=`draw${mode?"-"+mode:""}`;
         if (typeof match.formatting ==="string")
         this.formatting.quickAdd(`draw`,{},match.formatting);
+        else
+        
         if(typeof match.draw==="string")
         this.coordinates = this.fillCoordinates(this.getSchematic(match.draw), tokens);
         else{
