@@ -834,7 +834,7 @@ class Draw {
                 }
                 coorArr.push(new Axis().universal(schematic[i].value, tokens, coorArr, previousFormatting, ));
             } else if(schematic[i].type === "node"){
-                coorArr.push(new Coordinate().addInfo({label: schematic[i].value,formatting: schematic[i].formatting},tokens,"node-inline"));
+                coorArr.push(new Coordinate().addInfo({label: schematic[i].value,formatting: schematic[i].formatting},"node-inline"));
             }
             else{
                 coorArr.push(schematic[i].value);
