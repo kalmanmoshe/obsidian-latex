@@ -228,7 +228,7 @@ export class Axis {
     polarAngle: number;
     polarLength: number;
     name?: string;
-    universal(coordinate: string, tokens: FormatTikzjax,anchorArr?: any,anchor?: string): Axis {
+    universal(coordinate: string, tokens?: FormatTikzjax,anchorArr?: any,anchor?: string): Axis {
         const matches=this.getCoordinateMatches(coordinate);
         const coordinateArr: Array<Axis|string> = [];
         matches.forEach((match: any,index: number) => {
