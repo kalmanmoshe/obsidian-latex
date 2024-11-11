@@ -1088,40 +1088,7 @@ export class FormatTikzjax {
 
             if(token.toString()){
                 codeBlockOutput +=token.toString()
-            }
-          if (typeof token === "object") {
-            switch(token.type){/*
-                case "coordinate":
-                    codeBlockOutput += token.toString();
-                    break;
-                case "node":
-                    codeBlockOutput += `\\node (${token.coordinateName}) at (${token.X},${token.Y}) [${generateFormatting(token)}] {${token.label}};`;
-                    break;
-                case "draw":
-                    codeBlockOutput+=token.toString()
-                    break;
-                case "xyaxis":
-                    codeBlockOutput+=`\\draw [${token.xDirection==="up"?"-{Stealth}":"{Stealth}-"}](${extremeXY.minX},0)`
-                    codeBlockOutput+=`--(${extremeXY.maxX},0)`
-                    
-                    codeBlockOutput+=token.Xnode?`node [${token.Xformatting.substring(1,token.Xformatting.length-1)}] {${token.Xnode}};`:";"
-                    
-                    codeBlockOutput+=`\\draw [${token.yDirection==="up"?"-{Stealth}":"{Stealth}-"}](${extremeXY.minY},0)`
-                    codeBlockOutput+=`--(0,${extremeXY.maxY})`
-                    codeBlockOutput+=token.Ynode?`node [${token.Yformatting.substring(1,token.Yformatting.length-1)}] {${token.Ynode}};`:";"
-                    
-                    break;
-                case "grid":
-                    codeBlockOutput+=`\\draw [] (${extremeXY.minX},${extremeXY.minY}) grid [rotate=${token?.rotate||0},xstep=.75cm,ystep=.75cm] (${extremeXY.maxX},${extremeXY.maxY});`
-                    break;
-                case "circle":
-                    temp=calculateCircle(token.coordinates[0],token.coordinates[1],token.coordinates[2])
-                    codeBlockOutput+=`\\draw [line width=1pt,${token.formatting}] (${temp?.center.X},${temp?.center.Y}) circle [radius=${temp?.radius}];`
-                    break;
-                case "vec":
-                    codeBlockOutput+=`\\draw [-{Stealth},${token.formatting||""}](${token.anchor.X},${token.anchor.Y})--node [] {${token.text}}(${token.X+token.anchor.X},${token.Y+token.anchor.Y});`
-            */}
-          } else {
+            }} else {
             codeBlockOutput += token;
           }
         });
