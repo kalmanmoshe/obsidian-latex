@@ -277,7 +277,7 @@ class VecProcessor {
     const axis1=new Axis(this.axis.cartesianX,0);
     const axis2=new Axis(0,this.axis.cartesianY);
 
-    const c1=new Coordinate("node-inline",axis);
+    const c1=new Coordinate("node-inline");
 
     const formatting={lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}
     const draw= [ancer,'--',c1,ancer]
