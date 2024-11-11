@@ -945,7 +945,7 @@ class FormatTikzjax {
         this.processedCode += this.reconstruct();
         this.debugInfo+=this.processedCode;
 	}
-    fo
+    for
     applyPostProcessing(){
         for(let i=0;i<this.tokens.length;i++){
             
