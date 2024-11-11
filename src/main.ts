@@ -280,7 +280,7 @@ class VecProcessor {
     const c1=new Coordinate("node-inline");
 
     const formatting={lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}
-    const draw= [ancer,'--',c1,ancer]
+    const draw= [ancer,'--',c1,axis1]
 
     this.graph=new FormatTikzjax([
       new Formatting().quickAdd("globol",{color: "white",scale: 1,}),
