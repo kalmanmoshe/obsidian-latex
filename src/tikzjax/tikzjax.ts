@@ -934,7 +934,7 @@ class FormatTikzjax {
 	constructor(source: string|Tokens) {
         if(typeof source==="string")
 		this.source = source.replace(/(?<=[^\w]) | (?=[^\w])/g, "").replace(/(?<!\\)%.*$/gm, "");
-        else this.tokens
+        else this.tokens=source
         this.debugInfo+=this.source;
         this.tokenize();
         this.findMidpoint();
