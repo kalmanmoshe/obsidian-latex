@@ -517,7 +517,7 @@ export class Formatting{
     
     sloped?: boolean;
     decorate?: boolean;
-    
+
     decoration?: {brace?: boolean,coil: boolean,amplitude?: number,aspect: number,segmentLength:number};
     
 
@@ -525,7 +525,7 @@ export class Formatting{
         this.mode=mode;
         this.formattingSpecificToMode();
         this.interpretFormatting(formattingForInterpretation||"")
-
+        
         for (const [key, value] of Object.entries(formatting)) {
             if(typeof value === 'object'){
                 //this.setProperty(key as keyof Formatting,formatting)
