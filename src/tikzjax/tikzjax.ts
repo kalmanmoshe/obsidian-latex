@@ -572,8 +572,8 @@ export class Formatting{
         this.position = this.position?.replace(/[\d]+/g,"").replace(/(below|above)(right|right)/,"$1 $2");
     }
 
-    interpretFormatting(formattingString: string,formattingArr: any){
-        
+    interpretFormatting(formattingString: string,formattingArr: Array<>){
+
 
 
         const splitFormatting=formattingString.match(/(?:{[^}]*}|[^,{}]+)+/g) || [];
