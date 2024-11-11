@@ -397,10 +397,6 @@ class BinomInfoModel extends Modal {
     contentEl.createEl("p", { text: `P(X >= ${this.k}) = ${this.bigEqual}` });
   }
 
-  public getEqual(): number {
-    return calculateBinom(this.n, this.k, this.p);
-  }
-
   private calculateProbabilities() {
     for (let i = 0; i <= this.n; i++) {
       const probability = calculateBinom(this.n, i, this.p);
