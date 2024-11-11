@@ -299,6 +299,7 @@ class VecProcessor {
     `.replace(/^\s+/gm, "");*/
 
     this.vecInfo.addDebugInfo("Scaling factor", scale);
+    new tikzGraph()
   }
 }
 
