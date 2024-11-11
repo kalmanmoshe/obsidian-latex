@@ -585,7 +585,7 @@ export class Formatting{
                 case !!match: {
                     if (match){
                         const  [_,parent, children]=match;
-                        this.interpretFormatting(children)
+                        this.interpretFormatting(children,[])
                     }
                     break;
                 }
