@@ -525,7 +525,7 @@ export class Formatting{
                 this.setProperty(key as keyof Formatting,formatting)
             }
             else if (value) {
-                string+=matchKeyWithValue(key as keyof Formatting)+(typeof value==="boolean"?'':value)+',';
+                this.setProperty(key as keyof Formatting,formatting)
             }
         }
         this.rotate=toNumber(formatting?.rotate)??this.rotate;
