@@ -274,7 +274,7 @@ class VecProcessor {
     
     const ancer=new Axis().addCartesian(0,0);
     const c1=new Coordinate().addAxis(this.axis.cartesianX,0);
-
+    
     this.graph=new FormatTikzjax([
       new Formatting().quickAdd("globol",{color: "white",scale: "1",}),
       new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',c1,new Axis()]},undefined,"draw",),
