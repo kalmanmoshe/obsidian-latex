@@ -526,14 +526,7 @@ export class Formatting{
         this.formattingSpecificToMode();
         this.interpretFormatting(formattingForInterpretation||"")
 
-        for (const [key, value] of Object.entries(formatting)) {
-            if(typeof value === 'object'){
-                //this.setProperty(key as keyof Formatting,formatting)
-            }
-            else if (value) {
-                this.setProperty(key as keyof Formatting,value)
-            }
-        }
+        
         return this;
     }
 
