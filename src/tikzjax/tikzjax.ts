@@ -714,7 +714,7 @@ export class Coordinate {
         label?: string,
         quadrant?: number
     ) {
-        
+
         if (mode !== undefined) this.mode = mode;
         if (axis !== undefined) this.axis = axis;
         this.original = original;
@@ -776,7 +776,7 @@ type Token =Axis | Coordinate |Draw| string;
 class Draw {
     mode?: string
     formatting: Formatting=new Formatting();
-    coordinates: CoordinateType;
+    coordinates: Axis | Coordinate |Draw| string;
 
     constructor(match: {formatting: string,draw: string|any}, tokens?: FormatTikzjax,mode?: string) {
         this.mode=mode;
