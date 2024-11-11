@@ -997,7 +997,7 @@ class FormatTikzjax {
             if(match[0].startsWith("\\coordinate")){
                 Object.assign(i,{original: match[5],coordinateName: match[4],label: match[3],formatting: match[2]})
             }
-            this.tokens.push(new Coordinate().addInfo(i,,"coordinate"));
+            this.tokens.push(new Coordinate().addInfo(i,"coordinate",this));
           } else if (match[0].startsWith("\\draw")) {
             this.tokens.push(new Draw({formatting: match[1],draw: match[2]}, this));
           } else if (match[0].startsWith("\\xyaxis")) {
