@@ -273,7 +273,7 @@ class VecProcessor {
     //const vectorAngle = getUsableDegrees(radiansToDegrees(Math.atan2(scaledY, scaledX)));
     
     const ancer=new Axis().addCartesian(0,0);
-    cons
+    const c1=new Coordinate().
     this.graph=new FormatTikzjax([
       new Formatting().quickAdd("globol",{color: "white",scale: "1",}),
       new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',,new Axis()]},undefined,"draw",),
