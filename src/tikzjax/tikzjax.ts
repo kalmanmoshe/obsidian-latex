@@ -112,16 +112,7 @@ export class Tikzjax {
           window.CodeMirror.modeInfo = window.CodeMirror.modeInfo.filter(el => el.name != "Tikz");
       }
   
-    tidyTikzSource(tikzSource: string,icon: HTMLElement) {
-        const remove = "&nbsp;";
-        tikzSource = tikzSource.replaceAll(remove, "");let lines = tikzSource.split("\n");
-        lines = lines.map(line => line.trim());
-        lines = lines.filter(line => line);
-
-        const tikzjax=new FormatTikzjax(lines.join("\n"));
-        icon.onclick = () => new DebugModal(this.app,tikzjax.debugInfo).open();
-        return tikzjax.getCode();
-    }
+    
   
       colorSVGinDarkMode(svg: string) {
         svg = svg.replaceAll(/("#000"|"black")/g, "\"currentColor\"")
