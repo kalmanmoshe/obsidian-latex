@@ -780,7 +780,7 @@ export class Coordinate {
     }
 }
 
-type Tokens =Array<Axis | Coordinate |Draw| string>;
+type Token =Array<Axis | Coordinate |Draw| string>;
 
 class Draw {
     mode?: string
