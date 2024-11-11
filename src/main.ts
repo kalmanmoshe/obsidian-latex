@@ -270,7 +270,7 @@ class VecProcessor {
       scale = targetSize / maxComponent;
     }
     // i need to make it "to X axis"
-    const vectorAngle = getUsableDegrees(radiansToDegrees(Math.atan2(scaledY, scaledX)));
+    //const vectorAngle = getUsableDegrees(radiansToDegrees(Math.atan2(scaledY, scaledX)));
     
     const ancer=new Axis().addCartesian(0,0);
     this.graph=[
