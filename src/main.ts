@@ -283,7 +283,7 @@ class VecProcessor {
 
       % Angle Annotation
       %\ang{X}{anc}{vec}{}{${roundBySettings(vectorAngle)}$^{\circ}$}
-    `.replace(/^\s+/gm, "");
+    `.replace(/^\s+/gm, "");*/
 
     this.vecInfo.addDebugInfo("Scaling factor", scale);
     this.vecInfo.addDebugInfo("TikZ graph code", tikzCode);
