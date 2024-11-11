@@ -734,7 +734,7 @@ export class Coordinate {
         );
     }
     addAxis(cartesianX?: number, cartesianY?: number, polarLength?: number, polarAngle?: number){
-        this.axis=new Axis();
+        this.axis=new Axis(cartesianX?: number, cartesianY?: number, polarLength?: number, polarAngle?: number);
     }
     addInfo(match: {original?: string,coordinateName?: string,label?: string,formatting?: string}, mode: string,tokens?: FormatTikzjax,formatting?: object) {
         this.mode=mode;
