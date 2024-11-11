@@ -526,7 +526,6 @@ export class Formatting{
         this.formattingSpecificToMode();
         this.interpretFormatting(formattingForInterpretation||"")
 
-        
         return this;
     }
 
