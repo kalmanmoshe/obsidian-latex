@@ -561,6 +561,7 @@ export class Formatting{
         // Remove unused quadrants. and Add space if two words
         this.position = this.position?.replace(/[\d]+/g,"").replace(/(below|above)(right|right)/,"$1 $2");
     }
+    
     interpretFormatting(formatting: string){
         const splitFormatting=formatting.match(/(?:{[^}]*}|[^,{}]+)+/g) || [];
         splitFormatting.forEach(formatting => {
