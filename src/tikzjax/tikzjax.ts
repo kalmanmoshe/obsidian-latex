@@ -733,11 +733,11 @@ export class Coordinate {
             this.quadrant
         );
     }
-   
+    
     addInfo(match: {original?: string,coordinateName?: string,label?: string,formatting?: string}, mode: string,tokens?: FormatTikzjax,formatting?: object) {
         this.mode=mode;
         ([{original: this.original,coordinateName: this.coordinateName,label: this.label}]=[match])
-        
+
         if(this.original){
             this.axis=new Axis().universal(this.original,tokens);
         }
