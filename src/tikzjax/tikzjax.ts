@@ -736,7 +736,7 @@ export class Coordinate {
     }
    
     addInfo(match: {original?: string,coordinateName?: string,label?: string,formatting?: string}, tokens?: FormatTikzjax,mode?: string,formatting?: object) {
-        this.mode=mode;
+        this.mode=mode||;
         ([{original: this.original,coordinateName: this.coordinateName,label: this.label}]=[match])
         if(this.original){
             this.axis=new Axis().universal(this.original,tokens);
