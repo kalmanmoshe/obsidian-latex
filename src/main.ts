@@ -274,6 +274,7 @@ class VecProcessor {
     
     const ancer=new Axis().addCartesian(0,0);
     const c1=new Coordinate();
+    c1.addAxis(this.axis.cartesianX,0)
     
     this.graph=new FormatTikzjax([
       new Formatting().quickAdd("globol",{color: "white",scale: "1",}),
