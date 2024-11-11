@@ -817,6 +817,25 @@ export class Draw {
                 coordinatesArray.push(arr[i])
             }
         }
+
+        for (let i = 1; i < coordinatesArray.length; i++) {
+            if (coordinatesArray[i] instanceof Coordinate) {
+                let found = false;
+                while (i < coordinatesArray.length && !found) {
+                    i++;
+                    if (typeof coordinatesArray[i] === "string") {
+                        break;
+                    }
+                    if (coordinatesArray[i] instanceof Coordinate) {
+                        found = true;
+                    }
+                }
+                i--; 
+                if (found) {
+                    coordinatesArray.push('--');
+                }
+            }
+        }
         return coordinatesArray;
     }
 
