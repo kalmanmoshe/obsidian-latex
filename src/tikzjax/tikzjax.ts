@@ -936,7 +936,7 @@ class FormatTikzjax {
         this.debugInfo+=this.processedCode;
 	}
     
-    tidyTikzSource(tikzSource: string,icon: HTMLElement) {
+    tidyTikzSource(tikzSource: string) {
         const remove = "&nbsp;";
         tikzSource = tikzSource.replaceAll(remove, "");let lines = tikzSource.split("\n");
         lines = lines.map(line => line.trim());
