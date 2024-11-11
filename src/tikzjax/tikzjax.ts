@@ -91,7 +91,7 @@ export class Tikzjax {
             script.setAttribute("data-show-console", "true");
             const tikzjax=new FormatTikzjax(lines.join("\n"));
             icon.onclick = () => new DebugModal(this.app,tikzjax.debugInfo).open();
-            return tikzjax.getCode();
+            return ;
             script.setText(this.tidyTikzSource(source,icon));
             }
             catch(e){
