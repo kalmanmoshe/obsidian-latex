@@ -314,6 +314,7 @@ class tikzGraph extends Modal {
   }
 
   onOpen() {
+    const { contentEl } = this;
     const script = this.contentEl.createEl("script");
     script.setAttribute("type", "text/tikz");
     script.setAttribute("data-show-console", "true");
