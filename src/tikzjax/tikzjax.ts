@@ -252,7 +252,7 @@ export class Axis {
                 case (/[\d\w]+/).test(match):
                     if (tokens)
                     axis = tokens.findOriginalValue(match)?.axis;
-                else throw new Error(`Should I do fine original coordinate value while not being provided with tokens?`);
+                else throw new Error(`Should I do fine original coordinate value while not being provided with tokens`);
                     if (axis === undefined) {
                         throw new Error(`Couldn't find the coordinate ${match} from ${coordinate}`);
                     }
