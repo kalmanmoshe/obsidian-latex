@@ -520,7 +520,7 @@ export class Formatting{
         this.formattingSpecificToMode();
         this.interpretFormatting(formattingForInterpretation||"")
 
-        for(const s of formatting){
+        for(const formatt of formatting){
             
         }
         this.rotate=toNumber(formatting?.rotate)??this.rotate;
