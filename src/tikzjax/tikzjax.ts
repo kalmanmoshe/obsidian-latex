@@ -521,11 +521,10 @@ export class Formatting{
         this.interpretFormatting(formattingForInterpretation||"")
 
         for (const [key, value] of Object.entries(formatting)) {
-            
             if(typeof value === 'object'){
                 //this.setProperty(key as keyof Formatting,formatting)
             }
-            if (value) {
+            else if (value) {
                 this.setProperty(key as keyof Formatting,value)
             }
         }
