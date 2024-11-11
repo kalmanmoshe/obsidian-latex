@@ -275,10 +275,10 @@ class VecProcessor {
     const ancer=new Axis();
     ancer.addCartesian(0,0);
 
-    const c1=new Coordinate();
+    const c1=new Coordinate("node-inline");
     c1.addAxis(this.axis.cartesianX,0)
     c1.mode="node-inline";
-    
+
     this.graph=new FormatTikzjax([
       new Formatting().quickAdd("globol",{color: "white",scale: "1",}),
       new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',c1,ancer]},undefined,"draw",),
