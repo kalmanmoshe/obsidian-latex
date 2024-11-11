@@ -828,7 +828,7 @@ class Draw {
         return coordinatesArray;
     }
 
-    fillCoordinates(schematic: any[], tokens: FormatTikzjax) {
+    fillCoordinates(schematic: any[], tokens?: FormatTikzjax) {
         const coorArr: CoordinateType=[];
         for (let i = 0; i < schematic.length; i++) {
             if (schematic[i].type === "coordinate") {
