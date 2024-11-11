@@ -942,9 +942,7 @@ class FormatTikzjax {
         lines = lines.map(line => line.trim());
         lines = lines.filter(line => line);
 
-        const tikzjax=new FormatTikzjax(lines.join("\n"));
-        icon.onclick = () => new DebugModal(this.app,tikzjax.debugInfo).open();
-        return tikzjax.getCode();
+        
     }
 
     applyPostProcessing(){
