@@ -780,7 +780,9 @@ export class Draw {
     constructor(match: {formatting: string|any,draw: string|any}, tokens?: FormatTikzjax,mode?: string) {
         this.mode=mode;
         this.mode=`draw${mode?"-"+mode:""}`;
-        if (typeof match.formatting ==="string")
+        if (typeof match.formatting ==="string"){
+            
+        }
         this.formatting.quickAdd(`draw`,{},match.formatting);
         else
         this.formatting.quickAdd(`draw`,match.formatting,'');
