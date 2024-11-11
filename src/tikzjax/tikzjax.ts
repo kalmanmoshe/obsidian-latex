@@ -1102,7 +1102,7 @@ export class FormatTikzjax {
         });
     }
 
-    to(){
+    toString(){
         let codeBlockOutput = "";
         const extremeXY=getExtremeXY(this.tokens);
         this.tokens.forEach((token: any) => {
