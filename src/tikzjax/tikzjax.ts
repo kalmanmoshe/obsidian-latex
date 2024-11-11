@@ -526,7 +526,7 @@ export class Formatting{
                 //this.setProperty(key as keyof Formatting,formatting)
             }
             if (value) {
-                    
+                this.setProperty(key as keyof Formatting,value)
             }
         }
         //this.rotate=toNumber(formatting?.rotate)??this.rotate;
