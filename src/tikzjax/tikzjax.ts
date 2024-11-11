@@ -572,7 +572,7 @@ export class Formatting{
         this.position = this.position?.replace(/[\d]+/g,"").replace(/(below|above)(right|right)/,"$1 $2");
     }
 
-    interpretFormatting(formattingString: string,formattingArr){
+    interpretFormatting(formattingString: string,formattingArr: any){
 
 
 
