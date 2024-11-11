@@ -781,9 +781,9 @@ export class Draw {
         this.mode=mode;
         this.mode=`draw${mode?"-"+mode:""}`;
         if (typeof match.formatting ==="string"){
-            
+            this.formatting.quickAdd(`draw`,{},match.formatting);
         }
-        this.formatting.quickAdd(`draw`,{},match.formatting);
+        
         else
         this.formatting.quickAdd(`draw`,match.formatting,'');
         if(typeof match.draw==="string")
