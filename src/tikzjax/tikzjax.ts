@@ -482,7 +482,7 @@ function matchKeyWithValue(key: string): string {
         "draw": "draw=",
         "text": "text=",
         "pos": "pos=",
-        "scale": "pos=",
+        "scale": "scale=",
         "decorate": "decorate",
         "sloped": "sloped",
         "decoration": "decoration=",
@@ -494,27 +494,32 @@ function matchKeyWithValue(key: string): string {
 }
 
 export class Formatting{
+    
+    scale: number;
+    rotate?: number;
+    lineWidth?: number;
+    fillOpacity?: number;
+    pos?: number;
 
     mode: string;
-    rotate?: number;
     anchor?: string;
-    lineWidth?: number;
     width?: string;
     color?: string;
     textColor?: string;
     fill?: string;
-    fillOpacity?: number;
     arrow?: string;
     draw?: string;
     text?: string;
     pathAttribute?: string;
     tikzset?: string;
-    pos?: number;
     position?: string;
     lineStyle?: string;
+    
     sloped?: boolean;
-    decoration?: {brace?: boolean,coil: boolean,amplitude?: number,aspect: number,segmentLength:number};
     decorate?: boolean;
+    
+    decoration?: {brace?: boolean,coil: boolean,amplitude?: number,aspect: number,segmentLength:number};
+    
 
     quickAdd(mode: string,formatting: any,formattingForInterpretation?:string ){
         this.mode=mode;
