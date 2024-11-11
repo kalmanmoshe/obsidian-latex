@@ -522,11 +522,12 @@ export class Formatting{
 
         for (const [key, value] of Object.entries(formatting)) {
             console.log(key, value)
+            this.setProperty(key as keyof Formatting,formatting)
             if(typeof value === 'object'){
                 //this.setProperty(key as keyof Formatting,formatting)
             }
             if (value) {
-                this.setProperty(key as keyof Formatting,formatting)
+                
             }
         }
         //this.rotate=toNumber(formatting?.rotate)??this.rotate;
