@@ -520,8 +520,14 @@ export class Formatting{
         this.formattingSpecificToMode();
         this.interpretFormatting(formattingForInterpretation||"")
 
-        for(const formatt of formatting){
-            this.setProperty(f)
+        for (const [key, value] of Object.entries(this)) {
+            if (key==="mode"){continue;}
+            if(typeof value === 'object'){
+                string+=this.handleObjectToString(value,key)
+            }
+            else if (value) {
+                string+=matchKeyWithValue(key as keyof Formatting)+(typeof value==="boolean"?'':value)+',';
+            }
         }
         this.rotate=toNumber(formatting?.rotate)??this.rotate;
         this.anchor=formatting?.anchor?.replace(/-\|/,"south")?.replace(/\|-/,"north")??this.anchor;
