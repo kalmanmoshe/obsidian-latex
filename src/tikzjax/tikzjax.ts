@@ -1088,7 +1088,7 @@ export class FormatTikzjax {
 
             if(token.toString()){
                 codeBlockOutput +=token.toString()
-            }} else {
+            } else {
             codeBlockOutput += token;
           }
         });
