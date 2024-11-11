@@ -520,7 +520,7 @@ export class Formatting{
         this.formattingSpecificToMode();
         this.interpretFormatting(formattingForInterpretation||"")
 
-        for(const s og for)
+        for(const s of formatting)
         this.rotate=toNumber(formatting?.rotate)??this.rotate;
         this.anchor=formatting?.anchor?.replace(/-\|/,"south")?.replace(/\|-/,"north")??this.anchor;
         
