@@ -573,7 +573,7 @@ export class Formatting{
     }
 
     interpretFormatting(formattingString: string,formattingArr: any){
-
+        
 
 
         const splitFormatting=formattingString.match(/(?:{[^}]*}|[^,{}]+)+/g) || [];
