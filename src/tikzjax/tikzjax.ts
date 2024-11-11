@@ -773,7 +773,7 @@ export class Coordinate {
 
 type Token =Axis | Coordinate |Draw| string;
 
-class Draw {
+export class Draw {
     mode?: string
     formatting: Formatting=new Formatting();
     coordinates: Array<Token>;
