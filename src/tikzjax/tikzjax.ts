@@ -566,6 +566,14 @@ export class Formatting{
 
     interpretFormatting(formattingString: string,formattingArr: any){
         
+        for (const [key, value] of Object.entries(formatting)) {
+            if(typeof value === 'object'){
+                //this.setProperty(key as keyof Formatting,formatting)
+            }
+            else if (value) {
+                this.setProperty(key as keyof Formatting,value)
+            }
+        }
 
 
         const splitFormatting=formattingString.match(/(?:{[^}]*}|[^,{}]+)+/g) || [];
