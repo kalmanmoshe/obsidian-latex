@@ -315,12 +315,12 @@ class tikzGraph extends Modal {
 
   onOpen() {
     const { contentEl } = this;
-    const script = this.createEl("script");
+    const script = contentEl.createEl("script");
     script.setAttribute("type", "text/tikz");
     script.setAttribute("data-show-console", "true");
     script.setText(this.tikz.getCode());
     
-    const actionButton = this.contentEl.createEl("button", { text: "Copy graph", cls: "info-modal-Copy-button" });
+    const actionButton = contentEl.createEl("button", { text: "Copy graph", cls: "info-modal-Copy-button" });
 
     actionButton.addEventListener("click", () => {
       navigator.clipboard.writeText(this.tikz.getCode());
