@@ -515,7 +515,7 @@ interface Formatting{
     decorate?: boolean;
 }
 
-class Formatting{
+export class Formatting{
 
     quickAdd(mode: string,formatting: any,formattingForInterpretation?:string ){
         this.mode=mode;
