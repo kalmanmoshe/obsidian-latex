@@ -522,7 +522,7 @@ export class Formatting{
 
         for (const [key, value] of Object.entries(this)) {
             if(typeof value === 'object'){
-                string+=this.handleObjectToString(value,key)
+                this.
             }
             else if (value) {
                 string+=matchKeyWithValue(key as keyof Formatting)+(typeof value==="boolean"?'':value)+',';
