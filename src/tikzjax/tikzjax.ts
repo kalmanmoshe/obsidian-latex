@@ -521,7 +521,7 @@ export class Formatting{
         this.interpretFormatting(formattingForInterpretation||"")
 
         for (const [key, value] of Object.entries(formatting)) {
-            //console.log(key, value)
+            console.log(key, value)
             this.setProperty(key as keyof Formatting,formatting)
             if(typeof value === 'object'){
                 //this.setProperty(key as keyof Formatting,formatting)
@@ -673,8 +673,7 @@ export class Formatting{
         nestedKey?: NK
     ): void {
         const formattingObj = this as Record<string, any>;
-        console.log(key,value)
-        formattingObj[key] = value;/*
+        
         if (nestedKey) {
             if (!formattingObj[key] || typeof formattingObj[key] !== 'object') {
                 formattingObj[key] = {};
