@@ -297,7 +297,7 @@ class VecProcessor {
       % Angle Annotation
       %\ang{X}{anc}{vec}{}{${roundBySettings(vectorAngle)}$^{\circ}$}
     `.replace(/^\s+/gm, "");*/
-
+    new
     this.vecInfo.addDebugInfo("Scaling factor", scale);
   }
 }
