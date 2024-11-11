@@ -283,11 +283,6 @@ class VecProcessor {
     // Generate LaTeX code for vector components and main vector
     const t = String.raw`
 
-      % Full Vector
-      \draw [line width=1pt, draw=red, -{Stealth}] 
-        (anc) -- node {${roundBySettings(vectorLength)}} 
-        (vec);
-
       % Angle Annotation
       %\ang{X}{anc}{vec}{}{${roundBySettings(vectorAngle)}$^{\circ}$}
     `.replace(/^\s+/gm, "");
