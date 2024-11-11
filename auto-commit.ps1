@@ -16,16 +16,41 @@ $watcher.EnableRaisingEvents = $true
 
 # Function to run git commands
 function Commit-And-Push {
-    Write-Host "Change detected. Committing changes..."
+    Write-Host "Change detected. Processing..."
     try {
         cd $path
-        git add -A
-        git commit -m "Auto-commit: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-        git pull --rebase
+
+        # Check if there are any changes to commit
+        $status = git status --porcelain
+        if (-Not [string]::IsNullOrWhiteSpace($status)) {
+            Write-Host "Committing changes..."
+            $env:GIT_EDITOR = "true" # Force non-interactive editor mode
+            git add -A
+            git commit -m "Auto-commit: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+        } else {
+            Write-Host "No changes to commit."
+        }
+
+        # Pull with rebase to sync with remote
+        Write-Host "Pulling latest changes from GitHub..."
+        git pull origin main --rebase
+
+        # Push the changes
+        Write-Host "Pushing changes to GitHub..."
         git push origin main
+
         Write-Host "Changes successfully pushed to GitHub!"
     } catch {
         Write-Host "Error occurred: $_"
+
+        # Check for merge conflicts and try to resolve them
+        if ($_ -like "*CONFLICT*") {
+            Write-Host "Merge conflict detected. Attempting to resolve..."
+            git add -A
+            git commit -m "Auto-resolve merge conflicts"
+            git rebase --continue
+            git push origin main
+        }
     }
 }
 
