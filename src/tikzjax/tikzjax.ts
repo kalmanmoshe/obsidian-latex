@@ -111,8 +111,7 @@ export class Tikzjax {
           // @ts-ignore
           window.CodeMirror.modeInfo = window.CodeMirror.modeInfo.filter(el => el.name != "Tikz");
       }
-  
-    
+      
   
       colorSVGinDarkMode(svg: string) {
         svg = svg.replaceAll(/("#000"|"black")/g, "\"currentColor\"")
