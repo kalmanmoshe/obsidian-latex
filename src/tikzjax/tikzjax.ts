@@ -89,7 +89,7 @@ export class Tikzjax {
             const script = el.createEl("script");
             script.setAttribute("type", "text/tikz");
             script.setAttribute("data-show-console", "true");
-            const tikzjax=new FormatTikzjax(lines.join("\n"));
+            const tikzjax=new FormatTikzjax(source);
             icon.onclick = () => new DebugModal(this.app,tikzjax.debugInfo).open();
             script.setText(tikzjax.getCode());
             }
