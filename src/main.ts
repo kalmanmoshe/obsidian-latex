@@ -277,7 +277,7 @@ class VecProcessor {
     let axis=this.axis.clone();
     axis.cartesianY=0
     const c1=new Coordinate("node-inline",axis);
-    cons
+    const formatting=
     this.graph=new FormatTikzjax([
       new Formatting().quickAdd("globol",{color: "white",scale: "1",}),
       new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',c1,ancer]},undefined,"draw",),
