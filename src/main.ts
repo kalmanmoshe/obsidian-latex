@@ -275,7 +275,7 @@ class VecProcessor {
     const ancer=new Axis().addCartesian(0,0);
     this.graph=[
       new Formatting().quickAdd("globol",{color: "white",scale: "1",}),
-      new Draw(['',[ancer,'--',new Coordinate(),new Axis()]],"draw",{lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}),
+      new Draw(['',[ancer,'--',new Coordinate(),new Axis()]],_,"draw",{lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}),
       new Draw(['',[ancer,'--',new Coordinate(),new Axis()]],_,"draw",{lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}),
       new Draw(['',[ancer,'--',new Coordinate(),new Axis()]],_,"draw",{lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}),
     ]
