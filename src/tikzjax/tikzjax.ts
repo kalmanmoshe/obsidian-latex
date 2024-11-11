@@ -90,8 +90,8 @@ export class Tikzjax {
             script.setAttribute("type", "text/tikz");
             script.setAttribute("data-show-console", "true");
             const tikzjax=new FormatTikzjax(lines.join("\n"));
-        icon.onclick = () => new DebugModal(this.app,tikzjax.debugInfo).open();
-        return tikzjax.getCode();
+            icon.onclick = () => new DebugModal(this.app,tikzjax.debugInfo).open();
+            return tikzjax.getCode();
             script.setText(this.tidyTikzSource(source,icon));
             }
             catch(e){
