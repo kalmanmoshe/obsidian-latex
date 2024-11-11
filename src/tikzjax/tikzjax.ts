@@ -674,6 +674,7 @@ export class Formatting{
     ): void {
         const formattingObj = this as Record<string, any>;
         console.log(key,value)
+        formattingObj[key] = value;
         if (nestedKey) {
             if (!formattingObj[key] || typeof formattingObj[key] !== 'object') {
                 formattingObj[key] = {};
