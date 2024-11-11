@@ -917,6 +917,7 @@ export class Draw {
         return result + ";";
     }
 }
+
 export class FormatTikzjax {
 	source: string;
     tokens: Array<Token>=[];
