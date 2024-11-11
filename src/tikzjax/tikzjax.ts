@@ -494,6 +494,27 @@ function matchKeyWithValue(key: string): string {
 
 export class Formatting{
 
+    mode: string;
+    rotate?: number;
+    anchor?: string;
+    lineWidth?: number;
+    width?: string;
+    color?: string;
+    textColor?: string;
+    fill?: string;
+    fillOpacity?: number;
+    arrow?: string;
+    draw?: string;
+    text?: string;
+    pathAttribute?: string;
+    tikzset?: string;
+    pos?: number;
+    position?: string;
+    lineStyle?: string;
+    sloped?: boolean;
+    decoration?: {brace?: boolean,coil: boolean,amplitude?: number,aspect: number,segmentLength:number};
+    decorate?: boolean;
+
     quickAdd(mode: string,formatting: any,formattingForInterpretation?:string ){
         this.mode=mode;
         this.formattingSpecificToMode();
