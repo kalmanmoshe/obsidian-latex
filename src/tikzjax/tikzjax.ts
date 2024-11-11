@@ -1009,7 +1009,7 @@ class FormatTikzjax {
             if (match[0].match(/\\node\s*\(/)){
                 Object.assign(i,{original: match[2],coordinateName: match[1],label: match[3],formatting: match[4]});
             }
-            this.tokens.push(new Coordinate().addInfo(i,"node",));
+            this.tokens.push(new Coordinate().addInfo(i,"node",this));
           } else if (match[0].startsWith("\\circle")) {/*
             this.tokens.push({
               type: "circle",
