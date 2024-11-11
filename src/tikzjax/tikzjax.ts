@@ -1065,7 +1065,7 @@ class FormatTikzjax {
     findOriginalValue(value: string) {
         const og = this.tokens.slice().reverse().find(
             (token: Token) =>
-                (token instanceof Coordinate || token?.type === "node") && token.coordinateName === value
+                (token instanceof Axis || token?.type === "node") && token.coordinateName === value
         );
         return og instanceof Coordinate ? og.clone() : undefined;
     }
