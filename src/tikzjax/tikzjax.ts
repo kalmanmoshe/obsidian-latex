@@ -682,7 +682,7 @@ class Formatting{
     
     
     toString(): string {
-        let string='';
+        let string='[';
         for (const [key, value] of Object.entries(this)) {
             if (key==="mode"){continue;}
             if(typeof value === 'object'){
