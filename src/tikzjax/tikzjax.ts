@@ -924,7 +924,7 @@ export class Draw {
                     break;
                 }
                 default: {
-                    if(ty)
+                    if(coordinate instanceof C)
                     result +=`(${coordinate.toString()})`
                     break;
                 }
