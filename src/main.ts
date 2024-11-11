@@ -257,7 +257,7 @@ class VecProcessor {
     this.addGraph();
   }
 
-  // Apply dynamic scaling and generate LaTeX TikZ code for vector visualization
+  
   addGraph() {
     const targetSize = 10;
     const maxComponent = Math.max(Math.abs(this.axis.cartesianX), Math.abs(this.axis.cartesianY));
