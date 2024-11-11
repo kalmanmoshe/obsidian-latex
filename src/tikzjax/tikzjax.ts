@@ -733,7 +733,7 @@ export class Coordinate {
             this.quadrant
         );
     }
-    addAxis(){
+    addAxis(cartesianX?: number, cartesianY?: number, polarLength?: number, polarAngle?: number){
         this.axis=new Axis();
     }
     addInfo(match: {original?: string,coordinateName?: string,label?: string,formatting?: string}, mode: string,tokens?: FormatTikzjax,formatting?: object) {
