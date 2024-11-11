@@ -245,7 +245,7 @@ class VecProcessor {
   axis: Axis;
   modifier: number;
   result: string;
-  graph?: Array<Component|Formatting|Draw>;
+  graph?: FormatTikzjax;
 
   constructor(environment: string, mathInput: string, modifier: string) {
     const match = environment.match(/([+-]?)([+-]?)/);
