@@ -1022,7 +1022,7 @@ class FormatTikzjax {
             });*/
           } else if (match[0].startsWith("\\mass")) {
             let i={original: match[1], label: match[2]}
-            this.tokens.push(new Coordinate().addInfo(i,this,"node-mass",{anchor: match[3],rotate: match[4]}))
+            this.tokens.push(new Coordinate().addInfo(i,"node-mass",this,{anchor: match[3],rotate: match[4]}))
 
           } else if (match[0].startsWith("\\vec")) {
             match[2]=`(${match[1]})--+node[]{${match[3]}}(${match[2]})`
