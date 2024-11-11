@@ -281,7 +281,7 @@ class VecProcessor {
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
     ])
-    this.de
+    this.vecInfo.addDebugInfo("Scaling factor", scale);
     /* Generate LaTeX code for vector components and main vector
     const t = String.raw`
 
