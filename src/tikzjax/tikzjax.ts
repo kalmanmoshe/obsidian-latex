@@ -929,9 +929,9 @@ export class FormatTikzjax {
         if(typeof source==="string")
 		this.source = this.tidyTikzSource(source);
         else this.tokens=source
-        
+
         this.debugInfo+=this.source;
-        this.tokenize();
+        
         this.findMidpoint();
         this.applyPostProcessing();
         this.debugInfo+="\n\nthis.midPoint:\n"+JSON.stringify(this.midPoint,null,1)+"\n"
