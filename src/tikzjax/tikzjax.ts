@@ -957,7 +957,7 @@ export class FormatTikzjax {
         this.debugInfo+="\n\nthis.midPoint:\n"+JSON.stringify(this.midPoint,null,1)+"\n"
         this.debugInfo+=JSON.stringify(this.tokens,null,1)+"\n\n"
 
-        this.processedCode += this.reconstruct();
+        this.processedCode += this.toString();
         this.debugInfo+=this.processedCode;
 	}
     
