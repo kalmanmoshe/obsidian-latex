@@ -524,7 +524,7 @@ export class Formatting{
             if(typeof value === 'object'){
                 //this.setProperty(key as keyof Formatting,formatting)
             }
-            else if (value) {
+            if (value) {
                 this.setProperty(key as keyof Formatting,formatting)
             }
         }
