@@ -733,8 +733,8 @@ export class Coordinate {
             this.quadrant
         );
     }
-    addAxis(){
-        
+    addAxis(ca){
+
     }
     addInfo(match: {original?: string,coordinateName?: string,label?: string,formatting?: string}, mode: string,tokens?: FormatTikzjax,formatting?: object) {
         this.mode=mode;
