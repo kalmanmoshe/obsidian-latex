@@ -492,29 +492,6 @@ function matchKeyWithValue(key: string): string {
     return valueMap[key] || '';
 }
 
-interface Formatting{
-    mode: string;
-    rotate?: number;
-    anchor?: string;
-    lineWidth?: number;
-    width?: string;
-    color?: string;
-    textColor?: string;
-    fill?: string;
-    fillOpacity?: number;
-    arrow?: string;
-    draw?: string;
-    text?: string;
-    pathAttribute?: string;
-    tikzset?: string;
-    pos?: number;
-    position?: string;
-    lineStyle?: string;
-    sloped?: boolean;
-    decoration?: {brace?: boolean,coil: boolean,amplitude?: number,aspect: number,segmentLength:number};
-    decorate?: boolean;
-}
-
 export class Formatting{
 
     quickAdd(mode: string,formatting: any,formattingForInterpretation?:string ){
