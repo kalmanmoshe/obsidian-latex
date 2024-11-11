@@ -245,7 +245,7 @@ class VecProcessor {
   axis: Axis;
   modifier: number;
   result: string;
-  graph?: Array<Component|Formatting|Draw>;
+  graph?: FormatTikzjax;
 
   constructor(environment: string, mathInput: string, modifier: string) {
     const match = environment.match(/([+-]?)([+-]?)/);
@@ -257,7 +257,7 @@ class VecProcessor {
     this.addGraph();
   }
 
-  // Apply dynamic scaling and generate LaTeX TikZ code for vector visualization
+  
   addGraph() {
     const targetSize = 10;
     const maxComponent = Math.max(Math.abs(this.axis.cartesianX), Math.abs(this.axis.cartesianY));
@@ -272,46 +272,56 @@ class VecProcessor {
     // i need to make it "to X axis"
     //const vectorAngle = getUsableDegrees(radiansToDegrees(Math.atan2(scaledY, scaledX)));
     
-    const ancer=new Axis().addCartesian(0,0);
-    this.graph=[
-      new Formatting().quickAdd("globol",{color: "white",scale: "1",}),
-      new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
-      new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
-      
-    ]
+    const ancer=new Axis(0,0);
+
+    const axis1=new Axis(this.axis.cartesianX,0);
+    const axis2=new Axis(0,this.axis.cartesianY);
+
+    const c1=new Coordinate("node-inline");
+
+    const formatting={lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}
+    const draw= [ancer,'--',c1,ancer]
+
+    this.graph=new FormatTikzjax([
+      new Formatting().quickAdd("globol",{color: "white",scale: 1,}),
+      new Draw({formatting: formatting,draw: draw},undefined,"draw",),
+      //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
+      //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
+    ])
     
+    this.vecInfo.addDebugInfo("this.graph",JSON.stringify(this.graph.tokens,null,1));
+    this.vecInfo.addDebugInfo("this.graph.toString()",JSON.stringify(this.graph.toString()));
     /* Generate LaTeX code for vector components and main vector
     const t = String.raw`
 
       % Angle Annotation
       %\ang{X}{anc}{vec}{}{${roundBySettings(vectorAngle)}$^{\circ}$}
     `.replace(/^\s+/gm, "");*/
-
+    this
     this.vecInfo.addDebugInfo("Scaling factor", scale);
-    //this.vecInfo.addDebugInfo("TikZ graph code", tikzCode);
-    //this.graph = tikzCode;
   }
 }
 
 
 
 class tikzGraph extends Modal {
-  tikzCode: string
-  constructor(app: App,tikzCode: any){
+  tikz: FormatTikzjax
+  constructor(app: App,tikzCode: FormatTikzjax){
     super(app);
-    this.tikzCode=tikzCode;
+    this.tikz=tikzCode;
   }
 
   onOpen() {
-    const script = this.contentEl.createEl("script");
+    const { contentEl } = this;
+    const script = contentEl.createEl("script");
     script.setAttribute("type", "text/tikz");
     script.setAttribute("data-show-console", "true");
-    script.setText(new FormatTikzjax(this.tikzCode).getCode());
+    script.setText(this.tikz.getCode());
     
-    const actionButton = this.contentEl.createEl("button", { text: "Copy graph", cls: "info-modal-Copy-button" });
+    const actionButton = contentEl.createEl("button", { text: "Copy graph", cls: "info-modal-Copy-button" });
 
     actionButton.addEventListener("click", () => {
-      navigator.clipboard.writeText(this.tikzCode);
+      navigator.clipboard.writeText(this.tikz.getCode());
       new Notice("Graph copied to clipboard!");
     });
   }
