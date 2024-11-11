@@ -1039,11 +1039,11 @@ class FormatTikzjax {
             this.tokens.push(this.source.slice(currentIndex));
         }
     }
-    
+
     findMidpoint() {
         let coordinates = this.tokens.filter((token: token) => token instanceof Coordinate);
         this.tokens
-        .filter((token: token) => token instanceof Draw)
+        .filter((token: Token) => token instanceof Draw)
         .forEach((object: Draw) => {
             coordinates = coordinates.concat(
                 object.coordinates.filter((token: any) => token instanceof Coordinate)
