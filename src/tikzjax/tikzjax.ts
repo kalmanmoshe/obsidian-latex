@@ -694,7 +694,6 @@ export class Formatting{
                 string+=matchKeyWithValue(key as keyof Formatting)+(typeof value==="boolean"?'':value)+',';
             }
         }
-        console.log(string,this)
         return string+"]";
     }
 
