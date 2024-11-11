@@ -914,7 +914,7 @@ export class Draw {
                     break;
                 }
                 default: {
-                    result +=`(${coordinate.toString()})`
+                    //result +=`(${coordinate.toString()})`
                     break;
                 }
             }
