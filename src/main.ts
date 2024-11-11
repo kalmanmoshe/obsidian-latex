@@ -276,7 +276,7 @@ class VecProcessor {
     ancer.addCartesian(0,0);
     let axis=this.axis.clone();
     axis.cartesianY=0
-    const c1=new Coordinate("node-inline",this.axis.cartesianY=0);
+    const c1=new Coordinate("node-inline",axis);
     c1.addAxis(this.axis.cartesianX,0)
 
     this.graph=new FormatTikzjax([
