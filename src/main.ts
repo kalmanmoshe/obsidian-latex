@@ -4,7 +4,8 @@ import { InfoModal, DebugModal } from "./desplyModals";
 import { CustomInputModal, HistoryModal, InputModal, vecInpotModel } from "./temp";
 import {MathPluginSettings, DEFAULT_SETTINGS, MathPluginSettingTab,} from "./settings";
 import { calculateBinom, degreesToRadians, findAngleByCosineRule, getUsableDegrees, polarToCartesian, radiansToDegrees, roundBySettings } from "./mathUtilities.js";
-import { Tikzjax } from "./tikzjax/tikzjax";
+import { Axis, Coordinate, Draw, FormatTikzjax, Formatting, Tikzjax } from "./tikzjax/tikzjax";
+import { NumeralsSuggestor } from "./suggestor.js";
 
 export default class MathPlugin extends Plugin {
   settings: MathPluginSettings;
@@ -14,6 +15,9 @@ export default class MathPlugin extends Plugin {
     this.addSettingTab(new MathPluginSettingTab(this.app, this));
     this.registerMarkdownCodeBlockProcessor("math-engine", this.processMathBlock.bind(this));
     this.registerCommands();
+    this.registerEditorSuggest(new NumeralsSuggestor(this));
+
+
     this.tikzProcessor=new Tikzjax(this.app,this)
     
 
@@ -238,11 +242,10 @@ class VecProcessor {
   userInput: any;
   environment: { X: string; Y: string };
   vecInfo = new MathInfo();
-  Xcomponent: number;
-  Ycomponent: number;
+  axis: Axis;
   modifier: number;
   result: string;
-  graph: string;
+  graph?: Array<Component|Formatting|Draw>;
 
   constructor(environment: string, mathInput: string, modifier: string) {
     const match = environment.match(/([+-]?)([+-]?)/);
@@ -250,40 +253,8 @@ class VecProcessor {
 
     this.modifier = modifier.length > 0 ? getUsableDegrees(Number(modifier)) : 0;
 
-    if (mathInput.includes(":")) {
-      this.calculateComponents(mathInput);
-    } else {
-      this.addComponents(mathInput);
-    }
+    this.axis=new Axis(mathInpot, FormatTikzjax,anchorArr,anchor?: string)
     this.addGraph();
-  }
-
-  // Handle Cartesian input
-  addComponents(mathInput: string) {
-    [this.Xcomponent, this.Ycomponent] = mathInput.split(",").map(Number);
-    const length = Math.sqrt(this.Xcomponent ** 2 + this.Ycomponent ** 2);
-    this.vecInfo.addDebugInfo("Calculated length", length);
-
-    const angle = getUsableDegrees(radiansToDegrees(Math.atan2(this.Ycomponent, this.Xcomponent)));
-    this.vecInfo.addDebugInfo("Calculated angle", angle);
-
-    this.result = `\\text{angle} = ${roundBySettings(angle)}\\degree, \\quad \\text{length} = ${roundBySettings(length)}`;
-  }
-
-  // Handle polar input
-  calculateComponents(mathInput: string) {
-    const [angle, length] = mathInput.split(":").map(Number);
-    ({X: this.Xcomponent, Y: this.Ycomponent} = polarToCartesian(angle, length));
-    this.vecInfo.addDebugInfo("X component", this.Xcomponent);
-    this.vecInfo.addDebugInfo("Y component", this.Ycomponent);
-    this.result = `x = ${roundBySettings(this.Xcomponent)}, \\quad y = ${roundBySettings(this.Ycomponent)}`;
-  }
-
-  // Vector addition
-  add(vector: VecProcessor): VecProcessor {
-    this.Xcomponent += vector.Xcomponent;
-    this.Ycomponent += vector.Ycomponent;
-    return this;
   }
 
   // Apply dynamic scaling and generate LaTeX TikZ code for vector visualization
@@ -294,33 +265,25 @@ class VecProcessor {
     // Determine scaling factor
     let scale = 1;
     if (maxComponent < targetSize) {
-      scale = targetSize / maxComponent; // Upscale if too small
+      scale = targetSize / maxComponent;
     } else if (maxComponent > targetSize) {
-      scale = targetSize / maxComponent; // Downscale if too large
+      scale = targetSize / maxComponent;
     }
 
-    // Apply scaling factor to both components
-    const scaledX = this.Xcomponent * scale;
-    const scaledY = this.Ycomponent * scale;
     const vectorLength = Math.sqrt(scaledX ** 2 + scaledY ** 2);
+    // i need to make it "to X axis"
     const vectorAngle = getUsableDegrees(radiansToDegrees(Math.atan2(scaledY, scaledX)));
-
+    
+    const ancer=new Axis().addCartesian(0,0);
+    this.graph=[
+      new Formatting().quickAdd("globol",{color: "white",scale: "1",}),
+      new Draw(['',[ancer,'--',new Coordinate(),new Axis()]],_,"draw",{lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}),
+      new Draw(['',[ancer,'--',new Coordinate(),new Axis()]],_,"draw",{lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}),
+      new Draw(['',[ancer,'--',new Coordinate(),new Axis()]],_,"draw",{lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}),
+    ]
+    
     // Generate LaTeX code for vector components and main vector
-    const tikzCode = String.raw`
-      \coor{${roundBySettings(scaledX)}, ${roundBySettings(scaledY)}}{vec}{}{}
-      \coor{${roundBySettings(scaledX)}, 0}{X}{}{}
-      \coor{0, ${roundBySettings(scaledY)}}{Y}{}{}
-      \coor{0, 0}{anc}{}{}
-
-      % X Component
-      \draw [line width=1pt, draw=yellow, -{Stealth}] 
-        (anc) -- node {${roundBySettings(this.Xcomponent)}$_{x}$} 
-        (X);
-
-      % Y Component
-      \draw [line width=1pt, draw=yellow, -{Stealth}] 
-        (anc) -- node {${roundBySettings(this.Ycomponent)}$_{y}$} 
-        (Y);
+    const t = String.raw`
 
       % Full Vector
       \draw [line width=1pt, draw=red, -{Stealth}] 
@@ -347,9 +310,11 @@ class tikzGraph extends Modal {
   }
 
   onOpen() {
-    const beginEnvironment="```tikz\n[white]\n"
-    const endEnvironment="\n```";
-    MarkdownRenderer.renderMarkdown(beginEnvironment+this.tikzCode+endEnvironment, this.contentEl, "", new Component());
+    const script = this.contentEl.createEl("script");
+    script.setAttribute("type", "text/tikz");
+    script.setAttribute("data-show-console", "true");
+    script.setText(new FormatTikzjax(this.tikzCode).getCode());
+    
     const actionButton = this.contentEl.createEl("button", { text: "Copy graph", cls: "info-modal-Copy-button" });
 
     actionButton.addEventListener("click", () => {
@@ -362,6 +327,166 @@ class tikzGraph extends Modal {
       contentEl.empty();
   }
 }
+
+type DistributionType = 'normal' | 'binomial' | 'poisson';
+
+class Distribution {
+  private type: DistributionType;
+  private mean: number;
+  private variance: number;
+  private stdDev: number;
+
+  // For Binomial Distribution
+  private trials: number;
+  private probability: number;
+
+  // For Poisson Distribution
+  private lambda: number;
+
+  constructor(type: DistributionType, params: Record<string, number>) {
+    this.type = type;
+
+    // Initialize based on distribution type
+    switch (type) {
+      case 'normal':
+        this.mean = params.mean || 0;
+        this.stdDev = params.stdDev || 1;
+        this.variance = this.stdDev ** 2;
+        break;
+      case 'binomial':
+        this.trials = params.trials || 1;
+        this.probability = params.probability || 0.5;
+        this.mean = this.trials * this.probability;
+        this.variance = this.mean * (1 - this.probability);
+        this.stdDev = Math.sqrt(this.variance);
+        break;
+      case 'poisson':
+        this.lambda = params.lambda || 1;
+        this.mean = this.lambda;
+        this.variance = this.lambda;
+        this.stdDev = Math.sqrt(this.variance);
+        break;
+      default:
+        throw new Error('Unsupported distribution type');
+    }
+  }
+
+  /**
+   * Calculate the probability density function (PDF) for the Normal Distribution.
+   */
+  public normalPDF(x: number): number {
+    if (this.type !== 'normal') {
+      throw new Error('PDF only applies to the Normal Distribution');
+    }
+    const expPart = Math.exp(-((x - this.mean) ** 2) / (2 * this.variance));
+    return (1 / (this.stdDev * Math.sqrt(2 * Math.PI))) * expPart;
+  }
+
+  /**
+   * Calculate the cumulative distribution function (CDF) for the Normal Distribution.
+   */
+  public normalCDF(x: number): number {
+    if (this.type !== 'normal') {
+      throw new Error('CDF only applies to the Normal Distribution');
+    }
+    return 0.5 * (1 + this.erf((x - this.mean) / (Math.sqrt(2) * this.stdDev)));
+  }
+
+  /**
+   * Calculate the probability mass function (PMF) for the Binomial Distribution.
+   */
+  public binomialPMF(x: number): number {
+    if (this.type !== 'binomial') {
+      throw new Error('PMF only applies to the Binomial Distribution');
+    }
+    const combination = this.factorial(this.trials) /
+      (this.factorial(x) * this.factorial(this.trials - x));
+    return combination * Math.pow(this.probability, x) * Math.pow(1 - this.probability, this.trials - x);
+  }
+
+  /**
+   * Calculate the probability mass function (PMF) for the Poisson Distribution.
+   */
+  public poissonPMF(x: number): number {
+    if (this.type !== 'poisson') {
+      throw new Error('PMF only applies to the Poisson Distribution');
+    }
+    return (Math.pow(this.lambda, x) * Math.exp(-this.lambda)) / this.factorial(x);
+  }
+
+  /**
+   * Error function approximation for Normal Distribution CDF.
+   */
+  private erf(x: number): number {
+    const sign = x < 0 ? -1 : 1;
+    const a = 0.3275911;
+    const p = 0.254829592;
+    const q = -0.284496736;
+    const r = 1.421413741;
+    const s = -1.453152027;
+    const t = 1.061405429;
+    const u = 1 + a * Math.abs(x);
+    const poly = (((((p * u + q) * u + r) * u + s) * u + t) * u);
+    return sign * (1 - poly * Math.exp(-x * x));
+  }
+
+  /**
+   * Factorial function.
+   */
+  private factorial(n: number): number {
+    if (n < 0) return NaN;
+    let result = 1;
+    for (let i = 2; i <= n; i++) result *= i;
+    return result;
+  }
+}
+
+
+class DistributionModel extends Modal {
+  private n: number;
+  private k: number;
+  private p: number;
+  private equal = 0;
+  private less = 0;
+  private lessEqual = 0;
+  private big = 0;
+  private bigEqual = 0;
+
+  constructor(app: App, source: string) {
+    super(app);
+    const [_, n, k, p] = source.match(/\d+/g)!.map(Number);
+    this.n = n;
+    this.k = k;
+    this.p = p;
+  }
+
+  onOpen() {
+    this.calculateProbabilities();
+    const { contentEl } = this;
+    contentEl.createEl("h2", { text: "Binomial Probability Results" });
+    contentEl.createEl("p", { text: `P(X = ${this.k}) = ${this.equal}` });
+    contentEl.createEl("p", { text: `P(X < ${this.k}) = ${this.less}` });
+    contentEl.createEl("p", { text: `P(X <= ${this.k}) = ${this.lessEqual}` });
+    contentEl.createEl("p", { text: `P(X > ${this.k}) = ${this.big}` });
+    contentEl.createEl("p", { text: `P(X >= ${this.k}) = ${this.bigEqual}` });
+  }
+
+  public getEqual(): number {
+    return calculateBinom(this.n, this.k, this.p);
+  }
+
+  private calculateProbabilities() {
+    for (let i = 0; i <= this.n; i++) {
+      const probability = calculateBinom(this.n, i, this.p);
+      if (i === this.k) this.equal = probability;
+      if (i < this.k) this.less += probability;
+      if (i <= this.k) this.lessEqual += probability;
+      if (i > this.k) this.big += probability;
+      if (i >= this.k) this.bigEqual += probability;
+    }
+  }
+}
+
 
 
 
@@ -412,3 +537,6 @@ class BinomInfoModel extends Modal {
     }
   }
 }
+
+
+
