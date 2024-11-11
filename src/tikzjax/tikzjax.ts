@@ -890,7 +890,7 @@ class Draw {
     }
 
     toString() {
-        let result = `\\draw [${this.formatting.toString()}] `;
+        let result = `\\draw ${this.formatting?.toString()} `;
         let beforeToken: Coordinate | undefined;
         let afterToken: Coordinate | undefined;
         let slope;
