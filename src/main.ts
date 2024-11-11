@@ -289,6 +289,7 @@ class VecProcessor {
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
     ])
     
+    
     this.vecInfo.addDebugInfo("this.graph",JSON.stringify(this.graph.tokens,null,1));
     this.vecInfo.addDebugInfo("this.graph.toString()",JSON.stringify(this.graph.toString()));
     /* Generate LaTeX code for vector components and main vector
