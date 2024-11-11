@@ -534,3 +534,5 @@ class BinomInfoModel extends Modal {
   }
 }
 
+
+
