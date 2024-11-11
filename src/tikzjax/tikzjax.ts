@@ -533,6 +533,7 @@ export class Formatting{
                 break;
         }
     }
+    
     addSplopAndPosition(arr: any,index: number){
         const beforeAfter=findBeforeAfterAxis(arr,index);
         const [before, after]=[arr[beforeAfter.before],arr[beforeAfter.after]]
