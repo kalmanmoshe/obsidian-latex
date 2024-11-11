@@ -524,7 +524,7 @@ export class Formatting{
     quickAdd(mode: string,formatting: any,formattingForInterpretation?:string ){
         this.mode=mode;
         this.formattingSpecificToMode();
-        this.interpretFormatting(formattingForInterpretation||"")
+        this.interpretFormatting(formattingForInterpretation||"",[])
 
         return this;
     }
