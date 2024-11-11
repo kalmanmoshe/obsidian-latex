@@ -756,7 +756,7 @@ export class Coordinate {
             case "node-inline":
                 return `node ${this.formatting?.toString()} {${this.label}}`
             case "node-mass":
-                return `\\node ${this.coordinateName?'('+this.coordinateName+')':''} at (${this.axis.toString()}) [${this.formatting?.toString()}] {${this.label}};`
+                return `\\node ${this.coordinateName?'('+this.coordinateName+')':''} at (${this.axis.toString()}) ${this.formatting?.toString()} {${this.label}};`
             default:
                 throw new Error("Couldn't find mode at to string coordinate");
                 break;
