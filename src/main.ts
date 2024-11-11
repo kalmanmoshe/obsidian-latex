@@ -287,7 +287,7 @@ class VecProcessor {
       new Draw({formatting: formatting,draw: draw},undefined,"draw",),
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
-    ])*/
+    ])
     
     this.vecInfo.addDebugInfo(JSON.stringify(this.graph.tokens,null,1));
     this.vecInfo.addDebugInfo(JSON.stringify(this.graph.toString(),));
