@@ -278,7 +278,7 @@ class VecProcessor {
     axis.cartesianY=0
 
     const c1=new Coordinate("node-inline",axis);
-    
+
     const formatting={lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}
     const draw= [ancer,'--',c1,ancer]
 
@@ -288,7 +288,7 @@ class VecProcessor {
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
     ])
-
+    
     this.vecInfo.addDebugInfo(JSON.stringify(this.graph.tokens,null,1));
     this.vecInfo.addDebugInfo(JSON.stringify(this.graph.toString(),));
     /* Generate LaTeX code for vector components and main vector
