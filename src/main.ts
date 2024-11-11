@@ -297,7 +297,7 @@ class VecProcessor {
 
 class tikzGraph extends Modal {
   tikzCode: string
-  constructor(app: App,tikzCode: string){
+  constructor(app: App,tikzCode: any){
     super(app);
     this.tikzCode=tikzCode;
   }
