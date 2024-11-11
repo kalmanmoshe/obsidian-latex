@@ -280,7 +280,7 @@ class VecProcessor {
     const c1=new Coordinate("node-inline");
 
     const formatting={lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}
-    const draw= [ancer,'--',c1,ancer]
+    const draw= [ancer,'--',c1,axis1]
 
     this.graph=new FormatTikzjax([
       new Formatting().quickAdd("globol",{color: "white",scale: 1,}),
@@ -288,6 +288,7 @@ class VecProcessor {
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
     ])
+    
     
     this.vecInfo.addDebugInfo("this.graph",JSON.stringify(this.graph.tokens,null,1));
     this.vecInfo.addDebugInfo("this.graph.toString()",JSON.stringify(this.graph.toString()));
@@ -297,7 +298,6 @@ class VecProcessor {
       % Angle Annotation
       %\ang{X}{anc}{vec}{}{${roundBySettings(vectorAngle)}$^{\circ}$}
     `.replace(/^\s+/gm, "");*/
-    this
     this.vecInfo.addDebugInfo("Scaling factor", scale);
   }
 }
