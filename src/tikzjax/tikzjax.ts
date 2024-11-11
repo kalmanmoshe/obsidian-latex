@@ -924,7 +924,6 @@ export class Draw {
                     break;
                 }
                 default: {
-                    if(coordinate instanceof Coordinate)
                     result +=`(${coordinate.toString()})`
                     break;
                 }
