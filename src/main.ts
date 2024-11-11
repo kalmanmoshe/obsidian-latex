@@ -299,7 +299,6 @@ class VecProcessor {
     `.replace(/^\s+/gm, "");*/
 
     this.vecInfo.addDebugInfo("Scaling factor", scale);
-    this.vecInfo.addDebugInfo("TikZ graph code", tikzCode);
     //this.graph = tikzCode;
   }
 }
