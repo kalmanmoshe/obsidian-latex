@@ -682,7 +682,7 @@ export class Formatting{
                 string+=matchKeyWithValue(key as keyof Formatting)+(typeof value==="boolean"?'':value)+',';
             }
         }
-        return string="]";
+        return string+"]";
     }
     handleObjectToString(obj: object, parentKey: string): string {
         let result = matchKeyWithValue(parentKey)+'{';
