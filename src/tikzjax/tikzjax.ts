@@ -682,7 +682,7 @@ export class Formatting{
             formattingObj[key][nestedKey] = value;
         } else {
             formattingObj[key] = value;
-        }
+        }*/
     }
     
     
