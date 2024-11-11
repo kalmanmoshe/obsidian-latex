@@ -1,1 +1,0 @@
-this.tikz.getCode()
