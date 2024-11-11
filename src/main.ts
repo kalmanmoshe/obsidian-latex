@@ -287,7 +287,7 @@ class VecProcessor {
 
     this.vecInfo.addDebugInfo("Scaling factor", scale);
     //this.vecInfo.addDebugInfo("TikZ graph code", tikzCode);
-    this.graph = tikzCode;
+    //this.graph = tikzCode;
   }
 }
 
