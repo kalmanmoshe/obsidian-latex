@@ -482,6 +482,7 @@ function matchKeyWithValue(key: string): string {
         "draw": "draw=",
         "text": "text=",
         "pos": "pos=",
+        "Scale": "pos=",
         "decorate": "decorate",
         "sloped": "sloped",
         "decoration": "decoration=",
