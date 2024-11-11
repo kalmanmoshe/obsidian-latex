@@ -528,4 +528,8 @@ class BinomInfoModel extends Modal {
       if (i > this.k) this.big += probability;
       if (i >= this.k) this.bigEqual += probability;
     }
-  
+  }
+}
+
+
+
