@@ -521,7 +521,7 @@ export class Formatting{
         this.interpretFormatting(formattingForInterpretation||"")
 
         for(const formatt of formatting){
-            this.setProperty(formatt)
+            this.setProperty(f)
         }
         this.rotate=toNumber(formatting?.rotate)??this.rotate;
         this.anchor=formatting?.anchor?.replace(/-\|/,"south")?.replace(/\|-/,"north")??this.anchor;
