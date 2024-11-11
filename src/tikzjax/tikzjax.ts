@@ -673,7 +673,7 @@ export class Formatting{
         nestedKey?: NK
     ): void {
         const formattingObj = this as Record<string, any>;
-        console.log(value)
+        console.log(key,value)
         if (nestedKey) {
             if (!formattingObj[key] || typeof formattingObj[key] !== 'object') {
                 formattingObj[key] = {};
