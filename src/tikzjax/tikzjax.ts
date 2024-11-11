@@ -714,7 +714,7 @@ export class Coordinate {
         label?: string,
         quadrant?: number
     ) {
-        // Assign properties only if they are not undefined
+        
         if (mode !== undefined) this.mode = mode;
         if (axis !== undefined) this.axis = axis;
         this.original = original;
