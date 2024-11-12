@@ -283,7 +283,7 @@ class VecProcessor {
     const draw= [ancer,'--',c1,axis1]
 
     this.graph=new FormatTikzjax([
-      new Formatting().quickAdd("globol",{color: "white",scale: 1,}),
+      new Formatting("globol",{color: "white",scale: 1,}),
       new Draw({formatting: formatting,draw: draw},undefined,"draw",),
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
       //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
@@ -314,12 +314,22 @@ class tikzGraph extends Modal {
   onOpen() {
     const { contentEl } = this;
     const script = contentEl.createEl("script");
+    const code=String.raw`[scale=2pt, x=1cm, y=1cm,white]
+\coor{0,0}{anc0}{}{}
+\coor{2,0}{anc1}{}{}
+\coor{$(anc1)+(115:1)$}{anc2}{}{}
+\draw [line width=1pt,fill=cyan!50,fill opacity=0.25] (anc0)--(anc1)--(anc2) --cycle;
+\ang{anc1}{anc0}{anc2}{25^\circ }{};
+\ang{anc2}{anc1}{anc0}{75^\circ }{};
+\coor{$(anc0)!0.5!(anc2)$}{A}{}{}
+\mass{A}{$A_{50}$}{-|}{25}
+`
     script.setAttribute("type", "text/tikz");
     script.setAttribute("data-show-console", "true");
-    script.setText(this.tikz.getCode());
+    script.setText(code);
     
-    const a = contentEl.createEl("div", { cls: "debug-info-container" });
-    MarkdownRenderer.renderMarkdown(`\`\`\`tikz\n${this.tikz.getCode()}\n\`\`\``, a, "", new Component());
+    const a = contentEl
+    MarkdownRenderer.renderMarkdown(`\`\`\`tikz\n${code}\n\`\`\``, a, "", new Component());
     
     const actionButton = contentEl.createEl("button", { text: "Copy graph", cls: "info-modal-Copy-button" });
 

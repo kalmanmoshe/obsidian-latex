@@ -453,13 +453,13 @@ export class Axis {
         if (originalCoords.length < 4) {
             throw new Error("Intersection had undefined coordinates or insufficient data.");
         }
-
+        
         const slopes = [
-            findSlope(originalCoords[0].axis, originalCoords[1].axis),
-            findSlope(originalCoords[2].axis, originalCoords[3].axis),
+            findSlope(originalCoords[0].axis as Axis, originalCoords[1].axis as Axis),
+            findSlope(originalCoords[2].axis as Axis, originalCoords[3].axis as Axis),
         ];
 
-        return findIntersectionPoint(originalCoords[0].axis, originalCoords[2].axis, slopes[0], slopes[1]);
+        return findIntersectionPoint(originalCoords[0].axis as Axis, originalCoords[2].axis as Axis, slopes[0], slopes[1]);
     }
 }
 
@@ -517,14 +517,15 @@ export class Formatting{
 
     decoration?: {brace?: boolean,coil: boolean,amplitude?: number,aspect: number,segmentLength:number};
     
-
-    quickAdd(mode: string,formatting: any,formattingForInterpretation?:string ){
+    constructor(mode: string,formattingArr: any,formattingString?:string){
         this.mode=mode;
         this.formattingSpecificToMode();
-        this.interpretFormatting(formattingForInterpretation||"",formatting||[])
+        this.assignFormatting(formattingArr||[]);
+        this.interpretFormatting(formattingString||"");
 
         return this;
     }
+
 
     formattingSpecificToMode(){
         switch (this.mode) {
@@ -561,8 +562,7 @@ export class Formatting{
         this.position = this.position?.replace(/[\d]+/g,"").replace(/(below|above)(right|right)/,"$1 $2");
     }
 
-    interpretFormatting(formattingString: string,formattingArr: any){
-
+    assignFormatting(formattingArr: any){
         for (const [key, value] of Object.entries(formattingArr)) {
             if(typeof value === 'object'){
                 //this.setProperty(key as keyof Formatting,formatting)
@@ -571,6 +571,10 @@ export class Formatting{
                 this.setProperty(key as keyof Formatting,value)
             }
         }
+    }
+
+    interpretFormatting(formattingString: string,){
+
         const splitFormatting=formattingString.replace(/\s/g,"").match(/(?:{[^}]*}|[^,{}]+)+/g) || [];
 
         splitFormatting.forEach(formatting => {
@@ -579,7 +583,7 @@ export class Formatting{
                 case !!match: {
                     if (match){
                         const  [_,parent, children]=match;
-                        this.interpretFormatting(children,[])
+                        this.interpretFormatting(children)
                     }
                     break;
                 }
@@ -616,6 +620,10 @@ export class Formatting{
                     break;
                 }
                 case !!formatting.match(/^text=/): {
+                    this.split("text",formatting)
+                    break;
+                }
+                case !!formatting.match(/^ancohr=/): {
                     this.split("text",formatting)
                     break;
                 }
@@ -656,7 +664,7 @@ export class Formatting{
             // Determine if the value is a number or a string
             value = !isNaN(parseFloat(rawValue)) && isFinite(+rawValue)
                 ? parseFloat(rawValue)
-                : rawValue;
+                : rawValue.replace(/-\|/,'north');
         }
         else{
             value=formatting
@@ -670,6 +678,9 @@ export class Formatting{
         value: any,
         nestedKey?: NK
     ): void {
+        if (typeof value==="string")
+            value=value.replace(/^\|-$/,"north").replace(/^-\|$/,"south");
+
         const formattingObj = this as Record<string, any>;
         if (nestedKey) {
             if (!formattingObj[key] || typeof formattingObj[key] !== 'object') {
@@ -709,35 +720,53 @@ export class Formatting{
 
 export class Coordinate {
     mode: string;
-    axis: Axis;
+    axis?: Axis;
     original?: string;
     coordinateName?: string;
-    formatting = new Formatting();
+    formatting?: Formatting;
     label?: string;
     quadrant?: number;
     
-    constructor(
-        mode?: string,
-        axis?: Axis,
-        original?: string,
-        coordinateName?: string,
-        formatting?: Formatting,
-        label?: string,
-        quadrant?: number
-    ) {
+    constructor(mode?: string, axis?: Axis, original?: string, coordinateName?: string, formatting?: Formatting, label?: string, quadrant?: number);
+    constructor(options: { mode?: string; axis?: Axis; original?: string; coordinateName?: string; formatting?: Formatting; label?: string; quadrant?: number });
 
-        if (mode !== undefined) this.mode = mode;
-        if (axis !== undefined) this.axis = axis;
-        this.original = original;
-        this.coordinateName = coordinateName;
-        if (formatting !== undefined) this.formatting = formatting;
-        this.label = label;
-        this.quadrant = quadrant;
+
+  constructor(
+    mode?: string | { mode?: string; axis?: Axis; original?: string; coordinateName?: string; formatting?: Formatting; label?: string; quadrant?: number },
+    axis?: Axis,
+    original?: string,
+    coordinateName?: string,
+    formatting?: Formatting,
+    label?: string,
+    quadrant?: number
+  ) {
+    if (typeof mode === "string") {
+      // Handle the case where individual parameters are passed
+      this.mode = mode;
+      if (axis !== undefined) this.axis = axis;
+      this.original = original;
+      this.coordinateName = coordinateName;
+      if (formatting !== undefined) this.formatting = formatting;
+      this.label = label;
+      this.quadrant = quadrant;
+    } else if (typeof mode === "object" && mode !== null) {
+      // Handle the case where an options object is passed
+      const options = mode;
+
+      if (options.mode !== undefined) this.mode = options.mode;
+      this.axis = options.axis;
+      this.original = options.original;
+      this.coordinateName = options.coordinateName;
+      this.formatting = options.formatting;
+      this.label = options.label;
+      this.quadrant = options.quadrant;
     }
+  }
+
     clone(): Coordinate {
         return new Coordinate(
             this.mode,
-            this.axis.clone(),
+            this.axis ? this.axis.clone() :undefined,
             this.original,
             this.coordinateName,
             this.formatting,
@@ -755,8 +784,7 @@ export class Coordinate {
         if(this.original){
             this.axis=new Axis().universal(this.original,tokens);
         }
-            this.formatting=new Formatting();
-            this.formatting.quickAdd(this.mode,formatting,match.formatting);
+            this.formatting=new Formatting(this.mode,formatting,match.formatting);
         
         return this;
     }
@@ -764,12 +792,14 @@ export class Coordinate {
     toString() {
         switch (this.mode) {
             case "coordinate":
+                if (this.axis)
                 return `\\coor{${this.axis.toString()}}{${this.coordinateName || ""}}{${this.label || ""}}{}`;
             case "node":
                 return
             case "node-inline":
                 return `node ${this.formatting?.toString()} {${this.label||''}}`
             case "node-mass":
+                if (this.axis)
                 return `\\node ${this.coordinateName?'('+this.coordinateName+')':''} at (${this.axis.toString()}) ${this.formatting?.toString()} {${this.label}};`
             default:
                 throw new Error("Couldn't find mode at to string coordinate");
@@ -779,9 +809,11 @@ export class Coordinate {
     }
 
     addQuadrant(midPoint: Axis) {
-        const xDirection = this.axis.cartesianX > midPoint.cartesianX ? 1 : -1;
-        const yDirection = this.axis.cartesianY > midPoint.cartesianY ? 1 : -1;
-        this.quadrant = yDirection === 1 ? (xDirection === 1 ? 1 : 2) : (xDirection === 1 ? 4 : 3);
+        if (this.axis){
+            const xDirection = this.axis.cartesianX > midPoint.cartesianX ? 1 : -1;
+            const yDirection = this.axis.cartesianY > midPoint.cartesianY ? 1 : -1;
+            this.quadrant = yDirection === 1 ? (xDirection === 1 ? 1 : 2) : (xDirection === 1 ? 4 : 3);
+        }   
     }
 }
 
@@ -789,17 +821,17 @@ type Token =Axis | Coordinate |Draw|Formatting| string;
 
 export class Draw {
     mode?: string
-    formatting: Formatting=new Formatting();
+    formatting: Formatting;
     coordinates: Array<Token>;
 
     constructor(match: {formatting: string|any,draw: string|any}, tokens?: FormatTikzjax,mode?: string) {
         this.mode=mode;
         this.mode=`draw${mode?"-"+mode:""}`;
         if (typeof match.formatting ==="string"){
-            this.formatting.quickAdd(`draw`,{},match.formatting);
+            this.formatting=new Formatting(`draw`,{},match.formatting);
         }
         else
-        this.formatting.quickAdd(`draw`,match.formatting,'');
+        this.formatting= new Formatting(`draw`,match.formatting,'');
 
         if(typeof match.draw==="string"){
             this.coordinates = this.fillCoordinates(this.getSchematic(match.draw), tokens);
@@ -1049,9 +1081,16 @@ export class FormatTikzjax {
             this.tokens.push(new Coordinate().addInfo(i,"node-mass",this,{anchor: match[3],rotate: match[4]}))
 
           } else if (match[0].startsWith("\\vec")) {
+            const ancer=new Axis().universal(match[1]);
+            const axis1=new Axis().universal(match[2]);
+            const node=new Coordinate({mode: 'node-inline',formatting: new Formatting('node-inline',{},''),label: match[3]})
+            
+
+            const c1=new Coordinate("node-inline");
             match[2]=`(${match[1]})--+node[]{${match[3]}}(${match[2]})`
             match[1]=match[4]+',->'
-            this.tokens.push(new Draw(match,this))
+            const q=[ancer,'--+',node,axis1]
+            this.tokens.push(new Draw({formatting: '',draw: q},this,'draw'))
           }
 
           if (match.index !== undefined) {
