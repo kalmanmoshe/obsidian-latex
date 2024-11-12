@@ -1,14 +1,11 @@
-import { App, Component, Editor, MarkdownRenderer, MarkdownView, WorkspaceWindow } from "obsidian";
+import { App, MarkdownView, WorkspaceWindow } from "obsidian";
 import MathPlugin from "src/main";
 import { optimize } from "./svgo.browser.js";
 // @ts-ignore
 import tikzjaxJs from "inline:./tikzjax.js";
-import { cartesianToPolar, degreesToRadians, findIntersectionPoint, findSlope, polarToCartesian, toNumber } from "src/mathUtilities.js";
+import { cartesianToPolar, findIntersectionPoint, findSlope, polarToCartesian, toNumber } from "src/mathUtilities.js";
 import { DebugModal } from "src/desplyModals.js";
 
-import { EditorView } from "@codemirror/view";
-import { error } from "console";
-import { flattenArray } from "src/mathEngine.js";
 
 
 export class Tikzjax {
@@ -524,7 +521,7 @@ export class Formatting{
     quickAdd(mode: string,formatting: any,formattingForInterpretation?:string ){
         this.mode=mode;
         this.formattingSpecificToMode();
-        this.interpretFormatting(formattingForInterpretation||"",[])
+        this.interpretFormatting(formattingForInterpretation||"",formatting||[])
 
         return this;
     }
@@ -574,12 +571,9 @@ export class Formatting{
                 this.setProperty(key as keyof Formatting,value)
             }
         }
-
-
-        const splitFormatting=formattingString.match(/(?:{[^}]*}|[^,{}]+)+/g) || [];
+        const splitFormatting=formattingString.replace(/\s/g,"").match(/(?:{[^}]*}|[^,{}]+)+/g) || [];
 
         splitFormatting.forEach(formatting => {
-            //console.log(formatting)
             const match = formatting.match(/^([^=]+)={(.*)}$/);
             switch (true) {
                 case !!match: {
@@ -597,7 +591,7 @@ export class Formatting{
                     this.split("fill",formatting)
                     break;
                 }
-                case formatting.includes("fillopacity"): {
+                case !!formatting.match(/^fillopacity/): {
                     this.split("fillOpacity",formatting)
                     break;
                 }
@@ -650,16 +644,15 @@ export class Formatting{
         nestedKey?: NK
     ): void {
         let value;
-
         if(typeof formatting!=="boolean"){
             let match = formatting.split("=");
     
             // Ensure the formatting string is valid
             if (match.length < 2 || !match[1]) return;
-        
+            
             // Trim any potential whitespace around the value
             const rawValue = match[1].trim();
-        
+            
             // Determine if the value is a number or a string
             value = !isNaN(parseFloat(rawValue)) && isFinite(+rawValue)
                 ? parseFloat(rawValue)
@@ -678,7 +671,6 @@ export class Formatting{
         nestedKey?: NK
     ): void {
         const formattingObj = this as Record<string, any>;
-        
         if (nestedKey) {
             if (!formattingObj[key] || typeof formattingObj[key] !== 'object') {
                 formattingObj[key] = {};
