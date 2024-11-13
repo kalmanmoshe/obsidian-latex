@@ -49,21 +49,20 @@ export function getUsableDegrees(degrees: number): number {
     return ((degrees % 360) + 360) % 360;
 }
 
-export const cartesianToPolar=(x: number,y:number)=>{
-    const length=Math.sqrt(x ** 2 +y ** 2);
-    let angle;
-    if (y>0)
-        angle= radiansToDegrees(Math.atan2(x, y));
-    else 
-        angle=radiansToDegrees(Math.atan2(y, x))
-    return {angle: angle, length: length,}
+export const cartesianToPolar = (x: number, y: number) => {
+    const length = Math.sqrt(x ** 2 + y ** 2); // Calculate the radius
+    const angle = getUsableDegrees(radiansToDegrees(Math.atan2(y, x))); 
+    return { angle: angle, length: length };
+};
+
+function tolerance(number: number) {
+    return Math.abs(number) < 1e-10 ? 0 : number;
 }
 
 
 export const polarToCartesian = (angle: number, length: number) => {
-    const radians = degreesToRadians(angle);
-    //if ()
-    return { X: length * Math.cos(radians), Y: length * Math.sin(radians) };
+    const radians = degreesToRadians(getUsableDegrees(angle));
+    return { X: tolerance(length * Math.cos(radians)), Y: tolerance(length * Math.sin(radians)) };
 };
 
 
