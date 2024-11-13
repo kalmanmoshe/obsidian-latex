@@ -282,9 +282,9 @@ class VecProcessor {
     const drawY= [ancer,'--',new Coordinate({mode:"node-inline",label: this.axis.cartesianY.toString()}),new Axis(0,this.axis.cartesianY)]
     this.graph=[
       new Formatting("globol",{color: "white",scale: 1,}),
-      new Draw(formatting,draw,undefined,"draw",),
-      new Draw(formatting,drawX,undefined,"draw",),
-      new Draw(formatting,drawY,undefined,"draw",),
+      new Draw({drawArr: draw,formattingObj: formatting}),
+      new Draw({drawArr: drawX,formattingObj: formatting}),
+      new Draw({drawArr: drawY,formattingObj: formatting}),
     ]
     
     

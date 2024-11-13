@@ -51,13 +51,18 @@ export function getUsableDegrees(degrees: number): number {
 
 export const cartesianToPolar=(x: number,y:number)=>{
     const length=Math.sqrt(x ** 2 +y ** 2);
-    const angle=getUsableDegrees(radiansToDegrees(Math.atan2(x, y)));
+    let angle;
+    if (y>0)
+        angle= radiansToDegrees(Math.atan2(x, y));
+    else 
+        angle=radiansToDegrees(Math.atan2(y, x))
     return {angle: angle, length: length,}
 }
 
 
 export const polarToCartesian = (angle: number, length: number) => {
     const radians = degreesToRadians(angle);
+    //if ()
     return { X: length * Math.cos(radians), Y: length * Math.sin(radians) };
 };
 
