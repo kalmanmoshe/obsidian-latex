@@ -562,7 +562,7 @@ export class Formatting{
         this.formattingSpecificToMode(drawArr);
         this.assignFormatting(formattingArr||[]);
         this.interpretFormatting(formattingString||"");
-        return this;
+        return this
     }
 
 
