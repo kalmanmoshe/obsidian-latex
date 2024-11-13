@@ -163,7 +163,7 @@ function getRegex(){
         //coordinate: new RegExp(String.raw`(${basic}+|1)`),
         coordinateName: String.raw`[\w_\d\s]`,
         text: String.raw`[\w\s-,.:$(!)_+\\{}=]`,
-        formatting: String.raw`[\w\s\d=:,!';&*[\]{}%-<>]`
+        formatting: String.raw`[\w\s\d=:,!';&*{}%-<>]`
     };
 }
 
@@ -486,6 +486,7 @@ function matchKeyWithValue(key: string): string {
         "lineWidth": "line width=",
         "fill": "fill=",
         "fillOpacity": "fill opacity=",
+        "textOpacity": "text opacity=",
         "textColor": "text color=",
         "draw": "draw=",
         "text": "text=",
@@ -498,13 +499,31 @@ function matchKeyWithValue(key: string): string {
         "decoration.amplitude": "amplitude=",
         "angleRadius": "angle radius=",
         "angleEccentricity": "angle eccentricity=",
+        "font": "font=",
+        "picText": "pic text=",
     };
 
     return valueMap[key] || '';
 }
+function toPt(value:number,format: string){
+    switch (format) {
+        case "pt":
+            return value;
+        case "cm": 
+            return value*28.346;
+        case "mm":
+            return value* 2.8346;
+        default:
+            throw new Error("unknon format");
+    }
+}
+
+
 
 export class Formatting{
-    
+    // importent needs to be forst
+    path?: string;
+
     scale: number;
     rotate?: number;
     lineWidth?: number;
@@ -525,7 +544,7 @@ export class Formatting{
     arrow?: string;
     draw?: string;
     text?: string;
-    pathAttribute?: string;
+    freeFormText?: string
     tikzset?: string;
     position?: string;
     lineStyle?: string;
@@ -537,18 +556,22 @@ export class Formatting{
     label?: {label: string,}
     decoration?: {brace?: boolean,coil: boolean,amplitude?: number,aspect: number,segmentLength:number};
     //level distance=20mm,level #1/.style={sibling distance=#2mm, nodes={fill=red!#3,circle,inner sep=1pt,draw=none,text=black,}}
-    constructor(mode: string,formattingArr: any,formattingString?:string){
+    
+    constructor(mode: string,formattingArr: any,formattingString?:string,drawArr?: any,index?: number){
         this.mode=mode;
-        this.formattingSpecificToMode();
+        this.formattingSpecificToMode(drawArr);
         this.assignFormatting(formattingArr||[]);
         this.interpretFormatting(formattingString||"");
         return this;
     }
 
 
-    formattingSpecificToMode(){
+    formattingSpecificToMode(drawArr?: any,index?: number){
         switch (this.mode) {
-            
+            case 'node-inline':
+                if (drawArr&&index)
+                this.addSplopAndPosition(drawArr,index);
+                break;
             case "draw-pic-ang":
                 this.tikzset='ang'
                 break;
@@ -556,30 +579,36 @@ export class Formatting{
     }
 
     addTikzset(splitFormatting: any){
-        const a=splitFormatting.find((item: string)=> item.includes("tikzset"))
+        console.log(splitFormatting)
+        const a=splitFormatting.find((item: string)=> item.match(/mass|ang|helplines/))
         if (!a&&!this.tikzset)return;
-        if(a) this.split("tikzset",a)
+        if(a) this.tikzset=a;
 
         switch (this.tikzset) {
             case "mass":
                 this.fill="yellow!60";
-                this.pathAttribute="draw";
+                this.path="draw";
                 this.text="black";
                 break;
             case "vec":
                 this.arrow='->'
                 break;
+            case "helplines":
+                this.width='thin';
+                this.draw='gray';
+                break;
             case "ang":
+                this.path='draw'
                 this.fill='black!50';
                 this.fillOpacity=0.5;
                 this.draw='orange'
                 this.arrow='<->'
-                this.angleEccentricity=1.6
-                this.angleRadius=0.5
-                this.text='orange'
-                this.font='\\large'
-                break;
-            //draw=orange,<->,angle eccentricity=#1,angle radius=#2cm,text=orange,font=\\large},ang/.default={1.6}{0.5}}"
+                this.angleEccentricity=1.6;
+                this.angleRadius=toPt(0.5,"cm");
+                this.text='orange';
+                this.font='\\large';
+                this.textOpacity=0.9;
+            break;
         }
     }
 
@@ -593,7 +622,7 @@ export class Formatting{
         const slope=findSlope(edge1,edge2)
 
         this.sloped = slope !== 0;
-
+        
         let quadrant
         if (edge1!==edge2)quadrant=edge1+edge2;
         else quadrant=edge1;
@@ -682,9 +711,7 @@ export class Formatting{
                     this.split("decoration",formatting,"amplitude" as keyof NonNullable<Formatting["decoration"]>,)
                     break;
                 case !!formatting.match(/^draw$/):
-                    this.pathAttribute = formatting;break;
-                case !!formatting.match(/^helplines$/):
-                    this.tikzset = formatting.replace(/helplines/g,"help lines");break;
+                    this.path = formatting;break;
                 case !!formatting.match(/^(red|blue|pink|black|white|[!\d.]+){1,5}$/):
                     this.color=formatting;break;
                 case !!formatting.match(/^(dotted|dashed|smooth|densely|loosely){1,2}$/):
@@ -788,6 +815,7 @@ export class Coordinate {
     quadrant?: number
   ) {
     if (typeof mode === "string") {
+        
       // Handle the case where individual parameters are passed
       this.mode = mode;
       if (axis !== undefined) this.axis = axis;
@@ -796,10 +824,10 @@ export class Coordinate {
       if (formatting !== undefined) this.formatting = formatting;
       this.label = label;
       this.quadrant = quadrant;
-    } else if (typeof mode === "object" && mode !== null) {
-      // Handle the case where an options object is passed
-      const options = mode;
 
+    } else if (typeof mode === "object" && mode !== null) {
+
+      const options = mode;
       if (options.mode !== undefined) this.mode = options.mode;
       this.axis = options.axis;
       this.original = options.original;
@@ -824,14 +852,14 @@ export class Coordinate {
     addAxis(cartesianX?: number, cartesianY?: number, polarLength?: number, polarAngle?: number){
         this.axis=new Axis(cartesianX, cartesianY, polarLength, polarAngle);
     }
-    addInfo(match: {original?: string,coordinateName?: string,label?: string,formatting?: string}, mode: string,tokens?: FormatTikzjax,formatting?: object) {
-        this.mode=mode;
-        ([{original: this.original,coordinateName: this.coordinateName,label: this.label}]=[match])
+    addInfo(match: {original?: string,coordinateName?: string,label?: string,formattingObj?: any,mode: string,tokens?: FormatTikzjax,formatting?: string}) {
+        
+        ([{mode: this.mode,original: this.original,coordinateName: this.coordinateName,label: this.label}]=[match])
 
         if(this.original){
-            this.axis=new Axis().universal(this.original,tokens);
+            this.axis=new Axis().universal(this.original,match.tokens);
         }
-            this.formatting=new Formatting(this.mode,formatting,match.formatting);
+            this.formatting=new Formatting(this.mode,match.formattingObj,match.formatting);
         
         return this;
     }
@@ -843,17 +871,14 @@ export class Coordinate {
                     return`\\coordinate ${this.formatting?.toString() || ''} (${this.coordinateName || ""}) at (${this.axis.toString()});`
                 //return `\\coor{${this.axis.toString()}}{${this.coordinateName || ""}}{${this.label || ""}}{}`;
             case "node":
-                return
+                if (this.axis)
+                    return `\\node ${this.coordinateName?'('+this.coordinateName+')':''} at (${this.axis.toString()}) ${this.formatting?.toString()||''} {${this.label}};`
             case "node-inline":
                 return `node ${this.formatting?.toString() || ''} {${this.label || ''}}`
-            case "node-mass":
-                if (this.axis)
-                return `\\node ${this.coordinateName?'('+this.coordinateName+')':''} at (${this.axis.toString()}) ${this.formatting?.toString()||''} {${this.label}};`
             default:
                 throw new Error("Couldn't find mode at to string coordinate");
                 break;
         }
-        
     }
 
     addQuadrant(midPoint: Axis) {
@@ -872,20 +897,34 @@ export class Draw {
     formatting: Formatting;
     coordinates: Array<Token>;
 
-    constructor(formatting: string|object,draw: string|any, tokens?: FormatTikzjax,mode?: string) {
-        this.mode=mode;
-        this.mode=`draw${mode?"-"+mode:""}`;
-        if (typeof formatting ==="string"){
-            this.formatting=new Formatting(this.mode,{},formatting);
-        }
-        else
-        this.formatting= new Formatting(this.mode,formatting,'');
+    constructor(mode?: string,formatting?: string,draw?: string, tokens?: FormatTikzjax,);
+    constructor(options: {mode?: string, formattingString?: string, formattingObj?: object,formatting?: Formatting,drawString?: string,drawArr?: any,tokens?: FormatTikzjax});
 
-        if(typeof draw==="string"){
+
+    constructor(
+        mode?: string | {mode?: string, formattingString?: string, formattingObj?: object,formatting?: Formatting,drawString?: string,drawArr?: any,tokens?: FormatTikzjax},
+        formatting?: string,
+        draw?: string, 
+        tokens?: FormatTikzjax
+      ) {
+        if (typeof mode==="string"||typeof draw==="string"){
+            this.mode=`draw${mode?"-"+mode:""}`;
+            this.formatting=new Formatting(this.mode,{},formatting);
+            if (draw)
             this.coordinates = this.fillCoordinates(this.getSchematic(draw), tokens);
         }
-        else{
-            this.coordinates=draw;
+        else if(mode&&typeof mode==="object"){
+            const options=mode;
+            this.mode=`draw${options?.mode?"-"+options.mode:""}`;
+            if (!options?.formatting)
+                this.formatting= new Formatting(this.mode,options?.formattingObj,options?.formattingString);
+            else this.formatting=options.formatting;
+            
+            if (options?.drawArr)
+                this.coordinates=options.drawArr;
+            else if (options.drawString!==undefined){
+                this.coordinates = this.fillCoordinates(this.getSchematic(options.drawString), tokens);
+            }
         }
     }
     createFromArray(arr: any){/*
@@ -915,7 +954,7 @@ export class Draw {
                 }
                 coorArr.push(new Axis().universal(schematic[i].value, tokens, coorArr, previousFormatting, ));
             } else if(schematic[i].type === "node"){
-                coorArr.push(new Coordinate().addInfo({label: schematic[i].value,formatting: schematic[i].formatting},"node-inline",tokens));
+                coorArr.push(new Coordinate({label: schematic[i].value,formatting: new Formatting("node-inline",{},schematic[i].formatting,coorArr,coorArr.length-1),mode: "node-inline"}));
             }
             else{
                 coorArr.push(schematic[i].value);
@@ -927,7 +966,7 @@ export class Draw {
     getSchematic(draw: string) {
         const regex=getRegex();
         const coordinatesArray = [];
-        const nodeRegex = regExp(String.raw`node\s*\[{0,1}(${regex.formatting}*)\]{0,1}\s*{(${regex.text}*)}`);
+        const nodeRegex = regExp(String.raw`node\s*\[?(${regex.formatting}*)\]?\s*{(${regex.text}*)}`);
         const formattingRegex = /(--cycle|cycle|--\+\+|--\+|--|-\||\|-|grid|circle|rectangle)/;
         const ca = String.raw`\w\d\s\-,.:`; // Define allowed characters for `ca`
         const coordinateRegex = new RegExp(String.raw`(\([${ca}]+\)|\(\$\([${ca}]+\)[${ca}!:+\-]+\([${ca}]+\)\$\))`);
@@ -992,7 +1031,7 @@ export class Draw {
     }
 
     toStringPic(){
-        let result = `\\pic ${this.formatting.toString()||''} {angle = ${(this.coordinates[0] as Axis).name}--${(this.coordinates[1] as Axis).name}--${(this.coordinates[2] as Axis).name}} `;
+        let result = `\\draw pic ${this.formatting.toString()||''} {angle = ${(this.coordinates[0] as Axis).name}--${(this.coordinates[1] as Axis).name}--${(this.coordinates[2] as Axis).name}} `;
      
 
         return result + ";";
@@ -1054,7 +1093,7 @@ export class FormatTikzjax {
         const c = String.raw`[$(]{0,2}[${ca}]+[)$]{0,2}|\$\([${ca}]+\)[${ca}!:+]+\([${ca}]+\)\$`;
         // Define `coorRegex` with escaped characters for specific matching
         const cn = String.raw`[\w_\d\s]`; // Coordinate name
-        const t = String.raw`\$[\w\d\s\-,.:(!)\-\{\}\+\\ ^]*\$|[\w\d\s\-,.:(!)_\-\+\\^]*`; // Text with specific characters
+        const t = String.raw`\"?\$[\w\d\s\-,.:(!)\-\{\}\+\\ ^]*\$\"?|[\w\d\s\-,.:(!)_\-\+\\^]*`; // Text with specific characters
         const f = String.raw`[\w\s\d=:,!';.&*\{\}%\-<>]`; // Formatting with specific characters
 
         // Define `coorRegex` using escaped braces and patterns
@@ -1093,16 +1132,17 @@ export class FormatTikzjax {
             if(match[0].startsWith("\\coordinate")){
                 Object.assign(i,{original: match[5],coordinateName: match[4],label: match[3],formatting: match[2]})
             }
-            this.tokens.push(new Coordinate().addInfo(i,"coordinate",this));
+            this.tokens.push(new Coordinate().addInfo({mode: "coordinate",...i,tokens: this}));
+
           } else if (match[0].startsWith("\\pic")) {
             const c1=new Axis().universal(match[1],this)
             const c2=new Axis().universal(match[2],this)
             const c3=new Axis().universal(match[3],this)
 
 
-            this.tokens.push(new Draw(match[5],[c1,c2,c3], this,'pic-ang'));
+            this.tokens.push(new Draw({mode: "pic-ang",tokens: this,formattingString: match[5],formattingObj: {picText: match[4]},drawArr: [c1,c2,c3]}));
           }else if (match[0].startsWith("\\draw")) {
-            this.tokens.push(new Draw(match[1],match[2], this,'draw'));
+            this.tokens.push(new Draw(undefined,match[1],match[2], this));
           } else if (match[0].startsWith("\\xyaxis")) {
             //this.tokens.push(dissectXYaxis(match));
           } else if (match[0].startsWith("\\grid")) {
@@ -1112,7 +1152,8 @@ export class FormatTikzjax {
             if (match[0].match(/\\node\s*\(/)){
                 Object.assign(i,{original: match[2],coordinateName: match[1],label: match[3],formatting: match[4]});
             }
-            this.tokens.push(new Coordinate().addInfo(i,"node",this));
+            this.tokens.push(new Coordinate().addInfo({...i,mode: "node",tokens: this}));
+
           } else if (match[0].startsWith("\\circle")) {/*
             this.tokens.push({
               type: "circle",
@@ -1125,7 +1166,7 @@ export class FormatTikzjax {
             });*/
           } else if (match[0].startsWith("\\mass")) {
             let i={original: match[1], label: match[2]}
-            this.tokens.push(new Coordinate().addInfo(i,"node-mass",this,{anchor: match[3],rotate: match[4]}))
+            this.tokens.push(new Coordinate().addInfo({...i,mode: "node",tokens: this,formattingObj:{tikzset: 'mass',anchor: match[3],rotate: match[4]}}))
 
           } else if (match[0].startsWith("\\vec")) {
             const ancer=new Axis().universal(match[1],this);
@@ -1134,7 +1175,7 @@ export class FormatTikzjax {
 
             const c1=new Coordinate("node-inline");
             const q=[ancer,'--+',node,axis1]
-            this.tokens.push(new Draw('tikzset=vec,draw=red',q,this,'draw'))
+            this.tokens.push(new Draw({formattingObj: {tikzset: 'vec'},tokens: this,drawArr: q}))
           }
 
           if (match.index !== undefined) {
