@@ -1,7 +1,8 @@
-import esbuild from "esbuild";
+import * as esbuild from 'esbuild-wasm';
 import process from "process";
 import builtins from "builtin-modules";
 import inlineImportPlugin from "esbuild-plugin-inline-import";
+
 
 const banner =
 `/*

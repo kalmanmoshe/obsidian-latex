@@ -12,18 +12,15 @@ export default class MathPlugin extends Plugin {
   tikzProcessor: Tikzjax
   async onload() {
     await this.loadSettings();
+    this.tikzProcessor=new Tikzjax(this.app,this)
+    this.tikzProcessor.readyLayout();
+		this.tikzProcessor.addSyntaxHighlighting();
+		this.tikzProcessor.registerTikzCodeBlock();
+
     this.addSettingTab(new MathPluginSettingTab(this.app, this));
     this.registerMarkdownCodeBlockProcessor("math-engine", this.processMathBlock.bind(this));
     this.registerCommands();
     this.registerEditorSuggest(new NumeralsSuggestor(this));
-
-
-    this.tikzProcessor=new Tikzjax(this.app,this)
-    
-
-    this.tikzProcessor.readyLayout();
-		this.tikzProcessor.addSyntaxHighlighting();
-		this.tikzProcessor.registerTikzCodeBlock();
   }
   onunload() {
 		this.tikzProcessor.unloadTikZJaxAllWindows();
@@ -245,7 +242,7 @@ class VecProcessor {
   axis: Axis;
   modifier: number;
   result: string;
-  graph?: FormatTikzjax;
+  graph?: any;
 
   constructor(environment: string, mathInput: string, modifier: string) {
     const match = environment.match(/([+-]?)([+-]?)/);
@@ -254,9 +251,13 @@ class VecProcessor {
     this.modifier = modifier.length > 0 ? getUsableDegrees(Number(modifier)) : 0;
 
     this.axis=new Axis().universal(mathInput)
+    this.vecInfo.addDebugInfo("axis",this.axis);
+    this.addResult();
     this.addGraph();
   }
-
+  addResult(){
+    this.result=`x = ${this.axis.cartesianX}\\quad,y = ${this.axis.cartesianY}`
+  }
   
   addGraph() {
     const targetSize = 10;
@@ -274,24 +275,21 @@ class VecProcessor {
     
     const ancer=new Axis(0,0);
 
-    const axis1=new Axis(this.axis.cartesianX,0);
-    const axis2=new Axis(0,this.axis.cartesianY);
-
-    const c1=new Coordinate("node-inline");
 
     const formatting={lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}
-    const draw= [ancer,'--',c1,axis1]
-
-    this.graph=new FormatTikzjax([
+    const draw= [ancer,'--',new Coordinate({mode:"node-inline",label: this.axis.polarLength.toString()}),this.axis]
+    const drawX= [ancer,'--',new Coordinate({mode:"node-inline",label: this.axis.cartesianX.toString()}),new Axis(this.axis.cartesianX,0)]
+    const drawY= [ancer,'--',new Coordinate({mode:"node-inline",label: this.axis.cartesianY.toString()}),new Axis(0,this.axis.cartesianY)]
+    this.graph=[
       new Formatting("globol",{color: "white",scale: 1,}),
-      new Draw({formatting: formatting,draw: draw},undefined,"draw",),
-      //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
-      //new Draw({formatting: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"},draw: [ancer,'--',new Coordinate(),new Axis()]},undefined,"draw",),
-    ])
+      new Draw(formatting,draw,undefined,"draw",),
+      new Draw(formatting,drawX,undefined,"draw",),
+      new Draw(formatting,drawY,undefined,"draw",),
+    ]
     
     
     this.vecInfo.addDebugInfo("this.graph",JSON.stringify(this.graph.tokens,null,1));
-    this.vecInfo.addDebugInfo("this.graph.toString()",JSON.stringify(this.graph.toString()));
+    this.vecInfo.addDebugInfo("this.graph.toString()\n",JSON.stringify(this.graph.toString()));
     /* Generate LaTeX code for vector components and main vector
     const t = String.raw`
 
@@ -305,31 +303,19 @@ class VecProcessor {
 
 
 class tikzGraph extends Modal {
-  tikz: FormatTikzjax
-  constructor(app: App,tikzCode: FormatTikzjax){
+  tikz: FormatTikzjax;
+  constructor(app: App,tikzCode: any){
     super(app);
-    this.tikz=tikzCode;
+    this.tikz=new FormatTikzjax(tikzCode);
   }
 
   onOpen() {
     const { contentEl } = this;
     const script = contentEl.createEl("script");
-    const code=String.raw`[scale=2pt, x=1cm, y=1cm,white]
-\coor{0,0}{anc0}{}{}
-\coor{2,0}{anc1}{}{}
-\coor{$(anc1)+(115:1)$}{anc2}{}{}
-\draw [line width=1pt,fill=cyan!50,fill opacity=0.25] (anc0)--(anc1)--(anc2) --cycle;
-\ang{anc1}{anc0}{anc2}{25^\circ }{};
-\ang{anc2}{anc1}{anc0}{75^\circ }{};
-\coor{$(anc0)!0.5!(anc2)$}{A}{}{}
-\mass{A}{$A_{50}$}{-|}{25}
-`
+    const code=this.tikz;
     script.setAttribute("type", "text/tikz");
     script.setAttribute("data-show-console", "true");
-    script.setText(code);
-    
-    const a = contentEl
-    MarkdownRenderer.renderMarkdown(`\`\`\`tikz\n${code}\n\`\`\``, a, "", new Component());
+    script.setText(code.getCode());
     
     const actionButton = contentEl.createEl("button", { text: "Copy graph", cls: "info-modal-Copy-button" });
 
@@ -348,9 +334,12 @@ type DistributionType = 'normal' | 'binomial' | 'poisson';
 
 class Distribution {
   private type: DistributionType;
-  private mean: number;
-  private variance: number;
-  private stdDev: number;
+  private x: number;
+  private mu: number;
+  private sigma: number
+  private variance: number
+
+  
 
   // For Binomial Distribution
   private trials: number;
@@ -358,7 +347,7 @@ class Distribution {
 
   // For Poisson Distribution
   private lambda: number;
-
+  /*
   constructor(type: DistributionType, params: Record<string, number>) {
     this.type = type;
 
@@ -387,9 +376,6 @@ class Distribution {
     }
   }
 
-  /**
-   * Calculate the probability density function (PDF) for the Normal Distribution.
-   */
   public normalPDF(x: number): number {
     if (this.type !== 'normal') {
       throw new Error('PDF only applies to the Normal Distribution');
@@ -398,9 +384,6 @@ class Distribution {
     return (1 / (this.stdDev * Math.sqrt(2 * Math.PI))) * expPart;
   }
 
-  /**
-   * Calculate the cumulative distribution function (CDF) for the Normal Distribution.
-   */
   public normalCDF(x: number): number {
     if (this.type !== 'normal') {
       throw new Error('CDF only applies to the Normal Distribution');
@@ -408,9 +391,6 @@ class Distribution {
     return 0.5 * (1 + this.erf((x - this.mean) / (Math.sqrt(2) * this.stdDev)));
   }
 
-  /**
-   * Calculate the probability mass function (PMF) for the Binomial Distribution.
-   */
   public binomialPMF(x: number): number {
     if (this.type !== 'binomial') {
       throw new Error('PMF only applies to the Binomial Distribution');
@@ -420,9 +400,6 @@ class Distribution {
     return combination * Math.pow(this.probability, x) * Math.pow(1 - this.probability, this.trials - x);
   }
 
-  /**
-   * Calculate the probability mass function (PMF) for the Poisson Distribution.
-   */
   public poissonPMF(x: number): number {
     if (this.type !== 'poisson') {
       throw new Error('PMF only applies to the Poisson Distribution');
@@ -430,9 +407,6 @@ class Distribution {
     return (Math.pow(this.lambda, x) * Math.exp(-this.lambda)) / this.factorial(x);
   }
 
-  /**
-   * Error function approximation for Normal Distribution CDF.
-   */
   private erf(x: number): number {
     const sign = x < 0 ? -1 : 1;
     const a = 0.3275911;
@@ -446,15 +420,12 @@ class Distribution {
     return sign * (1 - poly * Math.exp(-x * x));
   }
 
-  /**
-   * Factorial function.
-   */
   private factorial(n: number): number {
     if (n < 0) return NaN;
     let result = 1;
     for (let i = 2; i <= n; i++) result *= i;
     return result;
-  }
+  }*/
 }
 
 
