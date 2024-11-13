@@ -245,18 +245,24 @@ class VecProcessor {
   graph?: any;
 
   constructor(environment: string, mathInput: string, modifier: string) {
+    this.userInput=mathInput;
     const match = environment.match(/([+-]?)([+-]?)/);
     this.environment = { X: match?.[1] ?? "+", Y: match?.[2] ?? "+" };
 
     this.modifier = modifier.length > 0 ? getUsableDegrees(Number(modifier)) : 0;
 
-    this.axis=new Axis().universal(mathInput)
+    this.axis=new Axis().universal(this.userInput)
+    if (!this.axis.polarAngle)
+      this.axis.cartesianToPolar();
     this.vecInfo.addDebugInfo("axis",this.axis);
     this.addResult();
     this.addGraph();
   }
   addResult(){
-    this.result=`x = ${this.axis.cartesianX}\\quad,y = ${this.axis.cartesianY}`
+    if (this.userInput.includes(":"))
+      this.result=`x = ${this.axis.cartesianX}\\quad,y = ${this.axis.cartesianY}`
+    else
+      this.result=`angle = ${this.axis.polarAngle}\\quad,length = ${this.axis.polarLength}`
   }
   
   addGraph() {
@@ -276,15 +282,15 @@ class VecProcessor {
     const ancer=new Axis(0,0);
 
 
-    const formatting={lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}
-    const draw= [ancer,'--',new Coordinate({mode:"node-inline",label: this.axis.polarLength.toString()}),this.axis]
-    const drawX= [ancer,'--',new Coordinate({mode:"node-inline",label: this.axis.cartesianX.toString()}),new Axis(this.axis.cartesianX,0)]
-    const drawY= [ancer,'--',new Coordinate({mode:"node-inline",label: this.axis.cartesianY.toString()}),new Axis(0,this.axis.cartesianY)]
+    const draw= [ancer,'--',new Coordinate({mode:"node-inline",label: this.axis.polarLength.toString()}),this.axis];
+    const drawX= [ancer,'--',new Coordinate({mode:"node-inline",label: this.axis.cartesianX.toString()}),new Axis(this.axis.cartesianX,0)];
+    const drawY= [ancer,'--',new Coordinate({mode:"node-inline",label: this.axis.cartesianY.toString()}),new Axis(0,this.axis.cartesianY)];
+
     this.graph=[
       new Formatting("globol",{color: "white",scale: 1,}),
-      new Draw({drawArr: draw,formattingObj: formatting}),
-      new Draw({drawArr: drawX,formattingObj: formatting}),
-      new Draw({drawArr: drawY,formattingObj: formatting}),
+      new Draw({drawArr: draw,formattingObj: {lineWidth: 1,draw: "red",arror: "-{Stealth}"}}),
+      new Draw({drawArr: drawX,formattingObj: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}}),
+      new Draw({drawArr: drawY,formattingObj: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}}),
     ]
     
     

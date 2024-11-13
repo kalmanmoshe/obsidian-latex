@@ -159,7 +159,7 @@ function getRegex(){
     const basic = String.raw`[\w\d\s-,.:]`;
     return {
         basic: basic,
-        merge: String.raw`[\+\-\|!\d.]`,
+        merge: String.raw`-\||\|-|![\d.]+!|\+|-`,
         //coordinate: new RegExp(String.raw`(${basic}+|1)`),
         coordinateName: String.raw`[\w_\d\s]`,
         text: String.raw`[\w\s-,.:$(!)_+\\{}=]`,
@@ -197,10 +197,23 @@ const parseNumber = (value: string) => {
 
 
 function findBeforeAfterAxis(axes: Array<Axis | string>, index: number): { before: number, after: number } {
-       
-    const beforeIndex = axes.slice(0,index).findLastIndex((axis: any) => axis instanceof Axis)
-    const afterIndex = axes.findIndex((axis: any,idx: number) => axis instanceof Axis&&idx>index);
+    
+    let beforeIndex = axes.slice(0, index).findLastIndex((axis: any) => axis instanceof Axis);
+    let afterIndex = axes.slice(index + 1).findIndex((axis: any) => axis instanceof Axis);
 
+    // Adjust `afterIndex` since we sliced from `index + 1`
+    if (afterIndex !== -1) {
+        afterIndex += index + 1;
+    }
+
+    // Wrap around if not found
+    if (beforeIndex === -1) {
+        beforeIndex = axes.findLastIndex((axis: any) => axis instanceof Axis);
+    }
+
+    if (afterIndex === -1) {
+        afterIndex = axes.findIndex((axis: any) => axis instanceof Axis);
+    }
     if (beforeIndex === -1 || afterIndex === -1) {
         throw new Error("Couldn't find valid Axis objects.");
     }
@@ -217,6 +230,7 @@ export class Axis {
     polarAngle: number;
     polarLength: number;
     name?: string;
+    quadrant?: number;
 
     constructor(cartesianX?: number, cartesianY?: number, polarLength?: number, polarAngle?: number,name?: string) {
         if (cartesianX !== undefined) this.cartesianX = cartesianX;
@@ -289,7 +303,6 @@ export class Axis {
             if(typeof axis === "string"){continue;}
             axis.name=undefined
         }
-
         for (let i = 0; i < axes.length; i++) {
             const current = axes[i];
             if (typeof current !== "string") continue;
@@ -357,7 +370,7 @@ export class Axis {
         const basicMatches = Array.from(coordinate.matchAll(regexPatterns[0])).map((match: RegExpExecArray) => ({
             fullMatch: match[0].replace(/-$/g, ""), // Remove trailing hyphen only
             index: match.index ?? 0,
-            length: match[0].length
+            length: match[0].length-(match[0].match(/-$/)?1:0)
         }));
         
         const mergeMatches = Array.from(coordinate.matchAll(regexPatterns[1])).map((match: RegExpExecArray) => ({
@@ -365,7 +378,6 @@ export class Axis {
             index: match.index ?? 0,
             length: match[0].length
         }));
-        
         const matches: Array<{ fullMatch: string, index: number, length: number }> = [];
 
         function isOverlapping(match1: { index: number; length: number }, match2: { index: number; length: number }) {
@@ -394,7 +406,6 @@ export class Axis {
         if (matches.length === 0) {
             throw new Error("Coordinate is not valid; expected a valid coordinate.");
         }
-        
         return matches;
         
     }
@@ -448,7 +459,11 @@ export class Axis {
         this.polarAngle = angle as number;
         this.polarLength = length as number;
     }
-
+    addQuadrant(midPoint: Axis){
+        const x=midPoint.cartesianX>this.cartesianX;
+        const y=midPoint.cartesianY>this.cartesianY;
+        this.quadrant=x?y?1:4:y?2:3;
+    }
     toString(){
         return this.cartesianX+","+this.cartesianY;
     }
@@ -474,8 +489,17 @@ export class Axis {
     }
 }
 
-function covort(value: number,convrsin: string){
-
+function toPoint(value:number,format: string){
+    switch (format) {
+        case "pt":
+            return value;
+        case "cm": 
+            return value*28.346;
+        case "mm":
+            return value* 2.8346;
+        default:
+            throw new Error("unknon format");
+    }
 }
 
 
@@ -495,30 +519,30 @@ function matchKeyWithValue(key: string): string {
         "decorate": "decorate",
         "sloped": "sloped",
         "decoration": "decoration=",
-        "decoration.brace": "brace",
-        "decoration.amplitude": "amplitude=",
+        "brace": "brace",
+        "amplitude": "amplitude=",
         "angleRadius": "angle radius=",
         "angleEccentricity": "angle eccentricity=",
         "font": "font=",
         "picText": "pic text=",
+        "label": "label=",
     };
 
     return valueMap[key] || '';
 }
-function toPt(value:number,format: string){
-    switch (format) {
-        case "pt":
-            return value;
-        case "cm": 
-            return value*28.346;
-        case "mm":
-            return value* 2.8346;
-        default:
-            throw new Error("unknon format");
-    }
-}
 
 
+type Decoration = {
+    brace?: boolean;
+    coil: boolean;
+    amplitude?: number;
+    aspect?: number;
+    segmentLength?: number;
+    decoration?: Decoration; 
+};
+type Label = {
+    freeFormText?: string;
+};
 
 export class Formatting{
     // importent needs to be forst
@@ -544,7 +568,6 @@ export class Formatting{
     arrow?: string;
     draw?: string;
     text?: string;
-    freeFormText?: string
     tikzset?: string;
     position?: string;
     lineStyle?: string;
@@ -553,33 +576,17 @@ export class Formatting{
     
     sloped?: boolean;
     decorate?: boolean;
-    label?: {label: string,}
-    decoration?: {brace?: boolean,coil: boolean,amplitude?: number,aspect: number,segmentLength:number};
-    //level distance=20mm,level #1/.style={sibling distance=#2mm, nodes={fill=red!#3,circle,inner sep=1pt,draw=none,text=black,}}
-    
-    constructor(mode: string,formattingArr: any,formattingString?:string,drawArr?: any,index?: number){
+    label?: Label;
+    decoration?: Decoration;
+
+    constructor(mode: string,formattingArr: any,formattingString?:string){
         this.mode=mode;
-        this.formattingSpecificToMode(drawArr);
         this.assignFormatting(formattingArr||[]);
         this.interpretFormatting(formattingString||"");
         return this
     }
 
-
-    formattingSpecificToMode(drawArr?: any,index?: number){
-        switch (this.mode) {
-            case 'node-inline':
-                if (drawArr&&index)
-                this.addSplopAndPosition(drawArr,index);
-                break;
-            case "draw-pic-ang":
-                this.tikzset='ang'
-                break;
-        }
-    }
-
     addTikzset(splitFormatting: any){
-        console.log(splitFormatting)
         const a=splitFormatting.find((item: string)=> item.match(/mass|ang|helplines/))
         if (!a&&!this.tikzset)return;
         if(a) this.tikzset=a;
@@ -604,7 +611,7 @@ export class Formatting{
                 this.draw='orange'
                 this.arrow='<->'
                 this.angleEccentricity=1.6;
-                this.angleRadius=toPt(0.5,"cm");
+                this.angleRadius=toPoint(0.5,"cm");
                 this.text='orange';
                 this.font='\\large';
                 this.textOpacity=0.9;
@@ -619,106 +626,93 @@ export class Formatting{
     
         const edge1 = before.quadrant?.toString()||"";
         const edge2 = after.quadrant?.toString()||"";
-        const slope=findSlope(edge1,edge2)
+        const slope=findSlope(before,after)
 
-        this.sloped = slope !== 0;
-        
+        this.sloped = slope !== 0&&slope!==Infinity&&slope!==-Infinity;
+
         let quadrant
-        if (edge1!==edge2)quadrant=edge1+edge2;
-        else quadrant=edge1;
 
+        if (edge1!==edge2)
+            quadrant=edge1+edge2;
+        else 
+            quadrant=edge1;
+
+        //sint parallel to Y axis
         if (slope!==Infinity&&slope!==-Infinity){
-            this.position = quadrant.replace(/(3|4)/,"below").replace(/(1|4)/,"above")
+            this.position = quadrant.replace(/(3|4)/,"below").replace(/(1|2)/,"above").replace(/(belowabove|abovebelow)/,"")
         }
-        if (this.sloped){
-            this.position+=quadrant.replace(/(2|3)/,"right").replace(/(1|4)/,"left")
+        //isnt parallel to X axis
+        if (slope !== 0){
+            this.position=this.position?this.position:'';
+            this.position+=quadrant.replace(/(1|4)/,"right").replace(/(2|3)/,"left").replace(/(rightleft|leftright)/,"")
         }
-        // Remove unused quadrants. and Add space if two words
-        this.position = this.position?.replace(/[\d]+/g,"").replace(/(below|above)(right|right)/,"$1 $2");
+
+        this.position = this.position?.replace(/[\d]+/g,"").replace(/(below|above)(right|left)/,"$1 $2");
+        console.log(slope,this.position,quadrant)
     }
 
-    assignFormatting(formattingArr: any){
+    assignFormatting(formattingArr: Record<string, any>) {
         for (const [key, value] of Object.entries(formattingArr)) {
-            if(typeof value === 'object'){
-                //this.setProperty(key as keyof Formatting,formatting)
+            if (typeof value === "object" && value !== null&&!this[key as keyof Formatting]) {
+                (this as Record<string, any>)[key] = {};
             }
-            else if (value) {
-                this.setProperty(key as keyof Formatting,value)
+            if (value !== undefined && value !== null) {
+                this.setProperty(key as keyof Formatting, value);
             }
         }
     }
+    
 
-    interpretFormatting(formattingString: string,){
-        const splitFormatting=formattingString.replace(/\s/g,"").match(/(?:{[^}]*}|[^,{}]+)+/g) || [];
-
+    interpretFormatting(formattingString: string) {
+        const splitFormatting = formattingString.replace(/\s/g, "").match(/(?:{[^}]*}|[^,{}]+)+/g) || [];
+    
         this.addTikzset(splitFormatting);
+    
+        const patterns: Record<string, (value: string) => void> = {
+            "linewidth": (value) => this.split("lineWidth", value),
+            "fill=": (value) => this.split("fill", value),
+            "^fillopacity": (value) => this.split("fillOpacity", value),
+            "^(->|<-|-*{Stealth}-*)$": (value) => { this.arrow = value; },
+            "^(above|below|left|right){1,2}$": (value) => { this.position = value.replace(/(above|below|left|right)/, "$1 "); },
+            "^pos=": (value) => this.split("pos", value),
+            "^draw=": (value) => this.split("draw", value),
+            "^decorate$": () => { this.decorate = true; },
+            "^text=": (value) => this.split("text", value),
+            "^anchor=": (value) => this.split("anchor", value),
+            "^\"^\"$": () => this.setProperty("label",true,"freeFormText" as keyof NonNullable<Formatting["label"]>),
+            "^brace$": () => this.setProperty("decoration",true,"brace" as keyof NonNullable<Formatting["decoration"]>),
+            "^amplitude": (value) => this.split("decoration", value, "amplitude" as keyof NonNullable<Formatting["decoration"]>),
+            "^draw$": (value) => { this.path = value; },
+            "^(red|blue|pink|black|white|[!\\d.]+){1,5}$": (value) => { this.color = value; },
+            "^(dotted|dashed|smooth|densely|loosely){1,2}$": (value) => { this.lineStyle = value.replace(/(densely|loosely)/, "$1 "); },
+        };
 
         splitFormatting.forEach(formatting => {
+            // Handle nested properties
             const match = formatting.match(/^([^=]+)={(.*)}$/);
-            switch (true) {
-                case !!match: {
-                    if (match){
-                        const  [_,parent, children]=match;
-                        this.interpretFormatting(children)
-                    }
-                    break;
+            if (match) {
+                const [_, parent, children] = match;
+
+                const formattingObj = this as Record<string, any>;
+                if (!formattingObj[parent]) {
+                    formattingObj[parent] = {};
                 }
-                case formatting.includes("linewidth"): {
-                    this.split("lineWidth",formatting)
-                    break;
+                const parsedChild = new Formatting(this.mode,{},children);
+                
+                Object.assign(formattingObj[parent], (parsedChild as Record<string, any>)[parent]);
+                return;
+            }
+
+            for (const [pattern, handler] of Object.entries(patterns)) {
+                if (new RegExp(pattern).test(formatting)) {
+                    handler(formatting);
+                    return;
                 }
-                case formatting.includes("fill="): {
-                    this.split("fill",formatting)
-                    break;
-                }
-                case !!formatting.match(/^fillopacity/): {
-                    this.split("fillOpacity",formatting)
-                    break;
-                }
-                case !!formatting.match(/^(->|<-|-*{Stealth}-*)$/): {
-                    this.arrow = formatting
-                    break;
-                }
-                case !!formatting.match(/^(above|below|left|right){1,2}$/): {
-                    this.position=formatting.replace(/(above|below|left|right)/,"$1 ")
-                    break;
-                }
-                case !!formatting.match(/^pos=/): {
-                    this.split("pos",formatting)
-                    break;
-                }
-                case !!formatting.match(/^draw=/): {
-                    this.split("draw",formatting)
-                    break;
-                }
-                case !!formatting.match(/^decorate$/): {
-                    this.decorate=true;
-                    break;
-                }
-                case !!formatting.match(/^text=/): {
-                    this.split("text",formatting)
-                    break;
-                }
-                case !!formatting.match(/^ancohr=/): {
-                    this.split("text",formatting)
-                    break;
-                }
-                case !!formatting.match(/^brace$/): {
-                    this.split("decoration",true,"brace" as keyof NonNullable<Formatting["decoration"]>,);
-                    break;
-                }
-                case !!formatting.match(/^amplitude/):
-                    this.split("decoration",formatting,"amplitude" as keyof NonNullable<Formatting["decoration"]>,)
-                    break;
-                case !!formatting.match(/^draw$/):
-                    this.path = formatting;break;
-                case !!formatting.match(/^(red|blue|pink|black|white|[!\d.]+){1,5}$/):
-                    this.color=formatting;break;
-                case !!formatting.match(/^(dotted|dashed|smooth|densely|loosely){1,2}$/):
-                    this.lineStyle=formatting.replace(/(densely|loosely)/,"$1 ");break;
             }
         });
     }
+    
+    
 
     split<K extends keyof Formatting, NK extends keyof NonNullable<Formatting[K]> | undefined>(
         key: K,
@@ -752,33 +746,40 @@ export class Formatting{
         value: any,
         nestedKey?: NK
     ): void {
-        if (typeof value==="string")
+        if (typeof value==="string"){
             value=value.replace(/^\|-$/,"north").replace(/^-\|$/,"south");
+            const match=value.match(/([\d.]+)(pt|cm|mm)/)
+            if (match)
+            value=toPoint(Number(match[1]),match[2])
+        }
 
         const formattingObj = this as Record<string, any>;
+
         if (nestedKey) {
-            if (!formattingObj[key] || typeof formattingObj[key] !== 'object') {
-                formattingObj[key] = {};
-            }
-            formattingObj[key][nestedKey] = value;
+            
+            const keys = typeof nestedKey === "string" ? nestedKey.split('.') : [nestedKey];
+            this.tikzset
+            if(!formattingObj[key])formattingObj[key]={};
+            formattingObj[key][nestedKey]=value;
         } else {
             formattingObj[key] = value;
         }
+        
     }
     
     
-    toString(): string {
-        let string='[';
-        for (const [key, value] of Object.entries(this)) {
+    toString(obj?: any): string {
+        let string=obj?'{':'[';
+        for (const [key, value] of Object.entries(obj?obj:this)) {
             if (key.match(/^(mode|tikzset)$/)){continue;}
-            if(typeof value === 'object'){
-                string+=this.handleObjectToString(value,key)
+            if(typeof value === 'object'&&value){
+                string+=matchKeyWithValue(key as keyof Formatting)+this.toString(value)+','
             }
             else if (value) {
                 string+=matchKeyWithValue(key as keyof Formatting)+(typeof value==="boolean"?'':value)+',';
             }
         }
-        return string+"]";
+        return string+(obj?'}':']');
     }
 
     handleObjectToString(obj: object, parentKey: string): string {
@@ -791,50 +792,46 @@ export class Formatting{
         return result+"},";
     }
 }
-
+type Mode = "coordinate" | "coordinate-inline" | "node" | "node-inline";
 export class Coordinate {
-    mode: string;
+    mode: Mode;
     axis?: Axis;
-    original?: string;
     coordinateName?: string;
     formatting?: Formatting;
     label?: string;
-    quadrant?: number;
     
-    constructor(mode?: string, axis?: Axis, original?: string, coordinateName?: string, formatting?: Formatting, label?: string, quadrant?: number);
-    constructor(options: { mode?: string; axis?: Axis; original?: string; coordinateName?: string; formatting?: Formatting; label?: string; quadrant?: number });
+    constructor(mode?: Mode, axis?: Axis, coordinateName?: string, formatting?: Formatting, label?: string,);
+    constructor(options: { mode?: Mode; axis?: Axis; coordinateName?: string; formatting?: Formatting; label?: string;  });
 
 
   constructor(
-    mode?: string | { mode?: string; axis?: Axis; original?: string; coordinateName?: string; formatting?: Formatting; label?: string; quadrant?: number },
+    mode?: Mode | { mode?: Mode; axis?: Axis; original?: string; coordinateName?: string; formatting?: Formatting; label?: string; },
     axis?: Axis,
-    original?: string,
     coordinateName?: string,
     formatting?: Formatting,
     label?: string,
-    quadrant?: number
   ) {
     if (typeof mode === "string") {
-        
-      // Handle the case where individual parameters are passed
+
       this.mode = mode;
       if (axis !== undefined) this.axis = axis;
-      this.original = original;
       this.coordinateName = coordinateName;
       if (formatting !== undefined) this.formatting = formatting;
       this.label = label;
-      this.quadrant = quadrant;
 
     } else if (typeof mode === "object" && mode !== null) {
-
       const options = mode;
       if (options.mode !== undefined) this.mode = options.mode;
       this.axis = options.axis;
-      this.original = options.original;
       this.coordinateName = options.coordinateName;
       this.formatting = options.formatting;
       this.label = options.label;
-      this.quadrant = options.quadrant;
+    }
+    if (!this.formatting)
+        this.formatting=new Formatting(this.mode,[])
+
+    if (this.mode==="coordinate"){
+        this.formatting.assignFormatting({label: {freeFormText: this.label}});
     }
   }
 
@@ -842,26 +839,13 @@ export class Coordinate {
         return new Coordinate(
             this.mode,
             this.axis ? this.axis.clone() :undefined,
-            this.original,
             this.coordinateName,
             this.formatting,
             this.label,
-            this.quadrant
         );
     }
     addAxis(cartesianX?: number, cartesianY?: number, polarLength?: number, polarAngle?: number){
         this.axis=new Axis(cartesianX, cartesianY, polarLength, polarAngle);
-    }
-    addInfo(match: {original?: string,coordinateName?: string,label?: string,formattingObj?: any,mode: string,tokens?: FormatTikzjax,formatting?: string}) {
-        
-        ([{mode: this.mode,original: this.original,coordinateName: this.coordinateName,label: this.label}]=[match])
-
-        if(this.original){
-            this.axis=new Axis().universal(this.original,match.tokens);
-        }
-            this.formatting=new Formatting(this.mode,match.formattingObj,match.formatting);
-        
-        return this;
     }
 
     toString() {
@@ -869,7 +853,6 @@ export class Coordinate {
             case "coordinate":
                 if (this.axis)
                     return`\\coordinate ${this.formatting?.toString() || ''} (${this.coordinateName || ""}) at (${this.axis.toString()});`
-                //return `\\coor{${this.axis.toString()}}{${this.coordinateName || ""}}{${this.label || ""}}{}`;
             case "node":
                 if (this.axis)
                     return `\\node ${this.coordinateName?'('+this.coordinateName+')':''} at (${this.axis.toString()}) ${this.formatting?.toString()||''} {${this.label}};`
@@ -881,13 +864,6 @@ export class Coordinate {
         }
     }
 
-    addQuadrant(midPoint: Axis) {
-        if (this.axis){
-            const xDirection = this.axis.cartesianX > midPoint.cartesianX ? 1 : -1;
-            const yDirection = this.axis.cartesianY > midPoint.cartesianY ? 1 : -1;
-            this.quadrant = yDirection === 1 ? (xDirection === 1 ? 1 : 2) : (xDirection === 1 ? 4 : 3);
-        }   
-    }
 }
 
 type Token =Axis | Coordinate |Draw|Formatting| string;
@@ -954,7 +930,7 @@ export class Draw {
                 }
                 coorArr.push(new Axis().universal(schematic[i].value, tokens, coorArr, previousFormatting, ));
             } else if(schematic[i].type === "node"){
-                coorArr.push(new Coordinate({label: schematic[i].value,formatting: new Formatting("node-inline",{},schematic[i].formatting,coorArr,coorArr.length-1),mode: "node-inline"}));
+                coorArr.push(new Coordinate({label: schematic[i].value,formatting: new Formatting("node-inline",{},schematic[i].formatting),mode: "node-inline"}));
             }
             else{
                 coorArr.push(schematic[i].value);
@@ -1061,9 +1037,9 @@ export class FormatTikzjax {
         else {this.tokens=source}
 
         this.debugInfo+=this.source;
-        
         this.findMidpoint();
         this.applyPostProcessing();
+
         this.debugInfo+="\n\nthis.midPoint:\n"+JSON.stringify(this.midPoint,null,1)+"\n"
         this.debugInfo+=JSON.stringify(this.tokens,null,1)+"\n\n"
 
@@ -1080,9 +1056,20 @@ export class FormatTikzjax {
     }
 
     applyPostProcessing(){
-        for(let i=0;i<this.tokens.length;i++){
-            
-        }
+        const flatAxes=flatten(this.tokens).filter((item: any)=> item instanceof Axis);
+        flatAxes.forEach((axis: Axis) => {
+            axis.addQuadrant(this.midPoint);
+        });
+
+        const flatDraw=flatten(this.tokens,[],Draw).filter((item: any)=> item instanceof Draw);
+        flatDraw.forEach((draw: Draw) => {
+            for (const  [index, coor] of draw.coordinates.entries()) {
+                if (coor instanceof Coordinate) {
+                    coor.formatting?.addSplopAndPosition(draw.coordinates,index)
+                }
+            }
+        });
+        
     }
     getCode(){
         return getPreamble()+this.processedCode+"\n\\end{tikzpicture}\\end{document}";
@@ -1132,7 +1119,8 @@ export class FormatTikzjax {
             if(match[0].startsWith("\\coordinate")){
                 Object.assign(i,{original: match[5],coordinateName: match[4],label: match[3],formatting: match[2]})
             }
-            this.tokens.push(new Coordinate().addInfo({mode: "coordinate",...i,tokens: this}));
+            const { formatting,original, ...rest } = i;
+            this.tokens.push(new Coordinate({mode: "coordinate",axis: new Axis().universal(original,this),formatting: new Formatting("coordinate", formatting),...rest,}));
 
           } else if (match[0].startsWith("\\pic")) {
             const c1=new Axis().universal(match[1],this)
@@ -1140,11 +1128,10 @@ export class FormatTikzjax {
             const c3=new Axis().universal(match[3],this)
 
 
-            this.tokens.push(new Draw({mode: "pic-ang",tokens: this,formattingString: match[5],formattingObj: {picText: match[4]},drawArr: [c1,c2,c3]}));
+            this.tokens.push(new Draw({mode: "pic-ang",tokens: this,formattingString: match[5],formattingObj: {tikzset: "ang",icText: match[4]},drawArr: [c1,c2,c3]}));
           }else if (match[0].startsWith("\\draw")) {
             this.tokens.push(new Draw(undefined,match[1],match[2], this));
           } else if (match[0].startsWith("\\xyaxis")) {
-            //this.tokens.push(dissectXYaxis(match));
           } else if (match[0].startsWith("\\grid")) {
             //this.tokens.push({type: "grid", rotate: match[1]});
           } else if (match[0].startsWith("\\node")) {
@@ -1152,8 +1139,9 @@ export class FormatTikzjax {
             if (match[0].match(/\\node\s*\(/)){
                 Object.assign(i,{original: match[2],coordinateName: match[1],label: match[3],formatting: match[4]});
             }
-            this.tokens.push(new Coordinate().addInfo({...i,mode: "node",tokens: this}));
+            const { formatting,original, ...rest } = i;
 
+            this.tokens.push(new Coordinate({mode: "node",axis: new Axis().universal(original,this),formatting: new Formatting("node", formatting),...rest,}));
           } else if (match[0].startsWith("\\circle")) {/*
             this.tokens.push({
               type: "circle",
@@ -1165,13 +1153,12 @@ export class FormatTikzjax {
               ],
             });*/
           } else if (match[0].startsWith("\\mass")) {
-            let i={original: match[1], label: match[2]}
-            this.tokens.push(new Coordinate().addInfo({...i,mode: "node",tokens: this,formattingObj:{tikzset: 'mass',anchor: match[3],rotate: match[4]}}))
+            this.tokens.push(new Coordinate({mode: "node",label: match[2],axis: new Axis().universal(match[1],this),formatting: new Formatting("node",{tikzset: 'mass',anchor: match[3],rotate: match[4]})}))
 
           } else if (match[0].startsWith("\\vec")) {
             const ancer=new Axis().universal(match[1],this);
             const axis1=new Axis().universal(match[2],this);
-            const node=new Coordinate({mode: 'node-inline',formatting: new Formatting('node-inline',{color: "red"},''),label: match[3]})
+            const node=new Coordinate({mode: "node-inline",formatting: new Formatting('node-inline',{color: "red"})})
 
             const c1=new Coordinate("node-inline");
             const q=[ancer,'--+',node,axis1]
@@ -1189,25 +1176,17 @@ export class FormatTikzjax {
     }
 
     findMidpoint() {
-        /*let coordinates = this.tokens.filter((token: Token) => token instanceof Coordinate);
-        this.tokens
-        .filter((token: Token) => token instanceof Draw)
-        .forEach((object: Draw) => {
-            coordinates = coordinates.concat(
-                object.coordinates.filter((token: any) => token instanceof Coordinate)
-            );
-        });
+        const axes = flatten(this.tokens).filter((item: any)=> item instanceof Axis)
         let sumOfX = 0, sumOfY = 0;
-        coordinates.forEach((coordinate: token) => {
-          sumOfX += Number(coordinate.X);
-          sumOfY += Number(coordinate.Y); 
+
+        axes.forEach((axis: Axis) => {
+          sumOfX += axis.cartesianX;
+          sumOfY += axis.cartesianY; 
         });
 
         this.midPoint=new Axis();
-        this.midPoint.addCartesian(
-            sumOfX / coordinates.length!==0?coordinates.length:1
-            ,sumOfY / coordinates.length!==0?coordinates.length:1
-        )*/
+        const length=axes.length!==0?axes.length:1
+        this.midPoint.addCartesian(sumOfX / length,sumOfY / length)
     }
 
     findOriginalValue(value: string) {
@@ -1218,13 +1197,6 @@ export class FormatTikzjax {
         return og instanceof Coordinate ? og.clone() : undefined;
     }
     
-    applyQuadrants() {
-        this.tokens.forEach((token: any) => {
-          if (typeof token === "object" && token !== null&&token.type==="coordinate") {
-            token.addQuadrant(this.midPoint);
-          }
-        });
-    }
 
     toString(){
         let codeBlockOutput = "";
@@ -1240,6 +1212,32 @@ export class FormatTikzjax {
         return codeBlockOutput;
     }
 }
+
+function flatten(data: any, results: any[] = [], stopClass?: any): any[] {
+    if (Array.isArray(data)) {
+      for (const item of data) {
+        flatten(item, results, stopClass);
+      }
+    } else if (typeof data === 'object' && data !== null) {
+      // If the object is an instance of the stopClass, add it to results and stop flattening
+      if (stopClass && data instanceof stopClass) {
+        results.push(data);
+        return results;
+      }
+  
+      // Add the current object to results
+      results.push(data);
+  
+      // Recursively flatten properties of the object
+      for (const key in data) {
+        if (data.hasOwnProperty(key)) {
+          flatten(data[key], results, stopClass);
+        }
+      }
+    }
+    return results;
+  }
+  
 
 
 
