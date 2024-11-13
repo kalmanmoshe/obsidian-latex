@@ -1,4 +1,5 @@
-$path = "C:\Users\irawe\Desktop\school\.obsidian\plugins\Doing-it-myself"
+# Use $PSScriptRoot as the base path
+$path = $PSScriptRoot
 $filter = "*.*"
 
 # Check if the path exists
@@ -15,10 +16,10 @@ $watcher.IncludeSubdirectories = $true
 $watcher.EnableRaisingEvents = $true
 
 # Function to run git commands
-function Commit-And-Push {
+function Update-GitRepository {
     Write-Host "Change detected. Processing..."
     try {
-        cd $path
+        Set-Location -Path $path
 
         # Check if there are any changes to commit
         $status = git status --porcelain
