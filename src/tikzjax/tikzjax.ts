@@ -162,7 +162,7 @@ function getRegex(){
         merge: String.raw`-\||\|-|![\d.]+!|\+|-`,
         //coordinate: new RegExp(String.raw`(${basic}+|1)`),
         coordinateName: String.raw`[\w_\d\s]`,
-        text: String.raw`[\w\s-,.:$(!)_+\\{}=]`,
+        text: String.raw`[\w\s-,.:$(!)'_+\\{}=]`,
         formatting: String.raw`[\w\s\d=:,!';&*{}%-<>]`
     };
 }
@@ -637,7 +637,7 @@ export class Formatting{
         else 
             quadrant=edge1;
 
-        //sint parallel to Y axis
+        //isnt parallel to Y axis
         if (slope!==Infinity&&slope!==-Infinity){
             this.position = quadrant.replace(/(3|4)/,"below").replace(/(1|2)/,"above").replace(/(belowabove|abovebelow)/,"")
         }
@@ -1136,12 +1136,13 @@ export class FormatTikzjax {
             //this.tokens.push({type: "grid", rotate: match[1]});
           } else if (match[0].startsWith("\\node")) {
             let i={original: match[1],coordinateName: match[3],label: match[4],formatting: match[3]}
-            if (match[0].match(/\\node\s*\(/)){
-                Object.assign(i,{original: match[2],coordinateName: match[1],label: match[3],formatting: match[4]});
+            if (!match[0].match(/\\node{/)){
+                Object.assign(i,{original: match[2],coordinateName: match[1]});
             }
+
             const { formatting,original, ...rest } = i;
 
-            this.tokens.push(new Coordinate({mode: "node",axis: new Axis().universal(original,this),formatting: new Formatting("node", formatting),...rest,}));
+            this.tokens.push(new Coordinate({mode: "node",axis: new Axis().universal(original,this),formatting: new Formatting("node", {},formatting),...rest,}));
           } else if (match[0].startsWith("\\circle")) {/*
             this.tokens.push({
               type: "circle",
@@ -1157,8 +1158,9 @@ export class FormatTikzjax {
 
           } else if (match[0].startsWith("\\vec")) {
             const ancer=new Axis().universal(match[1],this);
-            const axis1=new Axis().universal(match[2],this);
+            
             const node=new Coordinate({mode: "node-inline",formatting: new Formatting('node-inline',{color: "red"})})
+            const axis1=new Axis().universal(match[2],this,[ancer,'--+',node],'--+');
 
             const c1=new Coordinate("node-inline");
             const q=[ancer,'--+',node,axis1]
