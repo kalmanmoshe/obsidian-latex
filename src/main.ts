@@ -1,7 +1,7 @@
 import {Plugin, MarkdownRenderer, App, Modal, Component, Setting,Notice, WorkspaceWindow,} from "obsidian";
 import { MathInfo, MathPraiser } from "./mathEngine.js";
 import { InfoModal, DebugModal } from "./desplyModals";
-import { CustomInputModal, HistoryModal, InputModal, vecInpotModel } from "./temp";
+import { CustomInputModal, HistoryModal, InputModal, VecInputModel } from "./temp";
 import {MathPluginSettings, DEFAULT_SETTINGS, MathPluginSettingTab,} from "./settings";
 import { calculateBinom, degreesToRadians, findAngleByCosineRule, getUsableDegrees, polarToCartesian, radiansToDegrees, roundBySettings } from "./mathUtilities.js";
 import { Axis, Coordinate, Draw, FormatTikzjax, Formatting, Tikzjax } from "./tikzjax/tikzjax";
@@ -16,7 +16,7 @@ export default class MathPlugin extends Plugin {
     this.tikzProcessor.readyLayout();
 		this.tikzProcessor.addSyntaxHighlighting();
 		this.tikzProcessor.registerTikzCodeBlock();
-
+    
     this.addSettingTab(new MathPluginSettingTab(this.app, this));
     this.registerMarkdownCodeBlockProcessor("math-engine", this.processMathBlock.bind(this));
     this.registerCommands();
@@ -40,7 +40,7 @@ export default class MathPlugin extends Plugin {
     this.addCommand({
       id: "open-input-form",
       name: "Open Input Form",
-      callback: () => new CustomInputModal(this.app, this).open(),
+      callback: () => new VecInputModel(this.app,this).open(),
     });
 
     this.addCommand({
@@ -317,8 +317,8 @@ class tikzGraph extends Modal {
 
   onOpen() {
     const { contentEl } = this;
-    const script = contentEl.createEl("script");
     const code=this.tikz;
+    const script = contentEl.createEl("script");
     script.setAttribute("type", "text/tikz");
     script.setAttribute("data-show-console", "true");
     script.setText(code.getCode());

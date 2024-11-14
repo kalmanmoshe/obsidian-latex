@@ -1,31 +1,100 @@
 import { Plugin, MarkdownView, MarkdownRenderer, App, Setting, Modal, Notice, Component, Editor, EditorPosition } from "obsidian";
 import MathPlugin from "./main";
 import { createTextInputSetting } from "./settings";
+import { Axis, Coordinate, FormatTikzjax, Formatting } from "./tikzjax/tikzjax";
 
 
 
-export class vecInpotModel extends Modal{
-    plugin: MathPlugin;
-    vectors=[];
+export class VecInputModel extends Modal {
+  plugin: MathPlugin;
+  plusX: boolean = true;
+  plusY: boolean = true;
+  obj: number = 0;
+  ang: number = 0;
 
-    constructor(app: App,plugin: MathPlugin){
-        super(app)
-        this.plugin=plugin;
-    }
-    onOpen(): void {
-        const inpotContainer=this.containerEl.createDiv("vec-inpot-fields-container");
-        const graphContainer=this.containerEl.createDiv("vec-inpot-graph-conter");
+  constructor(app: App, plugin: MathPlugin) {
+    super(app);
+    this.plugin = plugin;
+  }
 
-        this.crateGrafh(graphContainer);
-    }
-    addFields(){
-      //this.vectors.push()
-    }
+  onOpen(): void {
+    const { contentEl } = this;
+    contentEl.createEl("h2", { text: "Vector Input from Enter Mass:" });
 
+    // Create containers
+    const inputContainer = contentEl.createDiv("vec-input-fields-container");
+    const scriptContainer = contentEl.createDiv("script-container");
 
-    crateGrafh(graphContainer: HTMLElement){
+    // Render fields and initial graph
+    this.renderFields(inputContainer, scriptContainer);
+    this.updateGraph(scriptContainer);
+  }
+
+  renderFields(inputContainer: HTMLElement, scriptContainer: HTMLElement) {
+    // Clear previous fields if any
+    inputContainer.findAll(".field").forEach(el => el.remove());
+
+    // Toggle for X-Axis Reverse
+    new Setting(inputContainer)
+      .addToggle(toggle =>
+        toggle
+          .setTooltip("Toggle X-Axis Reverse")
+          .setValue(this.plusX)
+          .onChange(value => {
+            this.plusX = value;
+            this.updateGraph(scriptContainer);
+          })
+      ).settingEl.addClass("field");
+
+    // Toggle for Y-Axis Reverse
+    new Setting(inputContainer)
+      .addToggle(toggle =>
+        toggle
+          .setTooltip("Toggle Y-Axis Reverse")
+          .setValue(this.plusY)
+          .onChange(value => {
+            this.plusY = value;
+            this.updateGraph(scriptContainer);
+          })
+      ).settingEl.addClass("field");
+
+    // Text input for mass
+    new Setting(inputContainer)
+      .setName("Enter Mass")
+      .setDesc("Enter the mass you want to evaluate")
+      .addText(text => {
+        text.onChange(async (value: string) => {
+          const massValue = Number(value);
+          if (!isNaN(massValue)) {
+            this.obj = massValue;
+            this.updateGraph(scriptContainer);
+          }
+        });
+      }).settingEl.addClass("field");
+  }
+
+  updateGraph(container: HTMLElement) {
+    container.findAll("script").forEach(el => el.remove());
+    
+    const mass = new Coordinate({
+      mode: "node",
+      label: `${this.obj}n`,
+      axis: new Axis(this.plusX ? 1 : -1, this.plusY ? 1 : -1),
+      formatting: new Formatting("node", { tikzset: "mass" })
+    });
+
+    const tikz = new FormatTikzjax([mass]);
+
+    const script = container.createEl("script");
+    script.setAttribute("type", "text/tikz");
+    script.setAttribute("data-show-console", "true");
+    script.setText(tikz.getCode());
+
+    container.appendChild(script);
   }
 }
+
+
 
 
 export class InputModal extends Modal {
