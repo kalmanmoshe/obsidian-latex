@@ -162,7 +162,7 @@ function getRegex(){
         merge: String.raw`-\||\|-|![\d.]+!|\+|-`,
         //coordinate: new RegExp(String.raw`(${basic}+|1)`),
         coordinateName: String.raw`[\w_\d\s]`,
-        text: String.raw`[\w\s-,.:$(!)'_+\\{}=]`,
+        text: String.raw`[\w\s-,.:$(!)_+\\{}=]`,
         formatting: String.raw`[\w\s\d=:,!';&*{}%-<>]`
     };
 }
@@ -464,6 +464,9 @@ export class Axis {
         const y=midPoint.cartesianY>this.cartesianY;
         this.quadrant=x?y?1:4:y?2:3;
     }
+    toStringSVG(){
+        return this.cartesianX+" "+this.cartesianY;
+    }
     toString(){
         return this.cartesianX+","+this.cartesianY;
     }
@@ -543,14 +546,22 @@ type Decoration = {
 type Label = {
     freeFormText?: string;
 };
-
+function lineWidthConverter(width: string){
+    return Number(width.replace(/ultra\s*thin/,"0.1")
+    .replace(/very\s*thin/,"0.2")
+    .replace(/thin/,"0.4")
+    .replace(/semithick/,"0.6")
+    .replace(/thick/,"0.8")
+    .replace(/very\s*thick/,"1.2")
+    .replace(/ultra\s*thick/,"1.6"))
+}
 export class Formatting{
     // importent needs to be forst
     path?: string;
 
     scale: number;
     rotate?: number;
-    lineWidth?: number;
+    lineWidth?: number=0.4;
     textOpacity: number;
     opacity?: number;
     fillOpacity?: number;
@@ -561,7 +572,6 @@ export class Formatting{
 
     mode: string;
     anchor?: string;
-    width?: string;
     color?: string;
     textColor?: string;
     fill?: string;
@@ -601,7 +611,7 @@ export class Formatting{
                 this.arrow='->'
                 break;
             case "helplines":
-                this.width='thin';
+                this.lineWidth=0.4;
                 this.draw='gray';
                 break;
             case "ang":
@@ -637,7 +647,7 @@ export class Formatting{
         else 
             quadrant=edge1;
 
-        //isnt parallel to Y axis
+        //sint parallel to Y axis
         if (slope!==Infinity&&slope!==-Infinity){
             this.position = quadrant.replace(/(3|4)/,"below").replace(/(1|2)/,"above").replace(/(belowabove|abovebelow)/,"")
         }
@@ -1025,7 +1035,8 @@ export class Draw {
 export class FormatTikzjax {
 	source: string;
     tokens: Array<Token>=[];
-    midPoint: Axis;
+    //midPoint: Axis;
+    private viewAnchors: {max: Axis,min:Axis,aveMidPoint: Axis}
 	processedCode="";
     debugInfo = "";
     
@@ -1036,15 +1047,20 @@ export class FormatTikzjax {
         }
         else {this.tokens=source}
 
-        this.debugInfo+=this.source;
-        this.findMidpoint();
-        this.applyPostProcessing();
+        if (typeof source==="string"&&source.match(/(usepackage|usetikzlibrary)/)){
+            this.processedCode=source;
+        }
+        else{
+            this.debugInfo+=this.source;
+            this.findViewAnchors();
+            this.applyPostProcessing();
 
-        this.debugInfo+="\n\nthis.midPoint:\n"+JSON.stringify(this.midPoint,null,1)+"\n"
-        this.debugInfo+=JSON.stringify(this.tokens,null,1)+"\n\n"
+            this.debugInfo+="\n\nthis.midPoint:\n"+JSON.stringify(this.viewAnchors,null,1)+"\n"
+            this.debugInfo+=JSON.stringify(this.tokens,null,1)+"\n\n"
 
-        this.processedCode += this.toString();
-        this.debugInfo+=this.processedCode;
+            this.processedCode += this.toString();
+            this.debugInfo+=this.processedCode;
+        }
 	}
     
     tidyTikzSource(tikzSource: string) {
@@ -1058,7 +1074,7 @@ export class FormatTikzjax {
     applyPostProcessing(){
         const flatAxes=flatten(this.tokens).filter((item: any)=> item instanceof Axis);
         flatAxes.forEach((axis: Axis) => {
-            axis.addQuadrant(this.midPoint);
+            axis.addQuadrant(this.viewAnchors.aveMidPoint);
         });
 
         const flatDraw=flatten(this.tokens,[],Draw).filter((item: any)=> item instanceof Draw);
@@ -1072,6 +1088,8 @@ export class FormatTikzjax {
         
     }
     getCode(){
+        if (typeof this.source==="string"&&this.source.match(/(usepackage|usetikzlibrary)/))
+            return this.processedCode
         return getPreamble()+this.processedCode+"\n\\end{tikzpicture}\\end{document}";
     }
     tokenize() {
@@ -1136,13 +1154,12 @@ export class FormatTikzjax {
             //this.tokens.push({type: "grid", rotate: match[1]});
           } else if (match[0].startsWith("\\node")) {
             let i={original: match[1],coordinateName: match[3],label: match[4],formatting: match[3]}
-            if (!match[0].match(/\\node{/)){
-                Object.assign(i,{original: match[2],coordinateName: match[1]});
+            if (match[0].match(/\\node\s*\(/)){
+                Object.assign(i,{original: match[2],coordinateName: match[1],label: match[3],formatting: match[4]});
             }
-
             const { formatting,original, ...rest } = i;
 
-            this.tokens.push(new Coordinate({mode: "node",axis: new Axis().universal(original,this),formatting: new Formatting("node", {},formatting),...rest,}));
+            this.tokens.push(new Coordinate({mode: "node",axis: new Axis().universal(original,this),formatting: new Formatting("node", formatting),...rest,}));
           } else if (match[0].startsWith("\\circle")) {/*
             this.tokens.push({
               type: "circle",
@@ -1158,9 +1175,8 @@ export class FormatTikzjax {
 
           } else if (match[0].startsWith("\\vec")) {
             const ancer=new Axis().universal(match[1],this);
-            
+            const axis1=new Axis().universal(match[2],this);
             const node=new Coordinate({mode: "node-inline",formatting: new Formatting('node-inline',{color: "red"})})
-            const axis1=new Axis().universal(match[2],this,[ancer,'--+',node],'--+');
 
             const c1=new Coordinate("node-inline");
             const q=[ancer,'--+',node,axis1]
@@ -1176,20 +1192,44 @@ export class FormatTikzjax {
             this.tokens.push(this.source.slice(currentIndex));
         }
     }
+    getMin(){return this.viewAnchors.min}
+    getMax(){return this.viewAnchors.max}
 
-    findMidpoint() {
-        const axes = flatten(this.tokens).filter((item: any)=> item instanceof Axis)
+    findViewAnchors() {
+        const axes = flatten(this.tokens).filter((item: any) => item instanceof Axis);
+        
         let sumOfX = 0, sumOfY = 0;
-
+        let maxX = -Infinity, maxY = -Infinity;
+        let minX = Infinity, minY = Infinity;
+    
+        this.viewAnchors = {
+            max: new Axis(0, 0),
+            min: new Axis(0, 0),
+            aveMidPoint: new Axis(0, 0)
+        };
+    
         axes.forEach((axis: Axis) => {
-          sumOfX += axis.cartesianX;
-          sumOfY += axis.cartesianY; 
+            const { cartesianX, cartesianY } = axis;
+    
+            // Update sums for average calculation
+            sumOfX += cartesianX;
+            sumOfY += cartesianY;
+    
+            // Update max and min coordinates
+            if (cartesianX > maxX) maxX = cartesianX;
+            if (cartesianY > maxY) maxY = cartesianY;
+            if (cartesianX < minX) minX = cartesianX;
+            if (cartesianY < minY) minY = cartesianY;
         });
-
-        this.midPoint=new Axis();
-        const length=axes.length!==0?axes.length:1
-        this.midPoint.addCartesian(sumOfX / length,sumOfY / length)
+    
+        const length = axes.length !== 0 ? axes.length : 1;
+    
+        // Set the viewAnchors
+        this.viewAnchors.aveMidPoint = new Axis(sumOfX / length, sumOfY / length);
+        this.viewAnchors.max = new Axis(maxX, maxY);
+        this.viewAnchors.min = new Axis(minX, minY);
     }
+    
 
     findOriginalValue(value: string) {
         const og = this.tokens.slice().reverse().find(

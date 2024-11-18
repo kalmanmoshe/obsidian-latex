@@ -16,6 +16,7 @@
 	"author": "",
 	"license": "MIT",
 	"devDependencies": {
+		"@types/mathjax": "^0.0.40",
 		"@types/node": "^16.11.6",
 		"@typescript-eslint/eslint-plugin": "^5.29.0",
 		"@typescript-eslint/parser": "^5.29.0",
@@ -36,6 +37,7 @@
 	"dependencies": {
 		"esbuild-plugin-inline-import": "^1.1.0",
 		"esbuild-wasm": "^0.24.0",
-		"localforage": "^1.10.0"
+		"localforage": "^1.10.0",
+		"mathjax": "^3.2.2"
 	}
 }

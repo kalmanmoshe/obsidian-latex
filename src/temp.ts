@@ -27,7 +27,9 @@ export class VecInputModel extends Modal {
 
     // Render fields and initial graph
     this.renderFields(inputContainer, scriptContainer);
-    this.updateGraph(scriptContainer);
+    setTimeout(() => {
+      this.updateGraph(scriptContainer);
+  }, 50);
   }
 
   renderFields(inputContainer: HTMLElement, scriptContainer: HTMLElement) {
@@ -74,24 +76,33 @@ export class VecInputModel extends Modal {
   }
 
   updateGraph(container: HTMLElement) {
-    container.findAll("script").forEach(el => el.remove());
-    
-    const mass = new Coordinate({
-      mode: "node",
-      label: `${this.obj}n`,
-      axis: new Axis(this.plusX ? 1 : -1, this.plusY ? 1 : -1),
-      formatting: new Formatting("node", { tikzset: "mass" })
+    container.empty();
+
+    requestAnimationFrame(() => {
+        try {
+            const mass = new Coordinate({
+                mode: "node",
+                label: `${this.obj}n`,
+                axis: new Axis(this.plusX ? 1 : -1, this.plusY ? 1 : -1),
+                formatting: new Formatting("node", { tikzset: "mass" })
+            });
+
+            const tikz = new FormatTikzjax([mass]);
+
+            const script = container.createEl("script");
+            script.setAttribute("type", "text/tikz");
+            script.setAttribute("data-show-console", "true");
+            script.setText(tikz.getCode());
+            console.log(script)
+            container.appendChild(script);
+        } catch (e) {
+            console.error("Graph rendering error:", e);
+        }
     });
+}
 
-    const tikz = new FormatTikzjax([mass]);
 
-    const script = container.createEl("script");
-    script.setAttribute("type", "text/tikz");
-    script.setAttribute("data-show-console", "true");
-    script.setText(tikz.getCode());
 
-    container.appendChild(script);
-  }
 }
 
 

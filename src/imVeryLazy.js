@@ -31,14 +31,17 @@ export const curlyBracketsRegex = new RegExp("(frac|sqrt|\\^|\\/|binom)")
 
 function goodByFraction(tokens, position) {
     let replacementTokens = [];
-    let denominator = tokens.tokens.slice(position.transition, position.right.breakChar);
-    
-    for (let i = 0; i < tokens.tokens.length; i++) {
+    /*We rely on the denominator to already possess parentheses
+    We rely on the fact. that both the nominator and the denominator both have parentheses and closing them 
+    All calculations are according to that.
+    */
+    let denominator = tokens.tokens.slice(position.transition, position.right.breakChar+1);
 
-        // Skip tokens if we have already processed this section
+    for (let i = 0; i < tokens.tokens.length; i++) {
+        
         if (i >= position.index && i < position.right.breakChar) {
             replacementTokens.push(...tokens.tokens.slice(position.index+1,position.transition))
-            i = position.right.breakChar-1;
+            i = position.right.breakChar;
             continue;
         }
         if (/(=)/.test(tokens.tokens[i].value)) {
@@ -49,6 +52,7 @@ function goodByFraction(tokens, position) {
         let replacement = tokens.tokens.slice(i,i+1)
         let whereAmI = i;
         let rest=[];
+
         if (tokens.tokens[i].value === "frac") {
             whereAmI = new Position(tokens, i);
             replacementTokens.push(...tokens.tokens.slice(whereAmI.index,whereAmI.index+2))

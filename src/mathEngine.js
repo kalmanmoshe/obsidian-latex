@@ -161,9 +161,7 @@ function parse(tokens,mathInfo,position) {
             break;
         case "*":
             solved.value = left.value * right.value;
-            if (left.variable&&!right.variable){solved.variable=left.variable}
-            else if (!left.variable&&right.variable){solved.variable=right.variable}
-            else if (left.variable&&right.variable){solved.variable=right.variable;solved.pow=2}
+            handleVriables(left, right,solved);
             break;
         case "+":
             solved.value = left.value + right.value;
@@ -202,17 +200,59 @@ function parse(tokens,mathInfo,position) {
             return null; 
     }
 
-    function handleVriables(left,right){
+    function handleVariableMultiplication(left, right, solved) {
+        // Rule 1: Handle case where both sides have variables with different bases
+        if (left.variable && right.variable && left.variable !== right.variable) {
+            // Keep them separate since they have different variables
+            solved.terms = [
+                { variable: left.variable, pow: left.pow || 1, value: left.value || 1 },
+                { variable: right.variable, pow: right.pow || 1, value: right.value || 1 }
+            ];
+            throw new Error("Different variable bases at power multiplication. I didn't get there yet")
+            return;
+        }
+    
+        // Rule 2: If both have the same base, combine their powers
+        const variable = left.variable || right.variable;
+        solved.variable = variable;
+    
+        // Combine powers
+        const pow = (left.pow || 0) + (right.pow || 0);
+        solved.pow = pow || undefined;
+    
+        // Rule 3: Handle multiplication of constants
+        const leftValue = left.value || 1;
+        const rightValue = right.value || 1;
+        const value = leftValue * rightValue;
+    
+        // If there's no variable, assign the result as a constant
+        if (!variable) {
+            solved.value = value;
+        } else {
+            solved.value = value !== 1 ? value : undefined; // Avoid 1*x notation
+        }
+    }
+    
+    
+
+    function handleVriables(left,right,solved){
         let handled={Var:null,Pow:null};
         if (!left.variable&&!right.variable){
-            return handled;
+            return ;
         }
+        if (position.operator==='*'){return handleVariableMultiplication(left,right,solved)}
+        
         if (left.variable!==right.variable){
             throw new Error("Two variable equations aren't accepted yet");
         }
-        handled.Var=left.var;
+        //handled.Var=left.var;
+        //solved.variable=left.var
 
-
+        /*
+        if (left.variable&&!right.variable){solved.variable=left.variable}
+        else if (!left.variable&&right.variable){solved.variable=right.variable}
+        else if (left.variable&&right.variable){solved.variable=right.variable;solved.pow=2}
+        */
     }
     return {
         type: solved.pow? "powerVariable":solved.variable? "variable": "number",
@@ -313,7 +353,9 @@ function applyPosition(tokens, index, direction) {
     } else {
         target = tokens.tokens[index+indexModifier];
     }
+
     const multiStep = Math.abs(breakChar - index) >= 4;
+
     if (target?.length===0) {
         throw new Error(`at applyPosition: couldn't find target token for direction ${direction} and operator"${tokens.tokens[index].value}"`,);
     }
@@ -369,8 +411,9 @@ export class Position {
     checkMultiStep(){
         return this.left.multiStep||this.right.multiStep
     }
+    // If it is multi step, it needs to be expanded first Therefore, don't do it on multi step
     checkFrac(){
-        return /(frac|\/)/.test(this.operator)&&!this.checkMultiStep()&&this.left.type!==this.right.type;
+        return /(frac|\/)/.test(this.operator)&&!this.checkMultiStep()//Why did it put this here&&this.left.type!==this.right.type;
     }
 }
 
@@ -420,6 +463,7 @@ export class MathPraiser{
     mathInfo=new MathInfo();
 
     constructor(input){
+        
         this.input=input;
         this.processInput();
         this.tokens=new Tokens(this.input);
@@ -427,9 +471,9 @@ export class MathPraiser{
         this.input=this.tokens.reconstruct()
         this.solution=this.controller();
     }
-    async(){
+    //\\frac{132}{1260+x^{2}}=0.05
+    //\\frac{132}{1260+x^{2}}=0.05
 
-    }
     controller(){
         this.tokens.connectNearbyTokens();
         this.mathInfo.addMathInfo(this.tokens)
@@ -438,7 +482,9 @@ export class MathPraiser{
         
         const position = new Position(this.tokens,null);
         this.addDebugInfo("Parsed expression", JSON.stringify(position, null, 0.01));
-        
+
+        //console.log(this.tokens.tokens,position,this.tokens.reconstruct())
+
         if (position === null&&this.tokens.tokens.length>1){
             this.addDebugInfo("parse(tokens)",parse(this.tokens.tokens))
             return "the ****"
@@ -448,10 +494,10 @@ export class MathPraiser{
             return this.finalReturn();
         }
         if (position.checkFrac()||position.checkMultiStep())
-        {   
+        {
             expandExpression(this.tokens,position);
             this.mathInfo.addSolutionInfo(this.tokens.reconstruct(this.tokens))
-            
+            //console.log(this.tokens.tokens,position)
             return this.controller()
         }
 
@@ -775,21 +821,9 @@ const plusSymbolCheck = (tokens, index) => {
     return tokens[index].value >= 0 && /(number|variable|powerVariable)/.test(tokens[index - 1].type);
 };
 
+
+
 export function flattenArray(arr) {
-    let result = [];
-    
-    arr.forEach(item => {
-        if (Array.isArray(item)) {
-            result = result.concat(flattenArray(item));  // Recursively flatten nested arrays
-        } else {
-            result.push(item);  // Add non-array items to result
-        }
-    });
-
-    return result;
-}
-
-/*export function flattenArray(arr) {
     let result = [];
     let stack = Array.isArray(arr) ? [...arr] : [arr];  // Ensure arr is an array or wrap it in one
 
@@ -803,4 +837,4 @@ export function flattenArray(arr) {
     }
 
     return result.reverse();  // Reverse to maintain original order
-}*/
+}
