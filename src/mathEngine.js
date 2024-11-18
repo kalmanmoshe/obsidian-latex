@@ -224,12 +224,11 @@ function parse(tokens,mathInfo,position) {
         const leftValue = left.value || 1;
         const rightValue = right.value || 1;
         const value = leftValue * rightValue;
-    
         // If there's no variable, assign the result as a constant
         if (!variable) {
             solved.value = value;
         } else {
-            solved.value = value !== 1 ? value : undefined; // Avoid 1*x notation
+            solved.value = value;
         }
     }
     
@@ -463,7 +462,6 @@ export class MathPraiser{
     mathInfo=new MathInfo();
 
     constructor(input){
-        
         this.input=input;
         this.processInput();
         this.tokens=new Tokens(this.input);
@@ -473,13 +471,14 @@ export class MathPraiser{
     }
     //\\frac{132}{1260+x^{2}}=0.05
     //\\frac{132}{1260+x^{2}}=0.05
-
-    controller(){
+    getRedyforNewRond(){
         this.tokens.connectNearbyTokens();
         this.mathInfo.addMathInfo(this.tokens)
         this.addDebugInfo(this.tokens.tokens,this.tokens.tokens.length)
         this.tokens.expressionVariableValidity();
-        
+    }
+    controller(){
+        this.getRedyforNewRond();
         const position = new Position(this.tokens,null);
         this.addDebugInfo("Parsed expression", JSON.stringify(position, null, 0.01));
 
@@ -651,7 +650,9 @@ class Tokens{
         return tokens
     }
 
+
     connectNearbyTokens(){
+        //console.log(this.tokens)
         let i=0,moreConnectedTokens=true;
         while (i < 100 && moreConnectedTokens) {
             i++;

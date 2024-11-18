@@ -88,7 +88,7 @@ export default class MathPlugin extends Plugin {
     expressions.forEach((expression, index) => {
       let lineContainer: HTMLDivElement = document.createElement("div");
       lineContainer.classList.add("math-line-container", (index-skippedIndexes) % 2 === 0 ? "math-row-even" : "math-row-odd");
-
+      //if (expression.match(/^\/\//)){}
       const processMath = new ProcessMath(expression,userVariables, this.app,lineContainer);
       processMath.initialize();
 
