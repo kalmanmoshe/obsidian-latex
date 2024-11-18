@@ -1,4 +1,5 @@
-import {Plugin, MarkdownRenderer, App, Modal, Component, Setting,Notice, WorkspaceWindow,} from "obsidian";
+import {Plugin, MarkdownRenderer, App, Modal, Component, Setting,Notice, WorkspaceWindow,loadMathJax,renderMath} from "obsidian";
+
 import { MathInfo, MathPraiser } from "./mathEngine.js";
 import { InfoModal, DebugModal } from "./desplyModals";
 import { CustomInputModal, HistoryModal, InputModal, VecInputModel } from "./temp";
@@ -6,6 +7,7 @@ import {MathPluginSettings, DEFAULT_SETTINGS, MathPluginSettingTab,} from "./set
 import { calculateBinom, degreesToRadians, findAngleByCosineRule, getUsableDegrees, polarToCartesian, radiansToDegrees, roundBySettings } from "./mathUtilities.js";
 import { Axis, Coordinate, Draw, FormatTikzjax, Formatting, Tikzjax } from "./tikzjax/tikzjax";
 import { NumeralsSuggestor } from "./suggestor.js";
+import { TikzSvg } from "./tikzjax/myTikz.js";
 
 export default class MathPlugin extends Plugin {
   settings: MathPluginSettings;
@@ -19,6 +21,7 @@ export default class MathPlugin extends Plugin {
     
     this.addSettingTab(new MathPluginSettingTab(this.app, this));
     this.registerMarkdownCodeBlockProcessor("math-engine", this.processMathBlock.bind(this));
+    this.registerMarkdownCodeBlockProcessor("tikzjax", this.processTikzBlock.bind(this));
     this.registerCommands();
     this.registerEditorSuggest(new NumeralsSuggestor(this));
   }
@@ -27,7 +30,29 @@ export default class MathPlugin extends Plugin {
 		this.tikzProcessor.removeSyntaxHighlighting();
 	}
   
+  processTikzBlock(source: string, container: HTMLElement): void {
+  const svg = new TikzSvg(source);
   
+  const icon = Object.assign(container.createEl("div"), {
+    className: "math-debug-icon",
+    textContent: "🛈",
+  });
+  
+
+  const graph = Object.assign(document.createElement("div"), {
+    style: "display: flex; justify-content: center; align-items: center;"
+  });
+  graph.appendChild(svg.getSvg());
+  svg.debugInfo+=graph.outerHTML
+  console.log(graph.outerHTML)
+  icon.onclick = () => new DebugModal(this.app, svg.debugInfo).open();
+  
+  container.appendChild(icon);
+  container.appendChild(graph);
+
+}
+
+
   private async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
   }
@@ -52,7 +77,7 @@ export default class MathPlugin extends Plugin {
 
   private processMathBlock(source: string, mainContainer: HTMLElement): void {
     mainContainer.classList.add("math-container");
-
+    
     const userVariables: { variable: string; value: string }[] = [];
     let skippedIndexes = 0;
 
@@ -63,8 +88,10 @@ export default class MathPlugin extends Plugin {
     expressions.forEach((expression, index) => {
       let lineContainer: HTMLDivElement = document.createElement("div");
       lineContainer.classList.add("math-line-container", (index-skippedIndexes) % 2 === 0 ? "math-row-even" : "math-row-odd");
+
       const processMath = new ProcessMath(expression,userVariables, this.app,lineContainer);
       processMath.initialize();
+
       if(processMath.mode!=="variable"){
         lineContainer = processMath.container as HTMLDivElement;
         mainContainer.appendChild(lineContainer);
@@ -155,9 +182,11 @@ class ProcessMath {
   }
 
   private addInputAndResultDiv(inputDiv: HTMLElement, resultDiv: HTMLElement, input: string, result: any) {
-    MarkdownRenderer.renderMarkdown(`\${${input}}$`, inputDiv, "", new Component());
-    const resultOutput = /(true|false)/.test(result) ? result : `\${${result}}$`;
-    MarkdownRenderer.renderMarkdown(resultOutput, resultDiv, "", new Component());
+    inputDiv.appendChild(renderMath(input,true))
+    //MarkdownRenderer.renderMarkdown(`\${${input}}$`, inputDiv, "", new Component());
+    //const resultOutput = /(true|false)/.test(result) ? result : `\${${result}}$`;
+    resultDiv.appendChild(renderMath(result,true))
+    //MarkdownRenderer.renderMarkdown(resultOutput, resultDiv, "", new Component());
   }
 
   private displayError(inputDiv: HTMLElement, resultDiv: HTMLElement, err: Error) {

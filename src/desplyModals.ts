@@ -1,4 +1,4 @@
-import { Plugin, MarkdownView, MarkdownRenderer, PluginSettingTab, App, Setting, Modal, Notice, Component, Editor, EditorPosition } from "obsidian";
+import { Plugin, MarkdownView, MarkdownRenderer, PluginSettingTab, App, Setting, Modal, Notice, Component, Editor, EditorPosition, renderMath } from "obsidian";
 import { MathInfo } from "./mathEngine.js";
   
 export class InfoModal extends Modal {
@@ -28,14 +28,15 @@ export class InfoModal extends Modal {
         const lineContainer = columnContainer.createEl("div", { cls: "info-modal-line-container" });
         
         const leftLine = lineContainer.createEl("div", { cls: "info-modal-left-line" });
-        MarkdownRenderer.renderMarkdown(`$\{\\begin{aligned}&${line}\\end{aligned}}$`, leftLine, "", new Component());
+        leftLine.appendChild(renderMath(line,true));
+        //MarkdownRenderer.renderMarkdown(`$\{\\begin{aligned}&${line}\\end{aligned}}$`, leftLine, "", new Component());
   
         const rightLine = lineContainer.createEl("div", { cls: "info-modal-right-line" });
-        MarkdownRenderer.renderMarkdown(`$\{\\begin{aligned}&${this.solutionInfo[index] || ""}\\end{aligned}}$`, rightLine, "", new Component());
+        rightLine.appendChild(renderMath(this.solutionInfo[index],true));
+        //MarkdownRenderer.renderMarkdown(`$\{\\begin{aligned}&${this.solutionInfo[index] || ""}\\end{aligned}}$`, rightLine, "", new Component());
       });
   
-      const buttonContainer = contentEl.createEl("div", { cls: "info-modal-Copy-button-container" });
-      const actionButton = buttonContainer.createEl("button", { text: "Copy Details", cls: "info-modal-Copy-button" });
+      const actionButton = contentEl.createEl("button", { text: "Copy Details", cls: "info-modal-Copy-button" });
       
       actionButton.addEventListener("click", () => {
         navigator.clipboard.writeText(this.mathInfo.join("\n"));
