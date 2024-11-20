@@ -9,6 +9,49 @@ import { Axis, Coordinate, Draw, FormatTikzjax, Formatting, Tikzjax } from "./ti
 import { NumeralsSuggestor } from "./suggestor.js";
 import { TikzSvg } from "./tikzjax/myTikz.js";
 
+import { EditorState, SelectionRange } from "@codemirror/state";
+import { syntaxTree } from "@codemirror/language";
+import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
+
+export const modifyHTMLPlugin = ViewPlugin.fromClass(
+  class {
+    constructor(view: EditorView) {
+      this.processHTML(view);
+    }
+
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged) {
+        this.processHTML(update.view);
+      }
+    }
+
+    processHTML(view: EditorView) {
+      // Access the rendered HTML container
+      const contentEl = view.dom.querySelector(".cm-content");
+      if (!contentEl) return;
+
+      // Example Modification: Add a wrapper to each paragraph
+      contentEl.querySelectorAll("p").forEach((p) => {
+        const wrapper = document.createElement("div");
+        wrapper.classList.add("custom-paragraph-wrapper");
+        wrapper.appendChild(p.cloneNode(true));
+        p.replaceWith(wrapper);
+      });
+    }
+  }
+);
+
+const state = EditorState.create({
+  doc: "Your initial content here",
+  extensions: [modifyHTMLPlugin],
+});
+
+const view = new EditorView({
+  state,
+  parent: document.body,
+});
+
+
 export default class MathPlugin extends Plugin {
   settings: MathPluginSettings;
   tikzProcessor: Tikzjax
@@ -24,12 +67,47 @@ export default class MathPlugin extends Plugin {
     this.registerMarkdownCodeBlockProcessor("tikzjax", this.processTikzBlock.bind(this));
     this.registerCommands();
     this.registerEditorSuggest(new NumeralsSuggestor(this));
+    
+    this.app.workspace.onLayoutReady(() => {
+      this.checkAndAddAttributes();
+    });
+
+    // React to active pane or file changes
+    this.registerEvent(
+      this.app.workspace.on("active-leaf-change", () => {
+        console.log("Active leaf changed, checking for CM-line elements...");
+        this.checkAndAddAttributes();
+      })
+    );
+
+    this.registerEvent(
+      this.app.workspace.on("file-open", () => {
+        console.log("File opened, checking for CM-line elements...");
+        this.checkAndAddAttributes();
+      })
+    );
+
   }
   onunload() {
 		this.tikzProcessor.unloadTikZJaxAllWindows();
 		this.tikzProcessor.removeSyntaxHighlighting();
 	}
-  
+
+  checkAndAddAttributes() {
+    // Fetch all elements with class 'CM-line'
+    const cmLineElements = document.querySelectorAll("div.CM-line");
+
+    // Check if elements exist and add the attribute
+    cmLineElements.forEach((element) => {
+      if (element instanceof HTMLElement) {
+        element.setAttribute("data-custom", "true");
+        console.log("Attribute added to:", element);
+      }
+    });
+  }
+
+
+
   processTikzBlock(source: string, container: HTMLElement): void {
   const svg = new TikzSvg(source);
   
@@ -72,6 +150,11 @@ export default class MathPlugin extends Plugin {
       id: "view-session-history",
       name: "View Session History",
       //callback: () => new HistoryModal(this.app, this).open(),
+    });
+    this.addCommand({
+      id: "test-mathEngine",
+      name: "test math engine",
+      callback: () =>testMathEngine(),
     });
   }
 
@@ -175,7 +258,6 @@ class ProcessMath {
       }
      this.addInputAndResultDiv(inputDiv, resultDiv, typeof this.mathInput==="string"?this.mathInput:this.mathInput[0], roundBySettings(this.result));
     } catch (err) {
-      
       this.displayError(inputDiv, resultDiv, err);
       console.error("The initial praising failed",err);
     }
@@ -185,7 +267,7 @@ class ProcessMath {
     inputDiv.appendChild(renderMath(input,true))
     //MarkdownRenderer.renderMarkdown(`\${${input}}$`, inputDiv, "", new Component());
     //const resultOutput = /(true|false)/.test(result) ? result : `\${${result}}$`;
-    resultDiv.appendChild(renderMath(result,true))
+    resultDiv.appendChild(renderMath(result.toString(),true))
     //MarkdownRenderer.renderMarkdown(resultOutput, resultDiv, "", new Component());
   }
 
@@ -562,3 +644,25 @@ class BinomInfoModel extends Modal {
 
 
 
+
+
+
+function testMathEngine(){
+  const expressions=[
+    {expression: String.raw`2 \frac{(5-3)34}{\sqrt{2^{2}}}0.5`,expectedOutput: '34'},
+    {expression: String.raw`(x+1)(x+3)=2`,expectedOutput: 'x_1=-0.26795,x_2=-3.73205'},
+    {expression: String.raw`\frac{132}{1260+x^{2}}=0.05`,expectedOutput: 'x_1=-37.14835,x_2=37.14835'},
+  ]
+  const results=[]
+  try{
+    expressions.forEach(expression => {
+      const math=new MathPraiser(expression.expression);
+      if (math.solution!==expression.expectedOutput){
+        results.push({expression: expression.expression,expectedOutput: expression.expectedOutput,actualOutput: math.solution})
+      }
+    });
+  }
+  catch(e){
+    console.log(e)
+  }
+}
