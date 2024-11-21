@@ -1,4 +1,4 @@
-import {Plugin, MarkdownRenderer, App, Modal, Component, Setting,Notice, WorkspaceWindow,loadMathJax,renderMath} from "obsidian";
+import {Plugin, MarkdownRenderer, App, Modal, Component, Setting,Notice, WorkspaceWindow,loadMathJax,renderMath, MarkdownView} from "obsidian";
 
 import { MathInfo, MathPraiser } from "./mathEngine.js";
 import { InfoModal, DebugModal } from "./desplyModals";
@@ -13,43 +13,6 @@ import { EditorState, SelectionRange } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
 
-export const modifyHTMLPlugin = ViewPlugin.fromClass(
-  class {
-    constructor(view: EditorView) {
-      this.processHTML(view);
-    }
-
-    update(update: ViewUpdate) {
-      if (update.docChanged || update.viewportChanged) {
-        this.processHTML(update.view);
-      }
-    }
-
-    processHTML(view: EditorView) {
-      // Access the rendered HTML container
-      const contentEl = view.dom.querySelector(".cm-content");
-      if (!contentEl) return;
-
-      // Example Modification: Add a wrapper to each paragraph
-      contentEl.querySelectorAll("p").forEach((p) => {
-        const wrapper = document.createElement("div");
-        wrapper.classList.add("custom-paragraph-wrapper");
-        wrapper.appendChild(p.cloneNode(true));
-        p.replaceWith(wrapper);
-      });
-    }
-  }
-);
-
-const state = EditorState.create({
-  doc: "Your initial content here",
-  extensions: [modifyHTMLPlugin],
-});
-
-const view = new EditorView({
-  state,
-  parent: document.body,
-});
 
 
 export default class MathPlugin extends Plugin {
@@ -67,46 +30,52 @@ export default class MathPlugin extends Plugin {
     this.registerMarkdownCodeBlockProcessor("tikzjax", this.processTikzBlock.bind(this));
     this.registerCommands();
     this.registerEditorSuggest(new NumeralsSuggestor(this));
-    
-    this.app.workspace.onLayoutReady(() => {
-      this.checkAndAddAttributes();
-    });
 
-    // React to active pane or file changes
-    this.registerEvent(
-      this.app.workspace.on("active-leaf-change", () => {
-        console.log("Active leaf changed, checking for CM-line elements...");
-        this.checkAndAddAttributes();
-      })
-    );
-
-    this.registerEvent(
-      this.app.workspace.on("file-open", () => {
-        console.log("File opened, checking for CM-line elements...");
-        this.checkAndAddAttributes();
-      })
-    );
-
+    // Execute the `a()` method to log and modify all divs
+    this.processDivs();
   }
   onunload() {
 		this.tikzProcessor.unloadTikZJaxAllWindows();
 		this.tikzProcessor.removeSyntaxHighlighting();
 	}
-
-  checkAndAddAttributes() {
-    // Fetch all elements with class 'CM-line'
-    const cmLineElements = document.querySelectorAll("div.CM-line");
-
-    // Check if elements exist and add the attribute
-    cmLineElements.forEach((element) => {
-      if (element instanceof HTMLElement) {
-        element.setAttribute("data-custom", "true");
-        console.log("Attribute added to:", element);
+  processDivs() {
+    const cmLines = document.querySelectorAll('div.cm-line');
+  
+    console.log(`Found ${cmLines.length} cm-line div(s).`);
+  
+    cmLines.forEach((line) => {
+      // Explicitly cast `line` to `HTMLElement`
+      const htmlLine = line as HTMLElement;
+      if (htmlLine.textContent?.startsWith('a')) {
+        htmlLine.setAttribute('dir', 'rtl'); 
+        htmlLine.style.backgroundColor = "lightyellow"; 
       }
     });
   }
-
-
+  
+  observeDynamicChanges() {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === "childList") {
+          mutation.addedNodes.forEach((node) => {
+            if (node instanceof HTMLElement && node.classList.contains('cm-line')) {
+              console.log("Detected a new cm-line element:", node);
+    
+              // Apply changes to the new node
+              if (node.textContent?.startsWith('a')) {
+                node.setAttribute('dir', 'rtl');
+                node.style.backgroundColor = "lightyellow";
+              }
+            }
+          });
+        }
+      });
+    });
+    
+    observer.observe(document.body, { childList: true, subtree: true });
+    console.log("Observer is set and running.");
+  
+  }
 
   processTikzBlock(source: string, container: HTMLElement): void {
   const svg = new TikzSvg(source);

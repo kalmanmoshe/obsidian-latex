@@ -22,7 +22,7 @@ export function expandExpression(tokens, position) {
     const is=position.operator==="-"&&isLeftMultiStep;
     const start=is?position.index:position.left.breakChar
     const length=position.right.breakChar-(is?position.index:position.left.breakChar)
-    tokens.insertTokens(start, length+(isLeftMultiStep?0:1), replacementCell);
+    tokens.insertTokens(start, length, replacementCell);
     tokens.reIDparentheses();
 }
 
@@ -36,8 +36,11 @@ function goodByFraction(tokens, position) {
     We rely on the fact. that both the nominator and the denominator both have parentheses and closing them 
     All calculations are according to that.
     */
-    let denominator = tokens.tokens.slice(position.transition, position.right.breakChar);
-
+    let denominator = position.right.tokens//tokens.tokens.slice(position.transition, position.right.breakChar);
+    if (!denominator.length)
+        denominator=[{"type": "paren", "value": "(", "id": 0, "index": 0}
+    ,denominator,{"type": "paren", "value": ")", "id": 0, "index": 0}]
+    console.log(denominator,denominator.length,typeof denominator)
     for (let i = 0; i < tokens.tokens.length; i++) {
         // Had to change i = position.right.breakChar -->to--> i = position.right.breakChar-1;
         //console.log(tokens.tokens[i].value)
@@ -55,7 +58,6 @@ function goodByFraction(tokens, position) {
         let replacement = tokens.tokens.slice(i,i+1)
         let whereAmI = i;
         let rest=[];
-        console.log('denominator',denominator)
         if (tokens.tokens[i].value === "frac") {
             whereAmI = new Position(tokens, i);
             replacementTokens.push(...tokens.tokens.slice(whereAmI.index,whereAmI.index+2))

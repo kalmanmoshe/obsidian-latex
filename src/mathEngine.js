@@ -95,7 +95,9 @@ function safeToNumber(value) {
 
 
 function parse(tokens,mathInfo,position) {
-    const { operator,specialChar, left,right} = position;
+    let { operator,specialChar, left,right} = position;
+    left=left.tokens
+    right=right.tokens
     if (typeof operator==="string"&&typeof right.value!=="number"&&!/(sqrt|cos|sin|tan)/.test(operator)) {
         throw new Error("Left side of "+operator+" must have a value");
     }
@@ -325,42 +327,43 @@ function operationsOrder(tokens) {
 }
 
 function applyPosition(tokens, index, direction) {
-    let breakChar = index;
+    let breakChar=index
     let target;
-
+    let multiStep=false;
     const isLeft = direction === "left";
     const indexModifier =  isLeft?- 1 :  1;
     if ((isLeft && index <= 0) || (!isLeft && index >= tokens.tokens.length - 1) || !tokens.tokens[index+indexModifier]) {
         throw new Error("at applyPosition: \"index wasn't valid\" index: "+index);
     }
-
     if (tokens.tokens[index+indexModifier].type === "paren") {
         const parenIndex = tokens.findParenIndex(tokens.tokens[index+indexModifier].id);
-        breakChar =  isLeft ? parenIndex.open : parenIndex.close;
-        target = tokens.tokens.slice(isLeft ? breakChar : index + 1, isLeft ? index : breakChar);
+        breakChar =  isLeft ? parenIndex.open : parenIndex.close+1;
+        //target = tokens.tokens.slice(isLeft ? breakChar : index + 1, isLeft ? index : breakChar);
+        target = tokens.tokens.slice(parenIndex.open, parenIndex.close+1);
     } else {
-        target = tokens.tokens[index+indexModifier];
+        breakChar=index+indexModifier;
+        target = tokens.tokens[breakChar];
+        breakChar+=isLeft?0:1
+        
     }
-    const multiStep = Math.abs(breakChar - index) > 3;
+    //const multiStep = Math.abs(breakChar - index) > 3;
 
     if (!multiStep&&tokens.tokens[index+indexModifier].type === "paren"){
-        target=target.find(item => /(number|variable|powerVariable)/.test(item.type))
+        //target=target.find(item => /(number|variable|powerVariable)/.test(item.type))
     }
-
     if (target?.length===0) {
         throw new Error(`at applyPosition: couldn't find target token for direction ${direction} and operator"${tokens.tokens[index].value}"`,);
     }
-    if (breakChar){
-        return{
-            tokens: target,
-            multiStep: multiStep,
-            breakChar: breakChar
-        }
-    }
-    breakChar = (breakChar !== index ? target?.index : breakChar)+ indexModifier+(isLeft?0:1);
-    delete target.index
+
+    //breakChar = (breakChar !== index ? target?.index : breakChar)+ indexModifier+(isLeft?0:1);
+    //delete target.index
+    
+    if (target.length===3){
+        target=target.find(item => /(number|variable|powerVariable)/.test(item.type))
+    }else if(target.length>1)multiStep=true
+
     return {
-        ...target,
+        tokens: target,
         multiStep: multiStep,
         breakChar: breakChar
     };
@@ -398,7 +401,7 @@ export class Position {
                 this.left = applyPosition(tokens, this.index,"right");
                 this.transition = this.left.breakChar;
                 this.right = applyPosition(tokens, this.transition-1,"right");
-                this.left.breakChar = this.index;console.log(this.right)
+                this.left.breakChar = this.index;
                 this.right.breakChar+(this.right.multiStep?1:0);
                 break;
             default:
@@ -477,10 +480,11 @@ export class MathPraiser{
         this.tokens.expressionVariableValidity();
     }
     controller(){
+        console.log(this.tokens.tokens,this.tokens.reconstruct())
         this.getRedyforNewRond();
         const position = new Position(this.tokens,null);
-        this.addDebugInfo("Parsed expression", JSON.stringify(position, null, 0.01));
-
+        
+        this.addDebugInfo("Parsed expression", JSON.stringify(position, null, 1));
         if (position === null&&this.tokens.tokens.length>1){
             this.addDebugInfo("parse(tokens)",parse(this.tokens.tokens))
             return "the ****"
@@ -504,7 +508,7 @@ export class MathPraiser{
         
         this.mathInfo.addSolution(this.tokens,position,solved)
         const [leftBreak,length] = [position.left.breakChar,position.right.breakChar-position.left.breakChar]
-
+        console.log(leftBreak,length,this.tokens.tokens.length)
         this.tokens.insertTokens(leftBreak,length,solved)
         this.addDebugInfo("newTokens",this.tokens.tokens)
         return this.tokens.tokens.length>1?this.controller():this.finalReturn();
