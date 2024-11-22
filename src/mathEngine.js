@@ -2,11 +2,16 @@
 import { quad,calculateBinom,roundBySettings ,degreesToRadians,radiansToDegrees} from "./mathUtilities";
 import { expandExpression,curlyBracketsRegex } from "./imVeryLazy";
 import { type } from "os";
+import { arrToRegexString, regExp } from "./tikzjax/tikzjax";
 const greekLetters = [
     'Alpha','alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 
     'Iota', 'Kappa', 'Lambda', 'Mu','mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 
     'Sigma', 'Tau', 'Upsilon', 'Phi', 'Chi', 'Psi', 'Omega'
 ];
+const latexOperators=[
+    'tan', 'sin', 'cos', 'binom', 'frac', 'asin', 'acos', 
+    'atan', 'arccos', 'arcsin', 'arctan', 'cdot'
+]
 
 function findConsecutiveSequences(arr) {
     const sequences = [];
@@ -481,6 +486,7 @@ export class MathPraiser{
         this.input=input;
         this.processInput();
         this.tokens=new Tokens(this.input);
+        console.log(this.tokens.tokens)
         this.addDebugInfo("Tokens after tokenize",this.tokens.tokens)
         this.input=this.tokens.reconstruct()
         this.solution=this.controller();
@@ -514,12 +520,10 @@ export class MathPraiser{
         }
         else{
             const method=praisingMethod(this.tokens.tokens)
-            console.log(method)
             if (method==='quadratic'){
                 this.tokens.tokens=simplifiy(this.tokens.tokens)
                 const filterByType=(type)=>this.tokens.tokens.filter(token => token.type === type);
                 const [numberIndex,variableIndex,powIndex] = [filterByType("number"),filterByType("variable"),filterByType("powerVariable")]
-                console.log(numberIndex,variableIndex,powIndex)
                 this.mathInfo.addDebugInfo("simplifiy(tokens)",this.tokens.tokens)
                 if (powIndex.length===1&&powIndex[0].pow===2)
                 {
@@ -555,12 +559,11 @@ export class MathPraiser{
     }
     processInput(){
         this.input=this.input
-        .replace(/(\s|\\left|\\right)/g, "") 
+        .replace(/(Math.|\\|\s|left|right)/g, "") 
         .replace(/{/g, "(")
         .replace(/}/g, ")")
-        .replace(/(\\cdot|cdot)/g, "*")
-        .replace(/Math./g, "\\")
-        .replace(/(?<!\\|[a-zA-Z])(tan|sin|cos|binom|frac|asin|acos|atan|arccos|arcsin|arctan|cdot)/g, "\\$1");
+        .replace(/(cdot)/g, "*")
+        //.replace(/(?<!\\|[a-zA-Z])(tan|sin|cos|binom|frac|asin|acos|atan|arccos|arcsin|arctan|cdot)/g, "\\$1");
     }
     finalReturn(){
         return this.tokens.reconstruct()
@@ -580,51 +583,33 @@ class Tokens{
         for (let i = 0; i < math.length; i++) {
             j++;
             if(j>500){break;}
-            let number=0,  startPos = i,vari="";
+            let number=0,vari="";
 
-            if (math[i] === "(") {
-                if (!levelCount[brackets]) {
-                    levelCount[brackets] = 0;
-                }
-                let ID = levelCount[brackets]++;
-                tokens.push({ type: "paren", value: "(", id: brackets + "." + ID, index: tokens.length });
-                brackets++;
+            if (math[i] === "("||math[i] === ")") {
+                tokens.push({ type: "paren", value: math[i],});
                 continue;
             }
-            if (math[i] === ")") {
-                brackets--; 
-                if (brackets < 0) {
-                    throw new Error("Unmatched closing bracket at position");
-                }
-                let ID = levelCount[brackets] - 1;
-                tokens.push({ type: "paren", value: ")", id: brackets + "." + (ID >= 0 ? ID : 0)});
-                continue;
-            }
-
-            if (math[i] === "\\") {
-                i+=1;  
-                let operator = (math.slice(i).match(/[a-zA-Z]+/) || [""])[0]
+            
+            let match=math.slice(i).match(regExp('^'+arrToRegexString(latexOperators)));
+            if (!!match) {
+                let operator = match[0]
                 
                 tokens.push({ type: "operator", value: operator});
-                i+=operator.length;
+                i+=operator.length-1;
 
                 if (tokens[tokens.length - 1].value === "sqrt" && math[i] === "[" && i < math.length - 2) {
                     let temp=math.slice(i,i+1+math.slice(i).search(/[\]]/));
                     i+=temp.length
                     Object.assign(tokens[tokens.length-1],{specialChar: safeToNumber(temp),})
                 }
-                i--;
                 continue;
             }
 
-            let match = math.slice(i).match(/^([0-9.]+)/);//([a-zA-Z]?)/);
+            match = math.slice(i).match(/^([0-9.]+)/);//([a-zA-Z]?)/);
             if (!!match)
             {
                 number=match[0]
                 i+=number.length>1?number.length-1:0;
-                //if(/[+-]/.test(math[startPos-1])){number=math[startPos-1]+number}
-                
-                //if (math[i+1]&&/[a-zA-Z]/.test(math[i+1])){continue;}
                 tokens.push({ type: "number", value: parseFloat(number)});
                 continue;
             }
@@ -632,18 +617,7 @@ class Tokens{
             if (/[a-zA-Z]/.test(math[i])) {
                 vari= (math.slice(i).match(/[a-zA-Z]+(_\([a-zA-Z0-9]*\))*/) || [""])[0];
                 if (vari&&vari.length===0){vari=math.slice(i,math.length)}
-               // number=math.slice(i+vari.length,vari.length+i+math.slice(i+vari.length).search(/[^0-9]/))
-                
-                i+=vari.length-1//+number.length-1;
-                //number=safeToNumber(number.length>0?number:1);
-                /*
-                if (/[0-9]/.test(math[startPos>0?startPos-1:0])&&tokens)
-                {
-                    number=(math.slice(0,startPos).match(/[0-9.]+(?=[^0-9.]*$)/)|| [""])[0];
-                    //number=math[startPos-number.length-1]&&math[startPos-number.length-1]==="-"?"-"+number:number;
-                }
-                else if(/[-]/.test(math[startPos-1])){number=math[startPos-1]+number}*/
-                //safeToNumber(number)
+                i+=vari.length-1
                 tokens.push({type: "variable",variable: vari.replace("(","{").replace(")","}"),value: 1});
                 continue;
             }
@@ -652,13 +626,7 @@ class Tokens{
                 tokens.push({ type: "operator", value: math[i]});
                 continue;
             }
-            //if (/[+-\d]/.test(math[i])){continue;}
             throw new Error(`Unknown char "${math[i]}"`);
-        }
-
-        if (brackets!==0)
-        {
-            throw new Error ("Unmatched opening bracket(s)")
         }
         this.tokens=tokens;
         this.postProcessTokens();
@@ -953,9 +921,12 @@ class Token{
     type
     value
     variable
-    pow
     id
     constructor(value,variable){
+        
+    }
+    asNumber(){
 
     }
+    asVariable
 }
