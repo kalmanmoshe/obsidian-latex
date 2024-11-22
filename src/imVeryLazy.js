@@ -40,10 +40,8 @@ function goodByFraction(tokens, position) {
     if (!denominator.length)
         denominator=[{"type": "paren", "value": "(", "id": 0, "index": 0}
     ,denominator,{"type": "paren", "value": ")", "id": 0, "index": 0}]
-    console.log(denominator,denominator.length,typeof denominator)
     for (let i = 0; i < tokens.tokens.length; i++) {
         // Had to change i = position.right.breakChar -->to--> i = position.right.breakChar-1;
-        //console.log(tokens.tokens[i].value)
         if (i >= position.index && i < position.right.breakChar) {
             replacementTokens.push(...tokens.tokens.slice(position.index+1,position.transition))
             i = position.right.breakChar-1;
@@ -81,7 +79,6 @@ function goodByFraction(tokens, position) {
         );
         i = typeof whereAmI === "object" ? whereAmI.right.breakChar-1 : whereAmI-1;
     }
-    //console.log(replacementTokens)
     tokens.tokens=replacementTokens;
     tokens.reIDparentheses();
 }
