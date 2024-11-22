@@ -149,8 +149,8 @@ export class Tikzjax {
           svgEl.outerHTML = svg;
       }
 }
-
-function regExp(pattern: string | RegExp, flags: string = ''): RegExp {
+export const arrToRegexString=(arr: Array<string>)=>'('+arr.join('|')+')';
+export function regExp(pattern: string | RegExp|Array<string>, flags: string = ''): RegExp {
     pattern=pattern instanceof RegExp?pattern.source:pattern;
     return new RegExp(String.raw`${pattern}`, flags?flags:'');
 }
