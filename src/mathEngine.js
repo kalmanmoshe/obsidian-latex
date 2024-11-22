@@ -2,12 +2,25 @@
 import { quad,calculateBinom,roundBySettings ,degreesToRadians,radiansToDegrees} from "./mathUtilities";
 import { expandExpression,curlyBracketsRegex } from "./imVeryLazy";
 import { type } from "os";
-const greekLetters=[
-    '',
-]
+const greekLetters = [
+    'Alpha','alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 
+    'Iota', 'Kappa', 'Lambda', 'Mu','mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 
+    'Sigma', 'Tau', 'Upsilon', 'Phi', 'Chi', 'Psi', 'Omega'
+];
 
-const tokenIDCompare = (value, token, nextToken) => 
-    (value===null||token.id === value) && token.id === nextToken?.id;
+function findConsecutiveSequences(arr) {
+    const sequences = [];
+    let start = 0;
+    for (let i = 1; i <= arr.length; i++) {
+        if (arr[i] !== arr[i - 1] + 1) {
+            if (i - start > 1) {
+                sequences.push(arr.slice(start, i));
+            }
+            start = i;
+        }
+    }
+    return sequences;
+}
 
 
 const operatorsForMathinfo = {
@@ -92,47 +105,20 @@ function safeToNumber(value) {
     return isNaN(num) ? value.length>0?value:0 : num;
 }
 
-
-
-function parse(tokens,mathInfo,position) {
-    let { operator,specialChar, left,right} = position;
-    left=left.tokens
-    right=right.tokens
-    if (typeof operator==="string"&&typeof right.value!=="number"&&!/(sqrt|cos|sin|tan)/.test(operator)) {
+function parseSafetyChecks(operator,left,right){
+    if (typeof operator==="string"&&typeof left.value!=="number"&&!operatorSides.rightOnly.includes(operator)) {
         throw new Error("Left side of "+operator+" must have a value");
     }
     if (typeof operator==="string"&&typeof right.value!=="number") {
         throw new Error("Right side of "+operator+" must have a value");
     }
-    
-    const areThereOperators=tokens.some(token=>/(operator)/.test(token.type)&&!/(=)/.test(token.value))
-    
-    if (!areThereOperators)
-    {
-        tokens=simplifiy(tokens)
-        mathInfo.addDebugInfo("simplifiy(tokens)",tokens)
-        const filterByType=(type)=>tokens.filter(token => token.type === type);
-        const [numberIndex,variableIndex,powIndex] = [filterByType("number"),filterByType("variable"),filterByType("powerVariable")]
- 
-        if (powIndex.length===1&&powIndex[0].pow===2)
-        {
-            return quad(
-                powIndex[0] ? powIndex[0].value  : 0,
-                variableIndex[0] ? variableIndex[0].value : 0,
-                numberIndex[0] ? numberIndex[0].value * -1: 0,
-                powIndex[0].variable,
-            );
-        }
-        
-        if (powIndex.length===0&&variableIndex.length!==0&&numberIndex!==0)
-        {
-            mathInfo.addSolutionInfo(`${variableIndex[0].variable} = \\frac{${numberIndex[0].value}}{${variableIndex[0].value}} = ${(numberIndex[0].value)/(variableIndex[0].value)}`)
-            return `${variableIndex[0].variable} = ${(numberIndex[0].value)/(variableIndex[0].value)}`
-        }
-        else if(tokens.length===1&&numberIndex){
-            return JSON.stringify(numberIndex.value===0)
-        }
-    }
+}
+
+function parse(position) {
+    let { operator,specialChar, left,right} = position;
+    left=left.tokens
+    right=right.tokens
+    parseSafetyChecks(operator,left,right);
     
     let solved={value: 0,variable: "",pow: ""};
     switch (operator) {
@@ -200,7 +186,6 @@ function parse(tokens,mathInfo,position) {
                 { variable: right.variable, pow: right.pow || 1, value: right.value || 1 }
             ];
             throw new Error("Different variable bases at power multiplication. I didn't get there yet")
-            return;
         }
     
         const variable = left.variable || right.variable;
@@ -410,11 +395,16 @@ export class Position {
         this.specialChar=tokens.tokens[this.index].specialChar ? tokens[this.index].specialChar : null;
     }
     checkMultiStep(){
-        return this.left.multiStep||this.right.multiStep
+        return (this.left.multiStep||this.right.multiStep)&&this.operator==='*';
     }
-    // If it is multi step, it needs to be expanded first Therefore, don't do it on multi step
-    checkFrac(tokens){//!this.checkMultiStep() I don't know why I had this here
-        return /(frac|\/)/.test(this.operator)&&tokens.tokens.slice(this.left.index||this.index,this.right.index).some(t=>t.type==='variable'||t.type==='powerVariable')//this.left.type!=='number'&&this.right.type!=='number';
+    isLeftVar(){
+        return this.left.multiStep?this.left.tokens.some(t=>t.type==='variable'||t.type==='powerVariable'):this.left.tokens.type.includes('ariable')
+    }
+    isRightVar(){
+        return this.right.multiStep?this.right.tokens.some(t=>t.type==='variable'||t.type==='powerVariable'):this.right.tokens.type.includes('ariable')
+    }
+    checkFrac(){//!this.checkMultiStep() I don't know why I had this here
+        return /(frac|\/)/.test(this.operator)&&(this.isLeftVar()||this.isRightVar())
     }
 }
 
@@ -428,6 +418,7 @@ function simplifiy(tokens){
         let eqindex=tokens.findIndex(token => token.value === "=");
         let OperationIndex = tokens.findIndex((token) => (/(number|variable|powerVariable)/).test(token.type));
         if (OperationIndex===-1){return tokens;}
+
         let currentToken={type: tokens[OperationIndex].type , value: tokens[OperationIndex].value,variable: tokens[OperationIndex].variable ,pow: tokens[OperationIndex].pow}
 
         let numberGroup = tokens
@@ -453,8 +444,31 @@ function simplifiy(tokens){
     }
     return newTokens;
 }
+/*
+if (!areThereOperators)
+    {
+        if (powIndex.length===0&&variableIndex.length!==0&&numberIndex!==0)
+        {
+            mathInfo.addSolutionInfo(`${variableIndex[0].variable} = \\frac{${numberIndex[0].value}}{${variableIndex[0].value}} = ${(numberIndex[0].value)/(variableIndex[0].value)}`)
+            return `${variableIndex[0].variable} = ${(numberIndex[0].value)/(variableIndex[0].value)}`
+        }
+        else if(tokens.length===1&&numberIndex){
+            return JSON.stringify(numberIndex.value===0)
+        }
+}*/
 
+function praisingMethod(tokens){
+    const filterByType=(type)=>tokens.filter(token => token.type === type);
+    const [numberIndex,variableIndex,powIndex] = [filterByType("number"),filterByType("variable"),filterByType("powerVariable")]
+    if (powIndex.length===1&&powIndex[0].pow===2)
+        return 'quadratic';
+    
+    if (powIndex.length===0&&variableIndex.length!==0&&numberIndex!==0)
+        return 'isolat';
+    
+    if(tokens.length===1&&numberIndex) return 'isJustNumber';
 
+}
 
 
 export class MathPraiser{
@@ -471,8 +485,6 @@ export class MathPraiser{
         this.input=this.tokens.reconstruct()
         this.solution=this.controller();
     }
-    //\\frac{132}{1260+x^{2}}=0.05
-    //\\frac{132}{1260+x^{2}}=0.05
     getRedyforNewRond(){
         this.tokens.connectNearbyTokens();
         this.mathInfo.addMathInfo(this.tokens)
@@ -480,38 +492,62 @@ export class MathPraiser{
         this.tokens.expressionVariableValidity();
     }
     controller(){
-        console.log(this.tokens.tokens,this.tokens.reconstruct())
         this.getRedyforNewRond();
-        const position = new Position(this.tokens,null);
-        
-        this.addDebugInfo("Parsed expression", JSON.stringify(position, null, 1));
-        if (position === null&&this.tokens.tokens.length>1){
-            this.addDebugInfo("parse(tokens)",parse(this.tokens.tokens))
-            return "the ****"
-        // return solution(tokens);
+        if (this.shouldUsePosition()){
+            const position = new Position(this.tokens,null);
+            this.addDebugInfo("Parsed expression", JSON.stringify(position, null, 1));
+            if (position === null&&this.tokens.tokens.length>1){
+                //this.addDebugInfo("parse(tokens)",parse(this.tokens.tokens))
+                return "the ****"
+            // return solution(tokens);
+            }
+            else if (position.index === null){
+                return this.finalReturn();
+            }
+            if (position.checkFrac()||position.checkMultiStep())
+            {
+                expandExpression(this.tokens,position);
+                this.mathInfo.addSolutionInfo(this.tokens.reconstruct(this.tokens.tokens))
+                return this.controller()
+            }
+            this.useParse(position)
         }
-        else if (position.index === null){
-            return this.finalReturn();
-        }
-        if (position.checkFrac(this.tokens)||position.checkMultiStep())
-        {
-            expandExpression(this.tokens,position);
-            this.mathInfo.addSolutionInfo(this.tokens.reconstruct(this.tokens.tokens))
-            return this.controller()
+        else{
+            const method=praisingMethod(this.tokens.tokens)
+            console.log(method)
+            if (method==='quadratic'){
+                this.tokens.tokens=simplifiy(this.tokens.tokens)
+                const filterByType=(type)=>this.tokens.tokens.filter(token => token.type === type);
+                const [numberIndex,variableIndex,powIndex] = [filterByType("number"),filterByType("variable"),filterByType("powerVariable")]
+                console.log(numberIndex,variableIndex,powIndex)
+                this.mathInfo.addDebugInfo("simplifiy(tokens)",this.tokens.tokens)
+                if (powIndex.length===1&&powIndex[0].pow===2)
+                {
+                    return quad(
+                        powIndex[0]?.value  | 0,
+                        variableIndex[0]?.value | 0,
+                        numberIndex[0]?.value * -1| 0,
+                        powIndex[0].variable,
+                    );
+                }
+            }
         }
 
-        const solved = parse(this.tokens.tokens,this.mathInfo, position);
-        this.mathInfo.addDebugInfo("solved",solved)
+        //if (solved === null||typeof solved==="string") {return solved; }
+        return this.tokens.tokens.length>1?this.controller():this.finalReturn();
+    }
+    useParse(position){
+        const solved = parse(position);
 
-        if (solved === null) {return null; }
-        if (typeof solved==="string") {return solved; }
-        
+        //this.mathInfo.addDebugInfo("solved",solved)
         this.mathInfo.addSolution(this.tokens,position,solved)
         const [leftBreak,length] = [position.left.breakChar,position.right.breakChar-position.left.breakChar]
-        console.log(leftBreak,length,this.tokens.tokens.length)
         this.tokens.insertTokens(leftBreak,length,solved)
         this.addDebugInfo("newTokens",this.tokens.tokens)
-        return this.tokens.tokens.length>1?this.controller():this.finalReturn();
+    }
+
+    shouldUsePosition(){
+        return this.tokens.tokens.some(token=>/(operator)/.test(token.type)&&!/(=)/.test(token.value))
     }
 
     addDebugInfo(mes,value){
@@ -561,7 +597,7 @@ class Tokens{
                     throw new Error("Unmatched closing bracket at position");
                 }
                 let ID = levelCount[brackets] - 1;
-                tokens.push({ type: "paren", value: ")", id: brackets + "." + (ID >= 0 ? ID : 0), index: tokens.length });
+                tokens.push({ type: "paren", value: ")", id: brackets + "." + (ID >= 0 ? ID : 0)});
                 continue;
             }
 
@@ -569,7 +605,7 @@ class Tokens{
                 i+=1;  
                 let operator = (math.slice(i).match(/[a-zA-Z]+/) || [""])[0]
                 
-                tokens.push({ type: "operator", value: operator, index: tokens.length });
+                tokens.push({ type: "operator", value: operator});
                 i+=operator.length;
 
                 if (tokens[tokens.length - 1].value === "sqrt" && math[i] === "[" && i < math.length - 2) {
@@ -581,39 +617,39 @@ class Tokens{
                 continue;
             }
 
-            let match = math.slice(i).match(/^([0-9.]+)([a-zA-Z]?)/);
-            if (match&&!match[2])
+            let match = math.slice(i).match(/^([0-9.]+)/);//([a-zA-Z]?)/);
+            if (!!match)
             {
                 number=match[0]
                 i+=number.length>1?number.length-1:0;
                 //if(/[+-]/.test(math[startPos-1])){number=math[startPos-1]+number}
                 
-                if (math[i+1]&&/[a-zA-Z]/.test(math[i+1])){continue;}
-                tokens.push({ type: "number", value: parseFloat(number), index: tokens.length?tokens.length:0 });
+                //if (math[i+1]&&/[a-zA-Z]/.test(math[i+1])){continue;}
+                tokens.push({ type: "number", value: parseFloat(number)});
                 continue;
             }
 
-            match = math.slice(i).match(/^([0-9.]+)([a-zA-Z]?)/);
             if (/[a-zA-Z]/.test(math[i])) {
                 vari= (math.slice(i).match(/[a-zA-Z]+(_\([a-zA-Z0-9]*\))*/) || [""])[0];
                 if (vari&&vari.length===0){vari=math.slice(i,math.length)}
-                number=math.slice(i+vari.length,vari.length+i+math.slice(i+vari.length).search(/[^0-9]/))
+               // number=math.slice(i+vari.length,vari.length+i+math.slice(i+vari.length).search(/[^0-9]/))
                 
-                i+=vari.length+number.length-1;
-                number=safeToNumber(number.length>0?number:1);
-
+                i+=vari.length-1//+number.length-1;
+                //number=safeToNumber(number.length>0?number:1);
+                /*
                 if (/[0-9]/.test(math[startPos>0?startPos-1:0])&&tokens)
                 {
                     number=(math.slice(0,startPos).match(/[0-9.]+(?=[^0-9.]*$)/)|| [""])[0];
                     //number=math[startPos-number.length-1]&&math[startPos-number.length-1]==="-"?"-"+number:number;
                 }
-                else if(/[-]/.test(math[startPos-1])){number=math[startPos-1]+number}
-                tokens.push({type: "variable",variable: vari.replace("(","{").replace(")","}"),value: safeToNumber(number), index: tokens.length});
+                else if(/[-]/.test(math[startPos-1])){number=math[startPos-1]+number}*/
+                //safeToNumber(number)
+                tokens.push({type: "variable",variable: vari.replace("(","{").replace(")","}"),value: 1});
                 continue;
             }
             
-            if (/[*/^=+-]/.test(math[i])||(!/[a-zA-Z0-9]/.test(math[i+1])&&/[+-]/.test(math[i]))) {
-                tokens.push({ type: "operator", value: math[i], index: tokens.length?tokens.length:0 });
+            if (/[*/^=+-]/.test(math[i])) {
+                tokens.push({ type: "operator", value: math[i]});
                 continue;
             }
             //if (/[+-\d]/.test(math[i])){continue;}
@@ -645,10 +681,17 @@ class Tokens{
         /*rules to abid by:
         1. +- If part of the number they are absorbed into the number
         */
+        const check = (index) => {
+            if (!this.validateIndex(index)) return false;
+            return this.tokens[index].type.match(this.valueTokens());
+        };
         this.reIDparentheses();
 
-
-
+        const map=this.tokens.map((token,index)=> (token.type==='number'||token.type==='variable')?index:null).filter(item => item !== null)
+        const arr=findConsecutiveSequences(map);
+        this.connectAndCombine(arr)
+        
+        const mapCarrot=this.tokens.map((token,index)=> token.value==='^'&&check(index)?index:null).filter(item => item !== null)
 
 
         let mapPM=this.tokens.map((token,index)=> token.value==='+'||token.value==='-'?index:null).filter(index=> index!==null)
@@ -660,19 +703,15 @@ class Tokens{
             this.tokens.splice(index,1)
         });
 
-
-        const check = (index) => {
-            if (!this.validateIndex(index)) return false;
-            return this.tokens[index].type.match(this.valueTokens());
-        };
         const testDoubleRight = (index) => {
             if (!this.validateIndex(index)) return false;
             const idx=this.findParenIndex(null,index).open;
             return this.tokens[index+1].value==='('&&(idx===0||!/(frac|binom)/.test(this.tokens[idx-1].value));
         };
-
-        const map = this.tokens
+        //Map parentheses for implicit multiplication.
+        const mapParen = this.tokens
             .map((token, index) => { 
+                // 
                 if (token.value === "(" || (token.type === 'operator' && !/[+\-*/^=]/.test(token.value))) {
                     return check(index - 1) ? index : null;
                 } else if (token.value === ")") {
@@ -682,28 +721,13 @@ class Tokens{
             })
             .filter(item => item !== null);
             
-        map.sort((a, b) => b - a)
-            .forEach(value => {
-                this.tokens.splice(value, 0, { type: 'operator', value: '*', index: 0 });
-            });
+        mapParen.sort((a, b) => b - a)
+        .forEach(value => {
+            this.tokens.splice(value, 0, { type: 'operator', value: '*', index: 0 });
+        });
 
-
-
-
-        /*
-        if(/[(\\]/.test(math[i])&&i>0){
-            const beforeParentheses=/(number|variable|powerVariable)/.test(tokens[tokens.length-1].type)
-            
-            const lastIndex = tokens.map(token => token.id).indexOf(tokens[tokens.length - 1].id) - 1;
-            const betweenParentheses=math[i-1] === ")"&&(lastIndex<0||!/(frac|binom|)/.test(tokens[lastIndex].value))
-            
-            if ((tokens.length-1>=0&&beforeParentheses)||(betweenParentheses)) {
-                if(math[i-1]==="-"){math = math.slice(0, i)+ "1" +math.slice(i)}
-                tokens.push({ type: "operator", value: "*", index: tokens.length?tokens.length:0 });
-                if(math[i+1]==="-"){math = math.slice(0, i)+ "1" +math.slice(i)}
-            }
-        }*/
-        this.reIDparentheses()
+        //Implicit powers
+        
     }
 
     mapParenIndexes(){
@@ -733,10 +757,7 @@ class Tokens{
         ));
      }*/
 
-     valueTokens(){
-        return /(number|variable|powerVariable)/
-     }
-
+     valueTokens(){return /(number|variable|powerVariable)/}
 
     connectNearbyTokens(){
         const map = new Set(this.mapParenIndexes().flatMap(({ open, close }) => [open, close]));
@@ -748,44 +769,44 @@ class Tokens{
         const varMap=this.tokens.map((token,index)=> token.type==='variable'&&check(index)?index:null).filter(item => item !== null)
         const powMap=this.tokens.map((token,index)=> token.type==='powerVariable'&&check(index)?index:null).filter(item => item !== null)
 
-        function findConsecutiveSequences(arr) {
-            const sequences = [];
-            let start = 0;
-            for (let i = 1; i <= arr.length; i++) {
-                if (arr[i] !== arr[i - 1] + 1) {
-                    if (i - start > 1) {
-                        sequences.push(arr.slice(start, i));
-                    }
-                    start = i;
-                }
-            }
-            return sequences;
-        }
-
         const arr = [
             ...findConsecutiveSequences(numMap), 
             ...findConsecutiveSequences(varMap), 
             ...findConsecutiveSequences(powMap)
         ];
-        arr.sort((a, b) => b[0] - a[0]);
+        this.connectAndCombine(arr)
         
-        const objArr=[]
-        arr.forEach(el => {
-            objArr.push({start: el[0],end: el[el.length - 1]})
-        });
-        this.connectAndCombine(objArr)
         this.reIDparentheses(this.tokens)
     }
-    connectAndCombine(indexes){
-        let value=0;
+
+    connectAndCombine(arr){
+        const indexes=[]
+        arr.sort((a, b) => b[0] - a[0]).forEach(el => {
+            indexes.push({start: el[0],end: el[el.length - 1]})
+        });
+        
         indexes.forEach(index => {
-            for (let i=index.start;i<=index.end;i++){
-                value+=this.tokens[i].value;
+            let value = Number(this.tokens[index.start].value);
+            const isVar=this.tokens.slice(index.start,index.end+1).find(token=> token.type.includes('var'));
+            for (let i=index.start+1;i<=index.end;i++){
+               value = (isVar ? (this.tokens[i].value * value) : (this.tokens[i].value + value));
             }
-            this.tokens[index.start].value=value;
+            const updatedToken = this.newObj(value,isVar?.variable)
+
+            if (isVar)updatedToken.variable=isVar.variable
+
+            this.tokens[index.start] = updatedToken;
             this.tokens.splice(index.start+1, index.end - index.start);
         });
     }
+    newObj(value,variable){
+        const obj={index:0}
+        obj.type=variable?'variable':'number';
+        obj.value=value
+        if(variable)obj.variable=variable
+        return obj;
+    }
+
     expressionVariableValidity(){
         if (
             Array.isArray(this.tokens) 
@@ -801,15 +822,6 @@ class Tokens{
             return;
         }
         this.tokens.splice(start, length, ...objects);
-    }
-    
-    reorder(){
-        let newTokens = [];
-        for (let i = 0; i < this.tokens.length; i++) {
-            let newToken = { ...this.tokens[i], index: i };
-            newTokens.push(newToken);
-        }
-        this.tokens=newTokens;
     }
     reconstruct(tokens){
         if (tokens===undefined){
@@ -850,7 +862,6 @@ class Tokens{
                     math+=(plusSymbolCheck(tokens,i)?"+":"")+(tokens[i].value!==1?tokens[i].value:"")+tokens[i].variable;
                     break;
                 case "powerVariable":
-                    //console.log(plusSymbolCheck(tokens,i))
                     math+=(plusSymbolCheck(tokens,i)?"+":"")+(tokens[i].value!==1?tokens[i].value:"")+tokens[i].variable+`^{${tokens[i].pow}}`;
                     break;
                 default:
@@ -909,12 +920,10 @@ class Tokens{
         }
         if (brackets!==0)
         {
-            //console.log(tokens)
             //throw new Error ("Unmatched opening bracket(s) err rate: "+brackets)
         }
         
         this.tokens=tokens;
-        this.reorder();
     }
 }
 
@@ -939,4 +948,14 @@ export function flattenArray(arr) {
     }
 
     return result.reverse();  // Reverse to maintain original order
+}
+class Token{
+    type
+    value
+    variable
+    pow
+    id
+    constructor(value,variable){
+
+    }
 }
