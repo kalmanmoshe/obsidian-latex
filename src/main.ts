@@ -11,9 +11,51 @@ import { TikzSvg } from "./tikzjax/myTikz.js";
 
 import { EditorState, SelectionRange } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
-import { EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
+import { EditorView, ViewPlugin, ViewUpdate ,Decoration, } from "@codemirror/view";
+import { RangeSet } from "@codemirror/state";
 
+// CodeMirror Extension to style lines dynamically
+function createContextBasedLineStyling() {
 
+  // Define the plugin
+  return ViewPlugin.fromClass(
+    class {
+        decorations: RangeSet<Decoration>;
+
+        constructor(view: EditorView) {
+            this.decorations = this.computeDecorations(view);
+        }
+
+        update(update: ViewUpdate) {
+            if (update.docChanged || update.viewportChanged) {
+                this.decorations = this.computeDecorations(update.view);
+            }
+        }
+
+        computeDecorations(view: EditorView): RangeSet<Decoration> {
+            const widgets = [];
+            for (let { from, to } of view.visibleRanges) {
+                for (let pos = from; pos <= to; ) {
+                    const line = view.state.doc.lineAt(pos);
+                    const content = line.text.trim();
+                    if (content.replace(/[#\s"=-\d\[\].]*/g,'').match(/^<[a-z]+[\w\s\d]*>/)) {
+                        widgets.push(
+                            Decoration.line({
+                              class: "custom-rtl-line"
+                            }).range(line.from)
+                        );
+                    }
+                    pos = line.to + 1;
+                }
+            }
+            return Decoration.set(widgets);
+        }
+    },
+    {
+      decorations: (v) => v.decorations,
+    }
+);
+}
 
 export default class MathPlugin extends Plugin {
   settings: MathPluginSettings;
@@ -30,52 +72,14 @@ export default class MathPlugin extends Plugin {
     this.registerMarkdownCodeBlockProcessor("tikzjax", this.processTikzBlock.bind(this));
     this.registerCommands();
     this.registerEditorSuggest(new NumeralsSuggestor(this));
-
+    this.registerEditorExtension(createContextBasedLineStyling());
     // Execute the `a()` method to log and modify all divs
-    this.processDivs();
+    //this.processDivs();
   }
   onunload() {
 		this.tikzProcessor.unloadTikZJaxAllWindows();
 		this.tikzProcessor.removeSyntaxHighlighting();
 	}
-  processDivs() {
-    const cmLines = document.querySelectorAll('div.cm-line');
-  
-    console.log(`Found ${cmLines.length} cm-line div(s).`);
-  
-    cmLines.forEach((line) => {
-      // Explicitly cast `line` to `HTMLElement`
-      const htmlLine = line as HTMLElement;
-      if (htmlLine.textContent?.startsWith('a')) {
-        htmlLine.setAttribute('dir', 'rtl'); 
-        htmlLine.style.backgroundColor = "lightyellow"; 
-      }
-    });
-  }
-  
-  observeDynamicChanges() {
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === "childList") {
-          mutation.addedNodes.forEach((node) => {
-            if (node instanceof HTMLElement && node.classList.contains('cm-line')) {
-              console.log("Detected a new cm-line element:", node);
-    
-              // Apply changes to the new node
-              if (node.textContent?.startsWith('a')) {
-                node.setAttribute('dir', 'rtl');
-                node.style.backgroundColor = "lightyellow";
-              }
-            }
-          });
-        }
-      });
-    });
-    
-    observer.observe(document.body, { childList: true, subtree: true });
-    console.log("Observer is set and running.");
-  
-  }
 
   processTikzBlock(source: string, container: HTMLElement): void {
   const svg = new TikzSvg(source);
@@ -96,7 +100,6 @@ export default class MathPlugin extends Plugin {
   
   container.appendChild(icon);
   container.appendChild(graph);
-
 }
 
 

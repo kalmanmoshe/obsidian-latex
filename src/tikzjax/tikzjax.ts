@@ -28,13 +28,13 @@ export class Tikzjax {
       });
     }
     
-  
     loadTikZJax(doc: Document) {
         const s = document.createElement("script");
         s.id = "tikzjax";
         s.type = "text/javascript";
         s.innerText = tikzjaxJs;
         doc.body.appendChild(s);
+        console.log(s)
         doc.addEventListener("tikzjax-load-finished", this.postProcessSvg);
     }
   
@@ -98,7 +98,7 @@ export class Tikzjax {
                 console.error("TikZ Processing Error:", e);
             }
           });
-      }
+    }
   
       addSyntaxHighlighting() {
           // @ts-ignore
