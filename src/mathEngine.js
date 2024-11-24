@@ -486,7 +486,6 @@ export class MathPraiser{
         this.input=input;
         this.processInput();
         this.tokens=new Tokens(this.input);
-        console.log(this.tokens.tokens)
         this.addDebugInfo("Tokens after tokenize",this.tokens.tokens)
         this.input=this.tokens.reconstruct()
         this.solution=this.controller();

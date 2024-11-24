@@ -38,7 +38,10 @@ function createContextBasedLineStyling() {
                 for (let pos = from; pos <= to; ) {
                     const line = view.state.doc.lineAt(pos);
                     const content = line.text.trim();
-                    if (content.replace(/[#\s"=-\d\[\].]*/g,'').match(/^<[a-z]+[\w\s\d]*>/)) {
+                    if (content
+                      .replace(/[#:\s"=-\d\[\].\+\-]*/g,'')
+                      .replace(/<[a-z]+[\w\s\d]*>/g,'')
+                      .match(/^[א-ת]/)) {
                         widgets.push(
                             Decoration.line({
                               class: "custom-rtl-line"
