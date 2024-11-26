@@ -119,6 +119,8 @@ function parseSafetyChecks(operator,left,right){
     }
 }
 
+
+
 function parse(position) {
     let { operator,specialChar, left,right} = position;
     left=left.tokens
@@ -236,7 +238,7 @@ function parse(position) {
     }
     return {
         type: solved.pow? "powerVariable":solved.variable? "variable": "number",
-        value: solved.value, 
+        value: solved.value,
         variable: solved.variable?solved.variable:"",
         pow: solved.pow?solved.pow:"",
     };
@@ -355,7 +357,7 @@ function applyPosition(tokens, index, direction) {
     return {
         tokens: target,
         multiStep: multiStep,
-        breakChar: breakChar
+        breakChar: breakChar,
     };
 }
 
@@ -486,6 +488,7 @@ export class MathPraiser{
         this.input=input;
         this.processInput();
         this.tokens=new Tokens(this.input);
+        console.log(this.tokens.tokens)
         this.addDebugInfo("Tokens after tokenize",this.tokens.tokens)
         this.input=this.tokens.reconstruct()
         this.solution=this.controller();
@@ -535,9 +538,9 @@ export class MathPraiser{
                 }
             }
         }
-
         //if (solved === null||typeof solved==="string") {return solved; }
-        return this.tokens.tokens.length>1?this.controller():this.finalReturn();
+        console.log(this.tokens)
+        return ""//this.tokens.tokens.length>1?this.controller():this.finalReturn();
     }
     useParse(position){
         const solved = parse(position);
@@ -552,7 +555,7 @@ export class MathPraiser{
     shouldUsePosition(){
         return this.tokens.tokens.some(token=>/(operator)/.test(token.type)&&!/(=)/.test(token.value))
     }
-
+    
     addDebugInfo(mes,value){
         this.mathInfo.addDebugInfo(mes,value)
     }
@@ -569,7 +572,6 @@ export class MathPraiser{
     }
 }
 
-
 class Tokens{
     tokens=[];
     constructor(math){
@@ -577,52 +579,42 @@ class Tokens{
     }
     tokenize(math){
         let tokens = [];
-        let brackets = 0,  levelCount = {};
         let j=0;
         for (let i = 0; i < math.length; i++) {
             j++;
             if(j>500){break;}
-            let number=0,vari="";
-
-            if (math[i] === "("||math[i] === ")") {
-                tokens.push({ type: "paren", value: math[i],});
+            let match=math.slice(i).match(/^([*/^=\+\-\(\)])/);
+            if (!!match) {
+                tokens.push(new Token(match[0]));
+                i+=match[0].length-1;
                 continue;
             }
             
-            let match=math.slice(i).match(regExp('^'+arrToRegexString(latexOperators)));
+            match=math.slice(i).match(regExp('^'+arrToRegexString(latexOperators)));
             if (!!match) {
-                let operator = match[0]
-                
-                tokens.push({ type: "operator", value: operator});
-                i+=operator.length-1;
-
+                tokens.push(new Token(match[0]));
+                i+=match[0].length-1;
+                /*
                 if (tokens[tokens.length - 1].value === "sqrt" && math[i] === "[" && i < math.length - 2) {
                     let temp=math.slice(i,i+1+math.slice(i).search(/[\]]/));
                     i+=temp.length
                     Object.assign(tokens[tokens.length-1],{specialChar: safeToNumber(temp),})
-                }
+                }*/
                 continue;
             }
 
             match = math.slice(i).match(/^([0-9.]+)/);//([a-zA-Z]?)/);
             if (!!match)
             {
-                number=match[0]
-                i+=number.length>1?number.length-1:0;
-                tokens.push({ type: "number", value: parseFloat(number)});
+                tokens.push(new Token(parseFloat(match[0])));
                 continue;
             }
-
-            if (/[a-zA-Z]/.test(math[i])) {
-                vari= (math.slice(i).match(/[a-zA-Z]+(_\([a-zA-Z0-9]*\))*/) || [""])[0];
-                if (vari&&vari.length===0){vari=math.slice(i,math.length)}
-                i+=vari.length-1
-                tokens.push({type: "variable",variable: vari.replace("(","{").replace(")","}"),value: 1});
-                continue;
-            }
-            
-            if (/[*/^=+-]/.test(math[i])) {
-                tokens.push({ type: "operator", value: math[i]});
+            match=math.slice(i).match(/[a-zA-Z]+(_\([a-zA-Z0-9]*\))*/)
+            if (!!match) {
+                i//f (vari&&vari.length===0){vari=math.slice(i,math.length)}
+                i+=match[0].length-1
+                tokens.push(new Token(1,match[0]))
+                //tokens.push({type: "variable",variable: vari.replace("(","{").replace(")","}"),value: 1});
                 continue;
             }
             throw new Error(`Unknown char "${math[i]}"`);
@@ -690,7 +682,7 @@ class Tokens{
             
         mapParen.sort((a, b) => b - a)
         .forEach(value => {
-            this.tokens.splice(value, 0, { type: 'operator', value: '*', index: 0 });
+            this.tokens.splice(value, 0, new Token('*'));
         });
 
         //Implicit powers
@@ -748,6 +740,7 @@ class Tokens{
 
     connectAndCombine(arr){
         const indexes=[]
+        
         arr.sort((a, b) => b[0] - a[0]).forEach(el => {
             indexes.push({start: el[0],end: el[el.length - 1]})
         });
@@ -765,13 +758,6 @@ class Tokens{
             this.tokens[index.start] = updatedToken;
             this.tokens.splice(index.start+1, index.end - index.start);
         });
-    }
-    newObj(value,variable){
-        const obj={index:0}
-        obj.type=variable?'variable':'number';
-        obj.value=value
-        if(variable)obj.variable=variable
-        return obj;
     }
 
     expressionVariableValidity(){
@@ -791,60 +777,82 @@ class Tokens{
         this.tokens.splice(start, length, ...objects);
     }
     reconstruct(tokens){
-        if (tokens===undefined){
-            tokens=this.tokens;
-        }
+        if (tokens===undefined){tokens=this.tokens;}
+        const addPlusIndexes=this.indexesToAddPlus(tokens);
         let math = "";
         for (let i=0;i<tokens.length;i++){
             let temp;
+            math+=addPlusIndexes.includes(i)?'+':'';
             if (tokens[i].value==="("&&tokens[tokens.findLastIndex((token, index) => token.id === tokens[i].id&&tokens[index+1])+1].value==="/")
             {
                 math+="\\frac";
             }
             switch (tokens[i].type){
                 case "number":
-                    temp=(plusSymbolCheck(tokens,i)?"+":"")+roundBySettings(tokens[i].value)
+                    temp=roundBySettings(tokens[i].value)
                     math+=temp+(i+1<tokens.length&&/(frac)/.test(tokens[i+1].value)?"+":"");
                     break;
                 case "paren":
                     temp=tokens[this.findParenIndex(tokens[i].id).open-1]
-                    
-                    if (typeof temp !== "undefined" && 
+                    if (temp&& 
                         ((curlyBracketsRegex.test(temp.value)) || 
                         (/\)/.test(temp.value) && curlyBracketsRegex.test(tokens[this.findParenIndex(temp.id).open - 1].value)))) 
                     {
                         math += tokens[i].value.replace(/\(/, "{").replace(/\)/, "}");
                         break;
                     }
-    
-                    else if (i>0&&tokens[i].value==="("&&tokens[i-1]?.value===")"){math+="+"}
+                    //else if (i>0&&tokens[i].value==="("&&tokens[i-1]?.value===")"){math+="+"}
                     math+=tokens[i].value;
                     break;
                 case "operator":
                         if (tokens[i].value !== "/") {
-                        math+=(tokens[i].value).replace(/([^*^=/+-])/,"\\$1").replace(/\*/g,"\\cdot ");
+                            if (tokens[i] instanceof Token)
+                            math+=tokens[i].toStringLatex();
                         }
                     break;
+                /*
                 case "variable":
-                    math+=(plusSymbolCheck(tokens,i)?"+":"")+(tokens[i].value!==1?tokens[i].value:"")+tokens[i].variable;
-                    break;
                 case "powerVariable":
-                    math+=(plusSymbolCheck(tokens,i)?"+":"")+(tokens[i].value!==1?tokens[i].value:"")+tokens[i].variable+`^{${tokens[i].pow}}`;
+                    math+=+(tokens[i].value!==1?tokens[i].value:"")+tokens[i].variable;
                     break;
+                    math+=(tokens[i].value!==1?tokens[i].value:"")+tokens[i].variable+`^{${tokens[i].pow}}`;
+                    break;*/
                 default:
-                    throw new Error(`Unexpected tokin type given to reconstruct: type ${tokens[i].type}`);
+                    throw new Error(`Unexpected token type given to reconstruct: type ${tokens[i].type}`);
             }
         }
         return math
     }
-    findParenIndex(id,index){
+    
+    curlyBracketIDs(tokens){
+        if (tokens===undefined){tokens=this.tokens;}
+        const match=/(\^|\)|frac|binom)/
+        const map=tokens
+        .map((token,index)=> {
+            index>0&&token.value==='('&&tokens[index-1].match(match)?
+        this.findParenIndex(undefined,index,tokens):null
+        })
+        .filter(item=>item!==null)
+        //.flatMap(({ open, close }) => [open, close]);
+        
+    }
+
+    indexesToAddPlus(tokens){
+        return tokens.map((token,index)=>index>0
+            &&/(number|variable|powerVariable)/.test(tokens[index - 1].type)
+            &&/(number|variable|powerVariable)/.test(token.type)?index:null
+        ).filter(item=>item!==null)
+    }
+    
+    findParenIndex(id,index,tokens){
+        if (tokens===undefined){tokens=this.tokens;}
         try{
-            id=id?id:this.tokens[index].id;
-            const open=this.tokens.findIndex(
+            id=id?id:tokens[index].id;
+            const open=tokens.findIndex(
                 token=>token.value==="("
                 &&token.id===id
             )
-            const close=this.tokens.findLastIndex(
+            const close=tokens.findLastIndex(
                 token=>token.value===")"
                 &&token.id===id
             )
@@ -894,38 +902,53 @@ class Tokens{
     }
 }
 
-const plusSymbolCheck = (tokens, index) => {
-    if (!index > 0) return false;
-    return tokens[index].value >= 0 && /(number|variable|powerVariable)/.test(tokens[index - 1].type);
-};
 
 
 
 export function flattenArray(arr) {
     let result = [];
-    let stack = Array.isArray(arr) ? [...arr] : [arr];  // Ensure arr is an array or wrap it in one
+    let stack = Array.isArray(arr) ? [...arr] : [arr];
 
     while (stack.length) {
         const next = stack.pop();
         if (Array.isArray(next)) {
-            stack.push(...next);  // Spread the array items to the stack
+            stack.push(...next); 
         } else {
-            result.push(next);  // Add non-array items to the result
+            result.push(next);
         }
     }
-
-    return result.reverse();  // Reverse to maintain original order
+    return result.reverse();
 }
-class Token{
-    type
-    value
-    variable
-    id
-    constructor(value,variable){
-        
-    }
-    asNumber(){
 
+
+
+class Token{
+    type;
+    value;
+    variable;
+    modifier;
+    id;
+    constructor(value,variable){
+        this.value=value;
+        this.variable=variable;
+        this.setType();
     }
-    asVariable
+    getfullType(){
+        return this.type
+    }
+    setType(){
+        if (typeof this.value==='string'){
+            this.type=this.value.match(/[()]/)?'paren':'operator';
+            return;
+        }
+        this.type=this.variable?'variable':'number';
+    }
+    toStringLatex(){
+        
+        return this.value.replace(/([^*^=/+-])/,"\\$1").replace(/\*/g,"\\cdot ")
+    }
+}
+
+class Modifier{
+
 }
