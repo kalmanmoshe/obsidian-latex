@@ -41,7 +41,7 @@ function createContextBasedLineStyling() {
                     if (content
                       .replace(/[#:\s"=-\d\[\].\+\-]*/g,'')
                       .replace(/<[a-z]+[\w\s\d]*>/g,'')
-                      .match(/^[א-ת]/)) {
+                      .match(/^[א-ת g]/)) {
                         widgets.push(
                             Decoration.line({
                               class: "custom-rtl-line"
