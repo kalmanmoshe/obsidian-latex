@@ -162,8 +162,8 @@ function getRegex(){
         merge: String.raw`-\||\|-|![\d.]+!|\+|-`,
         //coordinate: new RegExp(String.raw`(${basic}+|1)`),
         coordinateName: String.raw`[\w_\d\s]`,
-        text: String.raw`[\w\s-,.:$(!)_+\\{}=]`,
-        formatting: String.raw`[\w\s\d=:,!';&*{}%-<>]`
+        text: String.raw`[\w\s-,.:'\$\(!\)_+\\{}=]`,
+        formatting: String.raw`[\w\s\d=:,!';&*{}()%-<>]`
     };
 }
 
@@ -543,9 +543,11 @@ type Decoration = {
     segmentLength?: number;
     decoration?: Decoration; 
 };
+
 type Label = {
     freeFormText?: string;
 };
+
 function lineWidthConverter(width: string){
     return Number(width.replace(/ultra\s*thin/,"0.1")
     .replace(/very\s*thin/,"0.2")
@@ -591,6 +593,7 @@ export class Formatting{
 
     constructor(mode: string,formattingArr: any,formattingString?:string){
         this.mode=mode;
+        console.log(formattingArr,formattingString)
         this.assignFormatting(formattingArr||[]);
         this.interpretFormatting(formattingString||"");
         return this
@@ -1138,7 +1141,7 @@ export class FormatTikzjax {
                 Object.assign(i,{original: match[5],coordinateName: match[4],label: match[3],formatting: match[2]})
             }
             const { formatting,original, ...rest } = i;
-            this.tokens.push(new Coordinate({mode: "coordinate",axis: new Axis().universal(original,this),formatting: new Formatting("coordinate", formatting),...rest,}));
+            this.tokens.push(new Coordinate({mode: "coordinate",axis: new Axis().universal(original,this),formatting: new Formatting("coordinate", undefined,formatting),...rest,}));
 
           } else if (match[0].startsWith("\\pic")) {
             const c1=new Axis().universal(match[1],this)
@@ -1155,11 +1158,10 @@ export class FormatTikzjax {
           } else if (match[0].startsWith("\\node")) {
             let i={original: match[1],coordinateName: match[3],label: match[4],formatting: match[3]}
             if (match[0].match(/\\node\s*\(/)){
-                Object.assign(i,{original: match[2],coordinateName: match[1],label: match[3],formatting: match[4]});
+                Object.assign(i,{original: match[2],coordinateName: match[1],label: match[4],formatting: match[3]});
             }
             const { formatting,original, ...rest } = i;
-
-            this.tokens.push(new Coordinate({mode: "node",axis: new Axis().universal(original,this),formatting: new Formatting("node", formatting),...rest,}));
+            this.tokens.push(new Coordinate({mode: "node",axis: new Axis().universal(original,this),formatting: new Formatting("node", undefined,formatting),...rest,}));
           } else if (match[0].startsWith("\\circle")) {/*
             this.tokens.push({
               type: "circle",
