@@ -147,9 +147,10 @@ export class Tikzjax {
           svg = this.optimizeSVG(svg);
   
           svgEl.outerHTML = svg;
-      }
+    }
 }
 export const arrToRegexString=(arr: Array<string>)=>'('+arr.join('|')+')';
+
 export function regExp(pattern: string | RegExp|Array<string>, flags: string = ''): RegExp {
     pattern=pattern instanceof RegExp?pattern.source:pattern;
     return new RegExp(String.raw`${pattern}`, flags?flags:'');
@@ -1071,7 +1072,7 @@ export class FormatTikzjax {
         tikzSource = tikzSource.replaceAll(remove, "");let lines = tikzSource.split("\n");
         lines = lines.map(line => line.trim());
         lines = lines.filter(line => line);
-        return lines.join('\n').replace(/(?<=[^\w]) | (?=[^\w])/g, "").replace(/(?<!\\)%.*$/gm, "");;
+        return lines.join('\n').replace(/(?<=[^\w]) | (?=[^\w])/g, "").replace(/(?<!\\)%.*$/gm, "").replace(/\n/g,"");
     }
 
     applyPostProcessing(){
