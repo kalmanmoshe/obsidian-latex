@@ -555,15 +555,17 @@ class Tokens{
         this.tokenize(math);
     }
     tokenize(math){
+        latexOperators.push(String.raw`[*/^=\+\-\(\)]`)
+        const operators=arrToRegexString(latexOperators)
         for (let i = 0; i < math.length; i++) {
-            let match=math.slice(i).match(/^[*/^=\+\-\(\)]/);
+            let match = math.slice(i).match(regExp('^' + operators));
             if (!!match) {
                 this.tokens.push(new Token(match[0]));
                 i+=match[0].length-1;
                 continue;
             }
             
-            match=math.slice(i).match(regExp('^'+arrToRegexString(latexOperators)));
+            /*
             if (!!match) {
                 this.tokens.push(new Token(match[0]));
                 i+=match[0].length-1;
@@ -572,9 +574,9 @@ class Tokens{
                     let temp=math.slice(i,i+1+math.slice(i).search(/[\]]/));
                     i+=temp.length
                     Object.assign(tokens[tokens.length-1],{specialChar: safeToNumber(temp),})
-                }*/
+                }
                 continue;
-            }
+            }*/
 
             match = math.slice(i).match(/^([0-9.]+)/);//([a-zA-Z]?)/);
             if (!!match)
@@ -590,6 +592,7 @@ class Tokens{
                 //tokens.push({type: "variable",variable: vari.replace("(","{").replace(")","}"),value: 1});
                 continue;
             }
+
             throw new Error(`Unknown char "${math[i]}"`);
         }
         this.postProcessTokens();
@@ -622,9 +625,7 @@ class Tokens{
         const map=this.tokens.map((token,index)=> (token.type==='number'||token.type==='variable')?index:null).filter(item => item !== null)
         const arr=findConsecutiveSequences(map);
         this.connectAndCombine(arr)
-        
         const mapCarrot=this.tokens.map((token,index)=> token.value==='^'&&check(index)?index:null).filter(item => item !== null)
-
 
         let mapPM=this.tokens.map((token,index)=> token.value==='+'||token.value==='-'?index:null).filter(index=> index!==null)
         mapPM=this.validatePM(mapPM)
@@ -690,7 +691,7 @@ class Tokens{
 
     connectNearbyTokens(){
         this.tokens.forEach(token => {
-            if (!token instanceof Token){
+            if (!(token instanceof Token)){
                 throw new Error("ftygubhnimpo")
             }
         });
