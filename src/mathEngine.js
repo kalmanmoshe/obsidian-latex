@@ -599,7 +599,7 @@ class Tokens{
     }
     validateIndex(index,margin){
         margin=margin||0;
-        return index>0+margin&&index<this.tokens.length-margin;
+        return index>=0+margin&&index<this.tokens.length-margin;
     }
     validatePM(map){
         map.forEach(index => {
@@ -645,7 +645,6 @@ class Tokens{
         const mapParen = this.tokens
             .map((token, index) => { 
                 if (token.value === "(" || (token.type === 'operator' && !/[+\-*/^=]/.test(token.value))) {
-                    console.log(index)
                     return check(index - 1) ? index : null;
                 } else if (token.value === ")") {
                     return check(index + 1) ||testDoubleRight(index)? index+1 : null;
