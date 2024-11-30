@@ -1,4 +1,4 @@
-import { Position } from "./mathEngine";
+import { Position, Token } from "./mathEngine";
 
 export function expandExpression(tokens, position) {
     if (position.checkFrac(tokens)){goodByFraction(tokens, position);return;}
@@ -7,14 +7,14 @@ export function expandExpression(tokens, position) {
     const isLeftMultiStep=position.left.multiStep===undefined;
 
     if (position.operator==="-"&&isLeftMultiStep){
-        left = [{ "type": "number", "value": -1, "index": 0 }]
+        left = new Token(-1)
         
     }
     let replacementCell = [];
     for (let i = 0; i < left.length; i++) {
         for (let j = 0; j < right.length; j++) {
             replacementCell.push(left[i]);
-            replacementCell.push({ "type": "operator", "value": "*", "index": 0 });
+            replacementCell.push(new Token("*"));
             replacementCell.push(right[j]);
         }
     }
@@ -23,7 +23,7 @@ export function expandExpression(tokens, position) {
     const start=is?position.index:position.left.breakChar
     const length=position.right.breakChar-(is?position.index:position.left.breakChar)
     tokens.insertTokens(start, length, replacementCell);
-    tokens.reIDparentheses();
+    tokens.IDparentheses();
 }
 
 export const curlyBracketsRegex = new RegExp("(frac|sqrt|\\^|\\/|binom)")
@@ -80,5 +80,5 @@ function goodByFraction(tokens, position) {
         i = typeof whereAmI === "object" ? whereAmI.right.breakChar-1 : whereAmI-1;
     }
     tokens.tokens=replacementTokens;
-    tokens.reIDparentheses();
+    tokens.IDparentheses();
 }

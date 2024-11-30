@@ -149,12 +149,19 @@ export class Tikzjax {
           svgEl.outerHTML = svg;
     }
 }
-export const arrToRegexString=(arr: Array<string>)=>'('+arr.join('|')+')';
+export const arrToRegexString = (arr: Array<string>) => '(' + arr.join('|') + ')';
 
-export function regExp(pattern: string | RegExp|Array<string>, flags: string = ''): RegExp {
-    pattern=pattern instanceof RegExp?pattern.source:pattern;
-    return new RegExp(String.raw`${pattern}`, flags?flags:'');
+export function regExp(pattern: string | RegExp | Array<string>, flags: string = ''): RegExp {
+    if (pattern instanceof RegExp) {
+        pattern = pattern.source;
+    } else if (Array.isArray(pattern)) {
+        pattern = arrToRegexString(pattern);
+    }
+
+    // Create and return the RegExp
+    return new RegExp(String.raw`${pattern}`, flags);
 }
+
 
 function getRegex(){
     const basic = String.raw`[\w\d\s-,.:]`;
