@@ -9,10 +9,9 @@ import { Axis, Coordinate, Draw, FormatTikzjax, Formatting, Tikzjax } from "./ti
 import { NumeralsSuggestor } from "./suggestor.js";
 import { TikzSvg } from "./tikzjax/myTikz.js";
 
-import { EditorState, SelectionRange } from "@codemirror/state";
+import { EditorState, SelectionRange,RangeSet } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { EditorView, ViewPlugin, ViewUpdate ,Decoration, } from "@codemirror/view";
-import { RangeSet } from "@codemirror/state";
 
 // CodeMirror Extension to style lines dynamically
 function createContextBasedLineStyling() {
