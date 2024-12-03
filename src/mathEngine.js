@@ -634,18 +634,10 @@ class Tokens{
                 i+=match[0].length-1;
                 continue;
             }
-            
-            /*
-            if (!!match) {
-                this.tokens.push(new Token(match[0]));
-                i+=match[0].length-1;
-                /*
-                if (tokens[tokens.length - 1].value === "sqrt" && math[i] === "[" && i < math.length - 2) {
-                    let temp=math.slice(i,i+1+math.slice(i).search(/[\]]/));
-                    i+=temp.length
-                    Object.assign(tokens[tokens.length-1],{specialChar: safeToNumber(temp),})
-                }
-                continue;
+            /*if (tokens[tokens.length - 1].value === "sqrt" && math[i] === "[" && i < math.length - 2) {
+                let temp=math.slice(i,i+1+math.slice(i).search(/[\]]/));
+                i+=temp.length
+                Object.assign(tokens[tokens.length-1],{specialChar: safeToNumber(temp),})
             }*/
 
             match = math.slice(i).match(/^([0-9.]+)/);//([a-zA-Z]?)/);
@@ -723,10 +715,17 @@ class Tokens{
         this.validatePlusMinus();
         
         const parenMap=this.implicitMultiplicationMap()
-
         parenMap.sort((a, b) => b - a)
         .forEach(value => {
             this.tokens.splice(value, 0, new Token('*'));
+        });
+        
+        const mapPow=this.tokens.map((token,index)=> token.value==='Pow'?index:null).filter(item => item !== null)
+        console.log(mapPow)
+        mapPow.forEach(index => {
+            console.log(index,new Position(this,index))
+            const [leftBreak,length] = [position.left.breakChar,position.right.breakChar-position.left.breakChar]
+            this.tokens.insertTokens(leftBreak,length,solved)
         });
     }
 
