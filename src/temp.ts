@@ -1,7 +1,8 @@
 import { Plugin, MarkdownView, MarkdownRenderer, App, Setting, Modal, Notice, Component, Editor, EditorPosition } from "obsidian";
 import MathPlugin from "./main";
 import { createTextInputSetting } from "./settings";
-import { Axis, Coordinate, FormatTikzjax, Formatting } from "./tikzjax/tikzjax";
+import { Axis, Coordinate, Formatting } from "./tikzjax/tikzjax";
+import { FormatTikzjax } from "./tikzjax/interpret/tokenizeTikzjax";
 
 
 
@@ -84,7 +85,7 @@ export class VecInputModel extends Modal {
                 mode: "node",
                 label: `${this.obj}n`,
                 axis: new Axis(this.plusX ? 1 : -1, this.plusY ? 1 : -1),
-                formatting: new Formatting("node", { tikzset: "mass" })
+                //formatting: new Formatting("node", { tikzset: "mass" })
             });
 
             const tikz = new FormatTikzjax([mass]);

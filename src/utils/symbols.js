@@ -19,7 +19,7 @@ export function searchOperators(query) {
 }
 
 
-const escapeForRegex = (string) => {
+export const escapeForRegex = (string) => {
     return string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 };
 

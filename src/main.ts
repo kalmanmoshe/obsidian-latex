@@ -1,63 +1,60 @@
-import {Plugin, MarkdownRenderer, App, Modal, Component, Setting,Notice, WorkspaceWindow,loadMathJax,renderMath, MarkdownView} from "obsidian";
+import {Plugin, MarkdownRenderer, App, Modal, Component, Setting,Notice, WorkspaceWindow,loadMathJax,renderMath, MarkdownView, EditorSuggest, EditorSuggestTriggerInfo, EditorPosition, Editor, TFile, EditorSuggestContext} from "obsidian";
 
 import { MathInfo, MathPraiser } from "./mathEngine.js";
 import { InfoModal, DebugModal } from "./desplyModals";
 import { CustomInputModal, HistoryModal, InputModal, VecInputModel } from "./temp";
 import {MathPluginSettings, DEFAULT_SETTINGS, MathPluginSettingTab,} from "./settings";
 import { calculateBinom, degreesToRadians, findAngleByCosineRule, getUsableDegrees, polarToCartesian, radiansToDegrees, roundBySettings } from "./mathUtilities.js";
-import { Axis, Coordinate, Draw, FormatTikzjax, Formatting, Tikzjax } from "./tikzjax/tikzjax";
+import { Axis, Coordinate, Draw, Formatting, Tikzjax } from "./tikzjax/tikzjax";
 import { NumeralsSuggestor } from "./suggestor.js";
 import { TikzSvg } from "./tikzjax/myTikz.js";
 
 import { EditorState, SelectionRange,RangeSet } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { EditorView, ViewPlugin, ViewUpdate ,Decoration, } from "@codemirror/view";
+import { FormatTikzjax } from "./tikzjax/interpret/tokenizeTikzjax.js";
 
-// CodeMirror Extension to style lines dynamically
-function createContextBasedLineStyling() {
 
-  // Define the plugin
-  return ViewPlugin.fromClass(
-    class {
-        decorations: RangeSet<Decoration>;
+class RtlForc {
+  decorations: RangeSet<Decoration>;
 
-        constructor(view: EditorView) {
-            this.decorations = this.computeDecorations(view);
-        }
+  constructor(view: EditorView) {
+    this.decorations = this.computeDecorations(view);
+  }
 
-        update(update: ViewUpdate) {
-            if (update.docChanged || update.viewportChanged) {
-                this.decorations = this.computeDecorations(update.view);
-            }
-        }
-
-        computeDecorations(view: EditorView): RangeSet<Decoration> {
-            const widgets = [];
-            for (let { from, to } of view.visibleRanges) {
-                for (let pos = from; pos <= to; ) {
-                    const line = view.state.doc.lineAt(pos);
-                    const content = line.text.trim();
-                    if (content
-                      .replace(/[#:\s"=-\d\[\].\+\-]*/g,'')
-                      .replace(/<[a-z]+[\w\s\d]*>/g,'')
-                      .match(/^[א-ת g]/)) {
-                        widgets.push(
-                            Decoration.line({
-                              class: "custom-rtl-line"
-                            }).range(line.from)
-                        );
-                    }
-                    pos = line.to + 1;
-                }
-            }
-            return Decoration.set(widgets);
-        }
-    },
-    {
-      decorations: (v) => v.decorations,
+  update(update: ViewUpdate) {
+    if (update.docChanged || update.viewportChanged) {
+      this.decorations = this.computeDecorations(update.view);
     }
-);
+  }
+
+  computeDecorations(view: EditorView): RangeSet<Decoration> {
+    const widgets = [];
+    for (let { from, to } of view.visibleRanges) {
+      for (let pos = from; pos <= to; ) {
+        const line = view.state.doc.lineAt(pos);
+        const content = line.text.trim();
+        if (
+          content
+            .replace(/[#:\s"=-\d\[\].\+\-]*/g, "")
+            .replace(/<[a-z]+[\w\s\d]*>/g, "")
+            .match(/^[א-ת]/)
+        ) {
+          widgets.push(
+            Decoration.line({
+              class: "custom-rtl-line",
+            }).range(line.from)
+          );
+        }
+        pos = line.to + 1;
+      }
+    }
+    return Decoration.set(widgets);
+  }
 }
+
+
+
 
 export default class MathPlugin extends Plugin {
   settings: MathPluginSettings;
@@ -73,8 +70,10 @@ export default class MathPlugin extends Plugin {
     this.registerMarkdownCodeBlockProcessor("math-engine", this.processMathBlock.bind(this));
     this.registerMarkdownCodeBlockProcessor("tikzjax", this.processTikzBlock.bind(this));
     this.registerCommands();
+    this.createContextBasedLineStyling()
+
     this.registerEditorSuggest(new NumeralsSuggestor(this));
-    this.registerEditorExtension(createContextBasedLineStyling());
+
     // Execute the `a()` method to log and modify all divs
     //this.processDivs();
   }
@@ -82,6 +81,13 @@ export default class MathPlugin extends Plugin {
 		this.tikzProcessor.unloadTikZJaxAllWindows();
 		this.tikzProcessor.removeSyntaxHighlighting();
 	}
+  createContextBasedLineStyling(){
+    this.registerEditorExtension(
+        ViewPlugin.fromClass(RtlForc, {
+        decorations: (v) => v.decorations,
+      }
+    ));
+  }
 
   processTikzBlock(source: string, container: HTMLElement): void {
   const svg = new TikzSvg(source);
@@ -371,7 +377,7 @@ class VecProcessor {
     const drawY= [ancer,'--',new Coordinate({mode:"node-inline",label: this.axis.cartesianY.toString()}),new Axis(0,this.axis.cartesianY)];
 
     this.graph=[
-      new Formatting("globol",{color: "white",scale: 1,}),
+      //new Formatting("globol",{color: "white",scale: 1,}),
       new Draw({drawArr: draw,formattingObj: {lineWidth: 1,draw: "red",arror: "-{Stealth}"}}),
       new Draw({drawArr: drawX,formattingObj: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}}),
       new Draw({drawArr: drawY,formattingObj: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}}),
@@ -639,3 +645,7 @@ function testMathEngine(){
     console.log(e)
   }
 }
+
+
+
+
