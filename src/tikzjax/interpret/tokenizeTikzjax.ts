@@ -3,6 +3,28 @@ import { findConsecutiveSequences } from "src/mathEngine";
 import { arrToRegexString, Axis, Coordinate, Draw, Formatting, regExp, Token, toPoint } from "../tikzjax";
 import { getAllTikzReferences, searchTizkCommands } from "src/tikzjax/tikzCommands";
 import { findParenIndex, idParentheses, mapBrackets, Paren } from "src/utils/tokenUtensils";
+
+function cleanFormating(formatting: any[]){
+    
+    const map=formatting.map((item,idx)=>item.name==='Comma'?idx:null).filter(item=>item!==null)
+    map.push(formatting.length)
+    map.sort((a,b)=>b-a)
+    const values=[]
+    let eqIndex=0 
+    values.push(formatting);
+    console.log(values);
+    values.forEach(value => {
+        interpretFormatting(value)
+
+    });
+    return formatting
+}
+function interpretFormatting(formatting){
+    const key=formatting[0]?.name|null
+    let value;
+    console.log('key,value',key,value)
+}
+
 class BasicTikzToken{
     type: string;
     name: string
@@ -18,6 +40,7 @@ class BasicTikzToken{
         }
     }
 }
+
 
 export class FormatTikzjax {
 	source: string;
@@ -117,8 +140,8 @@ export class FormatTikzjax {
         });
 
         basicTikzTokens=basicTikzTokens.filter((_, idx) => (!unitIndices.includes(idx)));
-        basicTikzTokens=basicTikzTokens.filter((t) => t.name!=='Comma');
-
+        //basicTikzTokens=basicTikzTokens.filter((t) => t.name!=='Comma');
+        /*
         const indexesToRemove: number[]=[]
         basicTikzTokens.forEach((token,index) => {
             if(token.type==='Formatting'){
@@ -129,7 +152,7 @@ export class FormatTikzjax {
                 }
             }
         });
-        basicTikzTokens=basicTikzTokens.filter((_, idx) => (!indexesToRemove.includes(idx)));
+        basicTikzTokens=basicTikzTokens.filter((_, idx) => (!indexesToRemove.includes(idx)));*/
 
 
 
@@ -182,7 +205,7 @@ export class FormatTikzjax {
         .sort((a, b) => b.open - a.open) // Sort in descending order of 'open'
         .forEach((index) => {
             const formatting = new Formatting(
-                basicTikzTokens.slice(index.open + 1, index.close)
+                cleanFormating(basicTikzTokens.slice(index.open + 1, index.close))
             );
             basicTikzTokens.splice(index.open, index.close + 1 - index.open, formatting);
         });

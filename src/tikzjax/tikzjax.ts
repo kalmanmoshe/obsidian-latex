@@ -597,10 +597,10 @@ export class Formatting{
     label?: Label;
     decoration?: Decoration;
 
-    constructor(formatting: any,mode?: string){
+    constructor(formatting: any[],mode?: string){
         if(mode)this.mode=mode;
-        //this.assignFormatting(formattingArr||[]);
-        //this.interpretFormatting(formattingString||"");
+        //console.log(formatting)
+        //this.assignFormatting(formatting||[]);
     }
 
     addTikzset(splitFormatting: any){
@@ -663,7 +663,6 @@ export class Formatting{
             this.position=this.position?this.position:'';
             this.position+=quadrant.replace(/(1|4)/,"right").replace(/(2|3)/,"left").replace(/(rightleft|leftright)/,"")
         }
-
         this.position = this.position?.replace(/[\d]+/g,"").replace(/(below|above)(right|left)/,"$1 $2");
         console.log(slope,this.position,quadrant)
     }
