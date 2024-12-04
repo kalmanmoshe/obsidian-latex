@@ -9,8 +9,11 @@ import {
     setIcon,
  } from "obsidian";
 
-import { getMathJsSymbols } from "./utilities";
-
+import { getMathJsSymbols, Latex } from "./utilities";
+import { EditorView, ViewPlugin, ViewUpdate ,Decoration, } from "@codemirror/view";
+import { syntaxTree } from "@codemirror/language";
+import { EditorState } from "@codemirror/state";
+import { SyntaxNode, TreeCursor } from "@lezer/common";
 
 
 const numeralsDirectives = [
@@ -26,7 +29,7 @@ export class NumeralsSuggestor extends EditorSuggest<string> {
 	 * Time of last suggestion list update
 	 * @type {number}
 	 * @private */
-	private lastSuggestionListUpdate = 0;
+	private lastSuggestionListUpdate: number = 0;
 
 	/**
 	 * List of possible suggestions based on current code block
@@ -41,18 +44,24 @@ export class NumeralsSuggestor extends EditorSuggest<string> {
 	}
 
 	onTrigger(cursor: EditorPosition, editor: Editor, file: TFile): EditorSuggestTriggerInfo | null {
-		const currentFileToCursor = editor.getRange({line: 0, ch: 0}, cursor);
-		const indexOfLastCodeBlockStart = currentFileToCursor.lastIndexOf('```');
-		// check if the next 4 characters after the last ``` are math or MATH
-		const isMathBlock = currentFileToCursor.slice(indexOfLastCodeBlockStart + 3, indexOfLastCodeBlockStart + 7).toLowerCase() === 'math';
 
+		const cmEditor = editor as any;
+		const view = cmEditor.cm ? (cmEditor.cm as EditorView) : null;
+		if (view === null) return null;
+		const codeblockLeng=langIfWithinCodeblock(view.state)
+		const isMathBlock=codeblockLeng?.contains('tikz')
+
+		const pos = view.state.selection.ranges[0].from;
+		const line = view.state.doc.lineAt(pos);
+		//const domNode = view.domAtPos(line.from).node;
 		if (!isMathBlock) {
 			return null;
 		}
+		
 
 		// Get last word in current line
-		const currentLineToCursor = editor.getLine(cursor.line).slice(0, cursor.ch);
-		const currentLineLastWordStart = currentLineToCursor.search(/[:]?[$@\w\u0370-\u03FF]+$/);
+		const currentLine = view.state.doc.lineAt(pos).text;
+		const currentLineLastWordStart = currentLine.search(/[:]?[$@\w\u0370-\u03FF]+$/);
 		// if there is no word, return null
 		if (currentLineLastWordStart === -1) {
 			return null;
@@ -61,59 +70,37 @@ export class NumeralsSuggestor extends EditorSuggest<string> {
 		return {
 			start: {line: cursor.line, ch: currentLineLastWordStart},
 			end: cursor,
-			query: currentLineToCursor.slice(currentLineLastWordStart)
+			query: currentLine.slice(currentLineLastWordStart)
 		};
 	}
 
 	getSuggestions(context: EditorSuggestContext): string[] | Promise<string[]> {
 		let localSymbols: string [] = [];	
 
-		// check if the last suggestion list update was less than 200ms ago
-		if (performance.now() - this.lastSuggestionListUpdate > 200) {
-			const currentFileToStart = context.editor.getRange({line: 0, ch: 0}, context.start);
-			const indexOfLastCodeBlockStart = currentFileToStart.lastIndexOf('```');
-	
-			if (indexOfLastCodeBlockStart > -1) {
-				//technically there is a risk we aren't in a math block, but we shouldn't have been triggered if we weren't
-				const lastCodeBlockStart = currentFileToStart.lastIndexOf('```');
-				const lastCodeBlockStartToCursor = currentFileToStart.slice(lastCodeBlockStart);
-	
-				// Return all variable names in the last codeblock up to the cursor
-				const matches = lastCodeBlockStartToCursor.matchAll(/^\s*(\S*?)\s*=.*$/gm);
-				// create array from first capture group of matches and remove duplicates
-				localSymbols = [...new Set(Array.from(matches, (match) => 'v|' + match[1]))];
-			}
+		localSymbols = this.localSuggestionCache
+		const query = context.query.toLowerCase();
 
-			this.localSuggestionCache = localSymbols;
-			this.lastSuggestionListUpdate = performance.now();
-		} else {
-			localSymbols = this.localSuggestionCache
-		}
-
-		const query_lower = context.query.toLowerCase();
-
-		// case-insensitive filter local suggestions based on query. Don't return value if full match
-		const local_suggestions = localSymbols.filter((value) => value.slice(0, -1).toLowerCase().startsWith(query_lower, 2));
+		const local_suggestions = localSymbols.filter((value) => value.slice(0, -1).toLowerCase().startsWith(query, 2));
 		local_suggestions.sort((a, b) => a.slice(2).localeCompare(b.slice(2)));
 		
 		// case-insensitive filter mathjs suggestions based on query. Don't return value if full match
 		let suggestions: string[] = [];
-		
-		const mathjs_suggestions = getMathJsSymbols().filter((value: string) => value.slice(0, -1).toLowerCase().startsWith(query_lower, 2));
-		suggestions = local_suggestions.concat(mathjs_suggestions);
-		
 
-		suggestions = suggestions.concat(
+		const mathjs_suggestions = getMathJsSymbols().filter((obj: Latex) => obj.value.slice(0, -1).toLowerCase().startsWith(query, 2));
+
+		suggestions = mathjs_suggestions.map((o:Latex)=>o.value)//local_suggestions.concat(mathjs_suggestions);
+
+		/*suggestions = suggestions.concat(
 			numeralsDirectives
-				.filter((value) => value.slice(0,-1).toLowerCase().startsWith(query_lower, 0))
+				.filter((value) => value.slice(0,-1).toLowerCase().startsWith(query, 0))
 				.map((value) => 'm|' + value)
-			);
+			);*/
 
 		return suggestions;
 	}
 
 	renderSuggestion(value: string, el: HTMLElement): void {
-		
+		console.log(value)
 		el.addClasses(['mod-complex', 'numerals-suggestion']);
 		const suggestionContent = el.createDiv({cls: 'suggestion-content'});
 		const suggestionTitle = suggestionContent.createDiv({cls: 'suggestion-title'});
@@ -122,6 +109,7 @@ export class NumeralsSuggestor extends EditorSuggest<string> {
 		const suggestionFlair = suggestionAux.createDiv({cls: 'suggestion-flair'});
 
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		/*
 		const [iconType, suggestionText, noteText] = value.split('|');
 
 		if (iconType === 'f') {
@@ -140,7 +128,8 @@ export class NumeralsSuggestor extends EditorSuggest<string> {
 		suggestionTitle.setText(suggestionText);
 		if (noteText) {
 			suggestionNote.setText(noteText);
-		}
+		}*/
+		suggestionTitle.setText(value);
 
 	}
 
@@ -170,4 +159,78 @@ export class NumeralsSuggestor extends EditorSuggest<string> {
 			this.close()
 		}
 	}
+}
+
+
+export function getCharacterAtPos(viewOrState: EditorView | EditorState, pos: number) {
+	const state = viewOrState instanceof EditorView ? viewOrState.state : viewOrState;
+	const doc = state.doc;
+	return doc.slice(pos, pos+1).toString();
+}
+
+
+ 
+const langIfWithinCodeblock = (state: EditorState): string | null => {
+	const tree = syntaxTree(state);
+
+	const pos = state.selection.ranges[0].from;
+
+	/*
+	* get a tree cursor at the position
+	*
+	* A newline does not belong to any syntax nodes except for the Document,
+	* which corresponds to the whole document. So, we change the `mode` of the
+	* `cursorAt` depending on whether the character just before the cursor is a
+	* newline.
+	*/
+	const cursor =
+		pos === 0 || getCharacterAtPos(state, pos - 1) === "\n"
+		? tree.cursorAt(pos, 1)
+		: tree.cursorAt(pos, -1);
+
+	// check if we're in a codeblock atm at all
+	const inCodeblock = cursor.name.contains("codeblock");
+	if (!inCodeblock) {
+		return null;
+	}
+
+	// locate the start of the block
+	const codeblockBegin = escalateToToken(cursor, Direction.Backward, "HyperMD-codeblock_HyperMD-codeblock-begin");
+
+	if (codeblockBegin == null) {
+		console.warn("unable to locate start of the codeblock even though inside one");
+		return "";
+	}
+
+	// extract the language
+	// codeblocks may start and end with an arbitrary number of backticks
+	const language = state.sliceDoc(codeblockBegin.from, codeblockBegin.to).replace(/`+/, "");
+
+	return language;
+}
+
+
+export function escalateToToken(cursor: TreeCursor, dir: Direction, target: string): SyntaxNode | null {
+	// Allow the starting node to be a match
+	if (cursor.name.contains(target)) {
+		return cursor.node;
+	}
+
+	while (
+		(cursor.name != "Document") &&
+		((dir == Direction.Backward && cursor.prev())
+		|| (dir == Direction.Forward && cursor.next())
+		|| cursor.parent())
+	) {
+		if (cursor.name.contains(target)) {
+			return cursor.node;
+		}
+	}
+
+	return null;
+}
+
+export enum Direction {
+	Backward,
+	Forward,
 }

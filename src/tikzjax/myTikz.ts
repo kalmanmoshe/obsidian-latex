@@ -1,5 +1,6 @@
 import { cartesianToPolar, findIntersectionPoint, findSlope, polarToCartesian, toNumber } from "src/mathUtilities";
-import { Axis, Coordinate, Draw, FormatTikzjax, Tikzjax } from "./tikzjax";
+import { Axis, Coordinate, Draw, Tikzjax } from "./tikzjax";
+import { FormatTikzjax } from "./interpret/tokenizeTikzjax";
 
 
 

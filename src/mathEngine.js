@@ -5,6 +5,7 @@ import { type } from "os";
 import { arrToRegexString, regExp } from "./tikzjax/tikzjax";
 import { getAllLatexReferences, getAllOperatorReferences, getOperatorsByBracket, getOperatorsByPriority, getOperatorsBySides, hasImplicitMultiplication, searchOperators, searchSymbols } from "./utils/symbols";
 import { cp } from "fs";
+import { Paren } from "./utils/tokenUtensils";
 const greekLetters = [
     'Alpha','alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 
     'Iota', 'Kappa', 'Lambda', 'Mu','mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 
@@ -15,7 +16,7 @@ const greekLetters = [
     'atan', 'arccos', 'arcsin', 'arctan', 'cdot','sqrt'
 ]*/
 
-function findConsecutiveSequences(arr) {
+export function findConsecutiveSequences(arr) {
     const sequences = [];
     let start = 0;
     for (let i = 1; i <= arr.length; i++) {
@@ -719,7 +720,7 @@ class Tokens{
         .forEach(value => {
             this.tokens.splice(value, 0, new Token('*'));
         });
-        
+
         const mapPow=this.tokens.map((token,index)=> token.value==='Pow'?index:null).filter(item => item !== null)
         console.log(mapPow)
         mapPow.forEach(index => {
@@ -893,20 +894,7 @@ class Tokens{
         ).filter(item=>item!==null)
     }
     
-    findParenIndex(id,index,tokens){
-        if (tokens===undefined){tokens=this.tokens;}
-        id=id?id:tokens[index].id;
-
-        const open=tokens.findIndex(
-            token=>token.value==="("
-            &&token.id?.compare(id)
-        )
-        const close=tokens.findLastIndex(
-            token=>token.value===")"
-            &&token.id?.compare(id)
-        )
-        return{open: open,close: close,id:id}
-    }
+    
 
     tokenCompare(compare, value, token, nextToken) {
         value = value instanceof RegExp ? value : new RegExp(value);
@@ -1153,19 +1141,7 @@ class PraisingMethod{
     }
 }
 
-class Paren{
-    depth;
-    depthID;
-    id;
-    
-    constructor(depth,depthID){
-        this.depth=depth;
-        this.depthID=depthID;
-        this.setID();
-    }
-    setID(){this.id=this.depth + "." + this.depthID}
-    compare(Paren){return this.depth===Paren.depth&&this.depthID===Paren.depthID}
-}
+
 
 class Modifier{
 
