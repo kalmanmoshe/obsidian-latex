@@ -5,7 +5,8 @@ import { optimize } from "./svgo.browser.js";
 import tikzjaxJs from "inline:./tikzjax.js";
 import { cartesianToPolar, findIntersectionPoint, findSlope, polarToCartesian, toNumber } from "src/mathUtilities.js";
 import { DebugModal } from "src/desplyModals.js";
-import { FormatTikzjax } from "./interpret/tokenizeTikzjax.js";
+import { BasicTikzToken, FormatTikzjax } from "./interpret/tokenizeTikzjax.js";
+import { mapBrackets } from "src/utils/tokenUtensils.js";
 
 
 
@@ -245,10 +246,30 @@ export class Axis {
         if (polarAngle !== undefined) this.polarAngle = polarAngle;
         this.name=name
     }
-
+    
     clone(): Axis {
         return new Axis(this.cartesianX, this.cartesianY,this.polarLength,this.polarAngle,this.name);
     }
+    parseInput(input: any) {
+        console.log(input);
+        const axes=[]
+        const bracketMap = mapBrackets('Parentheses_open', input);
+        axes.push(this.processIndividual(input));
+            if(axes.length===1)
+                return axes[0]
+    }
+    
+    processIndividual(input: any) {
+        let axis = new Axis();
+        const isCartesian = input.some((token: any) => token.name === 'Comma');
+        input = input.filter((token: any) => token.type !== 'Syntax');
+        if (isCartesian && input.length === 2) {
+            axis.cartesianX = input[0].value;
+            axis.cartesianY = input[1].value;
+        }
+        return axis;
+    }
+    
 
     universal(coordinate: string, tokens?: FormatTikzjax,anchorArr?: any,anchor?: string): Axis {
         const matches=this.getCoordinateMatches(coordinate);
@@ -599,9 +620,34 @@ export class Formatting{
 
     constructor(formatting: any[],mode?: string){
         if(mode)this.mode=mode;
-        //console.log(formatting)
-        //this.assignFormatting(formatting||[]);
+        console.log(formatting)
+        this.assignFormatting(formatting||[]);
     }
+
+
+    assignFormatting(formattingArr: Array<{ key: string; value: any }>) {
+        const classProperties = Object.keys(this).reduce((map, prop) => {
+            map[prop.toLowerCase()] = prop;
+            return map;
+        }, {} as Record<string, string>);
+    
+        for (const { key, value } of formattingArr) {
+            const normalizedKey = classProperties[key.toLowerCase()];
+            if (!normalizedKey) {
+                console.warn(`Property ${key} not found on the class`);
+                continue;
+            }
+            if (typeof value === "object" && value !== null && !(this as Record<string, any>)[normalizedKey]) {
+                (this as Record<string, any>)[normalizedKey] = {};
+            }
+            if (value !== undefined && value !== null) {
+                this.setProperty(normalizedKey as keyof Formatting, value);
+            }
+        }
+    }
+    
+    
+
 
     addTikzset(splitFormatting: any){
         const a=splitFormatting.find((item: string)=> item.match(/mass|ang|helplines/))
@@ -667,16 +713,7 @@ export class Formatting{
         console.log(slope,this.position,quadrant)
     }
 
-    assignFormatting(formattingArr: Record<string, any>) {
-        for (const [key, value] of Object.entries(formattingArr)) {
-            if (typeof value === "object" && value !== null&&!this[key as keyof Formatting]) {
-                (this as Record<string, any>)[key] = {};
-            }
-            if (value !== undefined && value !== null) {
-                this.setProperty(key as keyof Formatting, value);
-            }
-        }
-    }
+    
     
 
     interpretFormatting(formattingString: string) {
@@ -885,39 +922,17 @@ export class Coordinate {
 export type Token =Axis | Coordinate |Draw|Formatting| string;
 
 export class Draw {
-    mode?: string
+    mode: string
     formatting: Formatting;
-    coordinates: Array<Token>;
-
-    constructor(mode?: string,formatting?: string,draw?: string, tokens?: FormatTikzjax,);
-    constructor(options: {mode?: string, formattingString?: string, formattingObj?: object,formatting?: Formatting,drawString?: string,drawArr?: any,tokens?: FormatTikzjax});
+    coordinates: any[]=[];
 
 
-    constructor(
-        mode?: string | {mode?: string, formattingString?: string, formattingObj?: object,formatting?: Formatting,drawString?: string,drawArr?: any,tokens?: FormatTikzjax},
-        formatting?: string,
-        draw?: string, 
-        tokens?: FormatTikzjax
-      ) {/*
-        if (typeof mode==="string"||typeof draw==="string"){
-            this.mode=`draw${mode?"-"+mode:""}`;
-            this.formatting=new Formatting(this.mode,{},formatting);
-            if (draw)
-            this.coordinates = this.fillCoordinates(this.getSchematic(draw), tokens);
-        }
-        else if(mode&&typeof mode==="object"){
-            const options=mode;
-            this.mode=`draw${options?.mode?"-"+options.mode:""}`;
-            if (!options?.formatting)
-                this.formatting= new Formatting(this.mode,options?.formattingObj,options?.formattingString);
-            else this.formatting=options.formatting;
-            
-            if (options?.drawArr)
-                this.coordinates=options.drawArr;
-            else if (options.drawString!==undefined){
-                this.coordinates = this.fillCoordinates(this.getSchematic(options.drawString), tokens);
-            }
-        }*/
+    constructor(mode: string,formatting?: Formatting,coordinates?: any[], tokens?: FormatTikzjax,) {;
+        this.mode=mode;
+        if(formatting)
+            this.formatting=formatting;
+        if(coordinates)
+            this.coordinates=coordinates;
     }
     createFromArray(arr: any){/*
         const coordinatesArray = [];
@@ -933,7 +948,58 @@ export class Draw {
         return coordinatesArray;*/
     }
 
-    fillCoordinates(schematic: any[], tokens?: FormatTikzjax) {/*
+    fillCoordinates(schematic: any[], tokens?: FormatTikzjax) {
+        if(schematic[0] instanceof Formatting){
+            this.formatting=schematic[0]
+            schematic.splice(0,1)
+        }
+        const referenceFirstAxisMap = schematic
+            .map((coor, index) => (coor instanceof BasicTikzToken && coor.name === 'ReferenceFirstAxis' ? index : null))
+            .filter((t): t is number => t !== null); 
+
+        const referenceLastAxisMap = schematic
+            .map((coor, index) => (coor instanceof BasicTikzToken && coor.name === 'ReferenceLastAxis' ? index : null))
+            .filter((t): t is number => t !== null);
+        
+        const mappedReferences = referenceFirstAxisMap.map(index => {
+            schematic[index].name='AxisConnecter'
+            const nextAxisIndex = schematic.slice(index + 1).findIndex(item => item instanceof Axis);
+            const nextAxis = nextAxisIndex !== -1 ? schematic[index + 1 + nextAxisIndex] : null;
+        
+            return nextAxis;
+        });
+
+        const relationships = referenceLastAxisMap.map(index => {
+            schematic[index].name='AxisConnecter'
+            const nextAxisIndex = schematic.slice(index + 1).findIndex(item => item instanceof Axis);
+            const nextAxis = nextAxisIndex !== -1 ? schematic[index + 1 + nextAxisIndex] : null;
+
+            const previousAxisIndex = schematic
+                .slice(0, index)
+                .reverse()
+                .findIndex(item => item instanceof Axis);
+
+            const previousAxis = previousAxisIndex !== -1 ? schematic[index - 1 - previousAxisIndex] : null;
+
+            return {
+                referenceFirstAxis: schematic[index],
+                previousAxis,
+                nextAxis,
+            };
+        });
+        if(mappedReferences.length>0){
+            const firstAxis=schematic.find(t=>t instanceof Axis)
+            mappedReferences.forEach(axis => {
+                axis.complexCartesianAdd(firstAxis,"addition")
+                console.log(mappedReferences)
+            });
+        }
+        console.log(referenceFirstAxisMap,referenceLastAxisMap)
+
+        this.coordinates=schematic;
+        return this
+        
+        /*
         const coorArr: Array<Token>=[];
         for (let i = 0; i < schematic.length; i++) {
             if (schematic[i].type === "coordinate") {
@@ -1008,8 +1074,8 @@ export class Draw {
                     result += coordinate.toString();
                     break;
                 }
-                case typeof coordinate==="string": {
-                    result += /(--\+\+|--\+)/.test(coordinate)?"--":coordinate;
+                case coordinate instanceof BasicTikzToken: {
+                    result += coordinate.toString();
                     break;
                 }
                 default: {
