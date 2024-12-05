@@ -36,6 +36,11 @@ const tikzCommands = [
         references: ['='],
     },
     {
+        type: 'Command',
+        name: 'Command', 
+        references: ['\\newcommand'],
+    },
+    {
         type: 'Path',
         name: 'Draw', 
         references: ['\\draw'],
