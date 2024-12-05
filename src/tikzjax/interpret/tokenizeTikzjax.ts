@@ -44,21 +44,38 @@ function interpretFormattingValue(formatting){
     }
     return formatting
 }
+class TikzCommand{
+    trigger: string;
+    entryPoints: number;
 
+}
+class TikzCommands{
+    commands: TikzCommand[];
+    constructor();
+    addCommand(tokens){
+
+    }
+}
 export class BasicTikzToken{
     type: string;
     name: string
     value: string|number|Paren|any
-    constructor(value: number|any){
+    constructor(value: number|string|object){
         if (typeof value==='number'){
             this.type='number'
             this.value=value;
+            return 
         }
-        else{
-            this.type=value.type.replace(/Bracket/,'Syntax')
-            this.name=value.name
-            this.value=value.value
+        if(typeof value==='string'){
+            this.type='string'
+            this.value=value;
+            return
         }
+        
+        this.type=value.type.replace(/Bracket/,'Syntax')
+        this.name=value.name
+        this.value=value.value
+        
     }
     toString(){
         return searchTizkForOgLatex(this.name).latex
@@ -69,6 +86,7 @@ export class BasicTikzToken{
 export class FormatTikzjax {
 	source: string;
     tokens: Array<Token>=[];
+
     //midPoint: Axis;
     private viewAnchors: {max: Axis,min:Axis,aveMidPoint: Axis}
 	processedCode="";
@@ -79,8 +97,9 @@ export class FormatTikzjax {
 		this.source = this.tidyTikzSource(source);
         const basicArray=this.basicArrayify()
         let basicTikzTokens=this.basicTikzTokenify(basicArray)
-
+        
         let a=this.cleanBasicTikzTokenify(basicTikzTokens)
+        console.log(a)
         this.PrepareForTokenize(a)
         this.tokenize(a)
         this.processedCode += this.toString()
@@ -128,6 +147,13 @@ export class FormatTikzjax {
                 i += match[0].length;
                 continue;
             }
+            match = subSource.match(/^[a-zA-Z\\#]+/);
+            if (match) {
+            basicArray.push({ type: 'string', value: match[0] });
+                i += match[0].length;
+                continue;
+            }
+
         
             // Increment index if no match found
             i++;
@@ -140,10 +166,12 @@ export class FormatTikzjax {
         basicArray.forEach(({ type, value }) => {
             if (type === 'string') {
                 const tikzCommand = searchTizkCommands(value);
-                
                 if (tikzCommand) {
                 basicTikzTokens.push(new BasicTikzToken(tikzCommand));
                 }
+                else
+                    basicTikzTokens.push(new BasicTikzToken(value));
+                
             } else if (type === 'number') {
             basicTikzTokens.push(new BasicTikzToken(value));
             }
@@ -152,6 +180,13 @@ export class FormatTikzjax {
         return basicTikzTokens;
     }
     cleanBasicTikzTokenify(basicTikzTokens){
+        const commandsMap=basicTikzTokens.map((t,idx)=>t.type==='Command'?idx:null)
+        .filter(t=>t!==null);
+        
+
+
+
+
         const unitIndices: number[] = basicTikzTokens
         .map((token, idx) => (token.type === 'Unit' ? idx : null))
         .filter((idx): idx is number => idx !== null);
@@ -255,7 +290,6 @@ export class FormatTikzjax {
                 endIndex=basicTikzTokens.slice(i).findIndex(t=>t.name==='Semicolon')+i
                 const drawSegment=basicTikzTokens.slice(i+1,endIndex)
                 i=endIndex
-                console.log('drawSegment',drawSegment,basicTikzTokens[i])
                 this.tokens.push(new Draw('draw').fillCoordinates(drawSegment))
             }
                 
