@@ -1,31 +1,51 @@
 // @ts-nocheck
 import { findConsecutiveSequences } from "src/mathEngine";
 import { arrToRegexString, Axis, Coordinate, Draw, Formatting, regExp, Token, toPoint } from "../tikzjax";
-import { getAllTikzReferences, searchTizkCommands } from "src/tikzjax/tikzCommands";
+import { getAllTikzReferences, searchTizkCommands, searchTizkForOgLatex } from "src/tikzjax/tikzCommands";
 import { findParenIndex, idParentheses, mapBrackets, Paren } from "src/utils/tokenUtensils";
 
-function cleanFormating(formatting: any[]){
-    
-    const map=formatting.map((item,idx)=>item.name==='Comma'?idx:null).filter(item=>item!==null)
-    map.push(formatting.length)
-    map.sort((a,b)=>b-a)
-    const values=[]
-    let eqIndex=0 
-    values.push(formatting);
-    console.log(values);
-    values.forEach(value => {
-        interpretFormatting(value)
+function cleanFormatting(formatting: any[]): any[][] {
+    const values: any[][] = [];
+    let currentGroup: any[] = [];
 
+    for (const item of formatting) {
+        if (item.name === 'Comma') {
+            if (currentGroup.length > 0) {
+                values.push(currentGroup);
+                currentGroup = [];
+            }
+        } else {
+            currentGroup.push(item);
+        }
+    }
+    if (currentGroup.length > 0) {
+        values.push(currentGroup);
+    }
+    const formattingKeys=[]
+    values.forEach((value) => {
+        formattingKeys.push(assignFormatting(value));
     });
+
+    return formattingKeys 
+}
+
+function assignFormatting(formatting){
+    const isEquals=formatting.map((f,idx)=>f.name==='Equals'?idx:null).filter(t=>t!==null);
+    const key=formatting[0]?.name
+    if(isEquals.length===1)
+        formatting=formatting.slice((isEquals[0]+1))
+    let value=interpretFormattingValue(formatting);
+    return {key,value}
+}
+
+function interpretFormattingValue(formatting){
+    if (formatting.length===1){
+        return formatting[0].value||true
+    }
     return formatting
 }
-function interpretFormatting(formatting){
-    const key=formatting[0]?.name|null
-    let value;
-    console.log('key,value',key,value)
-}
 
-class BasicTikzToken{
+export class BasicTikzToken{
     type: string;
     name: string
     value: string|number|Paren|any
@@ -37,7 +57,11 @@ class BasicTikzToken{
         else{
             this.type=value.type.replace(/Bracket/,'Syntax')
             this.name=value.name
+            this.value=value.value
         }
+    }
+    toString(){
+        return searchTizkForOgLatex(this.name).latex
     }
 }
 
@@ -56,9 +80,12 @@ export class FormatTikzjax {
         const basicArray=this.basicArrayify()
         let basicTikzTokens=this.basicTikzTokenify(basicArray)
 
-        const a=this.cleanBasicTikzTokenify(basicTikzTokens)
+        let a=this.cleanBasicTikzTokenify(basicTikzTokens)
         this.PrepareForTokenize(a)
-        console.log(a)
+        this.tokenize(a)
+        this.processedCode += this.toString()
+        this.debugInfo+=JSON.stringify(this.tokens,null,1)+"\n\n"
+        this.debugInfo+=this.processedCode;
         }
         else {this.tokens=source}
 
@@ -205,7 +232,7 @@ export class FormatTikzjax {
         .sort((a, b) => b.open - a.open) // Sort in descending order of 'open'
         .forEach((index) => {
             const formatting = new Formatting(
-                cleanFormating(basicTikzTokens.slice(index.open + 1, index.close))
+                cleanFormatting(basicTikzTokens.slice(index.open + 1, index.close))
             );
             basicTikzTokens.splice(index.open, index.close + 1 - index.open, formatting);
         });
@@ -214,14 +241,25 @@ export class FormatTikzjax {
         praneIndexes
         .sort((a, b) => b.open - a.open) 
         .forEach((index) => {
-            const formatting = new Coordinate(
+            const axis = new Axis().parseInput(
                 basicTikzTokens.slice(index.open + 1, index.close)
             );
-            basicTikzTokens.splice(index.open, index.close + 1 - index.open, formatting);
+            basicTikzTokens.splice(index.open, index.close + 1 - index.open, axis);
         });
-
+        return basicTikzTokens
     }
-    tokenize(){
+    tokenize(basicTikzTokens){
+        let endIndex
+        for(let i=0;i<basicTikzTokens.length;i++){
+            if (basicTikzTokens[i].name==='Draw'){
+                endIndex=basicTikzTokens.slice(i).findIndex(t=>t.name==='Semicolon')+i
+                const drawSegment=basicTikzTokens.slice(i+1,endIndex)
+                i=endIndex
+                console.log('drawSegment',drawSegment,basicTikzTokens[i])
+                this.tokens.push(new Draw('draw').fillCoordinates(drawSegment))
+            }
+                
+        }
         /*
         They're going to be three types stringed syntax number.
          I use them to tokenize. using the ticks commands. Once tokenizer takes commands.
@@ -248,7 +286,7 @@ export class FormatTikzjax {
     getCode(){
         if (typeof this.source==="string"&&this.source.match(/(usepackage|usetikzlibrary)/))
             return this.processedCode
-        return ''//getPreamble()+this.processedCode+"\n\\end{tikzpicture}\\end{document}";
+        return getPreamble()+this.processedCode+"\n\\end{tikzpicture}\\end{document}";
     }
     
     applyPostProcessing(){
@@ -431,7 +469,9 @@ export class FormatTikzjax {
         return codeBlockOutput;
     }
 }
+class TikzVariables{
 
+}
 
 function flatten(data: any, results: any[] = [], stopClass?: any): any[] {
     if (Array.isArray(data)) {

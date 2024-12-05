@@ -17,6 +17,12 @@ export function searchTizkCommands(query){
         )
     );
 }
+export function searchTizkForOgLatex(query){
+    return [...tikzCommands,...Brackets,...units]
+    .find(item =>
+        item.name===query
+    );
+}
 
 
 //Remember name syntax for commas exc
@@ -72,17 +78,26 @@ const tikzCommands = [
     {
         type: 'PathConnector',
         name: 'ReferenceLastAxis',
+        latex: '--++',
         references: ['--++'],
     },
     {
         type: 'PathConnector',
         name: 'ReferenceFirstAxis',
+        latex: '--+',
         references: ['--+'],
     },
     {
         type: 'PathConnector',
         name: 'AxisConnecter',
+        latex: '--',
         references: ['--'],
+    },
+    {
+        type: 'Formatting',
+        name: 'Color',
+        value: 'red',
+        references: ['red'],
     },
 ];
 
