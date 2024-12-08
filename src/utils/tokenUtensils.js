@@ -10,6 +10,8 @@ export class Paren{
     }
     toString(){this.id=this.depth + "." + this.depthID}
     compare(Paren){return this.depth===Paren.depth&&this.depthID===Paren.depthID}
+    addDepth(num){this.depth+=num}
+    adddepthID(num){this.depthID+=num}
 }
 const open=['Parentheses_open','Curly_brackets_open','Square_brackets_open'];
 const close=['Parentheses_close','Curly_brackets_close','Square_brackets_close'];
@@ -54,6 +56,7 @@ export function idParentheses(tokens) {
         throw new Error(`Unmatched opening parenthesis(es) detected: depth=${depth}`);
     }
 }
+
 export function mapBrackets(type,tokens){
     return tokens
         .map((token, index) => 
@@ -63,6 +66,40 @@ export function mapBrackets(type,tokens){
         )
         .filter((t) => t !== null);
 }
+
+export function findModifiedParenIndex(id, index, tokens, depth, depthID, filter) {
+    // Initialize `id` as a new instance if not already provided
+    id = id
+        ? new Paren(id.depth, id.depthID)
+        : new Paren(tokens[index].value.depth, tokens[index].value.depthID);
+
+    if (depth !== undefined && depthID !== undefined) {
+        id.depth += depth || 0;
+        id.depthID += depthID || 0;
+    }
+
+    const openIndex = tokens.findIndex(token => {
+        if (open.includes(token.name) && token.value?.compare(id)) {
+            if (filter && !token.name.startsWith(filter)) {
+                id.depth = token.value.depth + (depth || 0)
+                id.depthID=token.value.depthID + (depthID || 0)
+                return false;
+            }
+            return true;
+        }
+        return false;
+    });
+
+    const closeIndex = tokens.findLastIndex(
+        token =>
+            close.includes(token.name) &&
+            token.value?.compare(id)
+    );
+
+    return { open: openIndex, close: closeIndex, id };
+}
+
+
 
 export function findParenIndex(id,index,tokens){
     id=id?id:tokens[index].value;

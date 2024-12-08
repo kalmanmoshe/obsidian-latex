@@ -81,6 +81,7 @@ export class VecInputModel extends Modal {
 
     requestAnimationFrame(() => {
         try {
+          /*
             const mass = new Coordinate({
                 mode: "node",
                 label: `${this.obj}n`,
@@ -95,7 +96,7 @@ export class VecInputModel extends Modal {
             script.setAttribute("data-show-console", "true");
             script.setText(tikz.getCode());
             console.log(script)
-            container.appendChild(script);
+            container.appendChild(script);*/
         } catch (e) {
             console.error("Graph rendering error:", e);
         }

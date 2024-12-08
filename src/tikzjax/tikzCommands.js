@@ -37,7 +37,7 @@ const tikzCommands = [
     },
     {
         type: 'Command',
-        name: 'Command', 
+        name: 'newCommand', 
         references: ['\\newcommand'],
     },
     {
@@ -46,9 +46,24 @@ const tikzCommands = [
         references: ['\\draw'],
     },
     {
+        type: 'Node',
+        name: 'Coordinate', 
+        references: ['\\coordinate'],
+    },
+    {
         type: 'Formatting',
         name: 'LineWidth', 
         references: ['line width'],
+    },
+    {
+        type: 'Formatting',
+        name: 'Label', 
+        references: ['label'],
+    },
+    {
+        type: 'Formatting',
+        name: 'Large', 
+        references: ['\\Large'],
     },
     {
         type: 'Unit',
@@ -65,6 +80,17 @@ const tikzCommands = [
         name: 'Comma',
         references: [','],
     },
+    {
+        type: 'Syntax',
+        name: 'Hashtag',
+        references: ['#'],
+    },
+    {
+        type: 'Syntax',
+        name: 'Colon',
+        references: [':'],
+    },
+    
     {
         type: 'Syntax',
         name: 'Semicolon',
@@ -97,6 +123,11 @@ const tikzCommands = [
         name: 'AxisConnecter',
         latex: '--',
         references: ['--'],
+    },
+    {
+        type: 'Formatting',
+        name: 'opacity',
+        references: ['opacity'],
     },
     {
         type: 'Formatting',
