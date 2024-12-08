@@ -1,4 +1,4 @@
-import { App, MarkdownView, WorkspaceWindow } from "obsidian";
+import { App, MarkdownView, Scope, WorkspaceWindow } from "obsidian";
 import MathPlugin from "src/main";
 import { optimize } from "./svgo.browser.js";
 // @ts-ignore
@@ -36,7 +36,6 @@ export class Tikzjax {
         s.type = "text/javascript";
         s.innerText = tikzjaxJs;
         doc.body.appendChild(s);
-        console.log(s)
         doc.addEventListener("tikzjax-load-finished", this.postProcessSvg);
     }
   
@@ -251,7 +250,6 @@ export class Axis {
         return new Axis(this.cartesianX, this.cartesianY,this.polarLength,this.polarAngle,this.name);
     }
     parseInput(input: any) {
-        console.log(input);
         const axes=[]
         const bracketMap = mapBrackets('Parentheses_open', input);
         axes.push(this.processIndividual(input));
@@ -556,6 +554,7 @@ function matchKeyWithValue(key: string): string {
         "font": "font=",
         "picText": "pic text=",
         "label": "label=",
+        "freeFormText": ':',
     };
 
     return valueMap[key] || '';
@@ -573,6 +572,13 @@ type Decoration = {
 
 type Label = {
     freeFormText?: string;
+    color?: string;
+    opacity?: number
+};
+const defaultValues: Record<string, any> = {
+    freeFormText: "",
+    color: "",
+    opacity: 1,
 };
 
 function lineWidthConverter(width: string){
@@ -584,6 +590,7 @@ function lineWidthConverter(width: string){
     .replace(/very\s*thick/,"1.2")
     .replace(/ultra\s*thick/,"1.6"))
 }
+
 export class Formatting{
     // importent needs to be forst
     path?: string;
@@ -620,32 +627,94 @@ export class Formatting{
 
     constructor(formatting: any[],mode?: string){
         if(mode)this.mode=mode;
-        console.log(formatting)
         this.assignFormatting(formatting||[]);
     }
 
 
-    assignFormatting(formattingArr: Array<{ key: string; value: any }>) {
-        const classProperties = Object.keys(this).reduce((map, prop) => {
-            map[prop.toLowerCase()] = prop;
-            return map;
-        }, {} as Record<string, string>);
-    
+    assignFormatting(
+        formattingArr: Array<{ key: string; value: any }>,
+        targetScope: Record<string, any> = this
+    ) {
         for (const { key, value } of formattingArr) {
-            const normalizedKey = classProperties[key.toLowerCase()];
-            if (!normalizedKey) {
-                console.warn(`Property ${key} not found on the class`);
+            
+            const normalizedKey = Object.keys(targetScope).find(
+                (prop) => prop.toLowerCase() === key.toLowerCase()
+            ) || key;
+    
+            if (this.isNested(value)) {
+                targetScope[normalizedKey] = targetScope[normalizedKey] || this.createNested(normalizedKey);
+                this.assignFormatting(value,targetScope[normalizedKey])
                 continue;
             }
-            if (typeof value === "object" && value !== null && !(this as Record<string, any>)[normalizedKey]) {
-                (this as Record<string, any>)[normalizedKey] = {};
-            }
-            if (value !== undefined && value !== null) {
-                this.setProperty(normalizedKey as keyof Formatting, value);
+            else{
+                targetScope[normalizedKey]=value
             }
         }
     }
     
+    setProperty(scope: any, key: any, value: any): void {
+        if (typeof scope === "object" && scope !== null) {
+            scope[key] = value;
+        } else {
+            console.error("Invalid scope provided. Expected an object but received:", scope);
+        }
+    }
+    
+    
+
+    createNested(key: string) {
+        switch (key) {
+            case 'label':
+                return { color: undefined, opacity: undefined,freeFormText: undefined };
+            case 'decoration':
+                return {
+                    brace: undefined,
+                    coil: false,
+                    amplitude: undefined,
+                    aspect: undefined,
+                    segmentLength: undefined,
+                    decoration: undefined,
+                };
+            default:
+                return {};
+        }
+    }
+    
+    isNested(value: any){
+        return Array.isArray(value) && value.some((item: any) => item.key && item.value);
+    }
+    
+    
+    
+
+    split<K extends keyof Formatting, NK extends keyof NonNullable<Formatting[K]> | undefined>(
+        key: K,
+        formatting: any,
+        nestedKey?: NK
+    ): void {
+        let value;
+        if(typeof formatting!=="boolean"){
+            let match = formatting.split("=");
+    
+            // Ensure the formatting string is valid
+            if (match.length < 2 || !match[1]) return;
+            
+            // Trim any potential whitespace around the value
+            const rawValue = match[1].trim();
+            
+            // Determine if the value is a number or a string
+            value = !isNaN(parseFloat(rawValue)) && isFinite(+rawValue)
+                ? parseFloat(rawValue)
+                : rawValue.replace(/-\|/,'north');
+        }
+        else{
+            value=formatting
+        }
+        
+        //this.setProperty(key, value, nestedKey);
+    }
+    
+
     
 
 
@@ -710,7 +779,6 @@ export class Formatting{
             this.position+=quadrant.replace(/(1|4)/,"right").replace(/(2|3)/,"left").replace(/(rightleft|leftright)/,"")
         }
         this.position = this.position?.replace(/[\d]+/g,"").replace(/(below|above)(right|left)/,"$1 $2");
-        console.log(slope,this.position,quadrant)
     }
 
     
@@ -765,62 +833,7 @@ export class Formatting{
         });
     }
     
-    
 
-    split<K extends keyof Formatting, NK extends keyof NonNullable<Formatting[K]> | undefined>(
-        key: K,
-        formatting: any,
-        nestedKey?: NK
-    ): void {
-        let value;
-        if(typeof formatting!=="boolean"){
-            let match = formatting.split("=");
-    
-            // Ensure the formatting string is valid
-            if (match.length < 2 || !match[1]) return;
-            
-            // Trim any potential whitespace around the value
-            const rawValue = match[1].trim();
-            
-            // Determine if the value is a number or a string
-            value = !isNaN(parseFloat(rawValue)) && isFinite(+rawValue)
-                ? parseFloat(rawValue)
-                : rawValue.replace(/-\|/,'north');
-        }
-        else{
-            value=formatting
-        }
-        
-        this.setProperty(key, value, nestedKey);
-    }
-    
-    setProperty<K extends keyof Formatting, NK extends keyof NonNullable<Formatting[K]> | undefined>(
-        key: K,
-        value: any,
-        nestedKey?: NK
-    ): void {
-        if (typeof value==="string"){
-            value=value.replace(/^\|-$/,"north").replace(/^-\|$/,"south");
-            const match=value.match(/([\d.]+)(pt|cm|mm)/)
-            if (match)
-            value=toPoint(Number(match[1]),match[2])
-        }
-
-        const formattingObj = this as Record<string, any>;
-
-        if (nestedKey) {
-            
-            const keys = typeof nestedKey === "string" ? nestedKey.split('.') : [nestedKey];
-            this.tikzset
-            if(!formattingObj[key])formattingObj[key]={};
-            formattingObj[key][nestedKey]=value;
-        } else {
-            formattingObj[key] = value;
-        }
-        
-    }
-    
-    
     toString(obj?: any): string {
         let string=obj?'{':'[';
         for (const [key, value] of Object.entries(obj?obj:this)) {
@@ -845,70 +858,55 @@ export class Formatting{
         return result+"},";
     }
 }
+
 type Mode = "coordinate" | "coordinate-inline" | "node" | "node-inline";
+
 export class Coordinate {
-    mode: Mode;
-    axis?: Axis;
-    coordinateName?: string;
-    formatting?: Formatting;
-    label?: string;
+    mode: Mode
+    axis?: Axis
+    formatting?: Formatting
+    variable?: Axis
+    label?: string
     
-    constructor(mode?: Mode, axis?: Axis, coordinateName?: string, formatting?: Formatting, label?: string,);
-    constructor(options: { mode?: Mode; axis?: Axis; coordinateName?: string; formatting?: Formatting; label?: string;  });
-
-
-  constructor(
-    mode?: Mode | { mode?: Mode; axis?: Axis; original?: string; coordinateName?: string; formatting?: Formatting; label?: string; },
-    axis?: Axis,
-    coordinateName?: string,
-    formatting?: Formatting,
-    label?: string,
-  ) {/*
-    if (typeof mode === "string") {
-
-      this.mode = mode;
-      if (axis !== undefined) this.axis = axis;
-      this.coordinateName = coordinateName;
-      if (formatting !== undefined) this.formatting = formatting;
-      this.label = label;
-
-    } else if (typeof mode === "object" && mode !== null) {
-      const options = mode;
-      if (options.mode !== undefined) this.mode = options.mode;
-      this.axis = options.axis;
-      this.coordinateName = options.coordinateName;
-      this.formatting = options.formatting;
-      this.label = options.label;
-    }
-    if (!this.formatting)
-        this.formatting=new Formatting(this.mode,[])
-
-    if (this.mode==="coordinate"){
-        this.formatting.assignFormatting({label: {freeFormText: this.label}});
-    }*/
+  constructor(mode: Mode,axis?: Axis,formatting?: Formatting,variable?: Axis,label?: string,) {
+    this.mode=mode;
+    this.axis=axis;
+    this.formatting=formatting;
+    this.variable=variable;
+    this.label=label;
   }
-
+    interpretCoordinate(coordinates: any[]){
+        const formatting=coordinates.find(coor=>coor instanceof Formatting)
+        const axis=coordinates.find(coor=>coor instanceof Axis)
+        const variable=coordinates.find(coor=>coor?.type==='variable').value
+        this.formatting=formatting;
+        this.axis=axis
+        this.variable=variable
+        return this
+    }
     clone(): Coordinate {
         return new Coordinate(
             this.mode,
             this.axis ? this.axis.clone() :undefined,
-            this.coordinateName,
             this.formatting,
+            this.variable,
             this.label,
         );
     }
+
     addAxis(cartesianX?: number, cartesianY?: number, polarLength?: number, polarAngle?: number){
         this.axis=new Axis(cartesianX, cartesianY, polarLength, polarAngle);
     }
 
     toString() {
+        console.log(this.mode)
         switch (this.mode) {
             case "coordinate":
                 if (this.axis)
-                    return`\\coordinate ${this.formatting?.toString() || ''} (${this.coordinateName || ""}) at (${this.axis.toString()});`
+                    return`\\coordinate ${this.formatting?.toString() || ''} (${this.variable || ""}) at (${this.axis.toString()});`
             case "node":
-                if (this.axis)
-                    return `\\node ${this.coordinateName?'('+this.coordinateName+')':''} at (${this.axis.toString()}) ${this.formatting?.toString()||''} {${this.label}};`
+                if (this.axis){}
+                    //return `\\node ${this.coordinateName?'('+this.coordinateName+')':''} at (${this.axis.toString()}) ${this.formatting?.toString()||''} {${this.label}};`
             case "node-inline":
                 return `node ${this.formatting?.toString() || ''} {${this.label || ''}}`
             default:
@@ -991,10 +989,8 @@ export class Draw {
             const firstAxis=schematic.find(t=>t instanceof Axis)
             mappedReferences.forEach(axis => {
                 axis.complexCartesianAdd(firstAxis,"addition")
-                console.log(mappedReferences)
             });
         }
-        console.log(referenceFirstAxisMap,referenceLastAxisMap)
 
         this.coordinates=schematic;
         return this

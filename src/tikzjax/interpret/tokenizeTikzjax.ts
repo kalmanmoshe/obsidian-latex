@@ -2,11 +2,50 @@
 import { findConsecutiveSequences } from "src/mathEngine";
 import { arrToRegexString, Axis, Coordinate, Draw, Formatting, regExp, Token, toPoint } from "../tikzjax";
 import { getAllTikzReferences, searchTizkCommands, searchTizkForOgLatex } from "src/tikzjax/tikzCommands";
-import { findParenIndex, idParentheses, mapBrackets, Paren } from "src/utils/tokenUtensils";
+import { findModifiedParenIndex, findParenIndex, idParentheses, mapBrackets, Paren } from "src/utils/tokenUtensils";
+import { text } from "stream/consumers";
 
-function cleanFormatting(formatting: any[]): any[][] {
+function labelFreeFormTextSeparation(label){
+    const colonIndex=label.findIndex(t=>t.name==='Colon')
+     label=label.splice(colonIndex,label.length-colonIndex)
+    return label.splice(1)
+}
+function toOg(tokens){
+    let string=''
+    tokens.forEach(token => {
+        const og=searchTizkForOgLatex(token.name||token.value)
+        if(og){
+            if(og.latex)
+                string+=og.latex
+            else if(og.references?.length===1)
+                string+=og.references[0]
+        }
+        else
+            string+=token.value
+    });
+    return string
+}
+
+function cleanFormatting(formatting: any[],subType?: string): any[][] {
     const values: any[][] = [];
     let currentGroup: any[] = [];
+    const formattingKeys=[]
+
+    if(subType==='Label'){
+        const label=labelFreeFormTextSeparation(formatting)
+        formattingKeys.push({key: 'freeFormText',value: toOg(label)})
+    }
+    
+
+    const bracketMap=mapBrackets('Curly_brackets_open',formatting);
+    bracketMap.reverse()
+    bracketMap.forEach(bracket => {
+        if(formatting[bracket.open-1].name==='Equals'){
+            let subFormatting=formatting.splice(bracket.open-1,bracket.close-(bracket.open-2))
+            subFormatting=subFormatting.slice(2,-1)
+            formatting[bracket.open-2].value=cleanFormatting(subFormatting,formatting[bracket.open-2].name)
+        }
+    });
 
     for (const item of formatting) {
         if (item.name === 'Comma') {
@@ -21,22 +60,26 @@ function cleanFormatting(formatting: any[]): any[][] {
     if (currentGroup.length > 0) {
         values.push(currentGroup);
     }
-    const formattingKeys=[]
+
+    
     values.forEach((value) => {
         formattingKeys.push(assignFormatting(value));
     });
-
     return formattingKeys 
 }
 
 function assignFormatting(formatting){
+
     const isEquals=formatting.map((f,idx)=>f.name==='Equals'?idx:null).filter(t=>t!==null);
     const key=formatting[0]?.name
+
     if(isEquals.length===1)
         formatting=formatting.slice((isEquals[0]+1))
+
     let value=interpretFormattingValue(formatting);
     return {key,value}
 }
+
 
 function interpretFormattingValue(formatting){
     if (formatting.length===1){
@@ -44,18 +87,119 @@ function interpretFormattingValue(formatting){
     }
     return formatting
 }
+
 class TikzCommand{
     trigger: string;
-    entryPoints: number;
-
-}
-class TikzCommands{
-    commands: TikzCommand[];
-    constructor();
-    addCommand(tokens){
-
+    hookNum: number;
+    hooks: any;
+    content: BasicTikzToken[]
+    addCommand(trigger, hookNum, content){
+        this.trigger=trigger;
+        this.hookNum=hookNum;
+        this.content=content;
+        this.findHooks()
+        return this
+    }
+    findHooks(){
+        const hashtagMap=this.content.map((item,index)=>item.name==='Hashtag'&&this.content[index+1].type==='number'?index:null)
+        .filter(t=>t!==null)
+        if(hashtagMap.length!==this.hookNum){
+            throw new Error(`Discrepancy between the number of hooks declared and the number of hooks found in the command hookNum: ${this.hookNum} hashtagMap.length: ${hashtagMap.length}`);
+        }
+        hashtagMap.sort((a,b)=>b-a)
+        hashtagMap.forEach(idx => {
+            const hashtag=this.content[idx];
+            hashtag.type='Syntax'
+            hashtag.name='hook'
+            hashtag.value=this.content[idx+1]?.value;
+            this.content.splice(idx+1,1)
+        });
+    }
+    getInfo(){
+        return {trigger: this.trigger,hooks: this.hookNum}
     }
 }
+
+
+class TikzCommands{
+    commands: TikzCommand[]=[];
+    constructor();
+    addCommand(tokens){
+        
+    }
+    addCommandByInterpretation(tokens) {
+        const id1Token = tokens.find((item) => item.name === 'Curly_brackets_open');
+        if (!id1Token) {
+            console.error("Error: 'Curly_brackets_open' not found in tokens.");
+            return;
+        }
+        let id1 = id1Token.value;
+        const id2 = findModifiedParenIndex(id1, undefined, tokens, 0, 1);
+        const id3 = findModifiedParenIndex(id1, undefined, tokens, 0, 1, 'Curly_brackets_open');
+    
+        if (!id2 || !id3) {
+            console.error("Error: Unable to find matching brackets.");
+            return;
+        }
+        id1=findParenIndex(id1, undefined, tokens)
+        let trigger, hooks, content;
+        content = tokens.splice(id3.open + 1, id3.close - id3.open - 1);
+        hooks = tokens.splice(id2.open + 1, id2.close - id2.open - 1);
+        trigger = tokens.splice(id1.open+1, id1.close - id1.open - 1);
+
+        if (hooks.length === 1 && hooks[0]?.type === 'number') {
+            hooks = hooks[0].value;
+        } else {
+            throw new Error("Invalid hooks: Expected a single numeric value.");
+        }
+        
+        if (trigger.length === 1 && trigger[0]?.type === 'string') {
+            trigger = trigger[0].value;
+        } else {
+            throw new Error("Invalid trigger: Expected a single string value.");
+        }
+        this.commands.push(new TikzCommand().addCommand(trigger, hooks, content))
+    }
+
+    replaceCallWithCommand(trigger: string,hookNumber: number,hooks: any[]){
+        const content = this.commands.find(command => 
+            command.trigger === trigger && hookNumber === command.hookNum
+        )?.content;
+
+        const map = content?.map((item, index) => 
+            item.name === 'hook' ? { index, value: item.value } : null
+        ).filter(t => t !== null);
+        map?.reverse();
+
+        const uniqueValues = new Set();
+        for (const { index, value } of map || []) {
+            if (!uniqueValues.has(value)) {
+                uniqueValues.add(value);
+            }
+            content.splice(index, 1, ...hooks[value-1]);
+        }
+        return content
+    }
+
+    getHooks(tokens,ids){
+        tokens.splice(0,1)
+        const adjustmentValue=ids[0].open
+        ids.forEach(id => {
+            id.open-=adjustmentValue;
+            id.close-=adjustmentValue;
+        });
+        ids.reverse();
+        const hooks=[]
+        ids.forEach(id => {
+            const removed=tokens.splice(id.open+1,id.close-(id.open+1))
+            hooks.push(removed)
+        });
+        hooks.reverse();
+        return hooks
+    }
+    
+}
+
 export class BasicTikzToken{
     type: string;
     name: string
@@ -81,55 +225,56 @@ export class BasicTikzToken{
         return searchTizkForOgLatex(this.name).latex
     }
 }
+export class TikzVariable{
+    //type: 
+
+}
+export class TikzVariables{
+    variables: []=[]
+
+}
+
+function toVariableToken(arr: any[]) {
+    arr=arr.filter(t=>(!t.type.includes('Parentheses')))
+    arr=toOg(arr)
+    token=new BasicTikzToken(arr)
+    token.type='variable'
+    return token
+}
 
 
-export class FormatTikzjax {
-	source: string;
-    tokens: Array<Token>=[];
 
-    //midPoint: Axis;
-    private viewAnchors: {max: Axis,min:Axis,aveMidPoint: Axis}
-	processedCode="";
-    debugInfo = "";
-    
-	constructor(source: string|Array<Token>) {
-        if(typeof source==="string"){
-		this.source = this.tidyTikzSource(source);
-        const basicArray=this.basicArrayify()
-        let basicTikzTokens=this.basicTikzTokenify(basicArray)
-        
-        let a=this.cleanBasicTikzTokenify(basicTikzTokens)
-        console.log(a)
-        this.PrepareForTokenize(a)
-        this.tokenize(a)
-        this.processedCode += this.toString()
-        this.debugInfo+=JSON.stringify(this.tokens,null,1)+"\n\n"
-        this.debugInfo+=this.processedCode;
-        }
-        else {this.tokens=source}
+export class BasicTikzTokens{
+    private tokens: Array<BasicTikzToken|Formatting> = []
+    private tikzCommands: TikzCommands=new TikzCommands();
 
-        if (typeof source==="string"&&source.match(/(usepackage|usetikzlibrary)/)){
-            this.processedCode=source;
-        }
-        else{/*
-            this.debugInfo+=this.source;
-            this.findViewAnchors();
-            this.applyPostProcessing();
+    constructor(source: string){
+        source = this.tidyTikzSource(source);
+        source=this.basicArrayify(source)
+        this.basicTikzTokenify(source)
+        this.cleanBasicTikzTokenify()
+        //console.log('cleanBasicTikzTokenify',this.tokens)
+        this.prepareForTokenize()
+    }
+    getTokens(){
+        return this.tokens
+    }
 
-            this.debugInfo+="\n\nthis.midPoint:\n"+JSON.stringify(this.viewAnchors,null,1)+"\n"
-            this.debugInfo+=JSON.stringify(this.tokens,null,1)+"\n\n"
+    private tidyTikzSource(source: string) {
+        const remove = "&nbsp;";
+        source = source.replaceAll(remove, "");let lines = source.split("\n");
+        lines = lines.map(line => line.trim());
+        lines = lines.filter(line => line);
+        return lines.join('\n').replace(/(?<=[^\w]) | (?=[^\w])/g, "").replace(/(?<!\\)%.*$/gm, "").replace(/\n/g,"");
+    }
 
-            this.processedCode += this.toString();
-            this.debugInfo+=this.processedCode;*/
-        }
-	}
-    basicArrayify(){
+    private basicArrayify(source){
         const basicArray = [];
         const operatorsRegex = new RegExp('^' + arrToRegexString(getAllTikzReferences()));
         let i = 0;
          
-        while (i < this.source.length) {
-            const subSource = this.source.slice(i);
+        while (i < source.length) {
+            const subSource = source.slice(i);
             let match;
         
             // Match TikZ operators
@@ -147,7 +292,7 @@ export class FormatTikzjax {
                 i += match[0].length;
                 continue;
             }
-            match = subSource.match(/^[a-zA-Z\\#]+/);
+            match = subSource.match(/^[a-zA-Z\\]+/);
             if (match) {
             basicArray.push({ type: 'string', value: match[0] });
                 i += match[0].length;
@@ -160,65 +305,142 @@ export class FormatTikzjax {
         }
         return basicArray
     }
-    basicTikzTokenify(basicArray){
-        let basicTikzTokens: Array<BasicTikzToken|Formatting> = [];
+    private basicTikzTokenify(basicArray){
          // Process tokens
         basicArray.forEach(({ type, value }) => {
             if (type === 'string') {
                 const tikzCommand = searchTizkCommands(value);
                 if (tikzCommand) {
-                basicTikzTokens.push(new BasicTikzToken(tikzCommand));
+                    this.tokens.push(new BasicTikzToken(tikzCommand));
                 }
                 else
-                    basicTikzTokens.push(new BasicTikzToken(value));
+                this.tokens.push(new BasicTikzToken(value));
                 
             } else if (type === 'number') {
-            basicTikzTokens.push(new BasicTikzToken(value));
+                this.tokens.push(new BasicTikzToken(value));
             }
         });
-        idParentheses(basicTikzTokens)
-        return basicTikzTokens;
+        idParentheses(this.tokens)
     }
-    cleanBasicTikzTokenify(basicTikzTokens){
-        const commandsMap=basicTikzTokens.map((t,idx)=>t.type==='Command'?idx:null)
-        .filter(t=>t!==null);
+    private inferAndInterpretCommands(){
         
+        const commandsMap=this.tokens.map((t,idx)=>t.type==='Command'?idx:null)
+        .filter(t=>t!==null);
+        commandsMap.forEach(index => {
+            const firstBracketAfterIndex=this.tokens.slice(index).find((item,idx)=>item.name==='Curly_brackets_open');
+            const endOfExpression=findModifiedParenIndex(firstBracketAfterIndex.value,undefined,this.tokens,0,1,'Curly_brackets_open')
+            const command=this.tokens.splice(index,Math.abs(index-(endOfExpression.close+1)))
+            this.tikzCommands.addCommandByInterpretation(command)
+        });
+
+        const commands=this.tikzCommands.commands.map(c=>c.getInfo());
+        const commandsInTokens=this.tokens.map((item,index)=>{
+            if(item.type!=='string'){return null}
+            const match=commands.find(c=>c.trigger===item.value)
+            if(match){
+                return {index: index,...match}
+            }
+            return null
+        }).filter(t=>t!==null);
+
+        const founAndConfirmedCommands = [];
+        for (const [index, { trigger, hooks }] of Object.entries(commandsInTokens)) {
+            const numericIndex = Number(index); // Ensure index is a number
+            const firstBracketAfterIndex = this.tokens
+                .slice(numericIndex)
+                .find((item) => item.name === 'Curly_brackets_open')?.value;
+
+            if (!firstBracketAfterIndex) {
+                throw new Error("Curly_brackets_open not found after index " + index);
+            }
+
+            if (typeof hooks !== 'number' || hooks <= 0) {
+                throw new Error(`Invalid hooks value at index ${index}`);
+            }
+
+            const obj = { index, trigger, hooks, ids: [] };
+
+            for (let i = 0; i < hooks; i++) {
+                const parenPairIndex = findModifiedParenIndex(
+                    firstBracketAfterIndex,
+                    undefined,
+                    this.tokens,
+                    0,
+                    i,
+                    'Curly_brackets_open'
+                );
+                if (!parenPairIndex) 
+                    throw new Error(`Paren pair not found for hook ${i} at index ${index}`);
+                if (obj.ids.length > 0) {
+                    const lastId = obj.ids[obj.ids.length - 1];
+                    if (lastId.close !== parenPairIndex.open - 1) {
+                        throw new Error(`Mismatch between last close (${lastId.close}) and next open (${parenPairIndex.open})`);
+                    }
+                }
+                obj.ids.push(parenPairIndex);
+            }
+            founAndConfirmedCommands.push(obj);
+        }
+
+        founAndConfirmedCommands.forEach(command => {
+            if (!command.ids || command.ids.length === 0) {
+                console.error("Error: Command IDs are empty or undefined.");
+                return;
+            }
+            const opan = command.index; 
+            const close = command.ids[command.ids.length - 1].close;
+            if (close < opan) {
+                console.error("Error: Close index is smaller than open index.");
+                return;
+            }
+            const deleteCount = close - opan + 1;
+            const removedTokens = this.tokens.slice(opan, close);
+            const replacement = this.tikzCommands.replaceCallWithCommand(
+                command.trigger,
+                command.hooks,
+                this.tikzCommands.getHooks(removedTokens,command.ids),
+            );
+            this.tokens.splice(opan, deleteCount, ...replacement);
+        });
+    }
+    private cleanBasicTikzTokenify(){
+
+        this.inferAndInterpretCommands()
 
 
-
-
-        const unitIndices: number[] = basicTikzTokens
+        const unitIndices: number[] = this.tokens
         .map((token, idx) => (token.type === 'Unit' ? idx : null))
         .filter((idx): idx is number => idx !== null);
 
         unitIndices.forEach((unitIdx) => {
-            const prevToken = basicTikzTokens[unitIdx - 1];
+            const prevToken = this.tokens[unitIdx - 1];
 
             if (!prevToken || prevToken.type !== 'number') {
                 throw new Error(`Units can only be used in reference to numbers at index ${unitIdx}`);
             }
 
-            prevToken.value = toPoint(prevToken.value as number, basicTikzTokens[unitIdx].name);
+            prevToken.value = toPoint(prevToken.value as number, this.tokens[unitIdx].name);
         });
 
-        basicTikzTokens=basicTikzTokens.filter((_, idx) => (!unitIndices.includes(idx)));
-        //basicTikzTokens=basicTikzTokens.filter((t) => t.name!=='Comma');
+        this.tokens=this.tokens.filter((_, idx) => (!unitIndices.includes(idx)));
+
+        //this.tokens=this.tokens.filter((t) => t.name!=='Comma');
         /*
         const indexesToRemove: number[]=[]
-        basicTikzTokens.forEach((token,index) => {
+        this.tokens.forEach((token,index) => {
             if(token.type==='Formatting'){
-                if(basicTikzTokens[index+1].name==='Equals')
+                if(this.tokens[index+1].name==='Equals')
                 {
-                    basicTikzTokens[index].value=basicTikzTokens[index+2]
+                    this.tokens[index].value=this.tokens[index+2]
                     indexesToRemove.push(index+1,index+2);
                 }
             }
         });
-        basicTikzTokens=basicTikzTokens.filter((_, idx) => (!indexesToRemove.includes(idx)));*/
+        this.tokens=this.tokens.filter((_, idx) => (!indexesToRemove.includes(idx)));*/
 
 
 
-        const mapSyntax = basicTikzTokens
+        const mapSyntax = this.tokens
         .map((token, idx) => (token.type === 'Syntax' && /(Dash|Plus)/.test(token.name) ? idx : null))
         .filter((idx): idx is number => idx !== null);
 
@@ -227,15 +449,14 @@ export class FormatTikzjax {
 
         const syntaxObjects = syntaxSequences
         .map((sequence) => {
-            if (sequence.length === 0) return null; // Handle empty sequences
+            if (sequence.length === 0) return null;
 
             const start = sequence[0];
             const end = sequence[sequence.length - 1];
             
-            
             const value = sequence
                 .map((index) => {
-                    const token = basicTikzTokens[index];
+                    const token = this.tokens[index];
                     if (!token || !token.name) {
                         console.warn(`Missing or invalid token at index ${index}`);
                         return ''; // Provide a fallback
@@ -248,51 +469,113 @@ export class FormatTikzjax {
 
             return { start, end, value };
         })
+
         .filter((obj) => obj !== null)
         .sort((a, b) => b.start - a.start);
 
         syntaxObjects.forEach(({ start, end, value }) => {
             const command = searchTizkCommands(value); 
             const token = new BasicTikzToken(command)
-            basicTikzTokens.splice(start, end + 1 - start, token);
+            this.tokens.splice(start, end + 1 - start, token);
         });
-        return basicTikzTokens
     }
 
-    PrepareForTokenize(basicTikzTokens){
-
-        const squareBracketIndexes = mapBrackets('Square_brackets_open',basicTikzTokens)
-        
+    private prepareForTokenize(){
+        const squareBracketIndexes = mapBrackets('Square_brackets_open',this.tokens)
         squareBracketIndexes
         .sort((a, b) => b.open - a.open) // Sort in descending order of 'open'
         .forEach((index) => {
             const formatting = new Formatting(
-                cleanFormatting(basicTikzTokens.slice(index.open + 1, index.close))
+                cleanFormatting(this.tokens.slice(index.open + 1, index.close))
             );
-            basicTikzTokens.splice(index.open, index.close + 1 - index.open, formatting);
+            this.tokens.splice(index.open, index.close + 1 - index.open, formatting);
         });
 
-        const praneIndexes = mapBrackets('Parentheses_open' ,basicTikzTokens)
-        praneIndexes
+        //let praneIndexes = mapBrackets('Parentheses_open', this.tokens);
+        let coordinateIndexes = mapBrackets('Parentheses_open', this.tokens)
+        .filter((item,idx)=>this.tokens[item.close+1].value!=='at')
+        /*
+        const { coordinateIndexes, variableIndexes } = praneIndexes.reduce((result, item) => {
+            if (this.tokens[item.close + 1]?.value !== 'at') {
+                result.coordinateIndexes.push(item);
+            } 
+            if (this.tokens[item.close + 1]?.value === 'at') {
+                result.variableIndexes.push(item);
+            }
+            return result;
+        }, { coordinateIndexes: [], variableIndexes: [] });*/
+        coordinateIndexes
         .sort((a, b) => b.open - a.open) 
         .forEach((index) => {
             const axis = new Axis().parseInput(
-                basicTikzTokens.slice(index.open + 1, index.close)
+                this.tokens.slice(index.open + 1, index.close)
             );
-            basicTikzTokens.splice(index.open, index.close + 1 - index.open, axis);
+            this.tokens.splice(index.open, index.close + 1 - index.open, axis);
         });
-        return basicTikzTokens
+
+        let variableIndexes = mapBrackets('Parentheses_open', this.tokens)
+        .filter((item,idx)=>this.tokens[item.close + 1].value==='at')
+
+        variableIndexes
+        .sort((a, b) => b.open - a.open) 
+        .forEach((index) => {
+            console.log(index,this.tokens.slice(index.open, index.close))
+            const variable = toVariableToken(this.tokens.slice(index.open + 1, index.close));
+            console.log(variable)
+            this.tokens.splice(index.open, index.close + 1 - index.open, variable);
+        });
     }
+}
+
+
+
+export class FormatTikzjax {
+	source: string;
+    tokens: Array<Token>=[];
+    tikzCommands: TikzCommands=new TikzCommands();
+    //midPoint: Axis;
+    private viewAnchors: {max: Axis,min:Axis,aveMidPoint: Axis}
+	processedCode="";
+    debugInfo = "";
+    
+	constructor(source: string|Array<Token>) {
+        if(!source.match(/(usepackage|usetikzlibrary)/)){
+		//const basicTikzTokens=new BasicTikzTokens(source)
+        //console.log('basicTikzTokens',basicTikzTokens)
+        //this.tokenize(basicTikzTokens.getTokens())
+        //console.log('tokenize',this.tokens)
+        //this.processedCode += this.toString()
+
+        //this.debugInfo+=JSON.stringify(this.tokens,null,1)+"\n\n"
+        }
+        //else {this.processedCode=source;}
+        this.processedCode=this.tidyTikzSource(source);
+        this.debugInfo+=this.processedCode;
+	}
+     private tidyTikzSource(source: string) {
+        const remove = "&nbsp;";
+        source = source.replaceAll(remove, "");let lines = source.split("\n");
+        lines = lines.map(line => line.trim());
+        lines = lines.filter(line => line);
+        return lines.join('\n').replace(/(?<=[^\w]) | (?=[^\w])/g, "").replace(/(?<!\\)%.*$/gm, "").replace(/\n/g,"");
+    }
+
     tokenize(basicTikzTokens){
         let endIndex
         for(let i=0;i<basicTikzTokens.length;i++){
             if (basicTikzTokens[i].name==='Draw'){
                 endIndex=basicTikzTokens.slice(i).findIndex(t=>t.name==='Semicolon')+i
-                const drawSegment=basicTikzTokens.slice(i+1,endIndex)
+                const segment=basicTikzTokens.slice(i+1,endIndex)
                 i=endIndex
-                this.tokens.push(new Draw('draw').fillCoordinates(drawSegment))
+                this.tokens.push(new Draw('draw').fillCoordinates(segment))
             }
-                
+            if (basicTikzTokens[i].name==='Coordinate'){
+                endIndex=basicTikzTokens.slice(i).findIndex(t=>t.name==='Semicolon')+i
+                const segment=basicTikzTokens.slice(i+1,endIndex)
+                console.log(segment)
+                i=endIndex
+                this.tokens.push(new Coordinate('coordinate').interpretCoordinate(segment))
+            }
         }
         /*
         They're going to be three types stringed syntax number.
@@ -306,20 +589,12 @@ export class FormatTikzjax {
         for (let i=0;i<basicTikzTokens.length;i++){
 
         }*/
-        console.log(basicTikzTokens);
-    }
-    
-    tidyTikzSource(tikzSource: string) {
-        const remove = "&nbsp;";
-        tikzSource = tikzSource.replaceAll(remove, "");let lines = tikzSource.split("\n");
-        lines = lines.map(line => line.trim());
-        lines = lines.filter(line => line);
-        return lines.join('\n').replace(/(?<=[^\w]) | (?=[^\w])/g, "").replace(/(?<!\\)%.*$/gm, "").replace(/\n/g,"");
     }
 
     getCode(){
-        if (typeof this.source==="string"&&this.source.match(/(usepackage|usetikzlibrary)/))
+        if (typeof this.source==="string"&&this.source.match(/(usepackage|usetikzlibrary)/)){
             return this.processedCode
+        }
         return getPreamble()+this.processedCode+"\n\\end{tikzpicture}\\end{document}";
     }
     
@@ -491,9 +766,9 @@ export class FormatTikzjax {
 
     toString(){
         let codeBlockOutput = "";
-        const extremeXY=getExtremeXY(this.tokens);
+        console.log('this.tokens',this.tokens)
+        //const extremeXY=getExtremeXY(this.tokens);
         this.tokens.forEach((token: any) => {
-
             if(token.toString()){
                 codeBlockOutput +=token.toString()
             } else {
@@ -503,9 +778,7 @@ export class FormatTikzjax {
         return codeBlockOutput;
     }
 }
-class TikzVariables{
 
-}
 
 function flatten(data: any, results: any[] = [], stopClass?: any): any[] {
     if (Array.isArray(data)) {
@@ -575,10 +848,10 @@ function getPreamble():string{
     
     const table="\\tikzset{ table/.style={matrix of nodes,row sep=-\\pgflinewidth,column sep=-\\pgflinewidth,nodes={rectangle,draw=black,align=center},minimum height=1.5em,text depth=0.5ex,text height=2ex,nodes in empty cells,every even row/.style={nodes={fill=gray!60,text=black,}},column 1/.style={nodes={text width=5em,font=\\bfseries}},row 1/.style={nodes={font=\\bfseries}}}}"
     const coor="\\def\\coor#1#2#3#4{\\coordinate [label={[#4]:\\Large #3}] (#2) at ($(#1)$);}"
-    //const mass=`\\def\\mass#1#2{\\node[fill=yellow!60,draw,text=black,anchor= north] at (#1){#2};}`
+    const mass=`\\def\\mass#1#2{\\node[fill=yellow!60,draw,text=black,anchor= north] at (#1){#2};}`
     const dvector="\\newcommand{\\dvector}[2]{\\coordinate (temp1) at ($(0,0 -| #1)$);\\coordinate (temp2) at ($(0,0 |- #1)$);\\draw [line width=0.7pt,#2] (#1)--(temp1)(#1)--(temp2);}"
     
     const picAng="\\newcommand{\\ang}[5]{\\coordinate (ang1) at (#1); \\coordinate (ang2) at (#2); \\coordinate (ang3) at (#3); \\pgfmathanglebetweenpoints{\\pgfpointanchor{ang3}{center}}{\\pgfpointanchor{ang2}{center}}\\let\\angCB\\pgfmathresult\\pgfmathanglebetweenpoints{\\pgfpointanchor{ang2}{center}}{\\pgfpointanchor{ang1}{center}}\\let\\angAB\\pgfmathresult\\pgfmathparse{\\angCB - \\angAB}\\ifdim\\pgfmathresult pt<0pt\\pgfmathparse{\\pgfmathresult + 360}\\fi\\ifdim\\pgfmathresult pt>180pt\\pgfmathparse{360 - \\pgfmathresult}\\fi\\let\\angB\\pgfmathresult\\pgfmathsetmacro{\\angleCheck}{abs(\\angB - 90)}\\ifthenelse{\\lengthtest{\\angleCheck pt < 0.1pt}}{\\pic [ang#5,\"{${#4}\$}\",]{right angle=ang1--ang2--ang3};}{\\pic [ang#5,\"{${#4}\$}\",]{angle=ang1--ang2--ang3};}}"
     const preamble="\\usepackage{pgfplots,ifthen}\\usetikzlibrary{arrows.meta,angles,quotes,positioning, calc, intersections,decorations.markings,math,spy,matrix,patterns,snakes,decorations.pathreplacing,decorations.pathmorphing,patterns,shadows,shapes.symbols}"
-    return preamble+ang+mark+arr+lene+spring+tree+table+coor+dvector+picAng+"\\pgfplotsset{compat=1.16}\\begin{document}\\begin{tikzpicture}"
+    return preamble+ang+mark+arr+lene+spring+tree+table+coor+dvector+picAng+vec+"\\pgfplotsset{compat=1.16}\\begin{document}\\begin{tikzpicture}"
 }
