@@ -142,23 +142,26 @@ export class NumeralsSuggestor extends EditorSuggest<string> {
 	selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
 		if (this.context) {
 			const editor = this.context.editor;
-			const [suggestionType, suggestion] = value.split('|');
-			const start = this.context.start;
-			const end = editor.getCursor(); // get new end position in case cursor has moved
-			
-			editor.replaceRange(suggestion, start, end);
-			const newCursor = end;
-
-			if (suggestionType === 'f') {
-				newCursor.ch = start.ch + suggestion.length-1;
-			} else {
-				newCursor.ch = start.ch + suggestion.length;
-			}
-			editor.setCursor(newCursor);			
-
-			this.close()
+	
+			// Assume editor is an instance with a cm property for CodeMirror
+			const cmEditor = editor as any;
+			const view = cmEditor.cm ? (cmEditor.cm as EditorView) : null;
+			if (view === null) return;
+	
+			// Get current cursor position
+			const cursor = view.state.selection.main;
+			const from = cursor.from; // Starting position of the current selection
+			const to = cursor.to;   // Ending position of the current selection
+	
+			view.dispatch({
+				changes: { from, to, insert: value }, // Replace selected text with the value
+				selection: { anchor: from + value.length } // Place the cursor at the end of the inserted value
+			});
+	
+			this.close();
 		}
 	}
+	
 }
 
 
