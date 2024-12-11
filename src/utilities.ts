@@ -11,7 +11,7 @@ export interface Latex{
 export function getMathJsSymbols(): Array<Latex> {
 
 	const Latex=[
-		{value: ''}
+		{value: 'aaaa'}
 	];
 
 	return Latex;
