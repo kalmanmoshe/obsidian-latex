@@ -6,13 +6,16 @@ import { CustomInputModal, HistoryModal, InputModal, VecInputModel } from "./tem
 import {MathPluginSettings, DEFAULT_SETTINGS, MathPluginSettingTab,} from "./settings";
 import { calculateBinom, degreesToRadians, findAngleByCosineRule, getUsableDegrees, polarToCartesian, radiansToDegrees, roundBySettings } from "./mathUtilities.js";
 import { Axis, Coordinate, Draw, Formatting, Tikzjax } from "./tikzjax/tikzjax";
-import { NumeralsSuggestor } from "./suggestor.js";
+import { NumeralsSuggestor, Suggestor } from "./suggestor.js";
 import { TikzSvg } from "./tikzjax/myTikz.js";
 
-import { EditorState, SelectionRange,RangeSet } from "@codemirror/state";
+import { EditorState, SelectionRange,RangeSet, Prec } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { EditorView, ViewPlugin, ViewUpdate ,Decoration, } from "@codemirror/view";
 import { FormatTikzjax } from "./tikzjax/interpret/tokenizeTikzjax.js";
+
+
+
 
 
 class RtlForc {
@@ -73,14 +76,33 @@ export default class MathPlugin extends Plugin {
     this.createContextBasedLineStyling()
 
     this.registerEditorSuggest(new NumeralsSuggestor(this));
-
+    this.registerCodeMirrorExtensions();
     // Execute the `a()` method to log and modify all divs
     //this.processDivs();
   }
+
   onunload() {
 		this.tikzProcessor.unloadTikZJaxAllWindows();
 		this.tikzProcessor.removeSyntaxHighlighting();
 	}
+
+  registerCodeMirrorExtensions() {
+    this.registerEditorExtension([
+      Prec.highest(EditorView.domEventHandlers({ "keydown": this.onKeydown.bind(this) })),
+      EditorView.updateListener.of(this.handleUpdate.bind(this)),
+
+    ]);
+  }
+
+  onKeydown(event: KeyboardEvent) {
+    const suggestion=new Suggestor();
+    console.log("event",event);
+  }
+  handleUpdate(update: ViewUpdate) {
+    if (update.docChanged) {
+      
+    }
+  }
   createContextBasedLineStyling(){
     this.registerEditorExtension(
         ViewPlugin.fromClass(RtlForc, {

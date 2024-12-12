@@ -22,6 +22,26 @@ const numeralsDirectives = [
 	"@Total",
 ]
 
+
+export class Suggestor {
+
+	private monitor(){
+		registerCodeMirrorExtensions() {
+			this.registerEditorExtension([
+			  Prec.highest(EditorView.domEventHandlers({ "keydown": this.onKeydown.bind(this) })),
+			  EditorView.updateListener.of(this.handleUpdate.bind(this)),
+		
+			]);
+		  }
+	}
+	private onKeydown(event: KeyboardEvent) {
+		// Log key presses to the console
+		console.log("Key pressed:", event.key);
+	}
+}
+
+
+
 export class NumeralsSuggestor extends EditorSuggest<string> {
 	plugin: NumeralsPlugin;
 	
@@ -100,13 +120,13 @@ export class NumeralsSuggestor extends EditorSuggest<string> {
 	}
 
 	renderSuggestion(value: string, el: HTMLElement): void {
-		console.log(value)
+		el.setText(value)/*
 		el.addClasses(['mod-complex', 'numerals-suggestion']);
 		const suggestionContent = el.createDiv({cls: 'suggestion-content'});
 		const suggestionTitle = suggestionContent.createDiv({cls: 'suggestion-title'});
 		const suggestionNote = suggestionContent.createDiv({cls: 'suggestion-note'});
 		const suggestionAux = el.createDiv({cls: 'suggestion-aux'});
-		const suggestionFlair = suggestionAux.createDiv({cls: 'suggestion-flair'});
+		const suggestionFlair = suggestionAux.createDiv({cls: 'suggestion-flair'});*/
 
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		/*
@@ -129,7 +149,7 @@ export class NumeralsSuggestor extends EditorSuggest<string> {
 		if (noteText) {
 			suggestionNote.setText(noteText);
 		}*/
-		suggestionTitle.setText(value);
+		//suggestionTitle.setText(value);
 
 	}
 
@@ -139,29 +159,27 @@ export class NumeralsSuggestor extends EditorSuggest<string> {
 	 * @param evt The event that triggered the selection
 	 * @returns void
 	 */
+
 	selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
 		if (this.context) {
 			const editor = this.context.editor;
-	
-			// Assume editor is an instance with a cm property for CodeMirror
+			
 			const cmEditor = editor as any;
 			const view = cmEditor.cm ? (cmEditor.cm as EditorView) : null;
 			if (view === null) return;
 	
-			// Get current cursor position
 			const cursor = view.state.selection.main;
-			const from = cursor.from; // Starting position of the current selection
-			const to = cursor.to;   // Ending position of the current selection
+			const from = cursor.from;
+			const to = cursor.to; 
 	
 			view.dispatch({
-				changes: { from, to, insert: value }, // Replace selected text with the value
-				selection: { anchor: from + value.length } // Place the cursor at the end of the inserted value
+				changes: { from, to, insert: value },
+				selection: { anchor: from + value.length }
 			});
-	
+			
 			this.close();
 		}
 	}
-	
 }
 
 

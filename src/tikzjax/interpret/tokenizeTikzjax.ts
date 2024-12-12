@@ -253,7 +253,7 @@ export class BasicTikzTokens{
         source=this.basicArrayify(source)
         this.basicTikzTokenify(source)
         this.cleanBasicTikzTokenify()
-        //console.log('cleanBasicTikzTokenify',this.tokens)
+        
         this.prepareForTokenize()
     }
     getTokens(){
@@ -552,7 +552,8 @@ export class FormatTikzjax {
         this.processedCode=this.tidyTikzSource(source);
         this.debugInfo+=this.processedCode;
 	}
-     private tidyTikzSource(source: string) {
+
+    private tidyTikzSource(source: string) {
         const remove = "&nbsp;";
         source = source.replaceAll(remove, "");let lines = source.split("\n");
         lines = lines.map(line => line.trim());
