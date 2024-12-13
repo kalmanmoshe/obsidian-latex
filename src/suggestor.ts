@@ -9,11 +9,16 @@ import {
     setIcon,
  } from "obsidian";
 
-import { getMathJsSymbols, Latex } from "./utilities";
+import { getTikzSuggestions, Latex } from "./utilities";
 import { EditorView, ViewPlugin, ViewUpdate ,Decoration, } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
-import { EditorState } from "@codemirror/state";
+import { EditorState, Prec } from "@codemirror/state";
 import { SyntaxNode, TreeCursor } from "@lezer/common";
+import MathPlugin from "./main";
+import { context } from "esbuild-wasm";
+import { Context } from "./editor utilities/context";
+import { Position } from "./mathEngine";
+import { replaceRange, setCursor } from "./editor utilities/editor_utils";
 
 
 const numeralsDirectives = [
@@ -21,40 +26,274 @@ const numeralsDirectives = [
 	"@Sum",
 	"@Total",
 ]
-
-
-export class Suggestor {
-
-	private monitor(){
-		registerCodeMirrorExtensions() {
-			this.registerEditorExtension([
-			  Prec.highest(EditorView.domEventHandlers({ "keydown": this.onKeydown.bind(this) })),
-			  EditorView.updateListener.of(this.handleUpdate.bind(this)),
-		
-			]);
-		  }
+class SuggestorTrigger{
+	text: string
+	constructor(pos: number, view: EditorView){
+		this.text=this.getCurrentLineText(pos, view)
 	}
-	private onKeydown(event: KeyboardEvent) {
-		// Log key presses to the console
-		console.log("Key pressed:", event.key);
+	setTrigger(trigger: string){
+
+	}
+	getCurrentLineText(pos: number, view: EditorView): string {
+		const line = view.state.doc.lineAt(pos);
+		console.log('line.text.slice(0, (pos+2) - line.from).trim()',line.text)
+		const cursorOffsetInLine = (pos+2) - line.from;
+		const textUpToCursor = line.text.slice(0, cursorOffsetInLine).trim();
+	
+		const words = textUpToCursor.split(/\s+/);
+		return words[words.length - 1] || "";
 	}
 }
 
+export class Suggestor {
+	private plugin: MathPlugin;
+	private trigger: SuggestorTrigger;
+	private selectionIndex?: number;
+	private context: Context;
+	private listenForTransaction: boolean;
+	constructor(plugin: MathPlugin){
+		this.plugin=plugin
+		this.monitor();
+	}
+	private monitor() {
+		this.plugin.registerEditorExtension([
+			Prec.highest(EditorView.domEventHandlers({
+				"keydown": (event, view) => this.onKeydown(event, view),
+			})),
+			EditorView.updateListener.of((update) => {
+				if (this.listenForTransaction && update.docChanged) {
+					this.onTransaction(update.view);
+					this.listenForTransaction = false; 
+				}
+			}),
+		]);
+	}
+	private onKeydown(event: KeyboardEvent, view: EditorView) {
+		this.handleDropdownNavigation(event,view);
+		if(this.isValueKey(event))
+			this.listenForTransaction = true;
+	}
 
+	private onTransaction(view: EditorView) {
+		this.context  = Context.fromView(view);
+		if (this.context.codeblockLanguage === "tikz") {
+			this.deployDropdown(view)
+		}
+	}
 
+	private getAlldropdownItems(){return document.body.querySelectorAll(".suggestion-item")}
+	private dropdownifAnyDeployed(){return document.body.querySelector(".suggestion-dropdown")}
+
+	private handleDropdownNavigation(event: KeyboardEvent,view:EditorView) {
+		const dropdown = this.dropdownifAnyDeployed();
+		if (!dropdown || this.selectionIndex === undefined) return;
+	
+		const items = this.getAlldropdownItems();
+
+		if (items.length === 0) return;
+		if (event.key === "ArrowDown") {
+			this.selectionIndex = (this.selectionIndex + 1) % items.length;
+			this.updateSelection(items);
+			event.preventDefault();
+		} else if (event.key === "ArrowUp") {
+			this.selectionIndex = (this.selectionIndex - 1 + items.length) % items.length;
+			this.updateSelection(items);
+			event.preventDefault();
+		} else if (event.key === "Enter") {
+			const selectedItem = items[this.selectionIndex];
+			if (selectedItem&&this.context) {
+				this.selectDropdownItem(selectedItem,view);
+			}
+			dropdown.remove();
+			event.preventDefault();
+		} else if (event.key === "Escape") {
+			dropdown.remove();
+			event.preventDefault();
+		}
+	}
+
+	private isValueKey(event: KeyboardEvent){
+		return event.code.contains('Key')&&!event.ctrlKey
+	}
+
+	
+
+	private getSuggestions(view: EditorView) {
+		this.trigger=new SuggestorTrigger(this.context.pos, view)
+		const allSuggestions = getTikzSuggestions().map(s => s.trigger||s.replacement);
+	
+		const filteredSuggestions = allSuggestions.filter((suggestion) =>
+			suggestion.toLowerCase().startsWith(this.trigger.text.toLowerCase())
+		);
+	
+		const sortedSuggestions = filteredSuggestions.sort((a, b) => {
+			const lowerLastWord = this.trigger.text.toLowerCase();
+			const aLower = a.toLowerCase();
+			const bLower = b.toLowerCase();
+	
+
+			const aExactMatch = aLower === lowerLastWord ? -1 : 0;
+			const bExactMatch = bLower === lowerLastWord ? -1 : 0;
+			if (aExactMatch !== bExactMatch) return aExactMatch - bExactMatch;
+	
+			if (a.length !== b.length) return a.length - b.length;
+	
+			return aLower.localeCompare(bLower);
+		});
+		return sortedSuggestions;
+	}
+
+	private deployDropdown(view: EditorView){
+		const existingDropdown = this.dropdownifAnyDeployed();
+		if (existingDropdown) existingDropdown.remove();
+
+		const suggestions=this.getSuggestions(view)
+		if(suggestions.length<1)return;
+
+		const suggestionDropdown = createFloatingSuggestionDropdown(suggestions,view, this.context.pos);
+		if (!suggestionDropdown) return;
+		document.body.appendChild(suggestionDropdown);
+
+		this.selectionIndex=0;
+		this.updateSelection(this.getAlldropdownItems());
+
+		const handleOutsideClick = (event: MouseEvent) => {
+			const suggestionItems = suggestionDropdown.querySelectorAll(".suggestion-item"); // Adjust selector as needed
+
+			// Check if the click is on a suggestion item
+			const clickedSuggestion = Array.from(suggestionItems).find((item) =>
+				item.contains(event.target as Node)
+			);
+		
+			if (clickedSuggestion) {
+				// Handle selection of the clicked suggestion
+				this.selectDropdownItem(clickedSuggestion,view);
+				suggestionDropdown.remove();
+				document.removeEventListener("click", handleOutsideClick);
+				return;
+			}
+		
+			// If click is outside the dropdown, close it
+			if (!suggestionDropdown.contains(event.target as Node)) {
+				suggestionDropdown.remove();
+				document.removeEventListener("click", handleOutsideClick);
+			}
+		};
+		document.addEventListener("click", handleOutsideClick);
+	}
+
+	private updateSelection(items: NodeListOf<Element>) {
+		items.forEach((item, index) => {
+			if (index === this.selectionIndex) {
+				item.classList.add("selected");
+				item.scrollIntoView({ block: "nearest" });
+			} else {
+				item.classList.remove("selected");
+			}
+		});
+	}
+
+	private selectDropdownItem(item: Element,view: EditorView) {
+		if(!this.context)return ;
+		const selectedText = item.textContent || "";
+		const pos=this.context.pos;
+		replaceRange(view,pos-this.trigger.text.length,pos,selectedText)
+		view.focus();
+		setCursor(view,calculateNewCursorPosition(this.trigger.text,selectedText,pos))
+		console.log(`Selected: ${selectedText}`);
+	}
+}
+function calculateNewCursorPosition(triggerText: string, selectedText: string, originalPos: number): number {
+    const lengthDifference = selectedText.length - triggerText.length;
+    return originalPos + lengthDifference;
+}
+
+function createFloatingSuggestionDropdown(suggestions: any[],editorView: EditorView, position: number) {
+
+    const coordinates = editorView.coordsAtPos(position);
+    if (!coordinates) return;
+
+    const suggestionDropdown = createSuggestionDropdown(suggestions);
+
+    suggestionDropdown.style.position = "absolute";
+    suggestionDropdown.style.left = `${coordinates.left}px`;
+    suggestionDropdown.style.top = `${coordinates.bottom}px`;
+	return suggestionDropdown;
+}
+
+// Creates a suggestion dropdown container with suggestion items
+function createSuggestionDropdown(suggestions: string[]) {
+    const dropdownContainer = document.createElement("div");
+    dropdownContainer.className = "suggestion-dropdown";
+
+    suggestions.forEach((suggestion) => {
+        const item = createSuggestionItem(suggestion)
+		item.addEventListener("click", () => {
+            selectSuggestion(suggestion);
+            dropdownContainer.remove();
+        });
+		dropdownContainer.appendChild(item)
+    });
+
+    return dropdownContainer;
+}
+
+function selectSuggestion(suggestion: string) {
+    console.log(`Selected: ${suggestion}`);
+}
+
+function createSuggestionItem(displayText: string): HTMLElement {
+	// Create the outer suggestion item container
+	const container = document.createElement("div");
+	container.classList.add("suggestion-item");
+	container.innerText=displayText
+  	return container
+	// Create the icon container
+	const icon = document.createElement("div");
+	icon.classList.add("icon");
+	icon.textContent = "ƒ"; // Placeholder icon content
+  
+	// Create the details container
+	const details = document.createElement("div");
+	details.classList.add("details");
+  
+	// Add a name span to details
+	const name = document.createElement("span");
+	name.classList.add("name");
+	name.textContent = "function"; // Placeholder name content
+  
+	// Add a type span to details
+	const type = document.createElement("span");
+	type.classList.add("type");
+	type.textContent = "Keyword"; // Placeholder type content
+  
+	// Append name and type to details
+	details.appendChild(name);
+	details.appendChild(type);
+  
+	// Append icon and details to the container
+	container.appendChild(icon);
+	container.appendChild(details);
+  
+	return container;
+}
+
+  
+
+/*
 export class NumeralsSuggestor extends EditorSuggest<string> {
 	plugin: NumeralsPlugin;
 	
 	/**
 	 * Time of last suggestion list update
 	 * @type {number}
-	 * @private */
+	 * @private 
 	private lastSuggestionListUpdate: number = 0;
 
 	/**
 	 * List of possible suggestions based on current code block
 	 * @type {string[]}
-	 * @private */
+	 * @private 
 	private localSuggestionCache: string[] = [];
 
 	//empty constructor
@@ -114,7 +353,7 @@ export class NumeralsSuggestor extends EditorSuggest<string> {
 			numeralsDirectives
 				.filter((value) => value.slice(0,-1).toLowerCase().startsWith(query, 0))
 				.map((value) => 'm|' + value)
-			);*/
+			);
 
 		return suggestions;
 	}
@@ -148,7 +387,7 @@ export class NumeralsSuggestor extends EditorSuggest<string> {
 		suggestionTitle.setText(suggestionText);
 		if (noteText) {
 			suggestionNote.setText(noteText);
-		}*/
+		}
 		//suggestionTitle.setText(value);
 
 	}
@@ -158,7 +397,7 @@ export class NumeralsSuggestor extends EditorSuggest<string> {
 	 * @param value The selected suggestion
 	 * @param evt The event that triggered the selection
 	 * @returns void
-	 */
+	 
 
 	selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
 		if (this.context) {
@@ -181,7 +420,7 @@ export class NumeralsSuggestor extends EditorSuggest<string> {
 		}
 	}
 }
-
+*/
 
 export function getCharacterAtPos(viewOrState: EditorView | EditorState, pos: number) {
 	const state = viewOrState instanceof EditorView ? viewOrState.state : viewOrState;
