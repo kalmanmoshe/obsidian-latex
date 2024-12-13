@@ -1,15 +1,164 @@
 
 
 export interface Latex{
-	value: string;
-
+	trigger?: string;
+	replacement: string;
 }
 
-export function getMathJsSymbols(): Array<Latex> {
+export function getTikzSuggestions(): Array<Latex> {
 
 	const Latex=[
-		{value: 'babc'}
+		// Shapes
+		{trigger: undefined, replacement: "rectangle",},
+     	{trigger: undefined, replacement: "parabola"},
+		// spy
+		{replacement: 'spy using outlines,'},
+		// Arrow
+		{replacement: '-{Stealth},'},
+		{replacement: '{Stealth}-,'},
+		// plots
+		{trigger: undefined, replacement: "samples="},
+		// axis 
+		{trigger: undefined, replacement: "axis on top,"},
+		// marks
+		{trigger: undefined, replacement: "mark=none"},
+    	{trigger: undefined, replacement: "mark=$1,"},
+    	{trigger: undefined, replacement: "only marks"},
+		// line width
+		{trigger: undefined, replacement: "line width=1pt,"},
+		// line type
+		{trigger: undefined, replacement: "loosely dotted,"},
+		{trigger: undefined, replacement: "dotted,"},
+		{trigger: undefined, replacement: "densely dotted,"},
+		{trigger: undefined, replacement: "loosely dashed,"},
+		{trigger: undefined, replacement: "dashed,"},
+		{trigger: undefined, replacement: "densely dashed,"},
+		// positions
+		{trigger: undefined, replacement: "sloped"},
+		{trigger: undefined, replacement: "above"},
+		{trigger: undefined, replacement: "below"},
+		{trigger: undefined, replacement: "left"},
+		{trigger: undefined, replacement: "right"},
+		{trigger: undefined, replacement: "upper"},
+		{trigger: undefined, replacement: "lower"},
+		// grid styles
+		{trigger: undefined, replacement: "none"},
+		{trigger: undefined, replacement: "major"},
+		{trigger: undefined, replacement: "minor"},
+		{trigger: undefined, replacement: "both"},
+		//cycle list
+		{trigger: undefined, replacement: "cycle list={$0},$1"},
+		{trigger: undefined, replacement: "cycle list name=mark list,"},
+		{trigger: undefined, replacement: "cycle list name=exotic,"},
+		{trigger: undefined, replacement: "cycle list name=color,"},
+		{trigger: undefined, replacement: "cycle list name=color list,"},
+		//Rambled mess
+		{replacement: "draw"},
+		{replacement: "blue"},
+		{replacement: "red"},
+		{replacement: "tikzpicture"},
+		{replacement: "color"},
+		{replacement: "left color"},
+		{replacement: "right color"},
+		{replacement: "white"},
+		{replacement: "scale"},
+		{replacement: "thick"},
+		{replacement: "cm"},
+		{replacement: "circle"},
+		{replacement: "cap=round"},
+		{replacement: "midway"},
+		{replacement: "green"},
+		{replacement: "help lines"},
+		{replacement: "title={Title Text}"},
+		{replacement: "xlabel={X Axis Label}"},
+		{replacement: "ylabel={Y Axis Label}"},
+		{replacement: "axis lines=none"},
+		{replacement: "axis lines=left"},
+		{replacement: "axis lines=right"},
+		{replacement: "axis lines=middle"},
+		{replacement: "axis lines=center"},
+		{replacement: "axis lines=box"},
+		{replacement: "axis lines=top"},
+		{replacement: "axis lines=bottom"},
+		{replacement: "scale only axis"},
+		{replacement: "xmode={log,normal}"},
+		{replacement: "ymode={log,normal}"},
+		{replacement: "xtick={list of values}"},
+		{replacement: "ytick={list of values}"},
+		{replacement: "xticklabels={list of labels}"},
+		{replacement: "yticklabels={list of labels}"},
+		{replacement: "color="},
+		{replacement: "thick"},
+		{replacement: "very thick"},
+		{replacement: "ultra thick"},
+		{replacement: "fill="},
+		{replacement: "area style"},
+		{replacement: "legend pos"},
+		{replacement: "north west"},
+		{replacement: "north east"},
+		{replacement: "south west"},
+		{replacement: "south east"},
+		{replacement: "outer north east"},
+		{replacement: "outer south east"},
+		{replacement: "font="},
+		{replacement: "legend cell align={left, center, right}"},
+		{replacement: "\addlegendentry{<text>}"},
+		{replacement: "\addlegendimage{<options>}"},
+		{replacement: "width"},
+		{replacement: "height"},
+		{replacement: "axis background"},
+		{replacement: "domain="},
+		{replacement: "mark options="},
+		{replacement: "addlegendentry"},
+		{replacement: "fill opacity"},
+		{replacement: "error bars/.cd,"},
+		{replacement: "y dir=minus,"},
+		{replacement: "y fixed relative=1,"},
+		{replacement: "x dir=minus,"},
+		{replacement: "x fixed relative=1,"},
+		{replacement: "error bar style={},"},
+		{replacement: "stack plots=y"},
+		{replacement: "stack dir=minus"},
+		{replacement: "error bar style={dotted}"},
+		{replacement: "quiver={u=1,v=1,scale arrows = 0.25},"},
+		{replacement: "minimum width"},
+		{replacement: "minimum height"},
+		{replacement: "anchor=north"},
+		{replacement: "label=east"},
+		{replacement: "segment length"},
+		{replacement: "amplitude"},
+		{replacement: "decorate"},
+		{replacement: "coil"},
+		{replacement: "latex-latex"},
+		{replacement: "ultra thin"},
+		{replacement: "very thin"},
+		{replacement: "thin"},
+		{replacement: "semithick"},
+		{replacement: "thick"},
+		{replacement: "very thick"},
+		{replacement: "ultra thick"},
+		{replacement: "tiny"},
+		{replacement: "scriptsize"},
+		{replacement: "small"},
+		{replacement: "normalsize"},
+		{replacement: "large"},
+		{replacement: "Large"},
+		{replacement: "LARGE"},
+		{replacement: "huge"},
+		{replacement: "Huge"},
+		{replacement: "at end"},
+		{replacement: "very near end"},
+		{replacement: "near end"},
+		{replacement: "midway"},
+		{replacement: "near start"},
+		{replacement: "very near start"},
+		{replacement: "at start"},
+		{replacement: "minimum size="},
+		{replacement: "draw"},
+		
 	];
 
 	return Latex;
 }
+
+const tikzTemplates=[]
