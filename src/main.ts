@@ -3,7 +3,7 @@ import {Plugin, MarkdownRenderer, App, Modal, Component, Setting,Notice, Workspa
 import { MathInfo, MathPraiser } from "./mathEngine.js";
 import { InfoModal, DebugModal } from "./desplyModals";
 import { CustomInputModal, HistoryModal, InputModal, VecInputModel } from "./temp";
-import {MathPluginSettings, DEFAULT_SETTINGS, MathPluginSettingTab,} from "./settings";
+import {moshePluginSettings, DEFAULT_SETTINGS, MathPluginSettingTab,} from "./settings";
 import { calculateBinom, degreesToRadians, findAngleByCosineRule, getUsableDegrees, polarToCartesian, radiansToDegrees, roundBySettings } from "./mathUtilities.js";
 import { Axis, Coordinate, Draw, Formatting, Tikzjax } from "./tikzjax/tikzjax";
 import { Suggestor } from "./suggestor.js";
@@ -18,49 +18,8 @@ import { FormatTikzjax } from "./tikzjax/interpret/tokenizeTikzjax.js";
 
 
 
-class RtlForc {
-  decorations: RangeSet<Decoration>;
-
-  constructor(view: EditorView) {
-    this.decorations = this.computeDecorations(view);
-  }
-
-  update(update: ViewUpdate) {
-    if (update.docChanged || update.viewportChanged) {
-      this.decorations = this.computeDecorations(update.view);
-    }
-  }
-
-  computeDecorations(view: EditorView): RangeSet<Decoration> {
-    const widgets = [];
-    for (let { from, to } of view.visibleRanges) {
-      for (let pos = from; pos <= to; ) {
-        const line = view.state.doc.lineAt(pos);
-        const content = line.text.trim();
-        if (
-          content
-            .replace(/[#:\s"=-\d\[\].\+\-]*/g, "")
-            .replace(/<[a-z]+[\w\s\d]*>/g, "")
-            .match(/^[א-ת]/)
-        ) {
-          widgets.push(
-            Decoration.line({
-              class: "custom-rtl-line",
-            }).range(line.from)
-          );
-        }
-        pos = line.to + 1;
-      }
-    }
-    return Decoration.set(widgets);
-  }
-}
-
-
-
-
-export default class MathPlugin extends Plugin {
-  settings: MathPluginSettings;
+export default class Moshe extends Plugin {
+  settings: moshePluginSettings;
   tikzProcessor: Tikzjax
   async onload() {
     await this.loadSettings();

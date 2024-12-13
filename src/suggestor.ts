@@ -14,18 +14,75 @@ import { EditorView, ViewPlugin, ViewUpdate ,Decoration, } from "@codemirror/vie
 import { syntaxTree } from "@codemirror/language";
 import { EditorState, Prec } from "@codemirror/state";
 import { SyntaxNode, TreeCursor } from "@lezer/common";
-import MathPlugin from "./main";
+import Moshe from "./main";
 import { context } from "esbuild-wasm";
 import { Context } from "./editor utilities/context";
 import { Position } from "./mathEngine";
 import { replaceRange, setCursor } from "./editor utilities/editor_utils";
+import moshe from "./main";
 
 
-const numeralsDirectives = [
-	"@hideRows",
-	"@Sum",
-	"@Total",
-]
+export class EditorExtensions extends Moshe{
+	shouldListenForTransaction: boolean;
+	private monitor() {
+		this.registerEditorExtension([
+			Prec.highest(EditorView.domEventHandlers({
+				"keydown": (event, view) => this.onKeydown(event, view),
+			})),
+			EditorView.updateListener.of((update) => {
+				if (this.shouldListenForTransaction && update.docChanged) {
+					this.onTransaction(update.view);
+					this.listenForTransaction = false; 
+				}
+			}),
+		]);
+	}
+	private decorat(){
+
+	}
+}
+
+
+
+class RtlForc {
+	decorations: RangeSet<Decoration>;
+  
+	constructor(view: EditorView) {
+	  this.decorations = this.computeDecorations(view);
+	}
+  
+	update(update: ViewUpdate) {
+	  if (update.docChanged || update.viewportChanged) {
+		this.decorations = this.computeDecorations(update.view);
+	  }
+	}
+  
+	computeDecorations(view: EditorView): RangeSet<Decoration> {
+	  const widgets = [];
+	  for (let { from, to } of view.visibleRanges) {
+		for (let pos = from; pos <= to; ) {
+		  const line = view.state.doc.lineAt(pos);
+		  const content = line.text.trim();
+		  if (
+			content
+			  .replace(/[#:\s"=-\d\[\].\+\-]*/g, "")
+			  .replace(/<[a-z]+[\w\s\d]*>/g, "")
+			  .match(/^[א-ת]/)
+		  ) {
+			widgets.push(
+			  Decoration.line({
+				class: "custom-rtl-line",
+			  }).range(line.from)
+			);
+		  }
+		  pos = line.to + 1;
+		}
+	  }
+	  return Decoration.set(widgets);
+	}
+  }
+
+
 class SuggestorTrigger{
 	text: string
 	constructor(pos: number, view: EditorView){
@@ -46,15 +103,16 @@ class SuggestorTrigger{
 }
 
 export class Suggestor {
-	private plugin: MathPlugin;
+	private plugin: Moshe;
 	private trigger: SuggestorTrigger;
 	private selectionIndex?: number;
 	private context: Context;
 	private listenForTransaction: boolean;
-	constructor(plugin: MathPlugin){
+	constructor(plugin: Moshe){
 		this.plugin=plugin
 		this.monitor();
 	}
+
 	private monitor() {
 		this.plugin.registerEditorExtension([
 			Prec.highest(EditorView.domEventHandlers({
@@ -68,6 +126,7 @@ export class Suggestor {
 			}),
 		]);
 	}
+
 	private onKeydown(event: KeyboardEvent, view: EditorView) {
 		this.handleDropdownNavigation(event,view);
 		if(this.isValueKey(event))
@@ -278,7 +337,126 @@ function createSuggestionItem(displayText: string): HTMLElement {
 	return container;
 }
 
+const onKeydown = (event: KeyboardEvent, view: EditorView) => {
+	let key = event.key;
+	const ctx = Context.fromView(view);
+	if (!(event.ctrlKey || event.metaKey) && (ctx.mode.inMath() && (!ctx.inTextEnvironment() || ctx.codeblockLanguage.match(/(tikz)/)))) {
+	  const trigger = getTriggers().find((trigger2) => trigger2.key === event.key && trigger2.code === event.code);
+	  if (trigger) {
+		key = trigger.replacement;
+	  }
+	}
   
+	const success = handleKeydown(key, event.shiftKey, event.ctrlKey || event.metaKey, isComposing(view, event), view, ctx);
+	if (success) {
+	  event.preventDefault();
+	} else if (key !== event.key) {
+	  event.preventDefault();
+	  const { from } = view.state.selection.main;
+	  view.dispatch({
+		changes: { from: view.state.selection.main.from, to: view.state.selection.main.to, insert: key },
+		selection: { anchor: from + key.length }
+	  });
+	}
+};
+
+const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, isIME: any, view: EditorView | EditorState, ctx: Context) => {
+	const settings = getLatexSuiteConfig(view);
+	let success = false;
+	if (settings.autoDelete$ && key === "Backspace" && ctx.mode.inMath()) {
+	  const charAtPos = getCharacterAtPos(view, ctx.pos);
+	  const charAtPrevPos = getCharacterAtPos(view, ctx.pos - 1);
+	  if (charAtPos === "$" && charAtPrevPos === "$") {
+		replaceRange(view, ctx.pos - 1, ctx.pos + 1, "");
+		removeAllTabstops(view);
+		return true;
+	  }
+	}
+	if (settings.snippetsEnabled) {
+	  if (settings.suppressSnippetTriggerOnIME && isIME)
+		return;
+	  if (!ctrlKey) {
+		try {
+		  success = runSnippets(view, ctx, key);
+		  if (success)
+			return true;
+		} catch (e) {
+		  clearSnippetQueue(view);
+		  console.error(e);
+		}
+	  }
+	}
+	if (key === "Tab") {
+	  success = setSelectionToNextTabstop(view);
+	  if (success)
+		return true;
+	}
+	if (settings.autofractionEnabled && ctx.mode.strictlyInMath()) {
+	  if (key === "/") {
+		success = runAutoFraction(view, ctx);
+		if (success)
+		  return true;
+	  }
+	}
+	if (settings.matrixShortcutsEnabled && ctx.mode.blockMath) {
+	  if (["Tab", "Enter"].contains(key)) {
+		success = runMatrixShortcuts(view, ctx, key, shiftKey);
+		if (success)
+		  return true;
+	  }
+	}
+	if (settings.taboutEnabled) {
+	  if (key === "Tab" || shouldTaboutByCloseBracket(view, key)) {
+		success = tabout(view, ctx);
+		if (success)
+		  return true;
+	  }
+	}
+	return false;
+  };
+
+
+function getTriggers() {
+	return [
+	  { key: "\u05D0", code: "KeyT", replacement: "t" },
+	  { key: "\u05D1", code: "KeyC", replacement: "c" },
+	  { key: "\u05D2", code: "KeyD", replacement: "d" },
+	  { key: "\u05D3", code: "KeyS", replacement: "s" },
+	  { key: "\u05D4", code: "KeyV", replacement: "v" },
+	  { key: "\u05D5", code: "KeyU", replacement: "u" },
+	  { key: "\u05D6", code: "KeyZ", replacement: "z" },
+	  { key: "\u05D7", code: "KeyJ", replacement: "j" },
+	  { key: "\u05D8", code: "KeyY", replacement: "y" },
+	  { key: "ך", code: "KeyL", replacement: "l" },
+	  { key: "\u05D9", code: "KeyH", replacement: "h" },
+	  { key: "\u05DB", code: "KeyF", replacement: "f" },
+	  { key: "\u05DC", code: "KeyK", replacement: "k" },
+	  { key: "\u05DE", code: "KeyN", replacement: "n" },
+	  { key: "\u05DD", code: "KeyO", replacement: "o" },
+	  { key: "\u05E0", code: "KeyB", replacement: "b" },
+	  { key: "\u05DF", code: "KeyI", replacement: "i" },
+	  { key: "\u05E1", code: "KeyX", replacement: "x" },
+	  { key: "\u05E2", code: "KeyG", replacement: "g" },
+	  { key: "\u05E4", code: "KeyP", replacement: "p" },
+	  { key: "\u05E6", code: "KeyM", replacement: "m" },
+	  { key: "\u05E8", code: "KeyR", replacement: "r" },
+	  { key: "\u05E7", code: "KeyE", replacement: "e" },
+	  { key: "\u05E9", code: "KeyA", replacement: "a" },
+	  { key: "\u05EA", code: "KeyC", replacement: "c" },
+	  { key: "ת", code: "Comma", replacement: "," },
+	  { key: "'", code: "KeyW", replacement: "w" },
+	  { key: "\u05E5", code: "Period", replacement: "." },
+	  { key: ".", code: "Slash", replacement: "/" },
+	  { key: "]", code: "BracketLeft", replacement: "[" },
+	  { key: "[", code: "BracketRight", replacement: "]" },
+	  { key: "}", code: "BracketLeft", replacement: "{" },
+	  { key: "{", code: "BracketRight", replacement: "}" },
+	  { key: ")", code: "Digit9", replacement: "(" },
+	  { key: "(", code: "Digit0", replacement: ")" },
+	  { key: ">", code: "Comma", replacement: "<" },
+	  { key: "<", code: "Period", replacement: ">" }
+	];
+  }
 
 /*
 export class NumeralsSuggestor extends EditorSuggest<string> {
