@@ -2,8 +2,9 @@ import { App, Notice, PluginSettingTab, Setting ,Component} from "obsidian";
 import MathPlugin from "./main";
 import { Interface } from "readline";
 import * as localForage from "localforage";
+import Moshe from "./main";
 
-export interface MathPluginSettings {
+export interface MoshePluginSettings {
     invertColorsInDarkMode: boolean;
     numberFormatting: string
     background: string;
@@ -16,7 +17,7 @@ export interface MathPluginSettings {
     sessionHistory: { input: string, result: string }[]; 
 }
 
-export const DEFAULT_SETTINGS: MathPluginSettings = {
+export const DEFAULT_SETTINGS: MoshePluginSettings = {
     invertColorsInDarkMode: true,
     numberFormatting: ".000",
     background: "#44475A",
@@ -31,9 +32,9 @@ export const DEFAULT_SETTINGS: MathPluginSettings = {
 
   
 
-export class MathPluginSettingTab extends PluginSettingTab {
-    plugin: MathPlugin;
-    settings: MathPluginSettings;
+export class MoshePluginSettingTab extends PluginSettingTab {
+    plugin: Moshe;
+    settings: MoshePluginSettings;
     
     constructor(app: App,plugin: MathPlugin) {
       super(app,plugin);
