@@ -1,12 +1,12 @@
 import { EditorView } from "@codemirror/view";
 import { ChangeSet } from "@codemirror/state";
-import { startSnippet } from "src/codemirror/history";
+import { startSnippet } from "./codemirror/history";
 import { isolateHistory } from "@codemirror/commands";
 import { TabstopSpec, tabstopSpecsToTabstopGroups } from "./tabstop";
-import { addTabstops, getTabstopGroupsFromView, getNextTabstopColor, tabstopsStateField } from "src/codemirror/tabstops_state_field";
-import { clearSnippetQueue, snippetQueueStateField } from "src/codemirror/snippet_queue_state_field";
-import { SnippetChangeSpec } from "src/codemirror/snippet_change_spec";
-import { resetCursorBlink } from "src/editor utilities/editor_utils";
+import { addTabstops, getTabstopGroupsFromView, getNextTabstopColor, tabstopsStateField } from "./codemirror/tabstops_state_field";
+import { clearSnippetQueue, snippetQueueStateField } from "./codemirror/snippet_queue_state_field";
+import { SnippetChangeSpec } from "./codemirror/snippet_change_spec";
+import { resetCursorBlink } from "src/utils/editor_utils";
 
 export function expandSnippets(view: EditorView):boolean {
 	const snippetsToExpand = view.state.field(snippetQueueStateField);
@@ -104,10 +104,9 @@ function expandTabstops(view: EditorView, tabstops: TabstopSpec[]) {
 
 // Returns true if the transaction was dispatched
 export function setSelectionToNextTabstop(view: EditorView): boolean {
-    console.log('view.state.field',view.state,)
 	const tabstopGroups = view.state.field(tabstopsStateField);
-    console.log('tabstopGroups',tabstopGroups)
-	function aux(nextGrpIndex: number): boolean {
+
+	function aux(nextGrpIndex: number) {
 		const nextGrp = tabstopGroups[nextGrpIndex];
 		if (!nextGrp) return false;
 
