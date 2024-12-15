@@ -3,23 +3,27 @@ import {Plugin, MarkdownRenderer, App, Modal, Component, Setting,Notice, Workspa
 import { MathInfo, MathPraiser } from "./mathEngine.js";
 import { InfoModal, DebugModal } from "./desplyModals";
 import { CustomInputModal, HistoryModal, InputModal, VecInputModel } from "./temp";
-import {moshePluginSettings, DEFAULT_SETTINGS, MathPluginSettingTab,} from "./settings";
+import {MoshePluginSettings, DEFAULT_SETTINGS,} from "./settings/settings";
+import { MoshePluginSettingTab } from "./settings/settings_tab";
 import { calculateBinom, degreesToRadians, findAngleByCosineRule, getUsableDegrees, polarToCartesian, radiansToDegrees, roundBySettings } from "./mathUtilities.js";
 import { Axis, Coordinate, Draw, Formatting, Tikzjax } from "./tikzjax/tikzjax";
 import { Suggestor } from "./suggestor.js";
 import { TikzSvg } from "./tikzjax/myTikz.js";
 
-import { EditorState, SelectionRange,RangeSet, Prec } from "@codemirror/state";
+import {Extension, EditorState, SelectionRange,RangeSet, Prec } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { EditorView, ViewPlugin, ViewUpdate ,Decoration, } from "@codemirror/view";
 import { FormatTikzjax } from "./tikzjax/interpret/tokenizeTikzjax.js";
+import { EditorExtensions } from "./editorExtensions.js";
+import { parseSnippets, SnippetVariables } from "./snippets/parse.js";
 
 
 
 
 
 export default class Moshe extends Plugin {
-  settings: moshePluginSettings;
+  settings: MoshePluginSettings;
+  editorExtensions: Extension[] = [];
   tikzProcessor: Tikzjax
   async onload() {
     await this.loadSettings();
@@ -28,16 +32,12 @@ export default class Moshe extends Plugin {
 		this.tikzProcessor.addSyntaxHighlighting();
 		this.tikzProcessor.registerTikzCodeBlock();
     
-    this.addSettingTab(new MathPluginSettingTab(this.app, this));
+    this.addSettingTab(new MoshePluginSettingTab(this.app, this));
     this.registerMarkdownCodeBlockProcessor("math-engine", this.processMathBlock.bind(this));
     this.registerMarkdownCodeBlockProcessor("tikzjax", this.processTikzBlock.bind(this));
     this.registerCommands();
-    this.createContextBasedLineStyling()
-
+    new EditorExtensions().setEditorExtensions(this)
     //this.registerEditorSuggest(new NumeralsSuggestor(this));
-    new Suggestor(this)
-    // Execute the `a()` method to log and modify all divs
-    //this.processDivs();
   }
 
   onunload() {
@@ -45,19 +45,15 @@ export default class Moshe extends Plugin {
 		this.tikzProcessor.removeSyntaxHighlighting();
 	}
 
-
-  handleUpdate(update: ViewUpdate) {
-    if (update.docChanged) {
-      
-    }
-  }
-  createContextBasedLineStyling(){
-    this.registerEditorExtension(
-        ViewPlugin.fromClass(RtlForc, {
-        decorations: (v) => v.decorations,
-      }
-    ));
-  }
+  async getSettingsSnippets(snippetVariables: SnippetVariables) {
+		try {
+			return await parseSnippets(this.settings.snippets, snippetVariables);
+		} catch (e) {
+			new Notice(`Failed to load snippets from settings: ${e}`);
+			console.log(`Failed to load snippets from settings: ${e}`);
+			return [];
+		}
+	}
 
   processTikzBlock(source: string, container: HTMLElement): void {
   const svg = new TikzSvg(source);
@@ -73,7 +69,7 @@ export default class Moshe extends Plugin {
   });
   graph.appendChild(svg.getSvg());
   svg.debugInfo+=graph.outerHTML
-  console.log(graph.outerHTML)
+  //console.log(graph.outerHTML)
   icon.onclick = () => new DebugModal(this.app, svg.debugInfo).open();
   
   container.appendChild(icon);
@@ -83,6 +79,20 @@ export default class Moshe extends Plugin {
 
   private async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    if (this.settings.loadSnippetsFromFile) {
+			//const tempSnippetVariables = await this.getSettingsSnippetVariables();
+			//const tempSnippets = await this.getSettingsSnippets(tempSnippetVariables);
+
+			//this.settings = processMosheSettings(tempSnippets, this.settings);
+
+			// Use onLayoutReady so that we don't try to read the snippets file too early
+			this.app.workspace.onLayoutReady(() => {
+				//this.processSettings();
+			});
+		}
+		else {
+			//await this.processSettings();
+		}
   }
 
   public async saveSettings() {

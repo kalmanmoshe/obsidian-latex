@@ -1,6 +1,8 @@
+
+
 import { Plugin, MarkdownView, MarkdownRenderer, App, Setting, Modal, Notice, Component, Editor, EditorPosition } from "obsidian";
 import MathPlugin from "./main";
-import { createTextInputSetting } from "./settings";
+import { createTextInputSetting } from "./settings/settings_tab";
 import { Axis, Coordinate, Formatting } from "./tikzjax/tikzjax";
 import { FormatTikzjax } from "./tikzjax/interpret/tokenizeTikzjax";
 
