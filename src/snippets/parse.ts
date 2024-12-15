@@ -1,10 +1,9 @@
-import { z } from "zod";
+import { optional, object, string as string_, union, instance, parse, number, Output, special } from "valibot";
 import { encode } from "js-base64";
-import { Environment, RegexSnippet, serializeSnippetLike, Snippet, StringSnippet, VISUAL_SNIPPET_MAGIC_SELECTION_PLACEHOLDER, VisualSnippet } from "./snippets";
+import { RegexSnippet, serializeSnippetLike, Snippet, StringSnippet, VISUAL_SNIPPET_MAGIC_SELECTION_PLACEHOLDER, VisualSnippet } from "./snippets";
 import { Options } from "./options";
-//import { sortSnippets } from "./sort";
-//import { EXCLUSIONS, Environment } from "./environment";
-import { parse } from "valibot";
+import { sortSnippets } from "./sort";
+import { EXCLUSIONS, Environment } from "./environment";
 
 export type SnippetVariables = Record<string, string>;
 
@@ -69,7 +68,7 @@ export async function parseSnippets(snippetsStr: string, snippetVariables: Snipp
 		throw `Invalid snippet format: ${e}`;
 	}
 
-	//parsedSnippets = sortSnippets(parsedSnippets);
+	parsedSnippets = sortSnippets(parsedSnippets);
 
 	return parsedSnippets;
 }
@@ -102,44 +101,30 @@ async function importModuleDefault(module: string): Promise<unknown> {
 
 /** raw snippet IR */
 
-const RawSnippetSchema = z.object({
-    trigger: z.union([z.string(), z.instanceof(RegExp)]),
-    replacement: z.union([z.string(), z.function()]),
-    options: z.string(),
-    flags: z.string().optional(),
-    priority: z.number().optional(),
-    description: z.string().optional(),
-  });
+const RawSnippetSchema = object({
+	trigger: union([string_(), instance(RegExp)]),
+	replacement: union([string_(), special<AnyFunction>(x => typeof x === "function")]),
+	options: string_(),
+	flags: optional(string_()),
+	priority: optional(number()),
+	description: optional(string_()),
+});
 
-type RawSnippet = z.infer<typeof RawSnippetSchema>;
+type RawSnippet = Output<typeof RawSnippetSchema>;
 
 /**
  * tries to parse an unknown value as an array of raw snippets
  * @throws if the value does not adhere to the raw snippet array schema
  */
 function validateRawSnippets(snippets: unknown): RawSnippet[] {
-  if (!Array.isArray(snippets)) {
-    throw new Error("Expected snippets to be an array");
-  }
-
-  return snippets.map((raw, index) => {
-    const validationResult = RawSnippetSchema.safeParse(raw);
-
-    if (!validationResult.success) {
-      const errorMessage = validationResult.error.errors
-        .map((error) => `${error.path.join(".")}: ${error.message}`)
-        .join(", ");
-      throw new Error(
-        `Value does not resemble snippet at index ${index}.\nErrors: ${errorMessage}\nErroring snippet:\n${JSON.stringify(
-          raw,
-          null,
-          2
-        )}`
-      );
-    }
-
-    return validationResult.data;
-  });
+	if (!Array.isArray(snippets)) { throw "Expected snippets to be an array"; }
+	return snippets.map((raw) => {
+		try {
+			return parse(RawSnippetSchema, raw);
+		} catch (e) {
+			throw `Value does not resemble snippet.\nErroring snippet:\n${serializeSnippetLike(raw)}`;
+		}
+	})
 }
 
 /**
@@ -154,7 +139,7 @@ function parseSnippet(raw: RawSnippet, snippetVariables: SnippetVariables): Snip
 	const options = Options.fromSource(raw.options);
 	let trigger;
 	let excludedEnvironments;
-    return new StringSnippet({trigger: 'cd',replacement: '\\cdot',options: new Options()});
+
 	// we have a regex snippet
 	if (options.regex || raw.trigger instanceof RegExp) {
 		let triggerStr: string;
@@ -164,10 +149,10 @@ function parseSnippet(raw: RawSnippet, snippetVariables: SnippetVariables): Snip
 		// extract trigger string from trigger,
 		// and merge flags, if trigger is a regexp already
 		if (raw.trigger instanceof RegExp) {
-			//triggerStr = raw.trigger.source;
+			triggerStr = raw.trigger.source;
 			flags = `${(raw.trigger as RegExp).flags}${flags}`;
 		} else {
-			//triggerStr = raw.trigger;
+			triggerStr = raw.trigger;
 		}
 		// filter out invalid flags
 		flags = filterFlags(flags);
@@ -189,7 +174,7 @@ function parseSnippet(raw: RawSnippet, snippetVariables: SnippetVariables): Snip
 
 		const normalised = { trigger, replacement, options, priority, description, excludedEnvironments };
 
-		//return new RegexSnippet(normalised);
+		return new RegexSnippet(normalised);
 	}
 	else {
 		let trigger = raw.trigger as string;
@@ -200,17 +185,17 @@ function parseSnippet(raw: RawSnippet, snippetVariables: SnippetVariables): Snip
 		excludedEnvironments = getExcludedEnvironments(trigger);
 
 		// normalize visual replacements
-		/*if (typeof replacement === "string" && replacement.includes(VISUAL_SNIPPET_MAGIC_SELECTION_PLACEHOLDER)) {
+		if (typeof replacement === "string" && replacement.includes(VISUAL_SNIPPET_MAGIC_SELECTION_PLACEHOLDER)) {
 			options.visual = true;
-		}*/
+		}
 
 		const normalised = { trigger, replacement, options, priority, description, excludedEnvironments };
 
 		if (options.visual) {
-			//return new VisualSnippet(normalised);
+			return new VisualSnippet(normalised);
 		}
 		else {
-			//return new StringSnippet(normalised);
+			return new StringSnippet(normalised);
 		}
 	}
 }
@@ -244,9 +229,14 @@ function insertSnippetVariables(trigger: string, variables: SnippetVariables) {
 }
 
 function getExcludedEnvironments(trigger: string): Environment[] {
-	const result: Environment[] = [];
-	/*if (EXCLUSIONS.hasOwnProperty(trigger)) {
+	const result = [];
+	if (EXCLUSIONS.hasOwnProperty(trigger)) {
 		result.push(EXCLUSIONS[trigger]);
-	}*/
+	}
 	return result;
 }
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Fn<Args extends readonly any[], Ret> = (...args: Args) => Ret;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyFunction = Fn<any, any>;

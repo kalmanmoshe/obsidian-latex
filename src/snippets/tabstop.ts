@@ -1,7 +1,7 @@
 import { ChangeDesc, EditorSelection, SelectionRange } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
-import { resetCursorBlink } from "src/editor utilities/editor_utils";
-import { endSnippet } from "src/codemirror/history";
+import { resetCursorBlink } from "src/utils/editor_utils";
+import { endSnippet } from "./codemirror/history";
 
 const LATEX_SUITE_TABSTOP_DECO_CLASS = "latex-suite-snippet-placeholder";
 
@@ -40,7 +40,7 @@ export class TabstopGroup {
 
         view.dispatch({
             selection: toSelect,
-            effects: isEndSnippet ? endSnippet.of(null) : undefined
+            effects: isEndSnippet ? endSnippet.of(null) : null
         })
         resetCursorBlink();
 

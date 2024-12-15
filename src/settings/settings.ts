@@ -1,7 +1,9 @@
-import { Snippet, StringSnippet } from "src/snippets/snippets";
-import { Options } from "src/editor utilities/options";
+import { Snippet } from "../snippets/snippets";
+import { Environment } from "../snippets/environment";
+import { DEFAULT_SNIPPETS } from "src/utils/default_snippets";
+import { DEFAULT_SNIPPET_VARIABLES } from "src/utils/default_snippet_variables";
 
-export interface MoshePluginSettings {
+interface LatexSuiteBasicSettings {
     invertColorsInDarkMode: boolean;
     numberFormatting: string
     background: string;
@@ -12,23 +14,82 @@ export interface MoshePluginSettings {
     rowPadding: string;
     iconSize: string;
     sessionHistory: { input: string, result: string }[]; 
-    snippets: string;
-    snippetsTrigger: string,
-    snippetsEnabled: boolean;
-    loadSnippetsFromFile: boolean;
-    snippetsFileLocation: string;
-    colorPairedBracketsEnabled: boolean,
-    highlightCursorBracketsEnabled: boolean,
-    mathPreviewEnabled: boolean,
-    mathPreviewPositionIsAbove: boolean,
-    taboutEnabled: boolean,
+
+	snippetsEnabled: boolean;
+	snippetsTrigger: "Tab" | " "
+	suppressSnippetTriggerOnIME: boolean;
+	removeSnippetWhitespace: boolean;
+	autoDelete$: boolean;
+	loadSnippetsFromFile: boolean;
+	loadSnippetVariablesFromFile: boolean;
+	snippetsFileLocation: string;
+	snippetVariablesFileLocation: string;
+	autofractionEnabled: boolean;
+	concealEnabled: boolean;
+	concealRevealTimeout: number;
+	colorPairedBracketsEnabled: boolean;
+	highlightCursorBracketsEnabled: boolean;
+	mathPreviewEnabled: boolean;
+	mathPreviewPositionIsAbove: boolean;
+	autofractionSymbol: string;
+	autofractionBreakingChars: string;
+	matrixShortcutsEnabled: boolean;
+	taboutEnabled: boolean;
+	autoEnlargeBrackets: boolean;
+	wordDelimiters: string;
 }
 
-export type MosheCMSettings = {snippets: Snippet[],} & MoshePluginSettings;
+/**
+ * Settings that require further processing (e.g. conversion to an array) before being used.
+ */
 
+interface LatexSuiteRawSettings {
+	autofractionExcludedEnvs: string;
+	matrixShortcutsEnvNames: string;
+	autoEnlargeBracketsTriggers: string;
+	forceMathLanguages: string;
+}
 
+interface LatexSuiteParsedSettings {
+	autofractionExcludedEnvs: Environment[];
+	matrixShortcutsEnvNames: string[];
+	autoEnlargeBracketsTriggers: string[];
+	forceMathLanguages: string[];
+}
 
-export const DEFAULT_SETTINGS: MoshePluginSettings = {
+export type LatexSuitePluginSettings = {snippets: string, snippetVariables: string} & LatexSuiteBasicSettings & LatexSuiteRawSettings;
+export type LatexSuiteCMSettings = {snippets: Snippet[]} & LatexSuiteBasicSettings & LatexSuiteParsedSettings;
+
+export const DEFAULT_SETTINGS: LatexSuitePluginSettings = {
+
+	snippets: DEFAULT_SNIPPETS,
+	snippetVariables: DEFAULT_SNIPPET_VARIABLES,
+
+	// Basic settings
+	snippetsEnabled: true,
+	snippetsTrigger: "Tab",
+	suppressSnippetTriggerOnIME: true,
+	removeSnippetWhitespace: true,
+	autoDelete$: true,
+	loadSnippetsFromFile: false,
+	loadSnippetVariablesFromFile: false,
+	snippetsFileLocation: "",
+	snippetVariablesFileLocation: "",
+	concealEnabled: false,
+	concealRevealTimeout: 0,
+	colorPairedBracketsEnabled: true,
+	highlightCursorBracketsEnabled: true,
+	mathPreviewEnabled: true,
+	mathPreviewPositionIsAbove: true,
+	autofractionEnabled: true,
+	autofractionSymbol: "\\frac",
+	autofractionBreakingChars: "+-=\t",
+	matrixShortcutsEnabled: true,
+	taboutEnabled: true,
+	autoEnlargeBrackets: true,
+	wordDelimiters: "., +-\\n\t:;!?\\/{}[]()=~$",
+
+    // stile settings
     invertColorsInDarkMode: true,
     numberFormatting: ".000",
     background: "#44475A",
@@ -39,19 +100,19 @@ export const DEFAULT_SETTINGS: MoshePluginSettings = {
     rowPadding: "5px 10px",
     iconSize: "14px",
     sessionHistory: [],
-    snippets: '[{trigger: \'cd\',replacement: \'\\cdot\',options: Amc}]',//[new StringSnippet({trigger: 'cd',replacement: '\\cdot',options: new Options()})],
-    snippetsTrigger: "tab",
-    snippetsEnabled: true,
-    loadSnippetsFromFile: false,
-    snippetsFileLocation: "",
-    colorPairedBracketsEnabled: true,
-    highlightCursorBracketsEnabled: true,
-    mathPreviewEnabled: true,
-    mathPreviewPositionIsAbove: true,
-    taboutEnabled: true,
-};
-/*
-export function processMosheSettings(snippets: Snippet[], settings: MoshePluginSettings):MosheCMSettings {
+
+	// Raw settings
+	autofractionExcludedEnvs:
+	`[
+		["^{", "}"],
+		["\\\\pu{", "}"]
+	]`,
+	matrixShortcutsEnvNames: "pmatrix, cases, align, gather, bmatrix, Bmatrix, vmatrix, Vmatrix, array, matrix",
+	autoEnlargeBracketsTriggers: "sum, int, frac, prod, bigcup, bigcap",
+	forceMathLanguages: "math",
+}
+
+export function processLatexSuiteSettings(snippets: Snippet[], settings: LatexSuitePluginSettings):LatexSuiteCMSettings {
 
 	function strToArray(str: string) {
 		return str.replace(/\s/g,"").split(",");
@@ -76,9 +137,17 @@ export function processMosheSettings(snippets: Snippet[], settings: MoshePluginS
 	return {
 		...settings,
 
+		// Override raw settings with parsed settings
 		snippets: snippets,
+		autofractionExcludedEnvs: getAutofractionExcludedEnvs(settings.autofractionExcludedEnvs),
+		matrixShortcutsEnvNames: strToArray(settings.matrixShortcutsEnvNames),
+		autoEnlargeBracketsTriggers: strToArray(settings.autoEnlargeBracketsTriggers),
+		forceMathLanguages: strToArray(settings.forceMathLanguages),
 	}
-}*/
+}
 
 
-  
+
+
+
+

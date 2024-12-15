@@ -1,12 +1,11 @@
 import { EditorView } from "@codemirror/view";
 import { EditorState, SelectionRange } from "@codemirror/state";
-import { queueSnippet } from "src/codemirror/snippet_queue_state_field";
-import { Options } from "src/editor utilities/options";
+import { getLatexSuiteConfig } from "src/snippets/codemirror/config";
+import { queueSnippet } from "src/snippets/codemirror/snippet_queue_state_field";
+import { Mode, Options } from "src/snippets/options";
 import { expandSnippets } from "src/snippets/snippet_management";
-import { Context,Mode } from "src/editor utilities/context";
-import { StringSnippet } from "./snippets";
-import {  } from "src/codemirror/config";
-//import { autoEnlargeBrackets } from "./auto_enlarge_brackets";
+import { Context } from "src/utils/context";
+import { autoEnlargeBrackets } from "./auto_enlarge_brackets";
 
 
 export const runSnippets = (view: EditorView, ctx: Context, key: string):boolean => {
@@ -15,7 +14,7 @@ export const runSnippets = (view: EditorView, ctx: Context, key: string):boolean
 
 	for (const range of ctx.ranges) {
 		const result = runSnippetCursor(view, ctx, key, range);
-        
+
 		if (result.shouldAutoEnlargeBrackets) shouldAutoEnlargeBrackets = true;
 	}
 
@@ -23,7 +22,7 @@ export const runSnippets = (view: EditorView, ctx: Context, key: string):boolean
 
 
 	if (shouldAutoEnlargeBrackets) {
-		//autoEnlargeBrackets(view);
+		autoEnlargeBrackets(view);
 	}
 
 	return success;
@@ -31,14 +30,15 @@ export const runSnippets = (view: EditorView, ctx: Context, key: string):boolean
 
 
 const runSnippetCursor = (view: EditorView, ctx: Context, key: string, range: SelectionRange):{success: boolean; shouldAutoEnlargeBrackets: boolean} => {
-	const settings = {snippets: []}//getMosheConfig(view);
+
+	const settings = getLatexSuiteConfig(view);
 	const {from, to} = range;
 	const sel = view.state.sliceDoc(from, to);
 	const line = view.state.sliceDoc(0, to);
 	const updatedLine = line + key;
 	for (const snippet of settings.snippets) {
 		let effectiveLine = line;
-        /*
+
 		if (!snippetShouldRunInMode(snippet.options, ctx.mode)) {
 			continue;
 		}
@@ -63,20 +63,19 @@ const runSnippetCursor = (view: EditorView, ctx: Context, key: string, range: Se
 		// we could've used a labelled outer for loop to `continue` from within the inner for loop,
 		// but labels are extremely rarely used, so we do this construction instead
 		if (isExcluded) { continue; }
-        
+
 		const result = snippet.process(effectiveLine, range, sel);
 		if (result === null) continue;
 		const triggerPos = result.triggerPos;
 
 		if (snippet.options.onWordBoundary) {
 			// Check that the trigger is preceded and followed by a word delimiter
-			//if (!isOnWordBoundary(view.state, triggerPos, to, settings.wordDelimiters)) continue;
+			if (!isOnWordBoundary(view.state, triggerPos, to, settings.wordDelimiters)) continue;
 		}
 
 		let replacement = result.replacement;
 
 		// When in inline math, remove any spaces at the end of the replacement
-        /*
 		if (ctx.mode.inlineMath && settings.removeSnippetWhitespace) {
 			replacement = trimWhitespace(replacement, ctx);
 		}
@@ -84,9 +83,9 @@ const runSnippetCursor = (view: EditorView, ctx: Context, key: string, range: Se
 		// Expand the snippet
 		const start = triggerPos;
 		queueSnippet(view, start, to, replacement, key);
-        */
-		//const containsTrigger = settings.autoEnlargeBracketsTriggers.some((word: string) => replacement.contains("\\" + word));
-		return {success: true, shouldAutoEnlargeBrackets: false/*containsTrigger*/};
+
+		const containsTrigger = settings.autoEnlargeBracketsTriggers.some(word => replacement.contains("\\" + word));
+		return {success: true, shouldAutoEnlargeBrackets: containsTrigger};
 	}
 
 

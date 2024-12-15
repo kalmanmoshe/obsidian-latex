@@ -1,10 +1,10 @@
 import { EditorView } from "@codemirror/view";
 import { Facet, EditorState } from "@codemirror/state";
-import { MosheCMSettings, DEFAULT_SETTINGS } from "src/settings/settings";
-/*
-export const latexSuiteConfig = Facet.define<MosheCMSettings, MosheCMSettings>({
+import { LatexSuiteCMSettings, DEFAULT_SETTINGS, processLatexSuiteSettings } from "src/settings/settings";
+
+export const latexSuiteConfig = Facet.define<LatexSuiteCMSettings, LatexSuiteCMSettings>({
     combine: (input) => {
-        const settings = input.length > 0 ? input[0] : processMosheSettings([], DEFAULT_SETTINGS);
+        const settings = input.length > 0 ? input[0] : processLatexSuiteSettings([], DEFAULT_SETTINGS);
         return settings;
     }
 });
@@ -15,6 +15,6 @@ export function getMosheConfig(viewOrState: EditorView | EditorState) {
     return state.facet(latexSuiteConfig);
 }
 
-export function getLatexSuiteConfigExtension(pluginSettings: MosheCMSettings) {
+export function getLatexSuiteConfigExtension(pluginSettings: LatexSuiteCMSettings) {
     return latexSuiteConfig.of(pluginSettings);
-}*/
+}
