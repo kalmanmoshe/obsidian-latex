@@ -1,86 +1,11 @@
-import NumeralsPlugin from "./main";
-import {
-    EditorSuggest,
-    EditorPosition,
-    Editor,
-    TFile,
-    EditorSuggestTriggerInfo,
-    EditorSuggestContext,
-    setIcon,
- } from "obsidian";
-
-import { getTikzSuggestions, Latex } from "./utilities";
-import { EditorView, ViewPlugin, ViewUpdate ,Decoration, } from "@codemirror/view";
+import { getTikzSuggestions,  } from "./utilities";
+import { EditorView, } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
-import { EditorState, Prec } from "@codemirror/state";
+import { EditorState} from "@codemirror/state";
 import { SyntaxNode, TreeCursor } from "@lezer/common";
 import Moshe from "./main";
-import { context } from "esbuild-wasm";
 import { Context } from "./editor utilities/context";
-import { Position } from "./mathEngine";
 import { replaceRange, setCursor } from "./editor utilities/editor_utils";
-import moshe from "./main";
-
-
-export class EditorExtensions extends Moshe{
-	shouldListenForTransaction: boolean;
-	private monitor() {
-		this.registerEditorExtension([
-			Prec.highest(EditorView.domEventHandlers({
-				"keydown": (event, view) => this.onKeydown(event, view),
-			})),
-			EditorView.updateListener.of((update) => {
-				if (this.shouldListenForTransaction && update.docChanged) {
-					this.onTransaction(update.view);
-					this.listenForTransaction = false; 
-				}
-			}),
-		]);
-	}
-	private decorat(){
-
-	}
-}
-
-
-
-class RtlForc {
-	decorations: RangeSet<Decoration>;
-  
-	constructor(view: EditorView) {
-	  this.decorations = this.computeDecorations(view);
-	}
-  
-	update(update: ViewUpdate) {
-	  if (update.docChanged || update.viewportChanged) {
-		this.decorations = this.computeDecorations(update.view);
-	  }
-	}
-  
-	computeDecorations(view: EditorView): RangeSet<Decoration> {
-	  const widgets = [];
-	  for (let { from, to } of view.visibleRanges) {
-		for (let pos = from; pos <= to; ) {
-		  const line = view.state.doc.lineAt(pos);
-		  const content = line.text.trim();
-		  if (
-			content
-			  .replace(/[#:\s"=-\d\[\].\+\-]*/g, "")
-			  .replace(/<[a-z]+[\w\s\d]*>/g, "")
-			  .match(/^[א-ת]/)
-		  ) {
-			widgets.push(
-			  Decoration.line({
-				class: "custom-rtl-line",
-			  }).range(line.from)
-			);
-		  }
-		  pos = line.to + 1;
-		}
-	  }
-	  return Decoration.set(widgets);
-	}
-  }
 
 
 class SuggestorTrigger{
@@ -93,7 +18,6 @@ class SuggestorTrigger{
 	}
 	getCurrentLineText(pos: number, view: EditorView): string {
 		const line = view.state.doc.lineAt(pos);
-		console.log('line.text.slice(0, (pos+2) - line.from).trim()',line.text)
 		const cursorOffsetInLine = (pos+2) - line.from;
 		const textUpToCursor = line.text.slice(0, cursorOffsetInLine).trim();
 	
@@ -103,44 +27,36 @@ class SuggestorTrigger{
 }
 
 export class Suggestor {
-	private plugin: Moshe;
 	private trigger: SuggestorTrigger;
-	private selectionIndex?: number;
+	selectionIndex: number;
 	private context: Context;
-	private listenForTransaction: boolean;
-	constructor(plugin: Moshe){
-		this.plugin=plugin
-		this.monitor();
+	isSuggesterDeployed: boolean=false;
+
+	deploySuggestor(context: Context,view: EditorView){
+		this.removeSuggestor()
+		this.context=context;
+		const suggestions=this.getSuggestions(view)
+		if(suggestions.length<1)return;
+
+		const suggestionDropdown = createFloatingSuggestionDropdown(suggestions,view, this.context.pos);
+		if (!suggestionDropdown) return;
+		document.body.appendChild(suggestionDropdown);
+		this.isSuggesterDeployed=true;
+		this.selectionIndex=0;
+		this.updateSelection(this.getAlldropdownItems());
+
+	}
+	updateSuggestorPosition(){
+
 	}
 
-	private monitor() {
-		this.plugin.registerEditorExtension([
-			Prec.highest(EditorView.domEventHandlers({
-				"keydown": (event, view) => this.onKeydown(event, view),
-			})),
-			EditorView.updateListener.of((update) => {
-				if (this.listenForTransaction && update.docChanged) {
-					this.onTransaction(update.view);
-					this.listenForTransaction = false; 
-				}
-			}),
-		]);
+	removeSuggestor() {
+		document.body.querySelectorAll(".suggestion-item").forEach(node => node.remove());
+		document.body.querySelector(".suggestion-dropdown")?.remove()
+		this.isSuggesterDeployed=false;
 	}
 
-	private onKeydown(event: KeyboardEvent, view: EditorView) {
-		this.handleDropdownNavigation(event,view);
-		if(this.isValueKey(event))
-			this.listenForTransaction = true;
-	}
-
-	private onTransaction(view: EditorView) {
-		this.context  = Context.fromView(view);
-		if (this.context.codeblockLanguage === "tikz") {
-			this.deployDropdown(view)
-		}
-	}
-
-	private getAlldropdownItems(){return document.body.querySelectorAll(".suggestion-item")}
+	getAlldropdownItems(){return document.body.querySelectorAll(".suggestion-item")}
 	private dropdownifAnyDeployed(){return document.body.querySelector(".suggestion-dropdown")}
 
 	private handleDropdownNavigation(event: KeyboardEvent,view:EditorView) {
@@ -150,32 +66,8 @@ export class Suggestor {
 		const items = this.getAlldropdownItems();
 
 		if (items.length === 0) return;
-		if (event.key === "ArrowDown") {
-			this.selectionIndex = (this.selectionIndex + 1) % items.length;
-			this.updateSelection(items);
-			event.preventDefault();
-		} else if (event.key === "ArrowUp") {
-			this.selectionIndex = (this.selectionIndex - 1 + items.length) % items.length;
-			this.updateSelection(items);
-			event.preventDefault();
-		} else if (event.key === "Enter") {
-			const selectedItem = items[this.selectionIndex];
-			if (selectedItem&&this.context) {
-				this.selectDropdownItem(selectedItem,view);
-			}
-			dropdown.remove();
-			event.preventDefault();
-		} else if (event.key === "Escape") {
-			dropdown.remove();
-			event.preventDefault();
-		}
+		
 	}
-
-	private isValueKey(event: KeyboardEvent){
-		return event.code.contains('Key')&&!event.ctrlKey
-	}
-
-	
 
 	private getSuggestions(view: EditorView) {
 		this.trigger=new SuggestorTrigger(this.context.pos, view)
@@ -202,46 +94,9 @@ export class Suggestor {
 		return sortedSuggestions;
 	}
 
-	private deployDropdown(view: EditorView){
-		const existingDropdown = this.dropdownifAnyDeployed();
-		if (existingDropdown) existingDropdown.remove();
+	
 
-		const suggestions=this.getSuggestions(view)
-		if(suggestions.length<1)return;
-
-		const suggestionDropdown = createFloatingSuggestionDropdown(suggestions,view, this.context.pos);
-		if (!suggestionDropdown) return;
-		document.body.appendChild(suggestionDropdown);
-
-		this.selectionIndex=0;
-		this.updateSelection(this.getAlldropdownItems());
-
-		const handleOutsideClick = (event: MouseEvent) => {
-			const suggestionItems = suggestionDropdown.querySelectorAll(".suggestion-item"); // Adjust selector as needed
-
-			// Check if the click is on a suggestion item
-			const clickedSuggestion = Array.from(suggestionItems).find((item) =>
-				item.contains(event.target as Node)
-			);
-		
-			if (clickedSuggestion) {
-				// Handle selection of the clicked suggestion
-				this.selectDropdownItem(clickedSuggestion,view);
-				suggestionDropdown.remove();
-				document.removeEventListener("click", handleOutsideClick);
-				return;
-			}
-		
-			// If click is outside the dropdown, close it
-			if (!suggestionDropdown.contains(event.target as Node)) {
-				suggestionDropdown.remove();
-				document.removeEventListener("click", handleOutsideClick);
-			}
-		};
-		document.addEventListener("click", handleOutsideClick);
-	}
-
-	private updateSelection(items: NodeListOf<Element>) {
+	updateSelection(items: NodeListOf<Element>) {
 		items.forEach((item, index) => {
 			if (index === this.selectionIndex) {
 				item.classList.add("selected");
@@ -252,10 +107,12 @@ export class Suggestor {
 		});
 	}
 
-	private selectDropdownItem(item: Element,view: EditorView) {
+	selectDropdownItem(item: Element,view: EditorView) {
+		this.removeSuggestor()
 		if(!this.context)return ;
 		const selectedText = item.textContent || "";
 		const pos=this.context.pos;
+		console.log('pos-this.trigger.text.length,pos,selectedText',pos-this.trigger.text.length,pos,selectedText)
 		replaceRange(view,pos-this.trigger.text.length,pos,selectedText)
 		view.focus();
 		setCursor(view,calculateNewCursorPosition(this.trigger.text,selectedText,pos))
@@ -280,25 +137,17 @@ function createFloatingSuggestionDropdown(suggestions: any[],editorView: EditorV
 	return suggestionDropdown;
 }
 
-// Creates a suggestion dropdown container with suggestion items
+
 function createSuggestionDropdown(suggestions: string[]) {
     const dropdownContainer = document.createElement("div");
     dropdownContainer.className = "suggestion-dropdown";
 
     suggestions.forEach((suggestion) => {
         const item = createSuggestionItem(suggestion)
-		item.addEventListener("click", () => {
-            selectSuggestion(suggestion);
-            dropdownContainer.remove();
-        });
 		dropdownContainer.appendChild(item)
     });
 
     return dropdownContainer;
-}
-
-function selectSuggestion(suggestion: string) {
-    console.log(`Selected: ${suggestion}`);
 }
 
 function createSuggestionItem(displayText: string): HTMLElement {
@@ -337,126 +186,10 @@ function createSuggestionItem(displayText: string): HTMLElement {
 	return container;
 }
 
-const onKeydown = (event: KeyboardEvent, view: EditorView) => {
-	let key = event.key;
-	const ctx = Context.fromView(view);
-	if (!(event.ctrlKey || event.metaKey) && (ctx.mode.inMath() && (!ctx.inTextEnvironment() || ctx.codeblockLanguage.match(/(tikz)/)))) {
-	  const trigger = getTriggers().find((trigger2) => trigger2.key === event.key && trigger2.code === event.code);
-	  if (trigger) {
-		key = trigger.replacement;
-	  }
-	}
-  
-	const success = handleKeydown(key, event.shiftKey, event.ctrlKey || event.metaKey, isComposing(view, event), view, ctx);
-	if (success) {
-	  event.preventDefault();
-	} else if (key !== event.key) {
-	  event.preventDefault();
-	  const { from } = view.state.selection.main;
-	  view.dispatch({
-		changes: { from: view.state.selection.main.from, to: view.state.selection.main.to, insert: key },
-		selection: { anchor: from + key.length }
-	  });
-	}
-};
-
-const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, isIME: any, view: EditorView | EditorState, ctx: Context) => {
-	const settings = getLatexSuiteConfig(view);
-	let success = false;
-	if (settings.autoDelete$ && key === "Backspace" && ctx.mode.inMath()) {
-	  const charAtPos = getCharacterAtPos(view, ctx.pos);
-	  const charAtPrevPos = getCharacterAtPos(view, ctx.pos - 1);
-	  if (charAtPos === "$" && charAtPrevPos === "$") {
-		replaceRange(view, ctx.pos - 1, ctx.pos + 1, "");
-		removeAllTabstops(view);
-		return true;
-	  }
-	}
-	if (settings.snippetsEnabled) {
-	  if (settings.suppressSnippetTriggerOnIME && isIME)
-		return;
-	  if (!ctrlKey) {
-		try {
-		  success = runSnippets(view, ctx, key);
-		  if (success)
-			return true;
-		} catch (e) {
-		  clearSnippetQueue(view);
-		  console.error(e);
-		}
-	  }
-	}
-	if (key === "Tab") {
-	  success = setSelectionToNextTabstop(view);
-	  if (success)
-		return true;
-	}
-	if (settings.autofractionEnabled && ctx.mode.strictlyInMath()) {
-	  if (key === "/") {
-		success = runAutoFraction(view, ctx);
-		if (success)
-		  return true;
-	  }
-	}
-	if (settings.matrixShortcutsEnabled && ctx.mode.blockMath) {
-	  if (["Tab", "Enter"].contains(key)) {
-		success = runMatrixShortcuts(view, ctx, key, shiftKey);
-		if (success)
-		  return true;
-	  }
-	}
-	if (settings.taboutEnabled) {
-	  if (key === "Tab" || shouldTaboutByCloseBracket(view, key)) {
-		success = tabout(view, ctx);
-		if (success)
-		  return true;
-	  }
-	}
-	return false;
-  };
 
 
-function getTriggers() {
-	return [
-	  { key: "\u05D0", code: "KeyT", replacement: "t" },
-	  { key: "\u05D1", code: "KeyC", replacement: "c" },
-	  { key: "\u05D2", code: "KeyD", replacement: "d" },
-	  { key: "\u05D3", code: "KeyS", replacement: "s" },
-	  { key: "\u05D4", code: "KeyV", replacement: "v" },
-	  { key: "\u05D5", code: "KeyU", replacement: "u" },
-	  { key: "\u05D6", code: "KeyZ", replacement: "z" },
-	  { key: "\u05D7", code: "KeyJ", replacement: "j" },
-	  { key: "\u05D8", code: "KeyY", replacement: "y" },
-	  { key: "ך", code: "KeyL", replacement: "l" },
-	  { key: "\u05D9", code: "KeyH", replacement: "h" },
-	  { key: "\u05DB", code: "KeyF", replacement: "f" },
-	  { key: "\u05DC", code: "KeyK", replacement: "k" },
-	  { key: "\u05DE", code: "KeyN", replacement: "n" },
-	  { key: "\u05DD", code: "KeyO", replacement: "o" },
-	  { key: "\u05E0", code: "KeyB", replacement: "b" },
-	  { key: "\u05DF", code: "KeyI", replacement: "i" },
-	  { key: "\u05E1", code: "KeyX", replacement: "x" },
-	  { key: "\u05E2", code: "KeyG", replacement: "g" },
-	  { key: "\u05E4", code: "KeyP", replacement: "p" },
-	  { key: "\u05E6", code: "KeyM", replacement: "m" },
-	  { key: "\u05E8", code: "KeyR", replacement: "r" },
-	  { key: "\u05E7", code: "KeyE", replacement: "e" },
-	  { key: "\u05E9", code: "KeyA", replacement: "a" },
-	  { key: "\u05EA", code: "KeyC", replacement: "c" },
-	  { key: "ת", code: "Comma", replacement: "," },
-	  { key: "'", code: "KeyW", replacement: "w" },
-	  { key: "\u05E5", code: "Period", replacement: "." },
-	  { key: ".", code: "Slash", replacement: "/" },
-	  { key: "]", code: "BracketLeft", replacement: "[" },
-	  { key: "[", code: "BracketRight", replacement: "]" },
-	  { key: "}", code: "BracketLeft", replacement: "{" },
-	  { key: "{", code: "BracketRight", replacement: "}" },
-	  { key: ")", code: "Digit9", replacement: "(" },
-	  { key: "(", code: "Digit0", replacement: ")" },
-	  { key: ">", code: "Comma", replacement: "<" },
-	  { key: "<", code: "Period", replacement: ">" }
-	];
-  }
+
+
 
 /*
 export class NumeralsSuggestor extends EditorSuggest<string> {
