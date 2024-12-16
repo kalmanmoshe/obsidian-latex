@@ -56,7 +56,7 @@ export const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, 
 			return true;
 		}
 	}
-
+	
 	if (settings.snippetsEnabled) {
 
 		// Prevent IME from triggering keydown events.
@@ -66,6 +66,7 @@ export const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, 
 		if (!ctrlKey) {
 			try {
 				success = runSnippets(view, ctx, key);
+				console.log('success',success)
 				if (success) return true;
 			}
 			catch (e) {

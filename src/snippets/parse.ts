@@ -1,4 +1,4 @@
-import { optional, object, string as string_, union, instance, parse, number, Output, special } from "valibot";
+import { z } from "zod";
 import { encode } from "js-base64";
 import { RegexSnippet, serializeSnippetLike, Snippet, StringSnippet, VISUAL_SNIPPET_MAGIC_SELECTION_PLACEHOLDER, VisualSnippet } from "./snippets";
 import { Options } from "./options";
@@ -69,7 +69,6 @@ export async function parseSnippets(snippetsStr: string, snippetVariables: Snipp
 	}
 
 	parsedSnippets = sortSnippets(parsedSnippets);
-
 	return parsedSnippets;
 }
 
@@ -101,30 +100,44 @@ async function importModuleDefault(module: string): Promise<unknown> {
 
 /** raw snippet IR */
 
-const RawSnippetSchema = object({
-	trigger: union([string_(), instance(RegExp)]),
-	replacement: union([string_(), special<AnyFunction>(x => typeof x === "function")]),
-	options: string_(),
-	flags: optional(string_()),
-	priority: optional(number()),
-	description: optional(string_()),
-});
+const RawSnippetSchema = z.object({
+    trigger: z.union([z.string(), z.instanceof(RegExp)]),
+    replacement: z.union([z.string(), z.function()]),
+    options: z.string(),
+    flags: z.string().optional(),
+    priority: z.number().optional(),
+    description: z.string().optional(),
+  });
 
-type RawSnippet = Output<typeof RawSnippetSchema>;
+type RawSnippet = z.infer<typeof RawSnippetSchema>;
 
 /**
  * tries to parse an unknown value as an array of raw snippets
  * @throws if the value does not adhere to the raw snippet array schema
  */
 function validateRawSnippets(snippets: unknown): RawSnippet[] {
-	if (!Array.isArray(snippets)) { throw "Expected snippets to be an array"; }
-	return snippets.map((raw) => {
-		try {
-			return parse(RawSnippetSchema, raw);
-		} catch (e) {
-			throw `Value does not resemble snippet.\nErroring snippet:\n${serializeSnippetLike(raw)}`;
-		}
-	})
+  if (!Array.isArray(snippets)) {
+    throw new Error("Expected snippets to be an array");
+  }
+
+  return snippets.map((raw, index) => {
+    const validationResult = RawSnippetSchema.safeParse(raw);
+
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors
+        .map((error) => `${error.path.join(".")}: ${error.message}`)
+        .join(", ");
+      throw new Error(
+        `Value does not resemble snippet at index ${index}.\nErrors: ${errorMessage}\nErroring snippet:\n${JSON.stringify(
+          raw,
+          null,
+          2
+        )}`
+      );
+    }
+
+    return validationResult.data;
+  });
 }
 
 /**
@@ -135,6 +148,7 @@ function validateRawSnippets(snippets: unknown): RawSnippet[] {
  * - if it is a regex snippet, the trigger is represented as a RegExp instance with flags set
  */
 function parseSnippet(raw: RawSnippet, snippetVariables: SnippetVariables): Snippet {
+	
 	const { replacement, priority, description } = raw;
 	const options = Options.fromSource(raw.options);
 	let trigger;
@@ -172,8 +186,14 @@ function parseSnippet(raw: RawSnippet, snippetVariables: SnippetVariables): Snip
 
 		options.regex = true;
 
-		const normalised = { trigger, replacement, options, priority, description, excludedEnvironments };
-
+		const normalised = {
+			trigger,
+			replacement: replacement as string | ((match: RegExpExecArray) => string),
+			options,
+			priority,
+			description,
+			excludedEnvironments,
+		};		
 		return new RegexSnippet(normalised);
 	}
 	else {
@@ -188,9 +208,26 @@ function parseSnippet(raw: RawSnippet, snippetVariables: SnippetVariables): Snip
 		if (typeof replacement === "string" && replacement.includes(VISUAL_SNIPPET_MAGIC_SELECTION_PLACEHOLDER)) {
 			options.visual = true;
 		}
-
-		const normalised = { trigger, replacement, options, priority, description, excludedEnvironments };
-
+		const normalizedReplacement: string | ((match: string) => string) =
+		typeof replacement === "string"
+			? replacement
+			: (replacement as (selection: string) => string | false).length === 1
+			? (match: string) => {
+				const result = (replacement as (selection: string) => string | false)(match);
+				if (result === false) {
+					throw new Error("Replacement function returned false, which is not allowed.");
+				}
+				return result;
+			}
+			: replacement as (match: string) => string;
+		const normalised = {
+			trigger,
+			replacement: normalizedReplacement,
+			options,
+			priority,
+			description,
+			excludedEnvironments,
+		};
 		if (options.visual) {
 			return new VisualSnippet(normalised);
 		}
@@ -199,6 +236,8 @@ function parseSnippet(raw: RawSnippet, snippetVariables: SnippetVariables): Snip
 		}
 	}
 }
+
+
 
 /**
  * removes duplicate flags and filters out invalid ones from a flags string.
@@ -235,8 +274,3 @@ function getExcludedEnvironments(trigger: string): Environment[] {
 	}
 	return result;
 }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Fn<Args extends readonly any[], Ret> = (...args: Args) => Ret;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyFunction = Fn<any, any>;

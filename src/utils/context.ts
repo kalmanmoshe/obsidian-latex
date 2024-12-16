@@ -28,7 +28,7 @@ export class Context {
 		ctx.mode = new Mode();
 		ctx.boundsCache = new Map();
 
-		const codeblockLanguage = langIfWithinCodeblock(state);
+		const codeblockLanguage = langIfWithinCodeblock(state)||'';
 		const inCode = codeblockLanguage !== null;
 
 		const settings = getLatexSuiteConfig(state);
@@ -118,7 +118,7 @@ export class Context {
 		);
 	}
 
-	getBounds(pos: number = this.pos): Bounds {
+	getBounds(pos: number = this.pos): Bounds|null {
 		// yes, I also want the cache to work over the produced range instead of just that one through
 		// a BTree or the like, but that'd be probably overkill
 		if (this.boundsCache.has(pos)) {
@@ -132,13 +132,13 @@ export class Context {
 		} else {
 			bounds = getEquationBounds(this.state);
 		}
-
+		if(bounds)
 		this.boundsCache.set(pos, bounds);
 		return bounds;
 	}
 
 	// Accounts for equations within text environments, e.g. $$\text{... $...$}$$
-	getInnerBounds(pos: number = this.pos): Bounds {
+	getInnerBounds(pos: number = this.pos): Bounds|null {
 		let bounds;
 		if (this.mode.codeMath) {
 			// means a codeblock language triggered the math mode -> use the codeblock bounds instead
@@ -201,7 +201,7 @@ const isWithinInlineEquation = (state: EditorState):boolean => {
  *
  * **Note:** If you intend to use this directly, check out Context.getBounds instead, which caches and also takes care of codeblock languages which should behave like math mode.
  */
-export const getEquationBounds = (state: EditorState, pos?: number):Bounds => {
+export const getEquationBounds = (state: EditorState, pos?: number):Bounds|null => {
 	if (!pos) pos = state.selection.main.to;
 	const tree = syntaxTree(state);
 
@@ -227,7 +227,7 @@ export const getEquationBounds = (state: EditorState, pos?: number):Bounds => {
 }
 
 // Accounts for equations within text environments, e.g. $$\text{... $...$}$$
-const getInnerEquationBounds = (state: EditorState, pos?: number):Bounds => {
+const getInnerEquationBounds = (state: EditorState, pos?: number):Bounds|null => {
 	if (!pos) pos = state.selection.main.to;
 	let text = state.doc.toString();
 
@@ -247,7 +247,7 @@ const getInnerEquationBounds = (state: EditorState, pos?: number):Bounds => {
  *
  * **Note:** If you intend to use this directly, check out Context.getBounds instead, which caches and also takes care of codeblock languages which should behave like math mode.
  */
-const getCodeblockBounds = (state: EditorState, pos: number = state.selection.main.from):Bounds => {
+const getCodeblockBounds = (state: EditorState, pos: number = state.selection.main.from):Bounds|null => {
 	const tree = syntaxTree(state);
 
 	let cursor = tree.cursorAt(pos, -1);
@@ -255,29 +255,32 @@ const getCodeblockBounds = (state: EditorState, pos: number = state.selection.ma
 
 	cursor = tree.cursorAt(pos, -1);
 	const blockEnd = escalateToToken(cursor, Direction.Forward, "HyperMD-codeblock-end");
-
+	if (blockBegin&&blockEnd)
 	return { start: blockBegin.to + 1, end: blockEnd.from - 1 };
+	return null
 }
+
+const findFirstNonNewlineBefore = (state: EditorState, pos: number): number => {
+    let currentPos = pos;
+    while (currentPos >= 0) {
+        const char = getCharacterAtPos(state, currentPos-1);
+        if (char !== "\n") {
+            return currentPos;
+        }
+        currentPos--;
+    }
+    return 0;
+};
 
 const langIfWithinCodeblock = (state: EditorState): string | null => {
 	const tree = syntaxTree(state);
 
 	const pos = state.selection.ranges[0].from;
 
-	/*
-	* get a tree cursor at the position
-	*
-	* A newline does not belong to any syntax nodes except for the Document,
-	* which corresponds to the whole document. So, we change the `mode` of the
-	* `cursorAt` depending on whether the character just before the cursor is a
-	* newline.
-	*/
-	const cursor =
-		pos === 0 || getCharacterAtPos(state, pos - 1) === "\n"
-		? tree.cursorAt(pos, 1)
-		: tree.cursorAt(pos, -1);
 
-	// check if we're in a codeblock atm at all
+	const adjustedPos =pos === 0 ? 0 : findFirstNonNewlineBefore(state, pos);
+	const cursor = tree.cursorAt(adjustedPos, -1);
+	
 	const inCodeblock = cursor.name.contains("codeblock");
 	if (!inCodeblock) {
 		return null;

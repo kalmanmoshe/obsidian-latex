@@ -88,10 +88,15 @@ function* generateFilesWithin(fileOrFolder: TAbstractFile): Generator<TFile> {
 }
 
 function getFilesWithin(vault: Vault, path: string): Set<TFile> {
-	const fileOrFolder = vault.getAbstractFileByPath(path);
-	const files = generateFilesWithin(fileOrFolder);
-	return new Set(files);
+    const fileOrFolder = vault.getAbstractFileByPath(path);
+
+    if (fileOrFolder === null) {
+        return new Set();
+    }
+    const files = generateFilesWithin(fileOrFolder);
+    return new Set(files);
 }
+
 
 interface FileSets {
 	definitelyVariableFiles: Set<TFile>;
