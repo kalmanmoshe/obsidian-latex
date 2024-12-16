@@ -2,7 +2,6 @@
 
 import { Plugin, MarkdownView, MarkdownRenderer, App, Setting, Modal, Notice, Component, Editor, EditorPosition } from "obsidian";
 import MathPlugin from "./main";
-import { createTextInputSetting } from "./settings/settings_tab";
 import { Axis, Coordinate, Formatting } from "./tikzjax/tikzjax";
 import { FormatTikzjax } from "./tikzjax/interpret/tokenizeTikzjax";
 
@@ -162,8 +161,8 @@ export class InputModal extends Modal {
   }
   renderDynamicFields(container: HTMLElement) {
     container.findAll(".dynamic-field").forEach(el => el.remove());
-    this.userSidesInput=createTextInputSetting(container,"Coordinates","Enter ${shape.coordinates}","","","dynamic-field")||""
-    this.userSidesInput=createTextInputSetting(container,"Coordinates","Enter ${shape.coordinates}","","","dynamic-field")||""
+    //this.userSidesInput=createTextInputSetting(container,"Coordinates","Enter ${shape.coordinates}","","","dynamic-field")||""
+    //this.userSidesInput=createTextInputSetting(container,"Coordinates","Enter ${shape.coordinates}","","","dynamic-field")||""
     new Setting(container)
       .addButton(button =>
         button

@@ -47,6 +47,8 @@ export function handleMathTooltip(update: ViewUpdate) {
 
 	// HACK: eqnBounds is not null because shouldShowTooltip was true
 	const eqnBounds = ctx.getBounds();
+	if(!eqnBounds)
+		return
 	const eqn = update.state.sliceDoc(eqnBounds.start, eqnBounds.end);
 
 	const above = settings.mathPreviewPositionIsAbove;

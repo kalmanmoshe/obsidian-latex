@@ -4,7 +4,7 @@ import { syntaxTree } from "@codemirror/language";
 import { EditorState} from "@codemirror/state";
 import { SyntaxNode, TreeCursor } from "@lezer/common";
 import Moshe from "./main";
-import { Context } from "./editor utilities/context";
+import { Context } from "./utils/context";
 import { replaceRange, setCursor } from "./editor utilities/editor_utils";
 
 

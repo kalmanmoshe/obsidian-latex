@@ -2,7 +2,7 @@ import Moshe from "./main";
 import { getTikzSuggestions, Latex } from "./utilities";
 import { EditorView, ViewPlugin, ViewUpdate ,Decoration, } from "@codemirror/view";
 import { EditorState, Prec,Extension } from "@codemirror/state";
-import { Context } from "./editor utilities/context";
+import { Context } from "./utils/context";
 import { isComposing, replaceRange, setCursor } from "./editor utilities/editor_utils";
 import { keyboardAutoReplaceHebrewToEnglishTriggers } from "./utils/staticData";
 import { Suggestor } from "./suggestor";
@@ -11,7 +11,7 @@ import { setSelectionToNextTabstop } from "./snippets/snippet_management";
 import { tabstopsStateField } from "./codemirror/tabstops_state_field";
 import { snippetQueueStateField } from "./codemirror/snippet_queue_state_field";
 import { snippetInvertedEffects } from "./codemirror/history";
-import { runSnippets } from "./snippets/run_snippets";
+import { runSnippets } from "./features/run_snippets";
 
 
 export class EditorExtensions {
@@ -42,7 +42,6 @@ export class EditorExtensions {
                     keydown: (event, view) => {
                         this.onKeydown(event, view);
 
-                        // Start listening for transactions only if a key is pressed
                         if (event.code.startsWith("Key") && !event.ctrlKey) {
                             this.shouldListenForTransaction = true;
                         }
@@ -54,10 +53,9 @@ export class EditorExtensions {
                 })
             ),
             EditorView.updateListener.of((update) => {
-                // Trigger transaction logic if docChanged and listening is active
                 if (this.shouldListenForTransaction && update.docChanged) {
                     this.onTransaction(update.view);
-                    this.shouldListenForTransaction = false; // Reset listener
+                    this.shouldListenForTransaction = false;
                 }
             }),
         ]);

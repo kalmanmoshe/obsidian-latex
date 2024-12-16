@@ -49,21 +49,23 @@ function colorPairedBrackets(view: EditorView) {
 				}
 				else if (closeBrackets.contains(char)) {
 					const lastBracket = bracketsStack.at(-1);
-
-					if (getCloseBracket(lastBracket) === char) {
+					const lastBracketPos = bracketsPosStack.at(-1);
+				
+					if (lastBracket !== undefined && lastBracketPos !== undefined && getCloseBracket(lastBracket) === char) {
 						bracketsStack.pop();
-						const lastBracketPos = bracketsPosStack.pop();
+						bracketsPosStack.pop();
 						const depth = bracketsStack.length % Ncolors;
-
+				
 						const className = "latex-suite-color-bracket-" + depth;
-
+				
 						const j = lastBracketPos + bounds.start;
 						const k = i + bounds.start;
-
+				
 						widgets.push(getHighlightBracketMark(j, className));
 						widgets.push(getHighlightBracketMark(k, className));
 					}
 				}
+				
 			}
 
 		}

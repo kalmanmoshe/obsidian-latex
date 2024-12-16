@@ -165,7 +165,7 @@ export class RegexSnippet extends Snippet<"regex"> {
 }
 
 export class StringSnippet extends Snippet<"string"> {
-	data: SnippetData<"string">;
+	declare data: SnippetData<"string">;
 
 	constructor({ trigger, replacement, options, priority, description, excludedEnvironments: excludeIn }: CreateSnippet<"string">) {
 		super("string", trigger, replacement, options, priority, description, excludeIn);

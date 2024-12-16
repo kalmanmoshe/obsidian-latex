@@ -65,7 +65,7 @@ export default class Moshe extends Plugin {
     new EditorExtensions().setEditorExtensions(this)
     
     //this.registerEditorSuggest(new NumeralsSuggestor(this));
-    console.log('this.settings.snippets',this.settings.snippets)
+    
   }
 
 	legacyEditorWarning() {
@@ -125,34 +125,59 @@ loadIcons() {
     addIcon(iconId, svgContent);
   }
 }
-  private async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-    if (this.settings.loadSnippetsFromFile) {
-			//const tempSnippetVariables = await this.getSettingsSnippetVariables();
-			//const tempSnippets = await this.getSettingsSnippets(tempSnippetVariables);
+async loadSettings() {
+  let data = await this.loadData();
 
-			//this.settings = processMosheSettings(tempSnippets, this.settings);
+  // Migrate settings from v1.8.0 - v1.8.4
+  const shouldMigrateSettings = data ? "basicSettings" in data : false;
 
-			// Use onLayoutReady so that we don't try to read the snippets file too early
-			this.app.workspace.onLayoutReady(() => {
-				//this.processSettings();
-			});
-		}
-		else {
-			//await this.processSettings();
-		}
+  // @ts-ignore
+  function migrateSettings(oldSettings) {
+    return {
+      ...oldSettings.basicSettings,
+      ...oldSettings.rawSettings,
+      snippets: oldSettings.snippets,
+    };
   }
+
+  if (shouldMigrateSettings) {
+    data = migrateSettings(data);
+  }
+
+  this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+
+  if (shouldMigrateSettings) {
+    this.saveSettings();
+  }
+
+  if (this.settings.loadSnippetsFromFile || this.settings.loadSnippetVariablesFromFile) {
+    const tempSnippetVariables = await this.getSettingsSnippetVariables();
+    const tempSnippets = await this.getSettingsSnippets(tempSnippetVariables);
+
+    this.CMSettings = processLatexSuiteSettings(tempSnippets, this.settings);
+
+    // Use onLayoutReady so that we don't try to read the snippets file too early
+    this.app.workspace.onLayoutReady(() => {
+      this.processSettings();
+    });
+  }
+  else {
+    await this.processSettings();
+  }
+}
 
   async saveSettings(didFileLocationChange = false) {
 		await this.saveData(this.settings);
 		this.processSettings(didFileLocationChange);
 	}
+
   async processSettings(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
 		this.CMSettings = processLatexSuiteSettings(await this.getSnippets(becauseFileLocationUpdated, becauseFileUpdated), this.settings);
 		this.setEditorExtensions();
 		// Request Obsidian to reconfigure CM extensions
 		this.app.workspace.updateOptions();
 	}
+  
   async getSettingsSnippetVariables() {
 		try {
 			return await parseSnippetVariables(this.settings.snippetVariables);
@@ -183,7 +208,7 @@ loadIcons() {
 			this.settings.loadSnippetsFromFile
 				? await getSnippetsFromFiles(this, files, snippetVariables)
 				: await this.getSettingsSnippets(snippetVariables);
-
+    console.log('this.settings.snippets',snippets)
 		this.showSnippetsLoadedNotice(snippets.length, Object.keys(snippetVariables).length,  becauseFileLocationUpdated, becauseFileUpdated);
 
 		return snippets;

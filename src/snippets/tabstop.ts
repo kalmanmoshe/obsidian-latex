@@ -37,10 +37,10 @@ export class TabstopGroup {
     select(view: EditorView, selectEndpoints: boolean, isEndSnippet: boolean) {
         const sel = this.toEditorSelection();
         const toSelect = selectEndpoints ? getEditorSelectionEndpoints(sel) : sel;
-
+        
         view.dispatch({
             selection: toSelect,
-            effects: isEndSnippet ? endSnippet.of(null) : null
+            effects: isEndSnippet ? endSnippet.of(null) : undefined
         })
         resetCursorBlink();
 
