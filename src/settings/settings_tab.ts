@@ -534,8 +534,7 @@ export class LatexSuiteSettingTab extends PluginSettingTab {
           dropdown.addOption('10000',"formatted .0000");
           dropdown.addOption('100000',"formatted .00000");
           dropdown.onChange(async (value) => {
-             this.plugin.settings.numberFormatting = value;
-              await this.plugin.saveSettings();
+			await this.plugin.saveSettings();
           });
         });
 

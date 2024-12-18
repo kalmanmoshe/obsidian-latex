@@ -11,23 +11,14 @@ import { Suggestor } from "./suggestor.js";
 import { TikzSvg } from "./tikzjax/myTikz.js";
 
 import {Extension, EditorState, SelectionRange,RangeSet, Prec } from "@codemirror/state";
-import { syntaxTree } from "@codemirror/language";
-import { EditorView, ViewPlugin, ViewUpdate ,Decoration,tooltips } from "@codemirror/view";
 import { FormatTikzjax } from "./tikzjax/interpret/tokenizeTikzjax.js";
-import { EditorExtensions } from "./editorExtensions.js";
+import { EditorExtensions } from "./setEditorExtensions.js";
 
 import { onFileCreate, onFileChange, onFileDelete, getSnippetsFromFiles, getFileSets, getVariablesFromFiles, tryGetVariablesFromUnknownFiles } from "./settings/file_watch";
 import { ICONS } from "./settings/ui/icons";
 
 import { getEditorCommands } from "./features/editor_commands";
-import { getLatexSuiteConfigExtension } from "./snippets/codemirror/config";
 import { SnippetVariables, parseSnippetVariables, parseSnippets } from "./snippets/parse";
-import { handleUpdate, onKeydown } from "src/latex_suite";
-import { snippetExtensions } from "./snippets/codemirror/extensions";
-import { mkConcealPlugin } from "./editor_extensions/conceal";
-import { colorPairedBracketsPluginLowestPrec, highlightCursorBracketsPlugin } from "./editor_extensions/highlight_brackets";
-import { cursorTooltipBaseTheme, cursorTooltipField } from "./editor_extensions/math_tooltip";
-
 
 
 
@@ -36,6 +27,7 @@ export default class Moshe extends Plugin {
 	CMSettings: LatexSuiteCMSettings;
 	editorExtensions: Extension[] = [];
   tikzProcessor: Tikzjax
+  editorExtensions2: EditorExtensions= new EditorExtensions();
 
   async onload() {
     await this.loadSettings();
@@ -43,8 +35,6 @@ export default class Moshe extends Plugin {
 		this.loadIcons();
 		this.addSettingTab(new LatexSuiteSettingTab(this.app, this));
 		loadMathJax();
-
-		this.legacyEditorWarning();
 
 		// Register Latex Suite extensions and optional editor extensions for editor enhancements
 		this.registerEditorExtension(this.editorExtensions);
@@ -62,23 +52,12 @@ export default class Moshe extends Plugin {
     this.registerMarkdownCodeBlockProcessor("math-engine", this.processMathBlock.bind(this));
     this.registerMarkdownCodeBlockProcessor("tikzjax", this.processTikzBlock.bind(this));
     this.registerCommands();
-    new EditorExtensions().setEditorExtensions(this)
+    
     
     //this.registerEditorSuggest(new NumeralsSuggestor(this));
     
   }
 
-	legacyEditorWarning() {
-		// @ts-ignore
-		if (this.app.vault.config?.legacyEditor) {
-			const message = "Obsidian Latex Suite: This plugin does not support the legacy editor. Switch to Live Preview mode to use this plugin.";
-
-			new Notice(message, 100000);
-			console.log(message);
-
-			return;
-		}
-	}
   addEditorCommands() {
 		for (const command of getEditorCommands(this)) {
 			this.addCommand(command);
@@ -146,9 +125,6 @@ async loadSettings() {
 
   this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
 
-  if (shouldMigrateSettings) {
-    this.saveSettings();
-  }
 
   if (this.settings.loadSnippetsFromFile || this.settings.loadSnippetVariablesFromFile) {
     const tempSnippetVariables = await this.getSettingsSnippetVariables();
@@ -173,8 +149,8 @@ async loadSettings() {
 
   async processSettings(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
 		this.CMSettings = processLatexSuiteSettings(await this.getSnippets(becauseFileLocationUpdated, becauseFileUpdated), this.settings);
-		this.setEditorExtensions();
-		// Request Obsidian to reconfigure CM extensions
+    this.editorExtensions2.setEditorExtensions(this)
+    //this.setEditorExtensions();
 		this.app.workspace.updateOptions();
 	}
   
@@ -208,7 +184,6 @@ async loadSettings() {
 			this.settings.loadSnippetsFromFile
 				? await getSnippetsFromFiles(this, files, snippetVariables)
 				: await this.getSettingsSnippets(snippetVariables);
-    console.log('this.settings.snippets',snippets)
 		this.showSnippetsLoadedNotice(snippets.length, Object.keys(snippetVariables).length,  becauseFileLocationUpdated, becauseFileUpdated);
 
 		return snippets;
@@ -227,36 +202,6 @@ async loadSettings() {
 
 		const suffix = " from files.";
 		new Notice(prefix + body.join(" and ") + suffix, 5000);
-	}
-  setEditorExtensions() {
-		// Remove all currently loaded CM extensions
-		// In order for 'this.app.workspace.updateOptions()' to function as
-		// expected, you cannot assign a new array to 'this.editorExtensions'.
-		while (this.editorExtensions.length) this.editorExtensions.pop();
-
-		// Compulsory extensions
-		this.editorExtensions.push([
-			getLatexSuiteConfigExtension(this.CMSettings),
-			Prec.highest(EditorView.domEventHandlers({ "keydown": onKeydown })),
-			EditorView.updateListener.of(handleUpdate),
-			snippetExtensions,
-		]);
-
-		// Optional extensions
-		if (this.CMSettings.concealEnabled) {
-			const timeout = this.CMSettings.concealRevealTimeout;
-			this.editorExtensions.push(mkConcealPlugin(timeout).extension);
-		}
-		if (this.CMSettings.colorPairedBracketsEnabled)
-			this.editorExtensions.push(colorPairedBracketsPluginLowestPrec);
-		if (this.CMSettings.highlightCursorBracketsEnabled)
-			this.editorExtensions.push(highlightCursorBracketsPlugin.extension);
-		if (this.CMSettings.mathPreviewEnabled)
-			this.editorExtensions.push([
-				cursorTooltipField.extension,
-				cursorTooltipBaseTheme,
-				tooltips({ position: "absolute" }),
-			]);
 	}
   private registerCommands() {
     this.addCommand({

@@ -28,14 +28,13 @@ export class Context {
 		ctx.mode = new Mode();
 		ctx.boundsCache = new Map();
 
-		const codeblockLanguage = langIfWithinCodeblock(state)||'';
+		const codeblockLanguage = langIfWithinCodeblock(state);
 		const inCode = codeblockLanguage !== null;
-
 		const settings = getLatexSuiteConfig(state);
-		const forceMath = settings.forceMathLanguages.contains(codeblockLanguage);
+		const forceMath = codeblockLanguage?settings.forceMathLanguages.contains(codeblockLanguage):false;
 		ctx.mode.codeMath = forceMath;
 		ctx.mode.code = inCode && !forceMath;
-		if (ctx.mode.code) ctx.codeblockLanguage = codeblockLanguage;
+		if (ctx.mode.code&&codeblockLanguage) ctx.codeblockLanguage = codeblockLanguage;
 
 		// first, check if math mode should be "generally" on
 		const inMath = forceMath || isWithinEquation(state);
@@ -282,6 +281,7 @@ const langIfWithinCodeblock = (state: EditorState): string | null => {
 	const cursor = tree.cursorAt(adjustedPos, -1);
 	
 	const inCodeblock = cursor.name.contains("codeblock");
+	
 	if (!inCodeblock) {
 		return null;
 	}

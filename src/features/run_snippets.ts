@@ -30,7 +30,7 @@ export const runSnippets = (view: EditorView, ctx: Context, key: string):boolean
 
 
 const runSnippetCursor = (view: EditorView, ctx: Context, key: string, range: SelectionRange):{success: boolean; shouldAutoEnlargeBrackets: boolean} => {
-
+	
 	const settings = getLatexSuiteConfig(view);
 	const {from, to} = range;
 	const sel = view.state.sliceDoc(from, to);
@@ -38,7 +38,6 @@ const runSnippetCursor = (view: EditorView, ctx: Context, key: string, range: Se
 	const updatedLine = line + key;
 	for (const snippet of settings.snippets) {
 		let effectiveLine = line;
-
 		if (!snippetShouldRunInMode(snippet.options, ctx.mode)) {
 			continue;
 		}
@@ -72,7 +71,6 @@ const runSnippetCursor = (view: EditorView, ctx: Context, key: string, range: Se
 			// Check that the trigger is preceded and followed by a word delimiter
 			if (!isOnWordBoundary(view.state, triggerPos, to, settings.wordDelimiters)) continue;
 		}
-
 		let replacement = result.replacement;
 
 		// When in inline math, remove any spaces at the end of the replacement
