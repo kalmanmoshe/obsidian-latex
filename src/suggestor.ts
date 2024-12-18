@@ -10,21 +10,48 @@ import { replaceRange, setCursor } from "./editor utilities/editor_utils";
 
 class SuggestorTrigger{
 	text: string
-	constructor(pos: number, view: EditorView){
-		this.text=this.getCurrentLineText(pos, view)
+	codeBlockText: string;
+	constructor(ctx: Context, view: EditorView){
+		this.text=this.getCurrentLineText(ctx.pos, view)
 	}
 	setTrigger(trigger: string){
 
 	}
 	getCurrentLineText(pos: number, view: EditorView): string {
 		const line = view.state.doc.lineAt(pos);
-		const cursorOffsetInLine = (pos+2) - line.from;
-		const textUpToCursor = line.text.slice(0, cursorOffsetInLine).trim();
-	
-		const words = textUpToCursor.split(/\s+/);
+		//const cursorOffsetInLine = (pos+2) - line.from;I don't know why I had this here
+		const textUpToCursor = line.text.slice(0, pos- line.from).trim();
+		const words = textUpToCursor.split(/([\s,\[\](){};]|--\+\+|--\+|--)+/);
+		const word=words[words.length - 1]||'';
+		console.log(word)
+		/* Checks that need to be made
+		1. In what command are we in if any.
+		2. Are we inputting a Variable a coordinate or formatting.
+		3. if Formatting Are we starting to type a command or are we inputting a value to a command
+		*/
 		return words[words.length - 1] || "";
 	}
+	getCodeBlockText(ctx: Context,view: EditorView){
+		const doc = view.state.doc;
+		const { number } = doc.lineAt(ctx.pos);
+
+		const beforeLine = findLine(view.state,number,-1,'```');
+		const afterLine =  findLine(view.state,number,1,'```');;
+		if (!beforeLine || !afterLine) return null;
+		const betweenText = doc.sliceString(beforeLine.to, afterLine.from).trim();
+		const relativePos = ctx.pos - beforeLine.to;
+		return betweenText
+	}
 }
+
+const findLine = (state: EditorState, lineNumber: number,dir: number, startsWith: string) => {
+	const {doc}=state
+	for (let i = lineNumber + dir; i > 0 && i <= doc.lines; i += dir) {
+	const line = doc.line(i).text.trim();
+	if (line.startsWith(startsWith)) return doc.line(i);
+	}
+	return null;
+};
 
 export class Suggestor {
 	private trigger: SuggestorTrigger;
@@ -70,7 +97,7 @@ export class Suggestor {
 	}
 
 	private getSuggestions(view: EditorView) {
-		this.trigger=new SuggestorTrigger(this.context.pos, view)
+		this.trigger=new SuggestorTrigger(this.context, view)
 		const allSuggestions = getTikzSuggestions().map(s => s.trigger||s.replacement);
 	
 		const filteredSuggestions = allSuggestions.filter((suggestion) =>
