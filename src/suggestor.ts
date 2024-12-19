@@ -60,6 +60,7 @@ export class Suggestor {
 	isSuggesterDeployed: boolean=false;
 
 	deploySuggestor(context: Context,view: EditorView){
+		console.log("sjdsjd")
 		this.removeSuggestor()
 		this.context=context;
 		const suggestions=this.getSuggestions(view)
@@ -139,7 +140,6 @@ export class Suggestor {
 		if(!this.context)return ;
 		const selectedText = item.textContent || "";
 		const pos=this.context.pos;
-		console.log('pos-this.trigger.text.length,pos,selectedText',pos-this.trigger.text.length,pos,selectedText)
 		replaceRange(view,pos-this.trigger.text.length,pos,selectedText)
 		view.focus();
 		setCursor(view,calculateNewCursorPosition(this.trigger.text,selectedText,pos))

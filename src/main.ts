@@ -1,3 +1,4 @@
+//git reset --hard
 import {Plugin, MarkdownRenderer,addIcon, App, Modal, Component, Setting,Notice, WorkspaceWindow,loadMathJax,renderMath, MarkdownView, EditorSuggest, EditorSuggestTriggerInfo, EditorPosition, Editor, TFile, EditorSuggestContext} from "obsidian";
 
 import { MathInfo, MathPraiser } from "./mathEngine.js";

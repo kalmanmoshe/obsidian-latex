@@ -77,12 +77,12 @@ export class EditorExtensions {
                         }
                     },
 					mousemove: (event, view) => {
-						const { clientX, clientY } = event;
+						/*const { clientX, clientY } = event;
 						const position = view.posAtCoords({ x: clientX, y: clientY });
 	
 						if (position) {
-							this.onCursorMove(event, view);
-						}
+							//this.onCursorMove(event, view);
+						}*/
 					},
                     focus: (event, view) => {
                         // Track the active editor view
@@ -105,6 +105,12 @@ export class EditorExtensions {
                 this.onClick(event, this.activeEditorView);
             }
         });
+		document.addEventListener('mousemove', (event) => {
+			this.suggestionActive = this.isSuggesterDeployed();
+            if (this.suggestionActive && this.activeEditorView) {
+                this.onCursorMove(event, this.activeEditorView)
+            }
+		});
     }
 
     private snippetExtensions(app: Moshe) {
@@ -124,29 +130,15 @@ export class EditorExtensions {
         ));
     }
 	private onCursorMove(event: MouseEvent,view: EditorView){
-		if (!this.isSuggesterDeployed())return;
-		const { clientX, clientY } = event;
-		const container=document.querySelector('.suggestion-dropdown')?.getBoundingClientRect()
-		if(!container)return
-		if(clientX < container.left ||clientX > container.right ||clientY < container.top ||clientY > container.bottom){
-			console.log("off")
-			return
-		}
-		console.log("on")
-		const dropdownItems = Array.from(document.querySelectorAll('.suggestion-item'));
-		for (const item of dropdownItems) {
-			const bounds = item.getBoundingClientRect();
-			console.log(bounds)
-			if (
-				clientX >= bounds.left &&
-				clientX <= bounds.right &&
-				clientY >= bounds.top &&
-				clientY <= bounds.bottom
-			) {
-				console.log('Cursor is within dropdown item:', item);
-	
-				return; // Stop checking once we find the relevant item
-			}
+		const suggestionItems = document.body.querySelectorAll(".suggestion-item");
+
+		const clickedSuggestion = Array.from(suggestionItems).find((item) =>
+			item.contains(event.target as Node)
+		);
+		if (clickedSuggestion) {
+			const index = Array.from(suggestionItems).indexOf(clickedSuggestion);
+			this.suggestor.selectionIndex=index
+			this.suggestor.updateSelection(suggestionItems)
 		}
 	}
 	private onClick=(event: MouseEvent,view: EditorView)=>{
@@ -179,13 +171,14 @@ export class EditorExtensions {
 		let key = event.key;
 		let trigger
 		const ctx = Context.fromView(view);
-		if (!(event.ctrlKey || event.metaKey) && (ctx.mode.inMath() && (!ctx.inTextEnvironment() || ctx.codeblockLanguage.match(/(tikz)/)))) {
+		if (!(event.ctrlKey || event.metaKey) && ctx.mode.translate) {
 		  trigger = keyboardAutoReplaceHebrewToEnglishTriggers.find((trigger2) => trigger2.key === event.key && trigger2.code === event.code);
 		  key = trigger?.replacement||key;
 		}
 		if(this.suggestor.isSuggesterDeployed){
 			handleDropdownNavigation(event,view,this.suggestor)
 		}
+		
 		const success = handleKeydown(key, event.shiftKey, event.ctrlKey || event.metaKey, isComposing(view, event), view);
 		if (success) 
 		  event.preventDefault();
