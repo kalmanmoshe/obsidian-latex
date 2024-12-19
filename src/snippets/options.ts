@@ -43,6 +43,7 @@ export class Mode {
 	inlineMath: boolean;
 	blockMath: boolean;
 	codeMath: boolean;
+	translate: boolean
 	code: boolean;
 	textEnv: boolean;
 
@@ -67,6 +68,9 @@ export class Mode {
 	 *
 	 * Returns false when the state is within math, but inside a text environment, such as \text{}.
 	 */
+	isntInText(){
+		return !this.text&&!this.textEnv
+	}
 	strictlyInMath():boolean {
 		return this.inMath() && !this.textEnv;
 	}

@@ -24,17 +24,21 @@ export class Context {
 		const sel = state.selection;
 		ctx.state = state;
 		ctx.pos = sel.main.to;
-		ctx.ranges = Array.from(sel.ranges).reverse(); // Last to first
+		ctx.ranges = Array.from(sel.ranges).reverse();
 		ctx.mode = new Mode();
 		ctx.boundsCache = new Map();
 
 		const codeblockLanguage = langIfWithinCodeblock(state);
+		const lengToTranslate= ['tikz']
 		const inCode = codeblockLanguage !== null;
 		const settings = getLatexSuiteConfig(state);
 		const forceMath = codeblockLanguage?settings.forceMathLanguages.contains(codeblockLanguage):false;
 		ctx.mode.codeMath = forceMath;
 		ctx.mode.code = inCode && !forceMath;
 		if (ctx.mode.code&&codeblockLanguage) ctx.codeblockLanguage = codeblockLanguage;
+		if (ctx.mode.isntInText()&&lengToTranslate.contains(ctx.codeblockLanguage)){
+			ctx.mode.translate=true;
+		}
 
 		// first, check if math mode should be "generally" on
 		const inMath = forceMath || isWithinEquation(state);
