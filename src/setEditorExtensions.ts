@@ -171,14 +171,13 @@ export class EditorExtensions {
 		let key = event.key;
 		let trigger
 		const ctx = Context.fromView(view);
-		if (!(event.ctrlKey || event.metaKey) && ctx.mode.translate) {
+		if (!(event.ctrlKey || event.metaKey) && ctx.shouldTranslate()) {
 		  trigger = keyboardAutoReplaceHebrewToEnglishTriggers.find((trigger2) => trigger2.key === event.key && trigger2.code === event.code);
 		  key = trigger?.replacement||key;
 		}
 		if(this.suggestor.isSuggesterDeployed){
 			handleDropdownNavigation(event,view,this.suggestor)
 		}
-		
 		const success = handleKeydown(key, event.shiftKey, event.ctrlKey || event.metaKey, isComposing(view, event), view);
 		if (success) 
 		  event.preventDefault();
