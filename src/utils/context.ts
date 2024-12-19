@@ -29,17 +29,13 @@ export class Context {
 		ctx.boundsCache = new Map();
 
 		const codeblockLanguage = langIfWithinCodeblock(state);
-		const lengToTranslate= ['tikz']
 		const inCode = codeblockLanguage !== null;
 		const settings = getLatexSuiteConfig(state);
 		const forceMath = codeblockLanguage?settings.forceMathLanguages.contains(codeblockLanguage):false;
 		ctx.mode.codeMath = forceMath;
 		ctx.mode.code = inCode && !forceMath;
 		if (ctx.mode.code&&codeblockLanguage) ctx.codeblockLanguage = codeblockLanguage;
-		if (ctx.mode.isntInText()&&lengToTranslate.contains(ctx.codeblockLanguage)){
-			ctx.mode.translate=true;
-		}
-
+		
 		// first, check if math mode should be "generally" on
 		const inMath = forceMath || isWithinEquation(state);
 
@@ -62,7 +58,11 @@ export class Context {
 	static fromView(view: EditorView):Context {
 		return Context.fromState(view.state);
 	}
-
+	shouldTranslate(){
+		const lengToTranslate= ['tikz']
+		
+		return this.mode.isntInText()&&(!this.mode.code||lengToTranslate.contains(this.codeblockLanguage))
+	}
 	isWithinEnvironment(pos: number, env: Environment): boolean {
 		if (!this.mode.inMath()) return false;
 

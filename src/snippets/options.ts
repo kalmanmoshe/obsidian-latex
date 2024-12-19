@@ -43,7 +43,6 @@ export class Mode {
 	inlineMath: boolean;
 	blockMath: boolean;
 	codeMath: boolean;
-	translate: boolean
 	code: boolean;
 	textEnv: boolean;
 
@@ -71,7 +70,7 @@ export class Mode {
 	isntInText(){
 		return !this.text&&!this.textEnv
 	}
-	strictlyInMath():boolean {
+	strictlyInMath() {
 		return this.inMath() && !this.textEnv;
 	}
 
