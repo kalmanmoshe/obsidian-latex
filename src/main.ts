@@ -54,7 +54,7 @@ export default class Moshe extends Plugin {
     this.registerMarkdownCodeBlockProcessor("tikzjax", this.processTikzBlock.bind(this));
     this.registerCommands();
     
-    
+      
     //this.registerEditorSuggest(new NumeralsSuggestor(this));
     
   }

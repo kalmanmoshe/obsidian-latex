@@ -225,6 +225,7 @@ export class BasicTikzToken{
         return searchTizkForOgLatex(this.name).latex
     }
 }
+
 export class TikzVariable{
     //type: 
 

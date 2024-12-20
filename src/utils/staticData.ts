@@ -42,236 +42,65 @@ export const  keyboardAutoReplaceHebrewToEnglishTriggers =
 ];
 
 
-export const tikzCommands = [
-    /* Comparison */
-    {
-        type: 'Syntax',
-        name: 'Equals', 
-        references: ['='],
-    },
-    {
-        type: 'Command',
-        name: 'newCommand', 
-        references: ['\\newcommand'],
-    },
-    {
-        type: 'Path',
-        name: 'Draw', 
-        references: ['\\draw'],
-    },
-    {
-        type: 'Node',
-        name: 'Coordinate', 
-        references: ['\\coordinate'],
-    },
-    {
-        type: 'Formatting',
-        name: 'LineWidth', 
-        references: ['line width'],
-    },
-    {
-        type: 'Formatting',
-        name: 'Label', 
-        references: ['label'],
-    },
-    {
-        type: 'Formatting',
-        name: 'Large', 
-        references: ['\\Large'],
-    },
-    {
-        type: 'Unit',
-        name: 'Point',
-        references: ['pt'],
-    },
-    {
-        type: 'Unit',
-        name: 'Centimeter',
-        references: ['cm'],
-    },
-    {
-        type: 'Syntax',
-        name: 'Comma',
-        references: [','],
-    },
-    {
-        type: 'Syntax',
-        name: 'Hashtag',
-        references: ['#'],
-    },
-    {
-        type: 'Syntax',
-        name: 'Colon',
-        references: [':'],
-    },
-    
-    {
-        type: 'Syntax',
-        name: 'Semicolon',
-        references: [';'],
-    },
-    {
-        type: 'Syntax',
-        name: 'Dash',
-        references: ['-'],
-    },
-    {
-        type: 'Syntax',
-        name: 'Plus',
-        references: ['+'],
-    },
-    {
-        type: 'PathConnector',
-        name: 'ReferenceLastAxis',
-        latex: '--++',
-        references: ['--++'],
-    },
-    {
-        type: 'PathConnector',
-        name: 'ReferenceFirstAxis',
-        latex: '--+',
-        references: ['--+'],
-    },
-    {
-        type: 'PathConnector',
-        name: 'AxisConnecter',
-        latex: '--',
-        references: ['--'],
-    },
-    {
-        type: 'Formatting',
-        name: 'opacity',
-        references: ['opacity'],
-    },
-    {
-        type: 'Formatting',
-        name: 'Color',
-        value: 'red',
-        references: ['red'],
-    },
-];
 
+
+export const tikzSyntax = [
+    { type: 'Syntax', name: 'Equals', references: ['='] },
+    { type: 'Syntax', name: 'Comma', references: [','] },
+    { type: 'Syntax', name: 'Hashtag', references: ['#'] },
+    { type: 'Syntax', name: 'Colon', references: [':'] },
+    { type: 'Syntax', name: 'Semicolon', references: [';'] },
+    { type: 'Syntax', name: 'Dash', references: ['-'] },
+    { type: 'Syntax', name: 'Plus', references: ['+'] }
+  ];
+  
+export const tikzFormatting = [
+    { type: 'Formatting', name: 'LineWidth', references: ['line width'] },
+    { type: 'Formatting', name: 'Label', references: ['label'] },
+    { type: 'Formatting', name: 'Large', references: ['\\Large'] },
+    { type: 'Formatting', name: 'Color', value: 'red', references: ['red'] },
+    { type: 'Formatting', name: 'Opacity', references: ['opacity'] }
+  ];
+  
+export const tikzUnits = [
+    { type: 'Unit', name: 'Point', references: ['pt'] },
+    { type: 'Unit', name: 'Centimeter', references: ['cm'] }
+  ];
+  
+export const tikzPathAndNodes = [
+    { type: 'Path', name: 'Draw', references: ['\\draw'] },
+    { type: 'Node', name: 'Coordinate', references: ['\\coordinate'] }
+  ];
+  
+export const tikzPathConnectors = [
+    { type: 'PathConnector', name: 'ReferenceLastAxis', latex: '--++', references: ['--++'] },
+    { type: 'PathConnector', name: 'ReferenceFirstAxis', latex: '--+', references: ['--+'] },
+    { type: 'PathConnector', name: 'AxisConnector', latex: '--', references: ['--'] }
+  ];
+
+
+export const tikzComponents=[
+    ...tikzSyntax,...tikzFormatting,...tikzUnits,...tikzPathAndNodes,...tikzPathConnectors
+]
+  
 export const units=[
     {
         references: ['pt','cm',',',';','-'],
     },
 ]
 
-export const symbolTranslator = [
-    { 
-        type: 'greek-letter',
-        name: 'Pi', 
-        latex: '\\pi', 
-        unicode: '\u03C0', 
-        text: 'π' 
-    },
-    {
-        type: 'greek-letter',
-        name: 'Alpha', 
-        latex: '\\alpha', 
-        unicode: '\u03B1', 
-        text: 'α' 
-    },
-    {
-        
-        name: 'Infinity', 
-        latex: '\\infty', 
-        unicode: '\u221E', 
-        text: '∞'
-    },
-    
-];
 
-export const Brackets = [
-    {
-        type: 'Bracket',
-        name: "Parentheses_open",
-        references: ["("],
-        Unicode: "\u0028"
-    },
-    {
-        type: 'Bracket',
-        name: "Parentheses_close",
-        references: [")"],
-        Unicode: "\u0029"
-    },
-    {
-        type: 'Bracket',
-        name: "Curly_brackets_open",
-        references: ["{"],
-        Unicode: "\u007B"
-    },
-    {
-        type: 'Bracket',
-        name: "Curly_brackets_close",
-        references: ["}"],
-        Unicode: "\u007D"
-    },
-    {
-        type: 'Bracket',
-        name: "Square_brackets_open",
-        references: ["["],
-        Unicode: "\u005B"
-    },
-    {
-        type: 'Bracket',
-        name: "Square_brackets_close",
-        references: ["]"],
-        Unicode: "\u005D"
-    },
-    {
-        type: 'Bracket',
-        name: "Angle Brackets-open",
-        references: ["<"],
-        Unicode: "\u003C"
-    },
-    {
-        type: 'Bracket',
-        name: "Angle Brackets-close",
-        references: [">"],
-        Unicode: "\u003E"
-    },
-    {
-        name: "Double Angle Brackets-open",
-        references: ["《"],
-        Unicode: "\u300A"
-    },
-    {
-        name: "Double Angle Brackets-close",
-        references: ["》"],
-        Unicode: "\u300B"
-    },
-    {
-        name: "Single Angle Brackets-open",
-        references: ["〈"],
-        Unicode: "\u3008"
-    },
-    {
-        name: "Single Angle Brackets-close",
-        references: ["〉"],
-        Unicode: "\u3009"
-    },
-    {
-        name: "White Square Brackets-open",
-        references: ["〖"],
-        Unicode: "\u301A"
-    },
-    {
-        name: "White Square Brackets-close",
-        references: ["〗"],
-        Unicode: "\u301B"
-    },
-    {
-        name: "Tortoise Shell Brackets-open",
-        references: ["〔"],
-        Unicode: "\u3014"
-    },
-    {
-        name: "Tortoise Shell Brackets-close",
-        references: ["〕"],
-        Unicode: "\u3015"
-    }
-];
+export const brackets = [
+    { type: 'Bracket', name: "Parentheses_open", references: ["("], Unicode: "\u0028" },
+    { type: 'Bracket', name: "Parentheses_close", references: [")"], Unicode: "\u0029" },
+    { type: 'Bracket', name: "Curly_brackets_open", references: ["{"], Unicode: "\u007B" },
+    { type: 'Bracket', name: "Curly_brackets_close", references: ["}"], Unicode: "\u007D" },
+    { type: 'Bracket', name: "Square_brackets_open", references: ["["], Unicode: "\u005B" },
+    { type: 'Bracket', name: "Square_brackets_close", references: ["]"], Unicode: "\u005D" },
+    { type: 'Bracket', name: "Angle Brackets_open", references: ["<"], Unicode: "\u003C" },
+    { type: 'Bracket', name: "Angle Brackets_close", references: [">"], Unicode: "\u003E" }
+  ];
+  
 
 export const operatorsWithImplicitMultiplication = [
     'Radical', 'Integral', 'Trigonometric', 'Logarithmic','Fraction','Radical'
