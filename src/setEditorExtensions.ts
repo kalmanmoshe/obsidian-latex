@@ -8,9 +8,7 @@ import { keyboardAutoReplaceHebrewToEnglishTriggers } from "./utils/staticData";
 import { getCharacterAtPos, Suggestor } from "./suggestor";
 import { RtlForc } from "./editorDecorations";
 import { setSelectionToNextTabstop } from "./snippets/snippet_management";
-import { removeAllTabstops, tabstopsStateField } from "./codemirror/tabstops_state_field";
-import { clearSnippetQueue, snippetQueueStateField } from "./codemirror/snippet_queue_state_field";
-import { handleUndoRedo, snippetInvertedEffects } from "./codemirror/history";
+
 import { runSnippets } from "./features/run_snippets";
 import { getLatexSuiteConfig, getLatexSuiteConfigExtension } from "./snippets/codemirror/config";
 import { runAutoFraction } from "./features/autofraction";
@@ -21,6 +19,18 @@ import { colorPairedBracketsPluginLowestPrec, highlightCursorBracketsPlugin } fr
 import { mkConcealPlugin } from "./editor_extensions/conceal";
 import { cursorTooltipBaseTheme, cursorTooltipField, handleMathTooltip } from "./editor_extensions/math_tooltip";
 import { context } from "esbuild-wasm";
+import { removeAllTabstops, tabstopsStateField } from "./snippets/codemirror/tabstops_state_field";
+import { clearSnippetQueue, snippetQueueStateField } from "./snippets/codemirror/snippet_queue_state_field";
+import { handleUndoRedo, snippetInvertedEffects } from "./snippets/codemirror/history";
+
+
+/*
+class="cm-gutters" aria-hidden="true" style="min-height: 7865px; position: sticky;"
+spellcheck="false" autocorrect="off" translate="no" contenteditable="true"
+
+*/
+
+
 
 export class EditorExtensions {
     private shouldListenForTransaction: boolean = false;
