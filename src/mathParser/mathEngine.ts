@@ -504,6 +504,47 @@ function rearrangeForIsolation(tokens: Tokens, isolationGoal: { type: any; value
         : [...side1, tokens.tokens[eqIndex], ...side2];
 }
 
+
+
+class mathJaxOperator{
+    operator: string;
+    priority: number;
+    associativityNumber: number;
+    private group1: mathGroup;
+    private group2?: mathGroup;
+    constructor(operator?: string,priority?: number,associativityNumber?: number,group1?: mathGroup,group2?: mathGroup){
+        if (operator)this.operator=operator
+        if (priority)this.priority=priority
+        if (associativityNumber)this.associativityNumber=associativityNumber
+        if (group1)this.group1=group1
+        if (group2)this.group2=group2
+    }
+    setGroup1(group: mathGroup){this.group1=group}
+    setGroup2(group: mathGroup){this.group2=group}
+
+}
+
+class mathGroup{
+    numberOnly: boolean;
+    hasVariables: boolean;
+    singular: boolean;
+    hasOperators: boolean;
+    multiLevel: boolean;
+    isOperable: boolean=true;
+    private items: Token[];
+    constructor(){
+
+    }
+    setItems(items: Token[]){
+        this.items=items
+    }
+    setMetaData(){
+        this.singular=this.items.length===1;
+        this.numberOnly=
+    }
+}
+
+
 export class MathPraiser{
     input="";
     tokens: Tokens;
@@ -514,6 +555,15 @@ export class MathPraiser{
         this.input=input;
         this.processInput();
         this.tokens=new Tokens(this.input);
+        console.log(this.tokens);
+        const b=new mathGroup()
+        b.setItems(this.tokens.tokens[1])
+        const a=new mathJaxOperator()
+        a.setGroup1(b)
+        console.log(a)
+        
+
+
         this.addDebugInfo("Tokens after tokenize",this.tokens.tokens)
         this.input=this.tokens.reconstruct()
         this.solution=this.controller();
@@ -623,15 +673,6 @@ class mathVariables{
 
 }
 
-
-class mathGroup{
-    numberOnly: boolean;
-    hasVariables: boolean;
-    singular: boolean;
-    hasOperators: boolean;
-    multiLevel: boolean;
-    isOperable: boolean=true;
-}
 
 
 
