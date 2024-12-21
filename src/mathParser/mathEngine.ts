@@ -540,7 +540,7 @@ class mathGroup{
     }
     setMetaData(){
         this.singular=this.items.length===1;
-        this.numberOnly=
+       //this.numberOnly=
     }
 }
 
