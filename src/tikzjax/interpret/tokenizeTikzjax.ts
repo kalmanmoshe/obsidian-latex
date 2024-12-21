@@ -1,24 +1,21 @@
-// @ts-nocheck
+//// @ts-nocheck
+
 import { findConsecutiveSequences } from "src/mathEngine";
 import { arrToRegexString, Axis, Coordinate, Draw, Formatting, regExp, Token, toPoint } from "../tikzjax";
-import { getAllTikzReferences, searchTizkCommands, searchTizkForOgLatex } from "src/tikzjax/tikzCommands";
-import { findModifiedParenIndex, findParenIndex, idParentheses, mapBrackets, Paren } from "src/utils/tokenUtensils";
-import { text } from "stream/consumers";
+import { findModifiedParenIndex, findParenIndex, idParentheses, mapBrackets } from "src/utils/tokenUtensils";
+import { getAllTikzReferences, searchTikzComponents } from "src/utils/dataManager";
 
-function labelFreeFormTextSeparation(label){
+function labelFreeFormTextSeparation(label: any[]){
     const colonIndex=label.findIndex(t=>t.name==='Colon')
      label=label.splice(colonIndex,label.length-colonIndex)
     return label.splice(1)
 }
-function toOg(tokens){
+function getOriginalTikzReferences(tokens: any[]){
     let string=''
     tokens.forEach(token => {
-        const og=searchTizkForOgLatex(token.name||token.value)
-        if(og){
-            if(og.latex)
-                string+=og.latex
-            else if(og.references?.length===1)
-                string+=og.references[0]
+        const component=searchTikzComponents(token.name||token.value)
+        if(component&&component.references?.length>0){
+            string+=component.references[0]
         }
         else
             string+=token.value
@@ -26,20 +23,20 @@ function toOg(tokens){
     return string
 }
 
-function cleanFormatting(formatting: any[],subType?: string): any[][] {
+function cleanFormatting(formatting: any[],subType?: string): any[] {
     const values: any[][] = [];
     let currentGroup: any[] = [];
     const formattingKeys=[]
 
     if(subType==='Label'){
         const label=labelFreeFormTextSeparation(formatting)
-        formattingKeys.push({key: 'freeFormText',value: toOg(label)})
+        formattingKeys.push({key: 'freeFormText',value: getOriginalTikzReferences(label)})
     }
     
 
     const bracketMap=mapBrackets('Curly_brackets_open',formatting);
     bracketMap.reverse()
-    bracketMap.forEach(bracket => {
+    bracketMap.forEach((bracket: { open: number; close: number; }) => {
         if(formatting[bracket.open-1].name==='Equals'){
             let subFormatting=formatting.splice(bracket.open-1,bracket.close-(bracket.open-2))
             subFormatting=subFormatting.slice(2,-1)
@@ -68,7 +65,7 @@ function cleanFormatting(formatting: any[],subType?: string): any[][] {
     return formattingKeys 
 }
 
-function assignFormatting(formatting){
+function assignFormatting(formatting: any[]): any{
 
     const isEquals=formatting.map((f,idx)=>f.name==='Equals'?idx:null).filter(t=>t!==null);
     const key=formatting[0]?.name
@@ -81,7 +78,7 @@ function assignFormatting(formatting){
 }
 
 
-function interpretFormattingValue(formatting){
+function interpretFormattingValue(formatting: string | any[]){
     if (formatting.length===1){
         return formatting[0].value||true
     }
@@ -93,7 +90,7 @@ class TikzCommand{
     hookNum: number;
     hooks: any;
     content: BasicTikzToken[]
-    addCommand(trigger, hookNum, content){
+    addCommand(trigger: string, hookNum: number, content: any[]){
         this.trigger=trigger;
         this.hookNum=hookNum;
         this.content=content;
@@ -123,11 +120,12 @@ class TikzCommand{
 
 class TikzCommands{
     commands: TikzCommand[]=[];
-    constructor();
-    addCommand(tokens){
+    constructor(){};
+    addCommand(tokens: any){
         
     }
-    addCommandByInterpretation(tokens) {
+    addCommandByInterpretation(tokens: any[]) {
+        console.log('tokens',tokens)
         const id1Token = tokens.find((item) => item.name === 'Curly_brackets_open');
         if (!id1Token) {
             console.error("Error: 'Curly_brackets_open' not found in tokens.");
@@ -165,7 +163,7 @@ class TikzCommands{
         const content = this.commands.find(command => 
             command.trigger === trigger && hookNumber === command.hookNum
         )?.content;
-
+        if(!content)return null;
         const map = content?.map((item, index) => 
             item.name === 'hook' ? { index, value: item.value } : null
         ).filter(t => t !== null);
@@ -181,7 +179,7 @@ class TikzCommands{
         return content
     }
 
-    getHooks(tokens,ids){
+    getHooks(tokens: any[],ids: any[]){
         tokens.splice(0,1)
         const adjustmentValue=ids[0].open
         ids.forEach(id => {
@@ -189,7 +187,7 @@ class TikzCommands{
             id.close-=adjustmentValue;
         });
         ids.reverse();
-        const hooks=[]
+        const hooks: any[][]=[]
         ids.forEach(id => {
             const removed=tokens.splice(id.open+1,id.close-(id.open+1))
             hooks.push(removed)
@@ -203,8 +201,8 @@ class TikzCommands{
 export class BasicTikzToken{
     type: string;
     name: string
-    value: string|number|Paren|any
-    constructor(value: number|string|object){
+    value: any
+    constructor(value: any){
         if (typeof value==='number'){
             this.type='number'
             this.value=value;
@@ -222,7 +220,7 @@ export class BasicTikzToken{
         
     }
     toString(){
-        return searchTizkForOgLatex(this.name).latex
+        return getOriginalTikzReferences([this])
     }
 }
 
@@ -237,22 +235,23 @@ export class TikzVariables{
 
 function toVariableToken(arr: any[]) {
     arr=arr.filter(t=>(!t.type.includes('Parentheses')))
-    arr=toOg(arr)
-    token=new BasicTikzToken(arr)
+    const token=new BasicTikzToken(getOriginalTikzReferences(arr))
     token.type='variable'
     return token
 }
 
-
+interface ParenPair{
+    open:number,
+    close: number
+}
 
 export class BasicTikzTokens{
-    private tokens: Array<BasicTikzToken|Formatting> = []
+    private tokens: Array<BasicTikzToken|Formatting|Axis> = []
     private tikzCommands: TikzCommands=new TikzCommands();
 
     constructor(source: string){
         source = this.tidyTikzSource(source);
-        source=this.basicArrayify(source)
-        this.basicTikzTokenify(source)
+        this.basicTikzTokenify(this.basicArrayify(source))
         this.cleanBasicTikzTokenify()
         
         this.prepareForTokenize()
@@ -269,7 +268,7 @@ export class BasicTikzTokens{
         return lines.join('\n').replace(/(?<=[^\w]) | (?=[^\w])/g, "").replace(/(?<!\\)%.*$/gm, "").replace(/\n/g,"");
     }
 
-    private basicArrayify(source){
+    private basicArrayify(source: string){
         const basicArray = [];
         const operatorsRegex = new RegExp('^' + arrToRegexString(getAllTikzReferences()));
         let i = 0;
@@ -306,11 +305,11 @@ export class BasicTikzTokens{
         }
         return basicArray
     }
-    private basicTikzTokenify(basicArray){
+    private basicTikzTokenify(basicArray: any[]){
          // Process tokens
         basicArray.forEach(({ type, value }) => {
             if (type === 'string') {
-                const tikzCommand = searchTizkCommands(value);
+                const tikzCommand = searchTikzComponents(value);
                 if (tikzCommand) {
                     this.tokens.push(new BasicTikzToken(tikzCommand));
                 }
@@ -323,99 +322,151 @@ export class BasicTikzTokens{
         });
         idParentheses(this.tokens)
     }
-    private inferAndInterpretCommands(){
-        
-        const commandsMap=this.tokens.map((t,idx)=>t.type==='Command'?idx:null)
-        .filter(t=>t!==null);
-        commandsMap.forEach(index => {
-            const firstBracketAfterIndex=this.tokens.slice(index).find((item,idx)=>item.name==='Curly_brackets_open');
-            const endOfExpression=findModifiedParenIndex(firstBracketAfterIndex.value,undefined,this.tokens,0,1,'Curly_brackets_open')
-            const command=this.tokens.splice(index,Math.abs(index-(endOfExpression.close+1)))
-            this.tikzCommands.addCommandByInterpretation(command)
+    private inferAndInterpretCommands() {
+        // Step 1: Extract command indices
+        const commandsMap = this.tokens
+            .map((t, idx) => (t instanceof BasicTikzToken && t.type === 'Macro' ? idx : null))
+            .filter((t) => t !== null);
+        commandsMap.forEach((index) => {
+            const firstBracketAfterIndex = this.findFirstBracketAfter(index, 'Curly_brackets_open');
+            if (!firstBracketAfterIndex) return;
+    
+            const endOfExpression = findModifiedParenIndex(
+                firstBracketAfterIndex.value,
+                undefined,
+                this.tokens,
+                0,
+                1,
+                'Curly_brackets_open'
+            );
+            if (!endOfExpression) {
+                throw new Error(`Expression end not found for command at index ${index}`);
+            }
+    
+            const commandTokens = this.tokens.splice(index, Math.abs(index - (endOfExpression.close + 1)));
+            this.tikzCommands.addCommandByInterpretation(commandTokens);
         });
-
-        const commands=this.tikzCommands.commands.map(c=>c.getInfo());
-        const commandsInTokens=this.tokens.map((item,index)=>{
-            if(item.type!=='string'){return null}
-            const match=commands.find(c=>c.trigger===item.value)
-            if(match){
-                return {index: index,...match}
-            }
-            return null
-        }).filter(t=>t!==null);
-
-        const founAndConfirmedCommands = [];
-        for (const [index, { trigger, hooks }] of Object.entries(commandsInTokens)) {
-            const numericIndex = Number(index); // Ensure index is a number
-            const firstBracketAfterIndex = this.tokens
-                .slice(numericIndex)
-                .find((item) => item.name === 'Curly_brackets_open')?.value;
-
-            if (!firstBracketAfterIndex) {
-                throw new Error("Curly_brackets_open not found after index " + index);
-            }
-
+    
+        // Step 3: Match commands to tokens
+        const commandsInTokens = this.tokens
+            .map((item, index) => this.matchCommandToToken(item, index))
+            .filter((t) => t !== null);
+    
+        // Step 4: Process confirmed commands
+        const confirmedCommands = this.processConfirmedCommands(commandsInTokens);
+    
+        // Step 5: Replace tokens with processed commands
+        this.replaceTokensWithCommands(confirmedCommands);
+    }
+    
+    // Helper to find the first matching bracket after a given index
+    private findFirstBracketAfter(startIndex: number, bracketName: string): BasicTikzToken | null {
+        const firstBracketAfter=this.tokens
+            .slice(startIndex)
+            .find((item) => item instanceof BasicTikzToken && item.name === bracketName)
+        return firstBracketAfter instanceof BasicTikzToken?firstBracketAfter:null;
+    }
+    
+    // Helper to match commands to tokens
+    private matchCommandToToken(item: any, index: number): any | null {
+        if (!(item instanceof BasicTikzToken) || item.type !== 'string') return null;
+    
+        const match = this.tikzCommands.commands.find((c) => c.trigger === item.value);
+        return match ? { index, ...match.getInfo() } : null;
+    }
+    
+    // Helper to process confirmed commands
+    private processConfirmedCommands(commandsInTokens: any[]): { ids: ParenPair[]; index: number }[] {
+        const confirmedCommands = [];
+    
+        for (const { index, trigger, hooks } of commandsInTokens) {
             if (typeof hooks !== 'number' || hooks <= 0) {
-                throw new Error(`Invalid hooks value at index ${index}`);
+                throw new Error(`Invalid hooks value for command at index ${index}`);
             }
-
-            const obj = { index, trigger, hooks, ids: [] };
-
+    
+            const firstBracketAfterIndex = this.findFirstBracketAfter(index, 'Curly_brackets_open');
+            if (!firstBracketAfterIndex) {
+                throw new Error(`Curly_brackets_open not found after index ${index}`);
+            }
+            
+            const obj: { ids: ParenPair[] } = { ids: [] };
             for (let i = 0; i < hooks; i++) {
                 const parenPairIndex = findModifiedParenIndex(
-                    firstBracketAfterIndex,
+                    firstBracketAfterIndex.value,
                     undefined,
                     this.tokens,
                     0,
                     i,
                     'Curly_brackets_open'
                 );
-                if (!parenPairIndex) 
+    
+                if (!parenPairIndex) {
                     throw new Error(`Paren pair not found for hook ${i} at index ${index}`);
+                }
+    
                 if (obj.ids.length > 0) {
                     const lastId = obj.ids[obj.ids.length - 1];
                     if (lastId.close !== parenPairIndex.open - 1) {
-                        throw new Error(`Mismatch between last close (${lastId.close}) and next open (${parenPairIndex.open})`);
+                        throw new Error(
+                            `Mismatch between last close (${lastId.close}) and next open (${parenPairIndex.open})`
+                        );
                     }
                 }
                 obj.ids.push(parenPairIndex);
             }
-            founAndConfirmedCommands.push(obj);
+            confirmedCommands.push({ ...obj, index });
         }
-
-        founAndConfirmedCommands.forEach(command => {
+    
+        return confirmedCommands;
+    }
+    
+    // Helper to replace tokens with processed commands
+    private replaceTokensWithCommands(confirmedCommands: any[]) {
+        confirmedCommands.forEach((command) => {
             if (!command.ids || command.ids.length === 0) {
-                console.error("Error: Command IDs are empty or undefined.");
+                console.error('Error: Command IDs are empty or undefined.');
                 return;
             }
-            const opan = command.index; 
+    
+            const open = command.index;
             const close = command.ids[command.ids.length - 1].close;
-            if (close < opan) {
-                console.error("Error: Close index is smaller than open index.");
+    
+            if (close < open) {
+                console.error(`Error: Close index (${close}) is smaller than open index (${open}).`);
                 return;
             }
-            const deleteCount = close - opan + 1;
-            const removedTokens = this.tokens.slice(opan, close);
+    
+            const deleteCount = close - open + 1;
+            const removedTokens = this.tokens.slice(open, deleteCount);
+    
             const replacement = this.tikzCommands.replaceCallWithCommand(
                 command.trigger,
                 command.hooks,
-                this.tikzCommands.getHooks(removedTokens,command.ids),
+                this.tikzCommands.getHooks(removedTokens, command.ids)
             );
-            this.tokens.splice(opan, deleteCount, ...replacement);
+    
+            if (!replacement) {
+                throw new Error(
+                    `Replacement generation failed for command at index ${command.index} with trigger ${command.trigger}.`
+                );
+            }
+    
+            this.tokens.splice(open, deleteCount, ...replacement);
         });
     }
+    
     private cleanBasicTikzTokenify(){
 
         this.inferAndInterpretCommands()
 
 
         const unitIndices: number[] = this.tokens
-        .map((token, idx) => (token.type === 'Unit' ? idx : null))
+        .map((token, idx) => (token instanceof BasicTikzToken&&token.type === 'Unit' ? idx : null))
         .filter((idx): idx is number => idx !== null);
 
         unitIndices.forEach((unitIdx) => {
             const prevToken = this.tokens[unitIdx - 1];
-
+            if (!(prevToken instanceof BasicTikzToken)||!(this.tokens[unitIdx] instanceof BasicTikzToken))return
             if (!prevToken || prevToken.type !== 'number') {
                 throw new Error(`Units can only be used in reference to numbers at index ${unitIdx}`);
             }
@@ -442,7 +493,7 @@ export class BasicTikzTokens{
 
 
         const mapSyntax = this.tokens
-        .map((token, idx) => (token.type === 'Syntax' && /(Dash|Plus)/.test(token.name) ? idx : null))
+        .map((token, idx) => (token instanceof BasicTikzToken&&token.type === 'Syntax' && /(Dash|Plus)/.test(token.name) ? idx : null))
         .filter((idx): idx is number => idx !== null);
 
         const syntaxSequences = findConsecutiveSequences(mapSyntax);
@@ -456,8 +507,9 @@ export class BasicTikzTokens{
             const end = sequence[sequence.length - 1];
             
             const value = sequence
-                .map((index) => {
+                .map((index: number) => {
                     const token = this.tokens[index];
+                    if (!(token instanceof BasicTikzToken))return ''
                     if (!token || !token.name) {
                         console.warn(`Missing or invalid token at index ${index}`);
                         return ''; // Provide a fallback
@@ -475,7 +527,7 @@ export class BasicTikzTokens{
         .sort((a, b) => b.start - a.start);
 
         syntaxObjects.forEach(({ start, end, value }) => {
-            const command = searchTizkCommands(value); 
+            const command = searchTikzComponents(value); 
             const token = new BasicTikzToken(command)
             this.tokens.splice(start, end + 1 - start, token);
         });
@@ -484,8 +536,8 @@ export class BasicTikzTokens{
     private prepareForTokenize(){
         const squareBracketIndexes = mapBrackets('Square_brackets_open',this.tokens)
         squareBracketIndexes
-        .sort((a, b) => b.open - a.open) // Sort in descending order of 'open'
-        .forEach((index) => {
+        .sort((a: { open: number; }, b: { open: number; }) => b.open - a.open) // Sort in descending order of 'open'
+        .forEach((index: { open: number; close: number; }) => {
             const formatting = new Formatting(
                 cleanFormatting(this.tokens.slice(index.open + 1, index.close))
             );
@@ -494,7 +546,7 @@ export class BasicTikzTokens{
 
         //let praneIndexes = mapBrackets('Parentheses_open', this.tokens);
         let coordinateIndexes = mapBrackets('Parentheses_open', this.tokens)
-        .filter((item,idx)=>this.tokens[item.close+1].value!=='at')
+        .filter((item: { close: number; },idx: any)=>this.tokens[item.close+1] instanceof BasicTikzToken&&(this.tokens[item.close+1]as BasicTikzToken).value!=='at')
         /*
         const { coordinateIndexes, variableIndexes } = praneIndexes.reduce((result, item) => {
             if (this.tokens[item.close + 1]?.value !== 'at') {
@@ -506,20 +558,21 @@ export class BasicTikzTokens{
             return result;
         }, { coordinateIndexes: [], variableIndexes: [] });*/
         coordinateIndexes
-        .sort((a, b) => b.open - a.open) 
-        .forEach((index) => {
+        .sort((a: { open: number; }, b: { open: number; }) => b.open - a.open) 
+        .forEach((index: { open: number; close: number ; }) => {
             const axis = new Axis().parseInput(
                 this.tokens.slice(index.open + 1, index.close)
             );
+            if (!axis)return
             this.tokens.splice(index.open, index.close + 1 - index.open, axis);
         });
 
         let variableIndexes = mapBrackets('Parentheses_open', this.tokens)
-        .filter((item,idx)=>this.tokens[item.close + 1].value==='at')
+        .filter((item: { close: number; },idx: any)=>this.tokens[item.close+1] instanceof BasicTikzToken&&(this.tokens[item.close+1]as BasicTikzToken).value!=='at')
 
         variableIndexes
-        .sort((a, b) => b.open - a.open) 
-        .forEach((index) => {
+        .sort((a: { open: number; }, b: { open: number; }) => b.open - a.open) 
+        .forEach((index: { open: number ; close: number ; }) => {
             console.log(index,this.tokens.slice(index.open, index.close))
             const variable = toVariableToken(this.tokens.slice(index.open + 1, index.close));
             console.log(variable)
@@ -539,7 +592,7 @@ export class FormatTikzjax {
 	processedCode="";
     debugInfo = "";
     
-	constructor(source: string|Array<Token>) {
+	constructor(source: string) {
         if(!source.match(/(usepackage|usetikzlibrary)/)){
 		//const basicTikzTokens=new BasicTikzTokens(source)
         //console.log('basicTikzTokens',basicTikzTokens)
@@ -562,7 +615,7 @@ export class FormatTikzjax {
         return lines.join('\n').replace(/(?<=[^\w]) | (?=[^\w])/g, "").replace(/(?<!\\)%.*$/gm, "").replace(/\n/g,"");
     }
 
-    tokenize(basicTikzTokens){
+    tokenize(basicTikzTokens: any[]){
         let endIndex
         for(let i=0;i<basicTikzTokens.length;i++){
             if (basicTikzTokens[i].name==='Draw'){
@@ -758,11 +811,12 @@ export class FormatTikzjax {
     
 
     findOriginalValue(value: string) {
+        return undefined;/*
         const og = this.tokens.slice().reverse().find(
             (token: Token) =>
                 (token instanceof Coordinate) && token.coordinateName === value
         );
-        return og instanceof Coordinate ? og.clone() : undefined;
+        return og instanceof Coordinate ? og.clone() : undefined;*/
     }
     
 
