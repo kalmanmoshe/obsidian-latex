@@ -1,6 +1,6 @@
 //// @ts-nocheck
 
-import { findConsecutiveSequences } from "src/mathEngine";
+import { findConsecutiveSequences } from "src/mathParser/mathEngine";
 import { arrToRegexString, Axis, Coordinate, Draw, Formatting, regExp, Token, toPoint } from "../tikzjax";
 import { findModifiedParenIndex, findParenIndex, idParentheses, mapBrackets } from "src/utils/tokenUtensils";
 import { getAllTikzReferences, searchTikzComponents } from "src/utils/dataManager";

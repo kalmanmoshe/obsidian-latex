@@ -3,7 +3,7 @@ import MathPlugin from "src/main";
 import { optimize } from "./svgo.browser.js";
 // @ts-ignore
 import tikzjaxJs from "inline:./tikzjax.js";
-import { cartesianToPolar, findIntersectionPoint, findSlope, polarToCartesian, toNumber } from "src/mathUtilities.js";
+import { cartesianToPolar, findIntersectionPoint, findSlope, polarToCartesian, toNumber } from "src/mathParser/mathUtilities.js";
 import { DebugModal } from "src/desplyModals.js";
 import { BasicTikzToken, FormatTikzjax } from "./interpret/tokenizeTikzjax.js";
 import { mapBrackets } from "src/utils/tokenUtensils.js";
