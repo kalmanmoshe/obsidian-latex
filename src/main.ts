@@ -1,12 +1,12 @@
 //git reset --hard
 import {Plugin, MarkdownRenderer,addIcon, App, Modal, Component, Setting,Notice, WorkspaceWindow,loadMathJax,renderMath, MarkdownView, EditorSuggest, EditorSuggestTriggerInfo, EditorPosition, Editor, TFile, EditorSuggestContext} from "obsidian";
 
-import { MathInfo, MathPraiser } from "./mathEngine.js";
+import { MathInfo, MathPraiser } from "./mathParser/mathEngine";
 import { InfoModal, DebugModal } from "./desplyModals";
 import { CustomInputModal, HistoryModal, InputModal, VecInputModel } from "./temp";
 import {LatexSuitePluginSettings, DEFAULT_SETTINGS, LatexSuiteCMSettings, processLatexSuiteSettings} from "./settings/settings";
 import { LatexSuiteSettingTab } from "./settings/settings_tab";
-import { calculateBinom, degreesToRadians, findAngleByCosineRule, getUsableDegrees, polarToCartesian, radiansToDegrees, roundBySettings } from "./mathUtilities.js";
+import { calculateBinom, degreesToRadians, findAngleByCosineRule, getUsableDegrees, polarToCartesian, radiansToDegrees, roundBySettings } from "src/mathParser/mathUtilities";
 import { Axis, Coordinate, Draw, Formatting, Tikzjax } from "./tikzjax/tikzjax";
 import { Suggestor } from "./suggestor.js";
 import { TikzSvg } from "./tikzjax/myTikz.js";

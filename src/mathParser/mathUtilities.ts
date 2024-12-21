@@ -1,6 +1,6 @@
 import exp from "constants";
-import settings from "../data.json";
-import { Axis, Coordinate } from "./tikzjax/tikzjax";
+import settings from "data.json";
+import { Axis, Coordinate } from "../tikzjax/tikzjax";
 
 export function calculateBinom(n: number, k: number, p: number): number {
     return calculateFactorial(n,k) * Math.pow(p, k) * Math.pow(1 - p, n - k);

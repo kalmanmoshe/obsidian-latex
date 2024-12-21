@@ -1,4 +1,4 @@
-import { Position, Token } from "./mathEngine";
+import { Position, Token } from "src/mathParser/mathEngine";
 
 export function expandExpression(tokens, position) {
     if (position.checkFrac(tokens)){goodByFraction(tokens, position);return;}
