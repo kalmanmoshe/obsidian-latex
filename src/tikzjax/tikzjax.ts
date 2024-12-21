@@ -291,11 +291,12 @@ export class Axis {
                     coordinateArr.push(match);
                     break;
                 case (/[\d\w]+/).test(match):
-                    if (tokens)
-                        axis = tokens.findOriginalValue(match)?.axis;
+                    if (tokens){}
+                        //axis = tokens.findOriginalValue(match)?.axis;
                     else throw new Error(`Tried to find original coordinate value while not being provided with tokens`);
-                    if (axis === undefined) {
+                    if (!axis) {
                         throw new Error(`Couldn't find the coordinate ${match} from ${coordinate}`);
+                        return
                     }
                     axis.name=match
                     coordinateArr.push(axis);

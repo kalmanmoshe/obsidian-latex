@@ -53,7 +53,9 @@ export const tikzSyntax = [
     { type: 'Syntax', name: 'Dash', references: ['-'] },
     { type: 'Syntax', name: 'Plus', references: ['+'] }
   ];
-  
+export const tikzMacros=[
+    { type: 'Macro', name: 'Definition', references: ['\\def'] },
+]
 export const tikzFormatting = [
     { type: 'Formatting', name: 'LineWidth', references: ['line width'] },
     { type: 'Formatting', name: 'Label', references: ['label'] },
@@ -78,9 +80,19 @@ export const tikzPathConnectors = [
     { type: 'PathConnector', name: 'AxisConnector', latex: '--', references: ['--'] }
   ];
 
+export const brackets = [
+    { type: 'Bracket', name: "Parentheses_open", references: ["("],},
+    { type: 'Bracket', name: "Parentheses_close", references: [")"],},
+    { type: 'Bracket', name: "Curly_brackets_open", references: ["{"],},
+    { type: 'Bracket', name: "Curly_brackets_close", references: ["}"],},
+    { type: 'Bracket', name: "Square_brackets_open", references: ["["],},
+    { type: 'Bracket', name: "Square_brackets_close", references: ["]"],},
+    { type: 'Bracket', name: "Angle Brackets_open", references: ["<"],},
+    { type: 'Bracket', name: "Angle Brackets_close", references: [">"],}
+];
 
 export const tikzComponents=[
-    ...tikzSyntax,...tikzFormatting,...tikzUnits,...tikzPathAndNodes,...tikzPathConnectors
+    ...tikzSyntax,...tikzFormatting,...tikzUnits,...tikzPathAndNodes,...tikzPathConnectors,...tikzMacros,...brackets
 ]
   
 export const units=[
@@ -90,16 +102,7 @@ export const units=[
 ]
 
 
-export const brackets = [
-    { type: 'Bracket', name: "Parentheses_open", references: ["("], Unicode: "\u0028" },
-    { type: 'Bracket', name: "Parentheses_close", references: [")"], Unicode: "\u0029" },
-    { type: 'Bracket', name: "Curly_brackets_open", references: ["{"], Unicode: "\u007B" },
-    { type: 'Bracket', name: "Curly_brackets_close", references: ["}"], Unicode: "\u007D" },
-    { type: 'Bracket', name: "Square_brackets_open", references: ["["], Unicode: "\u005B" },
-    { type: 'Bracket', name: "Square_brackets_close", references: ["]"], Unicode: "\u005D" },
-    { type: 'Bracket', name: "Angle Brackets_open", references: ["<"], Unicode: "\u003C" },
-    { type: 'Bracket', name: "Angle Brackets_close", references: [">"], Unicode: "\u003E" }
-  ];
+
   
 
 export const operatorsWithImplicitMultiplication = [
@@ -107,7 +110,7 @@ export const operatorsWithImplicitMultiplication = [
 ]
 //'Radical', 'Integral', 'Trigonometric', 'Logarithmic', 'Exponential'
 
-export const latexOperators = [
+export const mathJaxOperators = [
     /* Comparison */
     {
         type: 'Comparison',
