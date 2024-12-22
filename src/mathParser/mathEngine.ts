@@ -244,176 +244,7 @@ function parse(position: { operator: any; specialChar?: any; left?: any; right?:
     return solved;
 }
 
-function operationsOrder(tokens: Tokens) {
-    function findOperatorIndex(begin: number, end: number, tokens: any, findParenIndex?: any, regex?: any) {
-        while (begin < end && begin < tokens.tokens.length) {
-            let index;
-            
-            if (regex) {
-                index = tokens.tokens.slice(begin, end).findIndex((token: { type: string; value: any; }) => token.type === "operator" && regex.test(token.value));
-            } else {
-                index = tokens.tokens.slice(begin, end).findIndex((token: { type: string; }) => token.type === "operator");
-            }
-            
-            if (index === -1) return -1;
-            
-            index += begin;
-            
-            if (!/[+-]/.test(tokens.tokens[index].value)) {
-                return index;
-            }
-            if (index > 0 && index < tokens.tokens.length - 1) {
-                if (tokens.tokens[index - 1].type === tokens.tokens[index + 1].type) {
-                    return index;
-                }
-            }
-            begin = index + 1;
-        }
-        return -1;
-    }
 
-    let begin = 0, end = tokens.tokens.length,j=0;
-    let currentID = null;  
-    let checkedIDs: any[] = [];  
-    let operatorFound = false;
-    while (!operatorFound&&j<200) {
-        // Find the innermost parentheses
-        for (let i = 0; i < tokens.tokens.length; i++) {
-            j++;
-            if (tokens.tokens[i].value === "(" && !checkedIDs.includes(tokens.tokens[i].id)) {
-                currentID = findParenIndex(tokens.tokens[i].id);  
-            }
-            if (currentID!==null&&i===currentID.close) {
-                [begin,end]=[currentID.open,currentID.close]
-                break;
-            }
-        }
-        
-        if (!currentID) {
-            begin = 0;
-            end = tokens.tokens.length;
-            break;
-        }
-        operatorFound = findOperatorIndex(begin,end,tokens)!==-1;
-
-        // If no operator is found, mark this parentheses pair as checked
-        if (!operatorFound) {
-            checkedIDs.push(currentID.id);  
-            currentID = null;  
-        }
-    }
-    if (j>=200){throw new Error("operationsOrder Failed exceeded 200 revisions");}
-
-    for (let i=1;i<=6;i++){
-        let priority = findOperatorIndex(begin , end,tokens, getMathJaxOperatorsByPriority(i,true));
-        if(priority!==-1)return priority
-    }
-
-    let priority1 = findOperatorIndex(begin , end,tokens, getMathJaxOperatorsByPriority(1,true));
-    let priority2 = findOperatorIndex(begin , end,tokens, getMathJaxOperatorsByPriority(2,true));
-    let priority3 = findOperatorIndex(begin , end,tokens, getMathJaxOperatorsByPriority(3,true));
-    let priority4 = findOperatorIndex(begin , end,tokens, getMathJaxOperatorsByPriority(4,true));
-    let priority5 = findOperatorIndex(begin , end,tokens, getMathJaxOperatorsByPriority(5,true));
-    let priority6 = findOperatorIndex(begin , end,tokens, getMathJaxOperatorsByPriority(6,true));
-
-    return [priority1, priority2, priority3, priority4, priority5,priority6].find(index => index !== -1)??null;
-}
-
-
-export class Position {
-    operator: string;
-    index: number;
-    transition: number;
-    specialChar: string;
-    left: any;
-    right: any;
-    constructor(tokens: Tokens, index?: number){
-        if(index)
-        this.index = index;
-        this.transition = this.index;
-        this.position(tokens)
-    }
-    position(tokens: Tokens) {
-        this.index = !this.index? operationsOrder(tokens) : this.index;
-        if (!this.index||this.index === null || this.index >= tokens.tokens.length - 1) {
-            return;
-        }
-        this.operator = tokens.tokens[this.index].value;
-        switch (true) {
-            case getOperatorsByAssociativity('both').includes(this.operator):
-                this.left = this.applyPosition(tokens, this.index,"left");
-                this.right = this.applyPosition(tokens, this.index,"right");
-                break;
-            case getOperatorsByAssociativity('right').includes(this.operator):
-                this.left = {breakChar: this.index};
-                this.right = this.applyPosition(tokens, this.index,"right");
-                break;
-            case getOperatorsByAssociativity('doubleRight').includes(this.operator):
-                this.left = this.applyPosition(tokens, this.index,"right");
-                this.transition = this.left.breakChar;
-                this.right = this.applyPosition(tokens, this.transition-1,"right");
-                this.left.breakChar = this.index;
-                this.right.breakChar+(this.right.multiStep?1:0);
-                break;
-            default:
-                throw new Error(`Operator ${this.operator} was not accounted for, or is not the valid operator`);
-        }
-        //console.log(tokens.tokens)
-        this.specialChar=tokens.tokens[this.index].specialChar ? tokens.tokens[this.index].specialChar : null;
-    }
-    applyPosition(tokens: Tokens, index:  number, direction: string) {
-        let breakChar=index
-        let target;
-        let multiStep=false;
-        const isLeft = direction === "left";
-        const indexModifier =  isLeft?- 1 :  1;
-        if ((isLeft && index <= 0) || (!isLeft && index >= tokens.tokens.length - 1) || !tokens.tokens[index+indexModifier]) {
-            throw new Error("at applyPosition: \"index wasn't valid\" index: "+index);
-        }
-        if (tokens.tokens[index+indexModifier].type === "paren") {
-            const parenIndex = findParenIndex(tokens.tokens[index+indexModifier].id);
-            breakChar =  isLeft ? parenIndex.open : parenIndex.close+1;
-            target = tokens.tokens.slice(parenIndex.open, parenIndex.close+1);
-        } else {
-            breakChar=index+indexModifier;
-            target = tokens.tokens[breakChar];
-            breakChar+=isLeft?0:1
-        }
-        //const multiStep = Math.abs(breakChar - index) > 3;
-    
-        if (!multiStep&&tokens.tokens[index+indexModifier].type === "paren"){
-            //target=target.find(item => /(number|variable|powerVariable)/.test(item.type))
-        }
-        if (target?.length===0) {
-            throw new Error(`at applyPosition: couldn't find target token for direction ${direction} and operator"${tokens.tokens[index].value}"`,);
-        }
-    
-        //breakChar = (breakChar !== index ? target?.index : breakChar)+ indexModifier+(isLeft?0:1);
-        //delete target.index
-        
-        if (target.length===3){
-            target=target.find((item: { type: string; }) => /(number|variable|powerVariable)/.test(item.type))
-        }else if(target.length>1)multiStep=true
-    
-        return {
-            tokens: target,
-            multiStep: multiStep,
-            breakChar: breakChar,
-        };
-    }
-    checkMultiStep(){
-        return ((getOperatorsByAssociativity('both').includes(this.operator)&&this.left?.multiStep)||this.right?.multiStep)&&this.operator==='Multiplication';
-    }
-    isLeftVar(){
-        return this.left.multiStep?this.left.tokens.some((t: { type: string; })=>t.type==='variable'||t.type==='powerVariable'):this.left.tokens.type.includes('ariable')
-    }
-    isRightVar(){
-        return this.right.multiStep?this.right.tokens.some((t: { type: string; })=>t.type==='variable'||t.type==='powerVariable'):this.right.tokens.type.includes('ariable')
-    }
-    checkFrac(){//!this.checkMultiStep() I don't know why I had this here
-        return /(frac|\/)/.test(this.operator)&&(this.isLeftVar()||this.isRightVar())
-    }
-}
 
 
 
@@ -505,7 +336,168 @@ function rearrangeForIsolation(tokens: Tokens, isolationGoal: { type: any; value
         : [...side1, tokens.tokens[eqIndex], ...side2];
 }
 
+function operationsOrder(tokens: any[]) {
+    function findOperatorIndex(begin: number, end: number, tokens: any, findParenIndex?: any, regex?: any) {
+        while (begin < end && begin < tokens.length) {
+            let index;
+            
+            if (regex) {
+                index = tokens.slice(begin, end).findIndex((token: { type: string; value: any; }) => token.type === "operator" && regex.test(token.value));
+            } else {
+                index = tokens.slice(begin, end).findIndex((token: { type: string; }) => token.type === "operator");
+            }
+            
+            if (index === -1) return -1;
+            
+            index += begin;
+            
+            if (!/[+-]/.test(tokens[index].value)) {
+                return index;
+            }
+            if (index > 0 && index < tokens.length - 1) {
+                if (tokens[index - 1].type === tokens[index + 1].type) {
+                    return index;
+                }
+            }
+            begin = index + 1;
+        }
+        return -1;
+    }
 
+    let begin = 0, end = tokens.length,j=0;
+    let currentID = null;  
+    let checkedIDs: any[] = [];  
+    let operatorFound = false;
+    while (!operatorFound&&j<200) {
+        // Find the innermost parentheses
+        for (let i = 0; i < tokens.length; i++) {
+            j++;
+            if (tokens[i].value === "(" && !checkedIDs.includes(tokens[i].id)) {
+                currentID = findParenIndex(tokens[i].id);  
+            }
+            if (currentID!==null&&i===currentID.close) {
+                [begin,end]=[currentID.open,currentID.close]
+                break;
+            }
+        }
+        
+        if (!currentID) {
+            begin = 0;
+            end = tokens.length;
+            break;
+        }
+        operatorFound = findOperatorIndex(begin,end,tokens)!==-1;
+
+        // If no operator is found, mark this parentheses pair as checked
+        if (!operatorFound) {
+            checkedIDs.push(currentID.id);  
+            currentID = null;  
+        }
+    }
+    if (j>=200){throw new Error("operationsOrder Failed exceeded 200 revisions");}
+
+    for (let i=1;i<=6;i++){
+        let priority = findOperatorIndex(begin , end,tokens, getMathJaxOperatorsByPriority(i,true));
+        if(priority!==-1)return priority
+    }
+    return null
+}
+
+
+export class Position {
+    operator: string;
+    index: number;
+    transition: number;
+    specialChar: string;
+    left: any;
+    right: any;
+    constructor(tokens: any[], index?: number){
+        if(index)
+        this.index = index;
+        this.transition = this.index;
+        this.position(tokens)
+    }
+    position(tokens: any[]) {
+        this.index = !this.index? operationsOrder(tokens) : this.index;
+        if (this.index === null || this.index >= tokens.length - 1) {
+            return;
+        }
+        this.operator = tokens[this.index].value;console.log(getOperatorsByAssociativity('right'))
+        switch (true) {
+            case getOperatorsByAssociativity('both').includes(this.operator):
+                this.left = this.applyPosition(tokens, this.index,"left");
+                this.right = this.applyPosition(tokens, this.index,"right");
+                break;
+            case getOperatorsByAssociativity('right').includes(this.operator):
+                this.left = {breakChar: this.index};
+                this.right = this.applyPosition(tokens, this.index,"right");
+                break;
+            case getOperatorsByAssociativity('doubleRight').includes(this.operator):
+                this.left = this.applyPosition(tokens, this.index,"right");
+                this.transition = this.left.breakChar;
+                this.right = this.applyPosition(tokens, this.transition-1,"right");
+                this.left.breakChar = this.index;
+                this.right.breakChar+(this.right.multiStep?1:0);
+                break;
+            default:
+                throw new Error(`Operator ${this.operator} was not accounted for, or is not the valid operator`);
+        }
+        //console.log(tokens.tokens)
+        this.specialChar=tokens[this.index].specialChar ? tokens[this.index].specialChar : null;
+    }
+    applyPosition(tokens: any[], index:  number, direction: string) {
+        let breakChar=index
+        let target;
+        let multiStep=false;
+        const isLeft = direction === "left";
+        const indexModifier =  isLeft?- 1 :  1;
+        if ((isLeft && index <= 0) || (!isLeft && index >= tokens.length - 1) || !tokens[index+indexModifier]) {
+            throw new Error("at applyPosition: \"index wasn't valid\" index: "+index);
+        }
+        if (tokens[index+indexModifier].type === "paren") {
+            const parenIndex = findParenIndex(tokens[index+indexModifier].id);
+            breakChar =  isLeft ? parenIndex.open : parenIndex.close+1;
+            target = tokens.slice(parenIndex.open, parenIndex.close+1);
+        } else {
+            breakChar=index+indexModifier;
+            target = tokens[breakChar];
+            breakChar+=isLeft?0:1
+        }
+        //const multiStep = Math.abs(breakChar - index) > 3;
+    
+        if (!multiStep&&tokens[index+indexModifier].type === "paren"){
+            //target=target.find(item => /(number|variable|powerVariable)/.test(item.type))
+        }
+        if (target?.length===0) {
+            throw new Error(`at applyPosition: couldn't find target token for direction ${direction} and operator"${tokens[index].value}"`,);
+        }
+    
+        //breakChar = (breakChar !== index ? target?.index : breakChar)+ indexModifier+(isLeft?0:1);
+        //delete target.index
+        
+        if (target.length===3){
+            target=target.find((item: { type: string; }) => /(number|variable|powerVariable)/.test(item.type))
+        }else if(target.length>1)multiStep=true
+    
+        return {
+            tokens: target,
+            multiStep: multiStep,
+            breakChar: breakChar,
+        };
+    }
+    checkMultiStep(){
+        return ((getOperatorsByAssociativity('both').includes(this.operator)&&this.left?.multiStep)||this.right?.multiStep)&&this.operator==='Multiplication';
+    }
+    isLeftVar(){
+        return this.left.multiStep?this.left.tokens.some((t: { type: string; })=>t.type==='variable'||t.type==='powerVariable'):this.left.tokens.type.includes('ariable')
+    }
+    isRightVar(){
+        return this.right.multiStep?this.right.tokens.some((t: { type: string; })=>t.type==='variable'||t.type==='powerVariable'):this.right.tokens.type.includes('ariable')
+    }
+    checkFrac(){//!this.checkMultiStep() I don't know why I had this here
+        return /(frac|\/)/.test(this.operator)&&(this.isLeftVar()||this.isRightVar())
+    }
+}
 
 class mathJaxOperator{
     operator: string;
@@ -542,9 +534,9 @@ class mathGroup{
     setMetaData(){
         this.singular=this.items.length===1;
         this.numberOnly=this.items.some(t=> !t.isVar());
-
     }
 }
+
 function parseOperator(operator: mathJaxOperator){
     switch (operator.operator) {
         case "sin":
@@ -762,12 +754,6 @@ class Tokens{
                 i+=match[0].length-1;
                 continue;
             }
-            /*if (tokens[tokens.length - 1].value === "sqrt" && math[i] === "[" && i < math.length - 2) {
-                let temp=math.slice(i,i+1+math.slice(i).search(/[\]]/));
-                i+=temp.length
-                Object.assign(tokens[tokens.length-1],{specialChar: safeToNumber(temp),})
-            }*/
-
             match = math.slice(i).match(/^([0-9.]+)/);//([a-zA-Z]?)/);
             if (!!match)
             {   i+=match[0].length-1
@@ -776,7 +762,6 @@ class Tokens{
             }
             match=math.slice(i).match(/[a-zA-Z]+(_\([a-zA-Z0-9]*\))*/)
             if (!!match) {
-                //if (vari&&vari.length===0){vari=math.slice(i,math.length)}
                 i+=match[0].length-1
                 this.tokens.push(new BasicMathJaxToken(1,match[0]))
                 //tokens.push({type: "variable",variable: vari.replace("(","{").replace(")","}"),value: 1});
@@ -840,11 +825,22 @@ class Tokens{
         idParentheses(this.tokens);
         const map=this.tokens.map((token: BasicMathJaxToken,index: any)=> (token.isValueToken())?index:null).filter((item: null) => item !== null)
         const arr=findConsecutiveSequences(map);
-        let tempTokens=this.tokens.map((t:BasicMathJaxToken)=>typeof t.value==='number'?new Token(t.value,t.variable):t);
-        
+        let tempTokens=this.tokens.map((t:BasicMathJaxToken)=>{
+            if(typeof t.value==='number')
+                return new Token(t.value,t.variable)
+           // if(t.type==='operator')return new mathJaxOperator(t.value)
+        return t;
+        });
+        // Step one structure aka replace parentheses with nested arrays
+        // Step two Find first operator.and continue from there
+        const pos=new Position(tempTokens)
+        console.log(pos)
+ 
+     
 
         this.connectAndCombine(arr);
         this.validatePlusMinus();
+
         console.log(tempTokens);
         
 
@@ -857,8 +853,8 @@ class Tokens{
         const mapPow=this.tokens.map((token: { value: string; },index: any)=> token.value==='Pow'?index:null).filter((item: null) => item !== null)
         console.log(mapPow)
         mapPow.forEach((index: number | undefined) => {
-            const position=new Position(this,index)
-            const [leftBreak,length] = [position.left.breakChar,position.right.breakChar-position.left.breakChar]
+            //const position=new Position(this,index)
+            //const [leftBreak,length] = [position.left.breakChar,position.right.breakChar-position.left.breakChar]
            // this.tokens.insertTokens(leftBreak,length,solved)
         });
     }
