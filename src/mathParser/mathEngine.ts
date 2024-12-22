@@ -7,7 +7,8 @@ import {  } from "src/utils/staticData";
 import { cp } from "fs";
 import { findParenIndex, Paren,idParentheses } from "../utils/tokenUtensils";
 import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getOperatorsByBracket, hasImplicitMultiplication, searchMathJaxOperators } from "../utils/dataManager";
-import { string } from "zod";
+import { number, string } from "zod";
+import { BasicTikzToken } from "src/tikzjax/interpret/tokenizeTikzjax";
 const greekLetters = [
     'Alpha','alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 
     'Iota', 'Kappa', 'Lambda', 'Mu','mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 
@@ -429,7 +430,7 @@ function isolateMultiplication(tokens: any,isolatToken: Token){
 }
 
 function createFrac(nominator: any,denominator: Token){
-    return [new Token('frac'),new Token('('),nominator,new Token(')'),new Token('('),denominator,new Token(')')]
+   // return [new Token('frac'),new Token('('),nominator,new Token(')'),new Token('('),denominator,new Token(')')]
 }
 function simplifiy(tokens: any[]){
     if (tokens.length<=1){return tokens}
@@ -510,8 +511,9 @@ class mathJaxOperator{
     operator: string;
     priority: number;
     associativityNumber: number;
-    private group1: mathGroup;
-    private group2?: mathGroup;
+    group1: mathGroup;
+    group2?: mathGroup;
+    solution?: mathGroup
     constructor(operator?: string,priority?: number,associativityNumber?: number,group1?: mathGroup,group2?: mathGroup){
         if (operator)this.operator=operator
         if (priority)this.priority=priority
@@ -521,7 +523,6 @@ class mathJaxOperator{
     }
     setGroup1(group: mathGroup){this.group1=group}
     setGroup2(group: mathGroup){this.group2=group}
-
 }
 
 class mathGroup{
@@ -540,10 +541,75 @@ class mathGroup{
     }
     setMetaData(){
         this.singular=this.items.length===1;
-       //this.numberOnly=
+        this.numberOnly=this.items.some(t=> !t.isVar());
+
     }
 }
+function parseOperator(operator: mathJaxOperator){
+    switch (operator.operator) {
+        case "sin":
+            //const a=new Token(Math.sin(degreesToRadians(operator.group1.items[0].value)))
+            //solved.value = ;
+            break;
+        default:
+            throw new Error("Couldn't identify operator type at praise operator: "+operator.operator);
+    }
 
+    function handleVariableMultiplication(left: { variable: any; pow: any; value: number; }, right: { variable: any; pow: any; value: number; }, solved: Token) {
+        if (left.variable && right.variable && left.variable !== right.variable) {
+            /* Keep them separate since they have different variables
+            solved.terms = [
+                { variable: left.variable, pow: left.pow || 1, value: left.value || 1 },
+                { variable: right.variable, pow: right.pow || 1, value: right.value || 1 }
+            ];*/
+            throw new Error("Different variable bases at power multiplication. I didn't get there yet")
+        }
+    
+        const variable = left.variable || right.variable;
+        solved.variable = variable.length>0?variable:undefined;
+        
+        let pow = (left.pow || 0) + (right.pow || 0);
+        pow=left.variable && right.variable&&pow===0&&!left.pow&&!right.pow?2:pow;
+        //solved.pow = pow || undefined;
+        
+
+        // Rule 3: Handle multiplication of constants
+        const leftValue = left.value || 1;
+        const rightValue = right.value || 1;
+        const value = leftValue * rightValue;
+        // If there's no variable, assign the result as a constant
+        if (!variable) {
+            solved.value = value;
+        } else {
+            solved.value = value;
+        }
+    }
+    
+    
+
+    function handleVriables(left: any,right: any,solved: Token){
+        let handled={Var:null,Pow:null};
+        if (!left.variable&&!right.variable){
+            return ;
+        }
+        //if (position.operator==='*'){return handleVariableMultiplication(left,right,solved)}
+        //console.log(left.variable,right.variable)
+        if (left.variable!==right.variable){
+            throw new Error("Two variable equations aren't accepted yet");
+        }
+        //handled.Var=left.var;
+        //solved.variable=left.var
+
+        /*
+        if (left.variable&&!right.variable){solved.variable=left.variable}
+        else if (!left.variable&&right.variable){solved.variable=right.variable}
+        else if (left.variable&&right.variable){solved.variable=right.variable;solved.pow=2}
+        */
+    }
+
+
+    //return solved;
+}
 
 export class MathPraiser{
     input="";
@@ -555,11 +621,14 @@ export class MathPraiser{
         this.input=input;
         this.processInput();
         this.tokens=new Tokens(this.input);
-        console.log(this.tokens);
+
+        console.log('this.tokens',this.tokens);
+
         const b=new mathGroup()
         b.setItems(this.tokens.tokens[1])
         const a=new mathJaxOperator()
         a.setGroup1(b)
+        parseOperator(a)
         console.log(a)
         
 
@@ -575,6 +644,9 @@ export class MathPraiser{
         this.tokens.expressionVariableValidity();
     }
     controller(): any{
+        
+        
+        /*
         this.i++;
         if(this.i>10){return this.finalReturn()}
 
@@ -589,10 +661,6 @@ export class MathPraiser{
                 return "the ****"
             // return solution(tokens);
             }
-            /*
-            else if (position.index === null){
-                return this.finalReturn();
-            }*/
             if (position.checkFrac()||position.checkMultiStep())
             {
                 expandExpression(this.tokens,position);
@@ -610,7 +678,7 @@ export class MathPraiser{
             return this.controller()
         }   
         //if (solved === null||typeof solved==="string") {return solved; }
-        return this.finalReturn()//this.tokens.tokens.length>1?this.controller():this.finalReturn();
+        return this.finalReturn()//this.tokens.tokens.length>1?this.controller():this.finalReturn();*/
     }
 
     useParse(position: Position){
@@ -678,6 +746,8 @@ class mathVariables{
 
 class Tokens{
     tokens: any=[];
+    operatorStructure: mathJaxOperator;
+    
     constructor(math: string){
         this.tokenize(math);
     }
@@ -688,7 +758,7 @@ class Tokens{
         for (let i = 0; i < math.length; i++) {
             let match = math.slice(i).match(regExp('^' + operators));
             if (!!match) {
-                this.tokens.push(new Token(match[0]));
+                this.tokens.push(new  BasicMathJaxToken(match[0]));
                 i+=match[0].length-1;
                 continue;
             }
@@ -701,14 +771,14 @@ class Tokens{
             match = math.slice(i).match(/^([0-9.]+)/);//([a-zA-Z]?)/);
             if (!!match)
             {   i+=match[0].length-1
-                this.tokens.push(new Token(parseFloat(match[0])));
+                this.tokens.push(new BasicMathJaxToken(parseFloat(match[0])));
                 continue;
             }
             match=math.slice(i).match(/[a-zA-Z]+(_\([a-zA-Z0-9]*\))*/)
             if (!!match) {
                 //if (vari&&vari.length===0){vari=math.slice(i,math.length)}
                 i+=match[0].length-1
-                this.tokens.push(new Token(1,match[0]))
+                this.tokens.push(new BasicMathJaxToken(1,match[0]))
                 //tokens.push({type: "variable",variable: vari.replace("(","{").replace(")","}"),value: 1});
                 continue;
             }
@@ -768,16 +838,20 @@ class Tokens{
         */
        
         idParentheses(this.tokens);
-        const map=this.tokens.map((token: { isValueToken: () => any; },index: any)=> (token.isValueToken())?index:null).filter((item: null) => item !== null)
+        const map=this.tokens.map((token: BasicMathJaxToken,index: any)=> (token.isValueToken())?index:null).filter((item: null) => item !== null)
         const arr=findConsecutiveSequences(map);
-
-        this.connectAndCombine(arr)
-        this.validatePlusMinus();
+        let tempTokens=this.tokens.map((t:BasicMathJaxToken)=>typeof t.value==='number'?new Token(t.value,t.variable):t);
         
+
+        this.connectAndCombine(arr);
+        this.validatePlusMinus();
+        console.log(tempTokens);
+        
+
         const parenMap=this.implicitMultiplicationMap()
         parenMap.sort((a: number, b: number) => b - a)
         .forEach((value: any) => {
-            this.tokens.splice(value, 0, new Token('*'));
+            this.tokens.splice(value, 0, new  BasicMathJaxToken('*'));
         });
 
         const mapPow=this.tokens.map((token: { value: string; },index: any)=> token.value==='Pow'?index:null).filter((item: null) => item !== null)
@@ -984,9 +1058,19 @@ export function flattenArray(arr: any) {
     return result.reverse();
 }
 
-
-
 export class Token{
+    value?: number;
+    variable?: string;
+    constructor(value:number ,variable?: string){
+        this.value=value;
+        this.variable=variable;
+    }
+    isVar() {return this.variable!==undefined}
+
+}
+
+
+export class BasicMathJaxToken{
     type: string;
     value?: string|number;
     variable?: string;
