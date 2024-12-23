@@ -10,7 +10,7 @@ import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByA
 import { number, string } from "zod";
 import { BasicTikzToken } from "src/tikzjax/interpret/tokenizeTikzjax";
 import { group } from "console";
-import { findConsecutiveSequences, flattenArray, Position } from "./mathEngine";
+import { findConsecutiveSequences, flattenArray, parseOperator, Position } from "./mathEngine";
 
 
 export class mathJaxOperator{
@@ -29,6 +29,9 @@ export class mathJaxOperator{
     }
     setGroup1(group: mathGroup){this.group1=group}
     setGroup2(group: mathGroup){this.group2=group}
+    setSolution(){
+        parseOperator(this)
+    }
 }
 
 export class mathGroup{
@@ -40,7 +43,7 @@ export class mathGroup{
     multiLevel: boolean;
     isOperable: boolean=true;
     constructor(){
-
+        
     }
     setItems(items: Token[]){
         this.items=items
@@ -48,6 +51,10 @@ export class mathGroup{
     setMetaData(){
         this.singular=this.items.length===1;
         this.numberOnly=this.items.some(t=> !t.isVar());
+        this.isOperable=this.singular&&this.numberOnly&&!this.multiLevel
+    }
+    getOperableValue(){
+        return this.items[0].value
     }
 }
 
@@ -90,8 +97,6 @@ export class Tokens{
         this.postProcessTokens();
     }
 
-    
-    
     postProcessTokens(){
         /*rules to abid by:
         1. +- If part of the number they are absorbed into the number
@@ -113,11 +118,12 @@ export class Tokens{
         const math=new mathJaxOperator(pos.operator)
         const group=new mathGroup()
         const [leftBreak,length] = [pos.left.breakChar,pos.right.breakChar-pos.left.breakChar]
-        
+        console.log(pos)
         group.setItems(pos.right.tokens)
         math.setGroup1(group)
-        tempTokens.splice(leftBreak,length,math);
-        console.log('tempTokens',tempTokens)
+        math.group1.setMetaData();
+        tempTokens.splice(leftBreak,length,math)
+        this.tokens=tempTokens
         return ;
      
 
