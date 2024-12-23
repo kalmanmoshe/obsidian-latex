@@ -449,7 +449,7 @@ export class Position {
     }
     applyPosition(tokens: any[], index:  number, direction: string) {
         let breakChar=index
-        let target;
+        let target: any[];
         let multiStep=false;
         const isLeft = direction === "left";
         const indexModifier =  isLeft?- 1 :  1;
@@ -462,7 +462,7 @@ export class Position {
             target = tokens.slice(parenIndex.open, parenIndex.close+1);
         } else {
             breakChar=index+indexModifier;
-            target = tokens[breakChar];
+            target = [tokens[breakChar]];
             breakChar+=isLeft?0:1
         }
         //const multiStep = Math.abs(breakChar - index) > 3;
@@ -503,69 +503,16 @@ export class Position {
 
 
 
-function parseOperator(operator: mathJaxOperator){
+export function parseOperator(operator: mathJaxOperator){
     switch (operator.operator) {
         case "sin":
-            //const a=new Token(Math.sin(degreesToRadians(operator.group1.items[0].value)))
+            if(!operator.group1.isOperable)return false;
+            const a=new Token(Math.sin(degreesToRadians(operator.group1.getOperableValue())))
             //solved.value = ;
             break;
         default:
             throw new Error("Couldn't identify operator type at praise operator: "+operator.operator);
     }
-
-    function handleVariableMultiplication(left: { variable: any; pow: any; value: number; }, right: { variable: any; pow: any; value: number; }, solved: Token) {
-        if (left.variable && right.variable && left.variable !== right.variable) {
-            /* Keep them separate since they have different variables
-            solved.terms = [
-                { variable: left.variable, pow: left.pow || 1, value: left.value || 1 },
-                { variable: right.variable, pow: right.pow || 1, value: right.value || 1 }
-            ];*/
-            throw new Error("Different variable bases at power multiplication. I didn't get there yet")
-        }
-    
-        const variable = left.variable || right.variable;
-        solved.variable = variable.length>0?variable:undefined;
-        
-        let pow = (left.pow || 0) + (right.pow || 0);
-        pow=left.variable && right.variable&&pow===0&&!left.pow&&!right.pow?2:pow;
-        //solved.pow = pow || undefined;
-        
-
-        // Rule 3: Handle multiplication of constants
-        const leftValue = left.value || 1;
-        const rightValue = right.value || 1;
-        const value = leftValue * rightValue;
-        // If there's no variable, assign the result as a constant
-        if (!variable) {
-            solved.value = value;
-        } else {
-            solved.value = value;
-        }
-    }
-    
-    
-
-    function handleVriables(left: any,right: any,solved: Token){
-        let handled={Var:null,Pow:null};
-        if (!left.variable&&!right.variable){
-            return ;
-        }
-        //if (position.operator==='*'){return handleVariableMultiplication(left,right,solved)}
-        //console.log(left.variable,right.variable)
-        if (left.variable!==right.variable){
-            throw new Error("Two variable equations aren't accepted yet");
-        }
-        //handled.Var=left.var;
-        //solved.variable=left.var
-
-        /*
-        if (left.variable&&!right.variable){solved.variable=left.variable}
-        else if (!left.variable&&right.variable){solved.variable=right.variable}
-        else if (left.variable&&right.variable){solved.variable=right.variable;solved.pow=2}
-        */
-    }
-
-
     //return solved;
 }
 
@@ -582,7 +529,7 @@ export class MathPraiser{
 
         console.log('this.tokens',this.tokens);
         this.addDebugInfo("Tokens after tokenize",this.tokens.tokens)
-        this.input=this.tokens.reconstruct()
+        //this.input=this.tokens.reconstruct()
         this.solution=this.controller();
     }
     getRedyforNewRond(){
@@ -593,8 +540,6 @@ export class MathPraiser{
     }
     controller(): any{
 
-        const a=this.tokens.operatorTokens
-        console.log(a)
         
         /*
         this.i++;
