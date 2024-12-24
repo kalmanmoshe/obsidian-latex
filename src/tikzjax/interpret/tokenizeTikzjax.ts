@@ -889,9 +889,20 @@ const parseNumber = (value: string) => {
 
 
 
+import fs from 'fs';
 
+function getStyFileContent(filePath: fs.PathOrFileDescriptor) {
+    try {
+        return fs.readFileSync(filePath, 'utf8'); // Read the file synchronously
+    } catch (error) {
+        console.error('Error reading the .sty file:', error);
+        return ''; // Return an empty string on error
+    }
+}
 
 function getPreamble():string{
+    const styContent = getStyFileContent('/Users/moshe/Desktop/school/obsidian/data/Files/preamble.sty');
+    
     const ang="\\tikzset{ang/.style 2 args={fill=black!50,opacity=0.5,text opacity=0.9,draw=orange,<->,angle eccentricity=#1,angle radius=#2cm,text=orange,font=\\large},ang/.default={1.6}{0.5}}"
   
     const mark="\\def\\mark#1#2#3{\\path [decoration={markings, mark=at position 0.5 with {\\foreach \\x in {#1} { \\draw[line width=1pt] (\\x,-3pt) -- (\\x,3pt); }}}, postaction=decorate] (#2) -- (#3);}"
@@ -910,5 +921,6 @@ function getPreamble():string{
     
     const picAng="\\newcommand{\\ang}[5]{\\coordinate (ang1) at (#1); \\coordinate (ang2) at (#2); \\coordinate (ang3) at (#3); \\pgfmathanglebetweenpoints{\\pgfpointanchor{ang3}{center}}{\\pgfpointanchor{ang2}{center}}\\let\\angCB\\pgfmathresult\\pgfmathanglebetweenpoints{\\pgfpointanchor{ang2}{center}}{\\pgfpointanchor{ang1}{center}}\\let\\angAB\\pgfmathresult\\pgfmathparse{\\angCB - \\angAB}\\ifdim\\pgfmathresult pt<0pt\\pgfmathparse{\\pgfmathresult + 360}\\fi\\ifdim\\pgfmathresult pt>180pt\\pgfmathparse{360 - \\pgfmathresult}\\fi\\let\\angB\\pgfmathresult\\pgfmathsetmacro{\\angleCheck}{abs(\\angB - 90)}\\ifthenelse{\\lengthtest{\\angleCheck pt < 0.1pt}}{\\pic [ang#5,\"{${#4}\$}\",]{right angle=ang1--ang2--ang3};}{\\pic [ang#5,\"{${#4}\$}\",]{angle=ang1--ang2--ang3};}}"
     const preamble="\\usepackage{pgfplots,ifthen}\\usetikzlibrary{arrows.meta,angles,quotes,positioning, calc, intersections,decorations.markings,math,spy,matrix,patterns,snakes,decorations.pathreplacing,decorations.pathmorphing,patterns,shadows,shapes.symbols}"
-    return preamble+ang+mark+arr+lene+spring+tree+table+coor+dvector+picAng+massSet+"\\pgfplotsset{compat=1.16}\\begin{document}\\begin{tikzpicture}"
+    
+    return preamble+styContent+ang+mark+arr+lene+spring+tree+table+coor+dvector+picAng+massSet+"\\pgfplotsset{compat=1.16}\\begin{document}\\begin{tikzpicture}"
 }

@@ -545,7 +545,7 @@ export class MathPraiser{
     groupMathTokens(){
         // Step one structure aka replace parentheses with nested arrays
                 // Step two Find first operator.and continue from there
-        
+                /*
                 const pos=new Position(tempTokens)
                 const math=new mathJaxOperator(pos.operator)
                 const group=new MathGroup()
@@ -555,7 +555,7 @@ export class MathPraiser{
                 math.setGroup1(group)
                 tempTokens.splice(leftBreak,length,math)}
         
-                this.tokens=new MathGroup(tempTokens)
+                this.tokens=new MathGroup(tempTokens)*/
                 return ;
     }
     controller(): any{
