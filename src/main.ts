@@ -337,10 +337,9 @@ class ProcessMath {
           this.addInfoModal(new InfoModal(this.app, this.result.mathInfo));
           this.addDebugModel(new DebugModal(this.app, this.result.mathInfo.debugInfo));
           this.mathInput=this.result.input;
-          this.result = this.result.solution;
           break;
       }
-     this.addInputAndResultDiv(inputDiv, resultDiv, typeof this.mathInput==="string"?this.mathInput:this.mathInput[0], roundBySettings(this.result));
+     this.addInputAndResultDiv(inputDiv, resultDiv, typeof this.mathInput==="string"?this.mathInput:this.mathInput[0], this.result/*roundBySettings(this.result)*/);
     } catch (err) {
       this.displayError(inputDiv, resultDiv, err);
       console.error("The initial praising failed",err);
@@ -351,7 +350,7 @@ class ProcessMath {
     inputDiv.appendChild(renderMath(input,true))
     //MarkdownRenderer.renderMarkdown(`\${${input}}$`, inputDiv, "", new Component());
     //const resultOutput = /(true|false)/.test(result) ? result : `\${${result}}$`;
-    resultDiv.appendChild(renderMath(result.toString(),true))
+    resultDiv.appendChild(renderMath(result.solutionToString()||"",true))
     //MarkdownRenderer.renderMarkdown(resultOutput, resultDiv, "", new Component());
   }
 
