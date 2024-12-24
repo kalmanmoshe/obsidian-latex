@@ -11,52 +11,96 @@ import { number, string } from "zod";
 import { BasicTikzToken } from "src/tikzjax/interpret/tokenizeTikzjax";
 import { group } from "console";
 import { findConsecutiveSequences, flattenArray, parseOperator, Position } from "./mathEngine";
+import { operators } from "src/editor_extensions/conceal_maps";
 
 
 export class mathJaxOperator{
     operator: string;
     priority: number;
     associativityNumber: number;
-    group1: mathGroup;
-    group2?: mathGroup;
-    solution?: mathGroup
-    constructor(operator?: string,priority?: number,associativityNumber?: number,group1?: mathGroup,group2?: mathGroup){
+    group1: MathGroup;
+    group2?: MathGroup;
+    solution?: MathGroup
+    constructor(operator?: string,priority?: number,associativityNumber?: number,group1?: MathGroup,group2?: MathGroup){
         if (operator)this.operator=operator
         if (priority)this.priority=priority
         if (associativityNumber)this.associativityNumber=associativityNumber
         if (group1)this.group1=group1
         if (group2)this.group2=group2
     }
-    setGroup1(group: mathGroup){this.group1=group}
-    setGroup2(group: mathGroup){this.group2=group}
-    setSolution(){
+    setGroup1(group: MathGroup){this.group1=group}
+    setGroup2(group: MathGroup){this.group2=group}
+    addSolution(){
         parseOperator(this)
     }
 }
 
-export class mathGroup{
-    private items: Token[];
-    numberOnly: boolean;
-    hasVariables: boolean;
-    singular: boolean;
-    hasOperators: boolean;
-    multiLevel: boolean;
-    isOperable: boolean=true;
-    constructor(){
-        
+export class MathGroup {
+    items: Token[] = []; // Rename to indicate it's private.
+
+    constructor(items?: Token[]) {
+        if(items)
+            this.items=items
     }
-    setItems(items: Token[]){
-        this.items=items
+
+    setItems(items: Token[]) {
+        this.items = items;
     }
-    setMetaData(){
-        this.singular=this.items.length===1;
-        this.numberOnly=this.items.some(t=> !t.isVar());
-        this.isOperable=this.singular&&this.numberOnly&&!this.multiLevel
+
+
+    numberOnly(): boolean {
+        return this.items.some(t => !t.isVar());
     }
-    getOperableValue(){
-        return this.items[0].value
+
+    hasVariables(): boolean {
+        return this.items.some(t => t.isVar());
     }
+
+    singular(): this is { items: [Token] } {
+        return this.items.length === 1 && this.items[0] !== undefined;
+    }
+    isOperable(){return true}
+    getOperableValue(): Token | null {
+        if (this.singular()) {
+            return this.items[0] ?? null;
+        }
+        return null;
+    }
+    combiningLikeTerms() {
+        const overview = new Map();
+        this.items.forEach((item: any) => {
+            const key = item.getFullTokenID() || 'operator';
+            if (!overview.has(key)) {
+                const entry = {
+                    count: 0,
+                    variable: item.variable,
+                    items: []
+                };
+                overview.set(key, entry);
+            }
+    
+            const entry = overview.get(key);
+            entry.count++;
+            entry.items.push(item);
+        });
+    
+        // Step 2: Combine terms
+        const combinedItems = [];
+        for (const [key, value] of overview.entries()) {
+            if (key.includes("operator")) {
+                combinedItems.push(...value.items);
+                continue;
+            }
+            const sum = value.items.reduce((total: any, item: Token) => total + (item.value || 0), 0);
+    
+            const token = new Token(sum, value.variable);
+            combinedItems.push(token);
+        }
+        this.items = combinedItems;
+    }
+    
 }
+
 
 
 export class Tokens{
@@ -105,6 +149,8 @@ export class Tokens{
         idParentheses(this.tokens);
         const map=this.tokens.map((token: BasicMathJaxToken,index: any)=> (token.isValueToken())?index:null).filter((item: null) => item !== null)
         const arr=findConsecutiveSequences(map);
+        this.connectAndCombine(arr);
+        this.validatePlusMinus();
         let tempTokens=this.tokens.map((t:BasicMathJaxToken)=>{
             if(typeof t.value==='number')
                 return new Token(t.value,t.variable)
@@ -112,39 +158,10 @@ export class Tokens{
         return t;
         });
 
-        // Step one structure aka replace parentheses with nested arrays
-        // Step two Find first operator.and continue from there
-        const pos=new Position(tempTokens)
-        const math=new mathJaxOperator(pos.operator)
-        const group=new mathGroup()
-        const [leftBreak,length] = [pos.left.breakChar,pos.right.breakChar-pos.left.breakChar]
-        console.log(pos)
-        group.setItems(pos.right.tokens)
-        math.setGroup1(group)
-        math.group1.setMetaData();
-        tempTokens.splice(leftBreak,length,math)
-        this.tokens=tempTokens
-        return ;
-     
-
-        this.connectAndCombine(arr);
-        this.validatePlusMinus();
-
-        console.log(tempTokens);
-        
-
         const parenMap=this.implicitMultiplicationMap()
         parenMap.sort((a: number, b: number) => b - a)
         .forEach((value: any) => {
             this.tokens.splice(value, 0, new  BasicMathJaxToken('*'));
-        });
-
-        const mapPow=this.tokens.map((token: { value: string; },index: any)=> token.value==='Pow'?index:null).filter((item: null) => item !== null)
-        console.log(mapPow)
-        mapPow.forEach((index: number | undefined) => {
-            //const position=new Position(this,index)
-            //const [leftBreak,length] = [position.left.breakChar,position.right.breakChar-position.left.breakChar]
-           // this.tokens.insertTokens(leftBreak,length,solved)
         });
     }
     validateIndex(index: number,margin?: number){
@@ -376,7 +393,9 @@ export class Token{
         this.variable=variable;
     }
     isVar() {return this.variable!==undefined}
-
+    getFullTokenID(){
+        return this.variable?`variable:${this.variable}`:'number'
+    }
 }
 
 

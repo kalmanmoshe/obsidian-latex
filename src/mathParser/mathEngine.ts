@@ -10,7 +10,7 @@ import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByA
 import { number, string } from "zod";
 import { BasicTikzToken } from "src/tikzjax/interpret/tokenizeTikzjax";
 import { group } from "console";
-import { mathGroup, mathJaxOperator, Token, Tokens } from "./mathJaxTokens";
+import { MathGroup, mathJaxOperator, Token, Tokens } from "./mathJaxTokens";
 const greekLetters = [
     'Alpha','alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 
     'Iota', 'Kappa', 'Lambda', 'Mu','mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 
@@ -54,7 +54,7 @@ export class MathInfo{
         this.graph+=value;
     }
     addDebugInfo(msg: string, value: string | number | Token | Axis){
-        this.debugInfo+=(typeof msg==="object"?JSON.stringify(msg):msg)+" : "+(typeof value==="object"?JSON.stringify(value):value)+ "\n ";
+        this.debugInfo+=(typeof msg==="object"?JSON.stringify(msg,null,1):msg)+" : "+(typeof value==="object"?JSON.stringify(value,null,1):value)+ "\n ";
     }
     addSolutionInfo(mes: string | number | Token | Axis){
         this.solutionInfo.push(mes);
@@ -424,7 +424,7 @@ export class Position {
         if (this.index === null || this.index >= tokens.length - 1) {
             return;
         }
-        this.operator = tokens[this.index].value;console.log(getOperatorsByAssociativity('right'))
+        this.operator = tokens[this.index].value;
         switch (true) {
             case getOperatorsByAssociativity('both').includes(this.operator):
                 this.left = this.applyPosition(tokens, this.index,"left");
@@ -503,23 +503,27 @@ export class Position {
 
 
 
-export function parseOperator(operator: mathJaxOperator){
+export function parseOperator(operator: mathJaxOperator): boolean {
     switch (operator.operator) {
-        case "sin":
-            if(!operator.group1.isOperable)return false;
-            const a=new Token(Math.sin(degreesToRadians(operator.group1.getOperableValue())))
-            //solved.value = ;
+        case "Sin":
+            if (!operator.group1.isOperable()) return false;
+            const value = operator.group1.getOperableValue();
+            if (value?.value === undefined) return false;
+            operator.solution =new MathGroup([new Token(Math.sin(degreesToRadians(value.value)))]);
             break;
         default:
-            throw new Error("Couldn't identify operator type at praise operator: "+operator.operator);
+            throw new Error(
+                "Couldn't identify operator type in parseOperator: " + operator.operator
+            );
     }
-    //return solved;
+    return true;
 }
+
 
 export class MathPraiser{
     input="";
     tokens: Tokens;
-    solution="";
+    solution: any;
     mathInfo=new MathInfo();
     i=0;
     constructor(input: string){
@@ -527,10 +531,10 @@ export class MathPraiser{
         this.processInput();
         this.tokens=new Tokens(this.input);
 
-        console.log('this.tokens',this.tokens);
         this.addDebugInfo("Tokens after tokenize",this.tokens.tokens)
         //this.input=this.tokens.reconstruct()
         this.solution=this.controller();
+        console.log('this.tokens',this.tokens.tokens);
     }
     getRedyforNewRond(){
         //this.tokens.connectNearbyTokens();
@@ -538,8 +542,39 @@ export class MathPraiser{
         //this.addDebugInfo(this.tokens.tokens,this.tokens.tokens.length)
         //this.tokens.expressionVariableValidity();
     }
+    groupMathTokens(){
+        // Step one structure aka replace parentheses with nested arrays
+                // Step two Find first operator.and continue from there
+        
+                const pos=new Position(tempTokens)
+                const math=new mathJaxOperator(pos.operator)
+                const group=new MathGroup()
+                if(pos.index){
+                const [leftBreak,length] = [pos.left.breakChar,pos.right.breakChar-pos.left.breakChar]
+                group.setItems(pos.right.tokens)
+                math.setGroup1(group)
+                tempTokens.splice(leftBreak,length,math)}
+        
+                this.tokens=new MathGroup(tempTokens)
+                return ;
+    }
     controller(): any{
+        // The expression needs to be wrapped N a operator based on praising method Maybe not decided on it yet.
 
+
+        console.log(this.tokens.tokens)
+        
+        this.tokens.tokens.combiningLikeTerms()
+        for (let i = 0; i < this.tokens.tokens.items.length; i++) {
+            const item = this.tokens.tokens.items[i];
+        
+            if (!(item instanceof mathJaxOperator)) continue;
+        
+            this.tokens.tokens.items[i] = item.addSolution();
+        }        
+        console.log(this.tokens.tokens)
+        //this.tokens.tokens.addSolution()
+        return this.tokens.tokens;
         
         /*
         this.i++;
@@ -574,6 +609,9 @@ export class MathPraiser{
         }   
         //if (solved === null||typeof solved==="string") {return solved; }
         return this.finalReturn()//this.tokens.tokens.length>1?this.controller():this.finalReturn();*/
+    }
+    solutionToString(){
+        return this.solution.items[0].value.toString()
     }
 
     useParse(position: Position){
