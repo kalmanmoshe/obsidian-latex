@@ -7,6 +7,7 @@ import differenceImplementation from "set.prototype.difference";
 // @ts-ignore
 import intersectionImplementation from "set.prototype.intersection";
 import { sortSnippets } from "src/snippets/sort";
+import Moshe from "../main";
 
 const difference: <T>(self: Set<T>, other: Set<T>) => Set<T> = differenceImplementation;
 const intersection: <T>(self: Set<T>, other: Set<T>) => Set<T> = intersectionImplementation;
@@ -156,6 +157,15 @@ export async function tryGetVariablesFromUnknownFiles(plugin: LatexSuitePlugin, 
 	}
 
 	return snippetVariables;
+}
+
+export async function getPreambleFromFiles(
+	plugin: Moshe,
+	files: FileSets,
+	preamble: SnippetVariables
+) {
+
+
 }
 
 export async function getSnippetsFromFiles(

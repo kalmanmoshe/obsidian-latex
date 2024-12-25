@@ -21,23 +21,21 @@ export function idParentheses(tokens) {
     const depthCounts = {};
     
     for (let i = 0; i < tokens.length; i++) {
-        const token = tokens[i];
-        
-        if (open.includes(token.name)) {
+        let token = tokens[i];
+        if (open.includes(token.value)) {
             if (!depthCounts[depth]) {
                 depthCounts[depth] = 0;
             }
 
             const depthID = depthCounts[depth]++;
-            token.value = new Paren(depth, depthID,token.value);
-
+            const paren = new Paren(depth, depthID,token.value);
+            tokens.splice(i,1,paren)
             // Increase depth for nested parentheses
             depth++;
             continue;
         }
 
-        if (close.includes(token.name)) {
-            // Decrease depth and check for unmatched closing parenthesis
+        if (close.includes(token.value)) {
             depth--;
             if (depth < 0) {
                 console.error(token.value,tokens)
@@ -46,7 +44,8 @@ export function idParentheses(tokens) {
 
             // Assign a unique ID to the closing parenthesis
             const depthID = depthCounts[depth] - 1;
-            token.value = new Paren(depth, depthID,token.value);
+            const paren = new Paren(depth, depthID,token.value);
+            tokens.splice(i,1,paren)
         }
     }
 
@@ -55,16 +54,25 @@ export function idParentheses(tokens) {
         console.error(tokens)
         throw new Error(`Unmatched opening parenthesis(es) detected: depth=${depth}`);
     }
+    return tokens
 }
 
 export function mapBrackets(type,tokens){
     return tokens
         .map((token, index) => 
             token.name === type
-                ? findParenIndex(token.value, undefined, tokens) 
+                ? /*findParenIndex(token.value, undefined, tokens) */'errMoshe'
                 : null
         )
         .filter((t) => t !== null);
+}
+export const isOpenParen=(item)=>{
+    if(!(item instanceof Paren)||!item.type)return false
+    return open.includes(item.type)
+}
+export const isClosedParen=(item)=>{
+    if(!(item instanceof Paren)||!item.type)return false
+    return close.includes(item.type)
 }
 
 export function findModifiedParenIndex(id, index, tokens, depth, depthID, filter) {
@@ -102,15 +110,15 @@ export function findModifiedParenIndex(id, index, tokens, depth, depthID, filter
 
 
 export function findParenIndex(id,index,tokens){
-    id=id?id:tokens[index].value;
+    id=id?id:tokens[index];
 
     const openIndex=tokens.findIndex(
-        token=>open.includes(token.name)
-        &&token.value?.compare(id)
+        token=>open.includes(token.type)
+        &&id.compare(token)
     )
     const closeIndex=tokens.findLastIndex(
-        token=>close.includes(token.name)
-        &&token.value?.compare(id)
+        token=>close.includes(token.type)
+        &&id.compare(token)
     )
     return{open: openIndex,close: closeIndex,id:id}
 }

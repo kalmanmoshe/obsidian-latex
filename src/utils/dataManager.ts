@@ -59,7 +59,7 @@ export function searchMathJaxOperators(query: string) {
     );
 }
 export function getAllMathJaxReferences() {
-    return [...mathJaxOperators,...brackets]
+    return [...mathJaxOperators, ...brackets]
         .flatMap((component) => component.references || [])
         .map(escapeForRegex);
 }
@@ -67,10 +67,12 @@ export function getAllMathJaxReferences() {
  * Retrieves all MathJax operators and brackets as regex-ready strings.
  * @returns {string[]} - Array of escaped MathJax operator and bracket references.
  */
-export function getAllMathJaxOperators() {
+export function searchAllMathJaxOperatorsAndSymbols(query: string) {
     return [...mathJaxOperators, ...brackets]
-        .flatMap((operator) => operator.references || [])
-        .map(escapeForRegex);
+    .find((operator) =>
+        Object.values(operator).flat().some((value) =>
+            typeof value === 'string' && value.includes(query)
+        ))
 }
 
 /**

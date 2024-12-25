@@ -20,6 +20,7 @@ import { ICONS } from "./settings/ui/icons";
 
 import { getEditorCommands } from "./features/editor_commands";
 import { SnippetVariables, parseSnippetVariables, parseSnippets } from "./snippets/parse";
+import {  PluginManifest, PluginSettingTab,  } from 'obsidian';
 
 
 
@@ -247,8 +248,8 @@ async loadSettings() {
     
     const userVariables: { variable: string; value: string }[] = [];
     let skippedIndexes = 0;
-
-    const expressions = source.split("\n").map(line => line.trim()).filter(line => line);
+    
+    const expressions = source.split("\n").map(line => line.trim()).filter(line => line && !line.startsWith("//"));
     if (expressions.length === 0) {return;}
 
     
