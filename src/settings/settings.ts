@@ -14,7 +14,6 @@ interface LatexSuiteBasicSettings {
     rowPadding: string;
     iconSize: string;
     sessionHistory: { input: string, result: string }[]; 
-
 	snippetsEnabled: boolean;
 	snippetsTrigger: "Tab" | " "
 	suppressSnippetTriggerOnIME: boolean;
@@ -23,6 +22,7 @@ interface LatexSuiteBasicSettings {
 	loadSnippetsFromFile: boolean;
 	loadSnippetVariablesFromFile: boolean;
 	snippetsFileLocation: string;
+	preambleFileLocation: string;
 	snippetVariablesFileLocation: string;
 	autofractionEnabled: boolean;
 	concealEnabled: boolean;
@@ -73,6 +73,7 @@ export const DEFAULT_SETTINGS: LatexSuitePluginSettings = {
 	autoDelete$: true,
 	loadSnippetsFromFile: false,
 	loadSnippetVariablesFromFile: false,
+	preambleFileLocation: "",
 	snippetsFileLocation: "",
 	snippetVariablesFileLocation: "",
 	concealEnabled: false,

@@ -5,12 +5,13 @@ import { type } from "os";
 import { arrToRegexString, Axis, regExp } from "../tikzjax/tikzjax";
 import {  } from "src/utils/staticData";
 import { cp } from "fs";
-import { findParenIndex, Paren,idParentheses } from "../utils/tokenUtensils";
+import { findParenIndex, Paren,idParentheses, isOpenParen } from "../utils/tokenUtensils";
 import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getOperatorsByBracket, hasImplicitMultiplication, searchMathJaxOperators } from "../utils/dataManager";
 import { number, string } from "zod";
 import { BasicTikzToken } from "src/tikzjax/interpret/tokenizeTikzjax";
 import { group } from "console";
 import { MathGroup, mathJaxOperator, Token, Tokens } from "./mathJaxTokens";
+import { start } from "repl";
 const greekLetters = [
     'Alpha','alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 
     'Iota', 'Kappa', 'Lambda', 'Mu','mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 
@@ -254,12 +255,12 @@ function rearrangeEquation(tokens: any,tokenToisolate: any){
     
 }
 
-function isolateMultiplication(tokens: any,isolatToken: Token){
+function isolateMultiplication(tokens: any,isolatToken: Token){/*
     const index=operationsOrder(tokens)
     const Isolated=tokens.tokens.find((token: any, idx: number)=>idx<index)
     const frac=createFrac(tokens.list.slice(index + 1),new Token(Isolated.value))
     Isolated.value=1;
-    tokens.insertTokens(index+1,tokens.tokens.length-index+1,frac)
+    tokens.insertTokens(index+1,tokens.tokens.length-index+1,frac)*/
 }
 
 function createFrac(nominator: any,denominator: Token){
@@ -338,72 +339,7 @@ function rearrangeForIsolation(tokens: Tokens, isolationGoal: { type: any; value
         : [...side1, tokens.tokens[eqIndex], ...side2];
 }
 
-function operationsOrder(tokens: any[]) {
-    function findOperatorIndex(begin: number, end: number, tokens: any, findParenIndex?: any, regex?: any) {
-        while (begin < end && begin < tokens.length) {
-            let index;
-            
-            if (regex) {
-                index = tokens.slice(begin, end).findIndex((token: { type: string; value: any; }) => token.type === "operator" && regex.test(token.value));
-            } else {
-                index = tokens.slice(begin, end).findIndex((token: { type: string; }) => token.type === "operator");
-            }
-            
-            if (index === -1) return -1;
-            
-            index += begin;
-            
-            if (!/[+-]/.test(tokens[index].value)) {
-                return index;
-            }
-            if (index > 0 && index < tokens.length - 1) {
-                if (tokens[index - 1].type === tokens[index + 1].type) {
-                    return index;
-                }
-            }
-            begin = index + 1;
-        }
-        return -1;
-    }
 
-    let begin = 0, end = tokens.length,j=0;
-    let currentID = null;  
-    let checkedIDs: any[] = [];  
-    let operatorFound = false;
-    while (!operatorFound&&j<200) {
-        // Find the innermost parentheses
-        for (let i = 0; i < tokens.length; i++) {
-            j++;
-            if (tokens[i].value === "(" && !checkedIDs.includes(tokens[i].id)) {
-                currentID = findParenIndex(tokens[i].id);  
-            }
-            if (currentID!==null&&i===currentID.close) {
-                [begin,end]=[currentID.open,currentID.close]
-                break;
-            }
-        }
-        
-        if (!currentID) {
-            begin = 0;
-            end = tokens.length;
-            break;
-        }
-        operatorFound = findOperatorIndex(begin,end,tokens)!==-1;
-
-        // If no operator is found, mark this parentheses pair as checked
-        if (!operatorFound) {
-            checkedIDs.push(currentID.id);  
-            currentID = null;  
-        }
-    }
-    if (j>=200){throw new Error("operationsOrder Failed exceeded 200 revisions");}
-
-    for (let i=1;i<=6;i++){
-        let priority = findOperatorIndex(begin , end,tokens, getMathJaxOperatorsByPriority(i,true));
-        if(priority!==-1)return priority
-    }
-    return null
-}
 
 
 export class Position {
@@ -413,17 +349,12 @@ export class Position {
     specialChar: string;
     left: any;
     right: any;
-    constructor(tokens: any[], index?: number){
-        if(index)
+    constructor(tokens: any[], index: number){
         this.index = index;
         this.transition = this.index;
         this.position(tokens)
     }
     position(tokens: any[]) {
-        this.index = !this.index? operationsOrder(tokens) : this.index;
-        if (this.index === null || this.index >= tokens.length - 1) {
-            return;
-        }
         this.operator = tokens[this.index].value;
         switch (true) {
             case getOperatorsByAssociativity('both').includes(this.operator):
@@ -504,37 +435,107 @@ export class Position {
 
 
 export function parseOperator(operator: mathJaxOperator): boolean {
+    // Helper function to validate and retrieve the operable value
+    function getOperableValue(group: MathGroup): number | null {
+        if (!group.isOperable()) return null;
+        const value = group.getOperableValue();
+        return value?.value ?? null;
+    }
+
+    const value = getOperableValue(operator.group1);
+    if (value === null) return false;
+
     switch (operator.operator) {
         case "Sin":
-            if (!operator.group1.isOperable()) return false;
-            const value = operator.group1.getOperableValue();
-            if (value?.value === undefined) return false;
-            operator.solution =new MathGroup([new Token(Math.sin(degreesToRadians(value.value)))]);
+            operator.solution = new MathGroup([new Token(Math.sin(degreesToRadians(value)))]);
             break;
+
+        case "Square root":
+            if (value < 0) {
+                throw new Error("Cannot calculate the square root of a negative number.");
+            }
+            operator.solution = new MathGroup([new Token(Math.pow(value,0.5))]);
+            break;
+
         default:
             throw new Error(
-                "Couldn't identify operator type in parseOperator: " + operator.operator
+                `Unknown operator type in parseOperator: ${operator.operator}`
             );
     }
     return true;
 }
 
 
+function operationsOrder(tokens: any[]) {
+    function findOperatorIndex(begin: number, end: number, tokens: any, findParenIndex?: any, regex?: any) {
+        while (begin < end && begin < tokens.length) {
+            let index;
+            
+            if (regex) {
+                index = tokens.slice(begin, end).findIndex((token: { type: string; value: any; }) => token.type === "operator" && regex.test(token.value));
+            } else {
+                index = tokens.slice(begin, end).findIndex((token: { type: string; }) => token.type === "operator");
+            }
+            
+            if (index === -1) return null;
+            
+            index += begin;
+            
+            if (index > 0 && index < tokens.length - 1) {
+                if (tokens[index - 1].type === tokens[index + 1].type) {
+                    return index;
+                }
+            }
+            begin = index + 1;
+        }
+        return null;
+    }
+
+    let begin = 0, end = tokens.length,j=0;
+    let currentID = null;  
+    let checkedIDs: any[] = [];  
+    let operatorFound = false;
+
+    for (let i = 0; i < tokens.length; i++) {
+        if (isOpenParen(tokens[i]) && !checkedIDs.includes(tokens[i].id)) {
+            currentID = findParenIndex(tokens[i],undefined,tokens);  
+        }
+        if (currentID!==null&&i===currentID.close) {
+            [begin,end]=[currentID.open,currentID.close]
+            break;
+        }
+    }
+
+    operatorFound = findOperatorIndex(begin,end,tokens)!==-1;
+
+    if (j>=200){throw new Error("operationsOrder Failed exceeded 200 revisions");}
+    let priority=null
+    for (let i=1;i<=6;i++){
+        priority = findOperatorIndex(begin , end,tokens, getMathJaxOperatorsByPriority(i,true));
+        if(priority!==null)break;
+    }
+    return {start: begin,end: end,specificOperatorIndex: priority}
+}
+
+
 export class MathPraiser{
     input="";
-    tokens: Tokens;
+    tokens: MathGroup;
     solution: any;
     mathInfo=new MathInfo();
     i=0;
     constructor(input: string){
         this.input=input;
         this.processInput();
-        this.tokens=new Tokens(this.input);
+        
+        const tokens=new Tokens(this.input);
+        const basicTokens=tokens.tokens
 
-        this.addDebugInfo("Tokens after tokenize",this.tokens.tokens)
+        this.addDebugInfo("Tokens after tokenize",basicTokens)
         //this.input=this.tokens.reconstruct()
-        this.solution=this.controller();
-        console.log('this.tokens',this.tokens.tokens);
+        this.controller(basicTokens);
+        this.solution=this.tokens
+        this.addDebugInfo("solution",this.solution)
     }
     getRedyforNewRond(){
         //this.tokens.connectNearbyTokens();
@@ -558,12 +559,67 @@ export class MathPraiser{
                 this.tokens=new MathGroup(tempTokens)*/
                 return ;
     }
-    controller(): any{
-        // The expression needs to be wrapped N a operator based on praising method Maybe not decided on it yet.
-
-
-        console.log(this.tokens.tokens)
+    createMathGroupInsertFromTokens(tokens: Array<Token|MathGroup|mathJaxOperator>,start: number,end: number){
+        const newMathGroup=new MathGroup(tokens.slice(start,end));
+        return newMathGroup
+    }
+    createOperatorItemFromTokens(tokens: Array<Token|MathGroup|mathJaxOperator>,index: number){
+        const position=new Position(tokens,index)
+        const newOperator=new mathJaxOperator(position.operator)
+        newOperator.setGroup1(new MathGroup(position.right.tokens))
+        return newOperator
+    }
+    defineGroupsAndOperators(tokens: Array<Token|MathGroup|mathJaxOperator>):boolean|this{
+        const range=operationsOrder(tokens);
+        if(range.start===null||range.end===null)return false;
+        if(range.specificOperatorIndex===null&&range.start===0&&range.end===tokens.length)return true;
+        let newMathGroup=null
+        if (range.specificOperatorIndex!==null)
+            newMathGroup=this.createOperatorItemFromTokens(tokens,range.specificOperatorIndex)
+        else
+            newMathGroup=this.createMathGroupInsertFromTokens(tokens,range.start,range.end)
+        if(!newMathGroup)return false;
+        tokens.splice(range.start,range.end-range.start,newMathGroup);
+        return this.defineGroupsAndOperators(tokens);
+    }
+    parse(tokens: MathGroup): void {
+        console.log()
         
+        const operator = tokens.items.find(
+            t => t instanceof mathJaxOperator && t.isOperable
+        ) as mathJaxOperator | undefined;
+    
+        if (!operator) return;
+    
+        const group1 = this.parse(operator.group1);
+
+        let group2 = null;
+        if (operator.associativityNumber > 1 && operator.group2) {
+            group2 = this.parse(operator.group2);
+        }
+        console.log('operator', operator, group1, group2);
+    
+        parseOperator(operator);
+        if (!operator.solution) {
+            operator.isOperable = false;
+            return;
+        }
+    
+        // Replace tokens with the solution
+        tokens.items = operator.solution.items; 
+    }
+    
+    controller(basicTokens: Token[]): any{
+        // The expression needs to be wrapped N a operator based on praising method Maybe not decided on it yet.
+        //const whatebver=
+        const success=this.defineGroupsAndOperators(basicTokens)
+        console.log('this.defineGroupsAndOperators(basicTokens)',basicTokens)
+        if(!success)return
+        this.tokens=new MathGroup(basicTokens)
+        this.parse(this.tokens)
+        this.tokens.combiningLikeTerms()
+        console.log('basicTokens',basicTokens)
+        /*
         this.tokens.tokens.combiningLikeTerms()
         for (let i = 0; i < this.tokens.tokens.items.length; i++) {
             const item = this.tokens.tokens.items[i];
@@ -572,9 +628,9 @@ export class MathPraiser{
         
             this.tokens.tokens.items[i] = item.addSolution();
         }        
-        console.log(this.tokens.tokens)
+        */
         //this.tokens.tokens.addSolution()
-        return this.tokens.tokens;
+        //return this.tokens.tokens;
         
         /*
         this.i++;
@@ -611,17 +667,17 @@ export class MathPraiser{
         return this.finalReturn()//this.tokens.tokens.length>1?this.controller():this.finalReturn();*/
     }
     solutionToString(){
-        return this.solution.items[0].value.toString()
+        return this.solution||""
     }
 
-    useParse(position: Position){
+    useParse(position: Position){/*
         const solved = parse(position);
         this.mathInfo.addDebugInfo("solved",solved)
         const [leftBreak,length] = [position.left.breakChar,position.right.breakChar-position.left.breakChar]
         this.tokens.insertTokens(leftBreak,length,solved)
         this.mathInfo.addSolution(this.tokens,position,solved)
         this.addDebugInfo("newTokens",this.tokens.tokens)
-        return this.controller()
+        return this.controller()*/
     }
     
     praisingMethod(){
@@ -635,12 +691,12 @@ export class MathPraiser{
 
     useIsolat(praisingMethod: PraisingMethod){
         isolateMultiplication(this.tokens,new Token(praisingMethod.variables[0]))
-        return this.controller()
+        //return this.controller()
         //this.tokens.insertTokens()
         //Use possession
     }
 
-    useQuadratic(){
+    useQuadratic(){/*
         this.tokens.tokens=simplifiy(this.tokens.tokens)
             const filterByType=(type: string)=>this.tokens.tokens.filter((token: { type: string; }) => token.type === type);
             const [numberIndex,variableIndex,powIndex] = [filterByType("number"),filterByType("variable"),filterByType("powerVariable")]
@@ -653,7 +709,7 @@ export class MathPraiser{
                     numberIndex[0]?.value * -1| 0,
                     powIndex[0].variable,
                 );
-            }
+            }*/
     }
     addDebugInfo(mes: string,value: string | number | Token | Axis){
         this.mathInfo.addDebugInfo(mes,value)
@@ -666,7 +722,7 @@ export class MathPraiser{
         //.replace(/(?<!\\|[a-zA-Z])(tan|sin|cos|binom|frac|asin|acos|atan|arccos|arcsin|arctan|cdot)/g, "\\$1");
     }
     finalReturn(){
-        return this.tokens.reconstruct()
+       // return this.tokens.reconstruct()
     }
 }
 

@@ -123,7 +123,7 @@ export const mathJaxOperators = [
     },
     {
         type: 'Comparison',
-        name: 'Less Than',
+        name: 'Less than',
         latex: '<',
         references: ['<'],
         priority: 6,
@@ -132,7 +132,7 @@ export const mathJaxOperators = [
     },
     {
         type: 'Comparison',
-        name: 'Greater Than',
+        name: 'Greater than',
         latex: '>',
         references: ['>'],
         priority: 6,
@@ -235,7 +235,7 @@ export const mathJaxOperators = [
     },
     {
         type: 'Logarithmic',
-        name: 'Natural Logarithm',
+        name: 'Natural logarithm',
         latex: '\\ln',
         references: ['ln', '\\ln'],
         priority: 2,
@@ -255,7 +255,7 @@ export const mathJaxOperators = [
     /* Radical */
     {
         type: 'Radical',
-        name: 'Square Root',
+        name: 'Square root',
         latex: '\\sqrt',
         references: ['sqrt', '\\sqrt'],
         priority: 1,

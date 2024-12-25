@@ -5,8 +5,8 @@ import { type } from "os";
 import { arrToRegexString, Axis, regExp } from "../tikzjax/tikzjax";
 import {  } from "src/utils/staticData";
 import { cp } from "fs";
-import { findParenIndex, Paren,idParentheses } from "../utils/tokenUtensils";
-import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getOperatorsByBracket, hasImplicitMultiplication, searchMathJaxOperators } from "../utils/dataManager";
+import { findParenIndex, Paren,idParentheses, isOpenParen } from "../utils/tokenUtensils";
+import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getOperatorsByBracket, hasImplicitMultiplication, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchSymbols } from "../utils/dataManager";
 import { number, string } from "zod";
 import { BasicTikzToken } from "src/tikzjax/interpret/tokenizeTikzjax";
 import { group } from "console";
@@ -21,6 +21,7 @@ export class mathJaxOperator{
     group1: MathGroup;
     group2?: MathGroup;
     solution?: MathGroup
+    isOperable: boolean=true;
     constructor(operator?: string,priority?: number,associativityNumber?: number,group1?: MathGroup,group2?: MathGroup){
         if (operator)this.operator=operator
         if (priority)this.priority=priority
@@ -35,10 +36,11 @@ export class mathJaxOperator{
     }
 }
 
+type MathGroupItems=Array<Token|MathGroup|mathJaxOperator>
 export class MathGroup {
-    items: Token[] = []; // Rename to indicate it's private.
-
-    constructor(items?: Token[]) {
+    items: MathGroupItems = [];
+    
+    constructor(items?: MathGroupItems) {
         if(items)
             this.items=items
     }
@@ -49,16 +51,17 @@ export class MathGroup {
 
 
     numberOnly(): boolean {
-        return this.items.some(t => !t.isVar());
+        return this.items.some(t => (t instanceof Token&&!t.isVar()));
     }
 
     hasVariables(): boolean {
-        return this.items.some(t => t.isVar());
+        return this.items.some(t => t instanceof Token&&t.isVar());
     }
 
     singular(): this is { items: [Token] } {
         return this.items.length === 1 && this.items[0] !== undefined;
     }
+
     isOperable(){return true}
     getOperableValue(): Token | null {
         if (this.singular()) {
@@ -105,8 +108,6 @@ export class MathGroup {
 
 export class Tokens{
     tokens: any=[];
-    operatorTokens: any[]=[]
-    operatorStructure: mathJaxOperator;
     
     constructor(math: string){
         this.tokenize(math);
@@ -145,9 +146,9 @@ export class Tokens{
         /*rules to abid by:
         1. +- If part of the number they are absorbed into the number
         */
-       
-        idParentheses(this.tokens);
-        const map=this.tokens.map((token: BasicMathJaxToken,index: any)=> (token.isValueToken())?index:null).filter((item: null) => item !== null)
+        this.tokens=idParentheses(this.tokens);
+        console.log(this.tokens)
+        const map=this.tokens.map((token: any,index: any)=> token instanceof BasicMathJaxToken&&token.isValueToken()?index:null).filter((item: null) => item !== null)
         const arr=findConsecutiveSequences(map);
         this.connectAndCombine(arr);
         this.validatePlusMinus();
@@ -172,11 +173,11 @@ export class Tokens{
         const testDoubleRight = (index: number) => {
             if (!this.validateIndex(index)) return false;
             const idx=findParenIndex(null,index).open;
-            return this.tokens[index+1]?.value==='('&&(idx===0||!getOperatorsByAssociativity('doubleRight').includes(this.tokens[idx-1]?.value));
+            return isOpenParen(this.tokens[index+1])&&(idx===0||!getOperatorsByAssociativity('doubleRight').includes(this.tokens[idx-1]?.value));
             
         };
         const check = (index: number) => {
-            if (!this.validateIndex(index)) return false;
+            if (!(Token instanceof BasicMathJaxToken)||!this.validateIndex(index)) return false;
             return this.tokens[index].isValueToken();
         };
 
@@ -403,9 +404,7 @@ export class BasicMathJaxToken{
     type: string;
     value?: string|number;
     variable?: string;
-    modifier: any;
-    id: Paren;
-    
+
     constructor(value: string | number | undefined,variable?: any){
         this.value=value;
         this.variable=variable;
@@ -413,12 +412,10 @@ export class BasicMathJaxToken{
         this.insurProperFormatting()
     }
     insurProperFormatting(){
-        if (this.type==='operator'&&typeof this.value==='string'){
-            this.value=searchMathJaxOperators(this.value)?.name
+        if (typeof this.value==='string'){
+            this.value=searchAllMathJaxOperatorsAndSymbols(this.value)?.name
         }
-       // if (!this.value){throw new Error('wtf Value was undefined at token insurProperFormatting')}
     }
-    getId(){return this.id.id};
 
     getLatexSymbol(){return typeof this.value==='string'?searchMathJaxOperators(this.value)?.latex:undefined}
 
