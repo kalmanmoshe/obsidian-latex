@@ -7,11 +7,7 @@ import {  } from "src/utils/staticData";
 import { cp } from "fs";
 import { findParenIndex, Paren,idParentheses, isOpenParen } from "../utils/tokenUtensils";
 import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getOperatorsByBracket, hasImplicitMultiplication, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchSymbols } from "../utils/dataManager";
-import { number, string } from "zod";
-import { BasicTikzToken } from "src/tikzjax/interpret/tokenizeTikzjax";
-import { group } from "console";
 import { findConsecutiveSequences, flattenArray, parseOperator, Position } from "./mathEngine";
-import { operators } from "src/editor_extensions/conceal_maps";
 
 
 export class mathJaxOperator{
@@ -139,7 +135,7 @@ export class Tokens{
 
             throw new Error(`Unknown char "${math[i]}"`);
         }
-        this.postProcessTokens();
+       this.postProcessTokens();
     }
 
     postProcessTokens(){
@@ -147,7 +143,6 @@ export class Tokens{
         1. +- If part of the number they are absorbed into the number
         */
         this.tokens=idParentheses(this.tokens);
-        console.log(this.tokens)
         const map=this.tokens.map((token: any,index: any)=> token instanceof BasicMathJaxToken&&token.isValueToken()?index:null).filter((item: null) => item !== null)
         const arr=findConsecutiveSequences(map);
         this.connectAndCombine(arr);

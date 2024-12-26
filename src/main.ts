@@ -50,7 +50,7 @@ export default class Moshe extends Plugin {
 		this.tikzProcessor.addSyntaxHighlighting();
 		this.tikzProcessor.registerTikzCodeBlock();
     
-    this.addSettingTab(new LatexSuiteSettingTab(this.app, this));
+    console.log('this.registerMarkdownCodeBlockProcessor("math-engine", this.processMathBlock.bind(this));')
     this.registerMarkdownCodeBlockProcessor("math-engine", this.processMathBlock.bind(this));
     this.registerMarkdownCodeBlockProcessor("tikzjax", this.processTikzBlock.bind(this));
     this.registerCommands();
@@ -244,15 +244,16 @@ async loadSettings() {
 	}
 
   private processMathBlock(source: string, mainContainer: HTMLElement): void {
+    
+    console.log('processMathBlock')
     mainContainer.classList.add("math-container");
     
     const userVariables: { variable: string; value: string }[] = [];
     let skippedIndexes = 0;
     
-    const expressions = source.split("\n").map(line => line.trim()).filter(line => line && !line.startsWith("//"));
+    const expressions = source.split("\n").map(line => line.replace(/[\s]+/,'').trim()).filter(line => line && !line.startsWith("//"));
     if (expressions.length === 0) {return;}
 
-    
     expressions.forEach((expression, index) => {
       let lineContainer: HTMLDivElement = document.createElement("div");
       lineContainer.classList.add("math-line-container", (index-skippedIndexes) % 2 === 0 ? "math-row-even" : "math-row-odd");
@@ -295,7 +296,7 @@ class ProcessMath {
     this.assignMode();
     this.setupContainer();
     this.handleVariables();
-    this.renderMath();
+    this.calculateMath();
   }
 
   private setupContainer() {
@@ -307,7 +308,7 @@ class ProcessMath {
     this.container.appendChild(this.iconsDiv);
   }
 
-  private renderMath() {
+  private calculateMath() {
     const inputDiv = this.container.querySelector(".math-input") as HTMLElement;
     const resultDiv = this.container.querySelector(".math-result") as HTMLElement;
     try {
