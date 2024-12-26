@@ -130,7 +130,6 @@ function parse(position: { operator: any; specialChar?: any; left?: any; right?:
     
     left=left?.tokens
     right=right.tokens
-    //console.log('this.left,this.right',left,right)
     parseSafetyChecks(operator,left,right);
     
     let solved=new Token(0,undefined);
@@ -229,7 +228,6 @@ function parse(position: { operator: any; specialChar?: any; left?: any; right?:
             return ;
         }
         if (position.operator==='*'){return handleVariableMultiplication(left,right,solved)}
-        //console.log(left.variable,right.variable)
         if (left.variable!==right.variable){
             throw new Error("Two variable equations aren't accepted yet");
         }
@@ -375,7 +373,6 @@ export class Position {
             default:
                 throw new Error(`Operator ${this.operator} was not accounted for, or is not the valid operator`);
         }
-        //console.log(tokens.tokens)
         this.specialChar=tokens[this.index].specialChar ? tokens[this.index].specialChar : null;
     }
     applyPosition(tokens: any[], index:  number, direction: string) {
@@ -467,7 +464,9 @@ export function parseOperator(operator: mathJaxOperator): boolean {
 
 
 function operationsOrder(tokens: any[]) {
-    function findOperatorIndex(begin: number, end: number, tokens: any, findParenIndex?: any, regex?: any) {
+    function findOperatorIndex(begin: number, end: number, tokens: any, regex?: any) {
+        const index=tokens.slice(begin, end).findIndex((token: { type: string; value: any; }) => token.type === "operator" && regex.test(token.value));
+        return index>-1?index+begin:null;
         while (begin < end && begin < tokens.length) {
             let index;
             
@@ -506,9 +505,6 @@ function operationsOrder(tokens: any[]) {
         }
     }
 
-    operatorFound = findOperatorIndex(begin,end,tokens)!==-1;
-
-    if (j>=200){throw new Error("operationsOrder Failed exceeded 200 revisions");}
     let priority=null
     for (let i=1;i<=6;i++){
         priority = findOperatorIndex(begin , end,tokens, getMathJaxOperatorsByPriority(i,true));
@@ -525,16 +521,16 @@ export class MathPraiser{
     mathInfo=new MathInfo();
     i=0;
     constructor(input: string){
+        console.log('Starting new math, Fraser session')
         this.input=input;
         this.processInput();
-        
         const tokens=new Tokens(this.input);
-        const basicTokens=tokens.tokens
+        //const basicTokens=tokens.tokens
 
-        this.addDebugInfo("Tokens after tokenize",basicTokens)
+        //this.addDebugInfo("Tokens after tokenize",basicTokens)
         //this.input=this.tokens.reconstruct()
-        this.controller(basicTokens);
-        this.solution=this.tokens
+        //this.controller(basicTokens);
+        //this.solution=this.tokens
         this.addDebugInfo("solution",this.solution)
     }
     getRedyforNewRond(){
@@ -569,21 +565,37 @@ export class MathPraiser{
         newOperator.setGroup1(new MathGroup(position.right.tokens))
         return newOperator
     }
-    defineGroupsAndOperators(tokens: Array<Token|MathGroup|mathJaxOperator>):boolean|this{
-        const range=operationsOrder(tokens);
-        if(range.start===null||range.end===null)return false;
-        if(range.specificOperatorIndex===null&&range.start===0&&range.end===tokens.length)return true;
-        let newMathGroup=null
-        if (range.specificOperatorIndex!==null)
-            newMathGroup=this.createOperatorItemFromTokens(tokens,range.specificOperatorIndex)
-        else
-            newMathGroup=this.createMathGroupInsertFromTokens(tokens,range.start,range.end)
-        if(!newMathGroup)return false;
-        tokens.splice(range.start,range.end-range.start,newMathGroup);
-        return this.defineGroupsAndOperators(tokens);
+    defineGroupsAndOperators(tokens: Array<Token | MathGroup | mathJaxOperator>): MathGroup | this {
+        while (true) {
+            const range = operationsOrder(tokens);
+            if (range.start === null || range.end === null) {
+                throw new Error(`Invalid range: start=${range.start}, end=${range.end}`);
+            }
+    
+            let newMathGroup = null;
+            if (range.specificOperatorIndex !== null) {
+                newMathGroup = this.createOperatorItemFromTokens(tokens, range.specificOperatorIndex);
+            } else {
+                newMathGroup = this.createMathGroupInsertFromTokens(tokens, range.start, range.end);
+            }
+    
+            if (!newMathGroup) {
+                throw new Error('Failed to create MathGroup');
+            }
+    
+            if (range.specificOperatorIndex === null && range.start === 0 && range.end === tokens.length) {
+                return newMathGroup instanceof MathGroup ? newMathGroup : new MathGroup([newMathGroup]);
+            }
+    
+            // Modify tokens in place
+            tokens.splice(range.start, range.end - range.start, newMathGroup);
+            console.log('tokens',tokens)
+        }
     }
+    
+    
+    
     parse(tokens: MathGroup): void {
-        console.log()
         
         const operator = tokens.items.find(
             t => t instanceof mathJaxOperator && t.isOperable
@@ -597,7 +609,7 @@ export class MathPraiser{
         if (operator.associativityNumber > 1 && operator.group2) {
             group2 = this.parse(operator.group2);
         }
-        console.log('operator', operator, group1, group2);
+        //console.log('operator', operator, group1, group2);
     
         parseOperator(operator);
         if (!operator.solution) {
@@ -612,13 +624,11 @@ export class MathPraiser{
     controller(basicTokens: Token[]): any{
         // The expression needs to be wrapped N a operator based on praising method Maybe not decided on it yet.
         //const whatebver=
-        const success=this.defineGroupsAndOperators(basicTokens)
-        console.log('this.defineGroupsAndOperators(basicTokens)',basicTokens)
-        if(!success)return
-        this.tokens=new MathGroup(basicTokens)
-        this.parse(this.tokens)
-        this.tokens.combiningLikeTerms()
-        console.log('basicTokens',basicTokens)
+        const groupsAndOperators=this.defineGroupsAndOperators(basicTokens)
+        if(groupsAndOperators instanceof MathGroup)this.tokens=groupsAndOperators;
+        //this.parse(this.tokens)
+        //this.tokens.combiningLikeTerms()
+        console.log('this.tokens',this.tokens)
         /*
         this.tokens.tokens.combiningLikeTerms()
         for (let i = 0; i < this.tokens.tokens.items.length; i++) {
