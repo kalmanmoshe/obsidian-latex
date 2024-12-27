@@ -32,6 +32,7 @@ export default class Moshe extends Plugin {
   editorExtensions2: EditorExtensions= new EditorExtensions();
 
   async onload() {
+    console.log("new lod")
     await this.loadSettings();
 
 		this.loadIcons();
@@ -50,7 +51,6 @@ export default class Moshe extends Plugin {
 		this.tikzProcessor.addSyntaxHighlighting();
 		this.tikzProcessor.registerTikzCodeBlock();
     
-    console.log('this.registerMarkdownCodeBlockProcessor("math-engine", this.processMathBlock.bind(this));')
     this.registerMarkdownCodeBlockProcessor("math-engine", this.processMathBlock.bind(this));
     this.registerMarkdownCodeBlockProcessor("tikzjax", this.processTikzBlock.bind(this));
     this.registerCommands();
@@ -58,6 +58,31 @@ export default class Moshe extends Plugin {
       
     //this.registerEditorSuggest(new NumeralsSuggestor(this));
     
+  }
+
+  private processMathBlock(source: string, mainContainer: HTMLElement): void {
+    
+    mainContainer.classList.add("math-container");
+    
+    const userVariables: { variable: string; value: string }[] = [];
+    let skippedIndexes = 0;
+    
+    const expressions = source.split("\n").map(line => line.replace(/[\s]+/,'').trim()).filter(line => line && !line.startsWith("//"));
+    if (expressions.length === 0) {return;}
+
+    expressions.forEach((expression, index) => {
+      let lineContainer: HTMLDivElement = document.createElement("div");
+      lineContainer.classList.add("math-line-container", (index-skippedIndexes) % 2 === 0 ? "math-row-even" : "math-row-odd");
+      //if (expression.match(/^\/\//)){}
+      const processMath = new ProcessMath(expression,userVariables, this.app,lineContainer);
+      processMath.initialize();
+
+      if(processMath.mode!=="variable"){
+        lineContainer = processMath.container as HTMLDivElement;
+        mainContainer.appendChild(lineContainer);
+      }
+      else{skippedIndexes++;}
+    });
   }
 
   addEditorCommands() {
@@ -75,7 +100,6 @@ export default class Moshe extends Plugin {
 			return await parseSnippets(this.settings.snippets, snippetVariables);
 		} catch (e) {
 			new Notice(`Failed to load snippets from settings: ${e}`);
-			console.log(`Failed to load snippets from settings: ${e}`);
 			return [];
 		}
 	}
@@ -94,7 +118,6 @@ export default class Moshe extends Plugin {
   });
   graph.appendChild(svg.getSvg());
   svg.debugInfo+=graph.outerHTML
-  //console.log(graph.outerHTML)
   icon.onclick = () => new DebugModal(this.app, svg.debugInfo).open();
   
   container.appendChild(icon);
@@ -243,31 +266,7 @@ async loadSettings() {
 		});
 	}
 
-  private processMathBlock(source: string, mainContainer: HTMLElement): void {
-    
-    console.log('processMathBlock')
-    mainContainer.classList.add("math-container");
-    
-    const userVariables: { variable: string; value: string }[] = [];
-    let skippedIndexes = 0;
-    
-    const expressions = source.split("\n").map(line => line.replace(/[\s]+/,'').trim()).filter(line => line && !line.startsWith("//"));
-    if (expressions.length === 0) {return;}
-
-    expressions.forEach((expression, index) => {
-      let lineContainer: HTMLDivElement = document.createElement("div");
-      lineContainer.classList.add("math-line-container", (index-skippedIndexes) % 2 === 0 ? "math-row-even" : "math-row-odd");
-      //if (expression.match(/^\/\//)){}
-      const processMath = new ProcessMath(expression,userVariables, this.app,lineContainer);
-      processMath.initialize();
-
-      if(processMath.mode!=="variable"){
-        lineContainer = processMath.container as HTMLDivElement;
-        mainContainer.appendChild(lineContainer);
-      }
-      else{skippedIndexes++;}
-    });
-  }
+  
 }
 
 
