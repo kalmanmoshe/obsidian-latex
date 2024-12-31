@@ -351,7 +351,7 @@ class ProcessMath {
     inputDiv.appendChild(renderMath(input,true))
     //MarkdownRenderer.renderMarkdown(`\${${input}}$`, inputDiv, "", new Component());
     //const resultOutput = /(true|false)/.test(result) ? result : `\${${result}}$`;
-    resultDiv.appendChild(renderMath(result.solutionToString()||"",true))
+    resultDiv.appendChild(renderMath(String(roundBySettings(result.solutionToString())),true))
     //MarkdownRenderer.renderMarkdown(resultOutput, resultDiv, "", new Component());
   }
 
