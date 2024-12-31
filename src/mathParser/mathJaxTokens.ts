@@ -41,76 +41,7 @@ export function deepSearchWithPath(
     // If no match is found
     return null;
 }
-
-
-export class MathJaxOperator{
-    operator: string;
-    groupNum: number=1;
-    groups: MathGroup[];
-    solution: MathGroup
-    isOperable: boolean=true;
-    constructor(operator?: string,groupNum?: number,groups?: MathGroup[],solution?: MathGroup,isOperable?: boolean){
-        if (operator)this.operator=operator;
-        if(groupNum)this.groupNum=groupNum;
-        if(groups)this.groups=groups;
-        if(solution)this.solution=solution;
-        if(isOperable)this.isOperable=isOperable;
-    }
-    clone() {
-        const groups = this.groups.map(group => group.clone());
-        const solution = this.solution ? this.solution.clone() : undefined;
-        return new MathJaxOperator(this.operator, this.groupNum, groups, solution, this.isOperable);
-    }
-
-    setGroup(group: MathGroup,index:number){this.groups[index]=group}
-    toStringSolution(){
-        return this.toString()+' = '+this.solution.toString();
-    }
-    toString(customFormatter?: (check: any,string: string) => any){
-        function wrapGroup(group: MathGroup, wrap: BracketType,optional: boolean): string {
-            if(optional&&group.singular())return group.toString(customFormatter);
-            const groupStr=group.toString(customFormatter)
-            switch (wrap) {
-                case BracketType.Parentheses:
-                    return `(${groupStr})`;
-                case BracketType.CurlyBraces:
-                    return `{${groupStr}}`;
-                default:
-                    return groupStr;
-            }
-        }
-
-        const metadata = searchMathJaxOperators(this.operator);
-        if (!metadata) return '';
-        if(metadata.associativity.numPositions>2||metadata.associativity.numPositions<1){
-            throw new Error(`Invalid number of positions for associativity: ${metadata.associativity.numPositions}`);
-        }
-
-        const operator = metadata.latex;
-        let index=0;
-        let string = '';
-
-        getValuesWithKeysBySide(metadata.associativity.positions,true).forEach(item => {
-            if (!item) return;
-            string += wrapGroup(this.groups[index], item.bracketType, item.isBracketOptional);
-            index++;
-        });
-
-        string += operator;
-        getValuesWithKeysBySide(metadata.associativity.positions,false).forEach(item => {
-            if (!item) return;
-            string += wrapGroup(this.groups[index], item.bracketType, item.isBracketOptional);
-            index++;
-        });
-
-        if (customFormatter) 
-            return customFormatter(this,string)
-        return string.trim();
-    }
-}
-
-
-export function ensureAcceptableFormatForMathGroupItems(items: any): MathGroupItems {
+export function ensureAcceptableFormatForMathGroupItems(items: any): MathGroupItem[] {
     if (!Array.isArray(items)) {
         if (!items.length&&items instanceof MathGroup) {
             items=items.getItems();
@@ -138,7 +69,7 @@ export function ensureAcceptableFormatForMathGroupItems(items: any): MathGroupIt
     return formattedItems;
 }
 
-function typeCheckMathGroupItems(items: any): items is MathGroupItems {
+function typeCheckMathGroupItems(items: any): items is MathGroupItem[] {
     if(!Array.isArray(items)){
         console.error('items',items)
         throw new Error("Expected items to be an array but received: "+items);
@@ -154,16 +85,104 @@ function typeCheckMathGroupItems(items: any): items is MathGroupItems {
     });
     return true;
 }
-export type MathGroupItems=Array<Token|MathGroup|MathJaxOperator>
+function shouldAddPlus(group1?: any,group2?: any){
+    if(!group1||!group2)return '';
+
+    return '+';
+}
+function canCombine(math: MathGroup,operator: MathJaxOperator){
+
+}
+
+export class MathJaxOperator{
+    operator: string;
+    groupNum: number=1;
+    groups: MathGroup[];
+    solution: MathGroup
+    isOperable: boolean=true;
+    constructor(operator?: string,groupNum?: number,groups?: MathGroup[],solution?: MathGroup,isOperable?: boolean){
+        if (operator)this.operator=operator;
+        if(groupNum)this.groupNum=groupNum;
+        if(groups)this.groups=groups;
+        if(solution)this.solution=solution;
+        if(isOperable)this.isOperable=isOperable;
+    }
+    isVar(){}
+    isRootLevel(){
+        return this.getDeepth().max===0;
+    }
+    clone() {
+        const groups = this.groups.map(group => group.clone());
+        const solution = this.solution ? this.solution.clone() : undefined;
+        return new MathJaxOperator(this.operator, this.groupNum, groups, solution, this.isOperable);
+    }
+    getDeepth(){
+        let deepths: number[]=[];
+        this.groups.forEach(group => {
+            deepths.push(group.getDeepth().max)
+        });
+        return {max: Math.max(...deepths), deepths: deepths}
+    }
+    setGroup(group: MathGroup,index:number){this.groups[index]=group}
+    toStringSolution(){
+        return this.toString()+' = '+this.solution.toString();
+    }
+    getId(){return this.operator}
+    toString(customFormatter?: (check: any,string: string) => any){
+        function wrapGroup(group: MathGroup, wrap: BracketType,optional: boolean): string {
+            if(optional&&group.singular())return group.toString(customFormatter);
+            const groupStr=group.toString(customFormatter)
+            switch (wrap) {
+                case BracketType.Parentheses:
+                    return `(${groupStr})`;
+                case BracketType.CurlyBraces:
+                    return `{${groupStr}}`;
+                default:
+                    return groupStr;
+            }
+        }
+
+        const metadata = searchMathJaxOperators(this.operator);
+        if (!metadata) return '';
+        if(metadata.associativity.numPositions>2||metadata.associativity.numPositions<1){
+            throw new Error(`Invalid number of positions for associativity: ${metadata.associativity.numPositions}`);
+        }
+
+        const operator = metadata.latex;
+        let index=0;
+        let string = '';
+
+        getValuesWithKeysBySide(metadata.associativity.positions,true).forEach(item => {
+            if (!item) return;
+            console.log(item)
+            string += shouldAddPlus(this.groups[index-1],this.groups[index])+wrapGroup(this.groups[index], item.bracketType, item.isBracketOptional);
+            index++;
+        });
+
+        string += operator;
+        getValuesWithKeysBySide(metadata.associativity.positions,false).forEach(item => {
+            if (!item) return;
+            string += shouldAddPlus(this.groups[index],this.groups[index+1])+wrapGroup(this.groups[index], item.bracketType, item.isBracketOptional);
+            index++;
+        });
+
+        if (customFormatter) 
+            return customFormatter(this,string)
+        return string.trim();
+    }
+}
+
+
+export type MathGroupItem=Token|MathGroup|MathJaxOperator
 export class MathGroup {
-    private items: MathGroupItems = [];
+    private items: MathGroupItem[] = [];
     
-    constructor(items?: MathGroupItems) {
+    constructor(items?: MathGroupItem[]) {
         if(items)this.items=items
         typeCheckMathGroupItems(this.items)
     }
-    getItems(): MathGroupItems {return this.items;}
-    setItems(items: MathGroupItems) {
+    getItems(): MathGroupItem[] {return this.items;}
+    setItems(items: MathGroupItem[]) {
         typeCheckMathGroupItems(this.items)
         this.items = items;
     }
@@ -192,6 +211,10 @@ export class MathGroup {
     singular():boolean {return this.items.length === 1 && this.items[0] !== undefined;}
     singulToken(): this is { items: [Token] } {return this.singular() && this.items[0] instanceof Token;}
     isRootLevel(){return this.items.every((item) => item instanceof Token);}
+    extremeSimplifyAndGroup(){
+        this.tryRemoveUnnecessaryNested();
+        this.combiningLikeTerms()
+    }
 
     tryRemoveUnnecessaryNested(): void {
         if (this.singular()) {
@@ -204,6 +227,16 @@ export class MathGroup {
                 });
             }
         }
+    }
+    getDeepth(){
+        let deepths: number[]=[];
+        this.items.forEach(item => {
+            if(item instanceof Token){
+                deepths.push(0);return;
+            };
+            deepths.push(item.getDeepth().max+1)
+        });
+        return {max: Math.max(...deepths), deepths: deepths}
     }
     isOperable(){return true}
 
@@ -241,44 +274,47 @@ export class MathGroup {
     
         return true;
     }
-    
-    combiningLikeTerms() {
+    levelMap(): Map<any,any>{
         const overview = new Map();
-        this.items.forEach((item: any) => {
+        this.items.forEach((item: MathGroupItem) => {
             const key = item.getId();
             if (!overview.has(key)) {
                 const entry = {
                     count: 0,
-                    variable: item.variable,
+                    variable: (item as any).variable || null,
                     items: []
                 };
                 overview.set(key, entry);
             }
-    
             const entry = overview.get(key);
             entry.count++;
             entry.items.push(item);
         });
-        
+        return overview
+    }
+    combiningLikeTerms() {
+        const overview=this.levelMap()
         const combinedItems = [];
         for (const [key, value] of overview.entries()) {
             if (key.includes("operator")) {
                 combinedItems.push(...value.items);
                 continue;
             }
-            const sum = value.items.reduce((total: any, item: Token) => total + (item.getValue() || 0), 0);
+            const sum = value.items.reduce((total: any, item: Token) => total + (item.getValue?item.getValue(): 0), 0);
     
-            const token = new Token(sum, value.variable);
+            const token = new Token(sum, value.variable??undefined);
             combinedItems.push(token);
         }
         this.items = combinedItems;
     }
+
     toString(customFormatter?: (check: any,string: string) => any){
         let string='';
         if(!Array.isArray(this.items)){
             throw new Error("Expected items to be an array but received: "+this.items);
         }
-        this.items.forEach(item => {
+        this.items.forEach((item, index) => {
+            string+=shouldAddPlus(this.items[index-1],item)
             if (item instanceof MathGroup && !item.singular()) {
                 string += `(${item.toString(customFormatter)})`;
             }  else {
@@ -381,8 +417,7 @@ export class BasicMathJaxTokens{
     }
     implicitMultiplicationMap() {
         const testDoubleRight = (index: number) => {
-            if (!this.validateIndex(index)) return false;
-    
+            if (!this.validateIndex(index)||!(this.tokens[index] instanceof Paren)) return false;
             const idx = findParenIndex(index,this.tokens)?.open;
     
             if (idx == null || !isOpenParen(this.tokens[index + 1])) return false;
@@ -404,25 +439,27 @@ export class BasicMathJaxTokens{
         const checkImplicitMultiplication=(token: any)=>{
             return token instanceof BasicMathJaxToken&&typeof token.value==='string'&&hasImplicitMultiplication(token.value)
         }
-        const precedesVariable = () => {
-            // Logic for handling the 'precedes' scenario
+        const isVar=(token: any)=>{return token instanceof BasicMathJaxToken &&token.type==='variable'}
+        const precedesVariable = (tokens: any,index: number) => {
+            return index>0&&isVar(tokens[index])
         };
         
-        const followsVariable = () => {
-            // Logic for handling the 'follows' scenario
+        const followsVariable = (tokens: any,index: number) => {
+            return index<tokens.length-1&&isVar(tokens[index])
         };
         
-    
+        
         const map = this.tokens
             .map((token, index) => {
-                if (isOpenParen(token)|| checkImplicitMultiplication(token)) {
+                if (isOpenParen(token)|| checkImplicitMultiplication(token)||precedesVariable(this.tokens,index)) {
                     return check(index - 1) ? index : null;
-                } else if (isClosedParen(token)) {
+                } else if (isClosedParen(token)||followsVariable(this.tokens,index)) {
                     return check(index + 1) || testDoubleRight(index) ? index + 1 : null;
                 }
                 return null;
             })
             .filter((item) => item !== null);
+        console.log(this.tokens,map)
         return map;
     }
     

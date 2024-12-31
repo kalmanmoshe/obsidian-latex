@@ -84,25 +84,6 @@ export class MathInfo{
 
 }
 
-/*
-function safeToNumber(value) {
-    if (!(typeof value === "string")){return value}
-    if (value==="+"){return 0}
-    if (value==="-"){return -1}
-    if (/[a-zA-Z]/.test(value)){return 1}
-    if(/[([]/.test(value[0])){value = value.slice(1)}
-    if(/[)\]]/.test(value[value.length-1])){value = value.slice(0,value.length-1)}
-    for (let i = 0; i<value.length; i++) {
-        if (typeof value[i] === "string" && /[()[\]]/.test(value[i])) {
-            value = value.slice(0, i) + value.slice(i + 1);
-            i--;
-        }
-    }
-    const num = Number(value);
-    return isNaN(num) ? value.length>0?value:0 : num;
-}*/
-
-
 
 
 
@@ -121,85 +102,6 @@ function isolateMultiplication(tokens: any,isolatToken: Token){/*
     Isolated.value=1;
     tokens.insertTokens(index+1,tokens.tokens.length-index+1,frac)*/
 }
-
-function createFrac(nominator: any,denominator: Token){
-   // return [new Token('frac'),new Token('('),nominator,new Token(')'),new Token('('),denominator,new Token(')')]
-}
-/*
-function simplifiy(tokens: any[]){
-    if (tokens.length<=1){return tokens}
-    let i=0,newTokens=[];
-    while (i<=100&&tokens.some((token: any) => (/(number|variable|powerVariable)/).test(token.type)))
-    {
-        i++;
-        let eqindex=tokens.findIndex((token: { value: string; }) => token.value === "=");
-        let OperationIndex = tokens.findIndex((token: { type: string; }) => (/(number|variable|powerVariable)/).test(token.type));
-        if (OperationIndex===-1){return tokens;}
-
-        let currentToken={type: tokens[OperationIndex].type , value: tokens[OperationIndex].value,variable: tokens[OperationIndex].variable ,pow: tokens[OperationIndex].pow}
-
-        let numberGroup = tokens
-        .map((token: any, i: any) => ({ token, originalIndex: i })) 
-        .filter((item: { token: { type: any; }; }) => item.token.type===currentToken.type) 
-        .reduce((sum: number, item: { originalIndex: number; token: { type: string; value: number; }; }) => {
-        let multiplier=(tokens[item.originalIndex - 1] && tokens[item.originalIndex - 1].value === "-") ? -1 : 1;
-        multiplier *= (item.originalIndex <= eqindex) ? -1 : 1; 
-        if (!(/(number)/).test(item.token.type)){multiplier*=-1}
-        return sum + (item.token.value * multiplier);
-        }, 0); 
-        
-        newTokens.push({
-            ...currentToken,
-            value: numberGroup
-        });
-
-        tokens = tokens.filter(token => 
-            token.type !== tokens[OperationIndex].type || 
-            (token.variable && token.variable !== currentToken.variable) || 
-            (token.pow && token.pow !== currentToken.pow)
-        );
-    }
-    return newTokens;
-}
-*/
-/*
-function rearrangeForIsolation(tokens: Tokens, isolationGoal: { type: any; value: any; overviewSideOne?: Map<any, any>; overviewSideTwo?: Map<any, any>; }) {
-    if (tokens.tokens.length <= 1) return tokens;
-
-    const eqIndex = tokens.tokens.findIndex((t: { value: string; }) => t.value === 'Equals');
-    if (eqIndex === -1) throw new Error("No 'Equals' operator found in tokens");
-
-    const switchDirection = false; // Future logic to determine direction
-    const isolationGoalIndices = tokens.tokens
-        .map((t: { type: any; variable: any; }, idx: any) => (t.type === isolationGoal.type && t.variable === isolationGoal.value ? idx : null))
-        .filter((idx: null|number) => idx !== null);
-
-    const otherIndices = tokens.tokens
-        .map((_: any, idx: any) => (!isolationGoalIndices.includes(idx) && idx !== eqIndex ? idx : null))
-        .filter((idx: null|number) => idx !== null);
-
-    // Adjust signs
-    tokens.tokens.forEach((token: { value: number; }, i: number) => {
-        if ((switchDirection? i > eqIndex : i < eqIndex) && otherIndices.includes(i)) {
-            token.value *= -1;
-        } else if ((switchDirection? i < eqIndex : i > eqIndex) && isolationGoalIndices.includes(i)) {
-            token.value *= -1;
-        }
-    });
-
-    // Separate sides
-    const side1: any[] = [];
-    const side2: any[] = [];
-    tokens.tokens.forEach((token: any, i: any) => {
-        if (isolationGoalIndices.includes(i)) side1.push(token);
-        if (otherIndices.includes(i)) side2.push(token);
-    });
-
-    tokens.tokens = switchDirection
-        ? [...side2, tokens.tokens[eqIndex], ...side1]
-        : [...side1, tokens.tokens[eqIndex], ...side2];
-}
-*/
 
 
 
@@ -368,6 +270,8 @@ export class MathPraiser{
 
     
     parse(tokens: MathGroup): void {
+        console.log(tokens.getDeepth())
+        tokens.extremeSimplifyAndGroup()
         const operatorIndex=tokens.getItems().findIndex(
             t => t instanceof MathJaxOperator && t.isOperable
         ) ;
@@ -443,22 +347,6 @@ export class MathPraiser{
     }
     solutionToString(){
         return (this.tokens.toString())||""
-    }
-
-    praisingMethod(){
-        /*
-        const filterByType=(type)=>this.tokens.tokens.filter(token => token.type === type);
-        const [numberIndex,variableIndex,powIndex] = [filterByType("number"),filterByType("variable"),filterByType("powerVariable")]
-        if (powIndex.length===1&&powIndex[0].pow===2)
-            return this.useQuadratic()
-        return this.useIsolat();*/
-    }
-
-    useIsolat(praisingMethod: PraisingMethod){
-        //isolateMultiplication(this.tokens,new Token(praisingMethod.variables[0]))
-        //return this.controller()
-        //this.tokens.insertTokens()
-        //Use possession
     }
 
     useQuadratic(){/*
@@ -555,131 +443,4 @@ export function flattenArray(arr: any) {
         }
     }
     return result.reverse();
-}
-
-
-
-class PraisingMethod{/*
-    tokens
-    overview: any;
-    variables: Set<string>;
-    constructor(tokens: any){
-        this.tokens=tokens
-        this.overview=this.getOverview()
-        this.assignVariables()
-    }
-    isVarWithValueBiggerThanOne(){
-        return this.tokens.some((t: any)=> t.type==='variable'&&t.value>1)
-    }
-
-    isMultiplicationIsolate(){
-        return this.haseVariable()&&this.isVarWithValueBiggerThanOne()&&this.isEqualsTheOnlyOperator()
-    }
-    isIsolate(){
-        //return this.
-    }
-
-    isAnythingToIsolate(){
-        if(this.variables.length>1)throw new Error("two var eq arent saported yet")
-        if(!this.isEqualsTheOnlyOperator())return;
-        const eqIndex=this.equalsIndexIfAny();
-        if(!eqIndex){return};
-        const befor = this.getOverview(this.tokens.slice(0,eqIndex))
-        const after = this.getOverview(this.tokens.slice(eqIndex+1))
-        const whatToIsolat =this.whatToIsolat();
-        if ((!befor||!after)||!whatToIsolat||(befor?.size<2&&after?.size<2))return;
-        return {overviewSideOne: befor,overviewSideTwo: after,...whatToIsolat}
-    }/*
-    howToIsolate(overviewSideOne,overviewSideTwo,isolationGool){
-        const isolationType=isolationGool.splt(':');
-        //if (){}
-    }
-    whatToIsolat(){
-        // i need to add pows after
-        // for know im going on the oshomshin that thr is only one var
-        if(this.variables?.length<1)return;
-
-        return {type: 'variable',value: this.variables[0]}
-    }/*
-    isOverviewToisolat(overview){
-    }
-    isImbalance(overview: { size: number; }){
-        overview.size>1
-    }
-    equalsIndexIfAny(){
-        const eqIndex=this.tokens.map((t: { value: string; },idx: any)=>t.value==='Equals'?idx:null).filter((m: null)=>m!==null);
-        return eqIndex[0];
-    }
-    isQuadratic(){
-
-    }
-    isFinalReturn(){
-        return this.tokens.length<2||(this.isEqualsTheOnlyOperator())
-    }
-    
-    assignVariables(){
-        this.variables=[]
-        for (const [key, value] of this.overview.entries()){
-            if (key?.startsWith('variable:')&&!this.variables.includes(value.variable)){
-                this.variables.push(value.variable)
-            }
-        }
-    }
-
-    haseVariable(){return this.variables?.length>0}
-
-    isThereOperatorOtherThanEquals(){
-        const filter=this.filterByType('operator','Equals')
-        return  filter.noMatch>0
-    }
-    isEqualsTheOnlyOperator(){
-        const filter=this.filterByType('operator','Equals')
-        return  filter.match===1&&filter.noMatch===0
-    }
-
-    filterByType(typeKey: string, targetValue: string){
-        let match=0, noMatch=0
-        for (const [key, value] of this.overview.entries()) {
-            if (key?.startsWith(typeKey)) {
-                if (key === typeKey+':'+targetValue) {
-                    match++;
-                } else {
-                    noMatch++;
-                }
-            }
-        }
-        return { match: match, noMatch: noMatch };
-    }
-    getOverview(tokens?: any[] ) {
-        if(!tokens)tokens=this.tokens
-        if(!tokens)return;
-        const overview = new Map();
-        tokens.forEach(token => {
-            //if (!token.isValueToken()) {return;}
-            const key = token.getFullTokenID()
-            //Equals
-            if (!overview.has(key)) {
-                const entry = { 
-                    type: token.type, 
-                    count: 0 ,
-                    variable: undefined
-                };
-                if (token.type === 'variable') {
-                    entry.variable = token.variable;
-                }
-    
-                overview.set(key, entry);
-            }
-            overview.get(key).count++;
-        });
-        return overview//Array.from(overview.values());
-    }*/
-}
-
-class Operator{
-
-}
-
-class Modifier{
-
 }
