@@ -9,9 +9,14 @@ export class Paren{
         this.type=type
     }
     toString(){this.id=this.depth + "." + this.depthID}
-    compare(Paren){return this.depth===Paren.depth&&this.depthID===Paren.depthID}
+    compare(paren){
+        if(!(paren instanceof Paren)) return false;
+        return this.depth===paren.depth&&this.depthID===paren.depthID
+    }
     addDepth(num){this.depth+=num}
+    isOpen(){return open.includes(this.type)}
     adddepthID(num){this.depthID+=num}
+    clone(){return new Paren(this.depth,this.depthID,this.type)}
 }
 const open=['Parentheses_open','Curly_brackets_open','Square_brackets_open'];
 const close=['Parentheses_close','Curly_brackets_close','Square_brackets_close'];
@@ -108,17 +113,50 @@ export function findModifiedParenIndex(id, index, tokens, depth, depthID, filter
 }
 
 
+/**
+ * Finds the indices of the opening and closing parentheses based on the given ID.
+ * @param {Paren|number} id - The identifier to compare tokens. Defaults to the token at the given index if a number is provided.
+ * @param {Array} tokens - The array of tokens to search within.
+ * @returns {{open: number, close: number, id: Paren}} An object containing the indices of the opening and closing parentheses and the matched ID.
+ * - `open`: The index of the first matching opening parenthesis.
+ * - `close`: The index of the last matching closing parenthesis.
+ * - `id`: The identifier used for comparison.
+ */
+export function findParenIndex(id, tokens) {
+    const index = typeof id === "number" ? id : null;
+    id = index !== null ? tokens[index] : id;
 
-export function findParenIndex(id,index,tokens){
-    id=id?id:tokens[index];
+    if (!(id instanceof Paren)) {
+        throw new TypeError("Invalid ID: Expected a Paren object or a valid index.");
+    }
+    const openIndex = tokens.findIndex(
+        (token) => isOpenParen(token) && id.compare(token)
+    );
 
-    const openIndex=tokens.findIndex(
-        token=>open.includes(token.type)
-        &&id.compare(token)
-    )
-    const closeIndex=tokens.findLastIndex(
-        token=>close.includes(token.type)
-        &&id.compare(token)
-    )
-    return{open: openIndex,close: closeIndex,id:id}
+    const closeIndex = tokens.findLastIndex(
+        (token) => isClosedParen(token) && id.compare(token)
+    );
+    if(openIndex===-1||closeIndex===-1)throw new Error('Parentheses not found')
+    return { open: openIndex, close: closeIndex, id };
 }
+
+export function findDeepestParenthesesScope(tokens) {
+    let begin = 0,
+        end = tokens.length;
+    let deepestScope = null;
+    let currentScope = null; // Define currentScope in the outer scope of the loop
+
+    for (let i = 0; i < tokens.length; i++) {
+        if (isOpenParen(tokens[i])) {
+            currentScope = findParenIndex(tokens[i],tokens);  
+        }
+        if (currentScope!==null&&i===currentScope.close) {
+            [begin,end]=[currentScope.open,currentScope.close]
+            deepestScope=currentScope.id
+            break;
+        }
+    }
+
+    return { begin, end, deepestParenthesesScope: deepestScope ?? null };
+}
+

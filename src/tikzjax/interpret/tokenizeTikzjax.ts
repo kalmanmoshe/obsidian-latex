@@ -139,7 +139,7 @@ class TikzCommands{
             console.error("Error: Unable to find matching brackets.");
             return;
         }
-        id1=findParenIndex(id1, undefined, tokens)
+        id1=findParenIndex(id1, tokens)
         let trigger, hooks, content;
         content = tokens.splice(id3.open + 1, id3.close - id3.open - 1);
         hooks = tokens.splice(id2.open + 1, id2.close - id2.open - 1);
