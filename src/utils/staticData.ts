@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 
 
 export const  keyboardAutoReplaceHebrewToEnglishTriggers =
@@ -220,15 +221,29 @@ export function createMathJaxOperatorMetadata(
         name: overrides.name ?? 'Unknown',
         latex: overrides.latex ?? references[0] ?? '',
         backslash: overrides.backslash ?? false,
-        references: references,
+        references: [...createReferencesFromlatex(overrides.latex),...references],
         priority: overrides.priority ?? 0,
         associativity: {
             numPositions: positions.size,
-            ranges: { min: minKey, max: maxKey },
+            ranges: (overrides?.associativity?.ranges ?? { min: minKey, max: maxKey }) as { min: number; max: number },
             positions,
         },
     };
 }
+
+function createReferencesFromlatex(latex?: string):string[]{
+    const arr: string[]=[];
+    if(!latex)return arr;
+    arr.push(latex)
+    if(latexCommand(latex))arr.push(`\\${latex}`)
+    return arr;
+}
+const latexCommand= (str: string) => /^[a-zA-Z]+$/.test(str);
+
+function stringLatex(latex: string){
+    return latexCommand(latex)?`\\${latex}\s`:latex
+}
+
 
 
 function objectToMap<T>(obj?: Record<number | string, T>): Map<number, T> {
@@ -314,8 +329,8 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
     {
         type: OperatorType.Arithmetic,
         name: 'Multiplication',
-        latex: '\\cdot',
-        references: ['\\cdot', 'cdot', '*'],
+        latex: 'cdot',
+        references: ['*'],
         priority: 3,
         associativity: {
             positions: {
@@ -327,8 +342,8 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
     {
         type: OperatorType.Arithmetic,
         name: 'Division',
-        latex: '\\div',
-        references: ['\\div', '/'],
+        latex: 'div',
+        references: ['/'],
         priority: 3,
         associativity: {
             positions: {
@@ -341,8 +356,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
     {
         type: OperatorType.Trigonometric,
         name: 'Sine',
-        latex: '\\sin',
-        references: ['sin', '\\sin'],
+        latex: 'sin',
         priority: 2,
         associativity: {
             positions: {
@@ -353,8 +367,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
     {
         type: OperatorType.Trigonometric,
         name: 'Cosine',
-        latex: '\\cos',
-        references: ['cos', '\\cos'],
+        latex: 'cos',
         priority: 2,
         associativity: {
             positions: {
@@ -365,8 +378,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
     {
         type: OperatorType.Trigonometric,
         name: 'Tangent',
-        latex: '\\tan',
-        references: ['tan', '\\tan'],
+        latex: 'tan',
         priority: 2,
         associativity: {
             positions: {
@@ -405,8 +417,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
     {
         type: OperatorType.Fraction,
         name: 'Fraction',
-        latex: '\\frac',
-        references: ['\\frac', 'frac'],
+        latex: 'frac',
         priority: 1,
         associativity: {
             positions: {
@@ -419,8 +430,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
     {
         type: OperatorType.Radical,
         name: 'SquareRoot',
-        latex: '\\sqrt',
-        references: ['sqrt', '\\sqrt'],
+        latex: 'sqrt',
         priority: 1,
         associativity: {
             positions: {

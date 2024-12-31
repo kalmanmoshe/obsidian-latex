@@ -161,6 +161,12 @@ export function isOperatorWithAssociativity(value: string, sides: number[], abso
     return absolute ? operators.every((operator) => operator) : operators.some((operator) => operator);
 }
 
+/**
+ * Checks if a value matches any operator with the specified associativities.
+ * @param {string} value - The value to check.
+ * @param {Associativity[]} sides - The associativity sides to check (e.g., ['left', 'right']).
+ * @returns {boolean} - True if the value matches any operator with the specified associativities.
+ */
 export function getValuesWithKeysBySide<T>(map: Map<number, T>, left: boolean): T[] {
     return Array.from(map.entries())
         .filter(([key]) => left ? key < 0 : key > 0)
