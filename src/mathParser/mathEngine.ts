@@ -5,7 +5,7 @@ import { arrToRegexString, Axis, regExp } from "../tikzjax/tikzjax";
 import { Associativity } from "src/utils/staticData";
 import { findParenIndex, Paren,idParentheses, isOpenParen, findDeepestParenthesesScope } from "../utils/tokenUtensils";
 import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, searchMathJaxOperators } from "../utils/dataManager";
-import { MathGroup, MathJaxOperator, Token, BasicMathJaxTokens, BasicMathJaxToken, ensureAcceptableFormatForMathGroupItems, deepSearchWithPath } from "./mathJaxTokens";
+import { MathGroup, MathJaxOperator, Token, BasicMathJaxTokens, BasicMathJaxToken, ensureAcceptableFormatForMathGroupItems, deepSearchWithPath, MathGroupItem } from "./mathJaxTokens";
 import { start } from "repl";
 import { group } from "console";
 const greekLetters = [
@@ -189,11 +189,11 @@ export function parseOperator(operator: MathJaxOperator): boolean {
     function getOperableValue(group: MathGroup): number | null {
         if (!group||!group.isOperable()) return null;
         const value = group.getOperableValue();
-        return value?.getValue() ?? null;
+        return value&&!value?.isVar()?value.getNumberValue() : null;
     }
     const group1 = getOperableValue(operator.groups[0]);
     const group2 = getOperableValue(operator.groups[1]);
-    if (group1 === null||(group2===null&&operator.groupNum>1)) return false;
+    if (group1 === null||(group2===null&&operator.groups.length>1)) return false;
     
     switch (operator.operator) {
         case "Sine":
@@ -246,7 +246,6 @@ function operationsOrder(tokens: any[]) {
     return {start: begin,end: end,specificOperatorIndex: priority}
 }
 
-
 export class MathPraiser{
     input="";
     tokens: MathGroup;
@@ -256,7 +255,8 @@ export class MathPraiser{
         this.input=input;
         this.processInput();
         
-        const tokens=new BasicMathJaxTokens(this.input);
+        const tokens=new BasicMathJaxTokens();
+        tokens.addInput(this.input)
         const basicTokens=tokens.tokens
         
         this.convertBasicMathJaxTokenaToMathGroup(basicTokens)
@@ -270,8 +270,6 @@ export class MathPraiser{
 
     
     parse(tokens: MathGroup): void {
-        console.log(tokens.getDeepth())
-        tokens.extremeSimplifyAndGroup()
         const operatorIndex=tokens.getItems().findIndex(
             t => t instanceof MathJaxOperator && t.isOperable
         ) ;
@@ -293,77 +291,15 @@ export class MathPraiser{
     
     controller(): any{
         this.parse(this.tokens)
-
+        combineSimilarValues(this.tokens)
         this.tokens.removeNested()
         this.tokens.combiningLikeTerms()
 
-        //this.tokens.combiningLikeTerms()
-        /*
-        this.tokens.tokens.combiningLikeTerms()
-        for (let i = 0; i < this.tokens.tokens.items.length; i++) {
-            const item = this.tokens.tokens.items[i];
-        
-            if (!(item instanceof mathJaxOperator)) continue;
-        
-            this.tokens.tokens.items[i] = item.addSolution();
-        }        
-        */
-        //this.tokens.tokens.addSolution()
-        //return this.tokens.tokens;
-        
-        /*
-        this.i++;
-        if(this.i>10){return this.finalReturn()}
-
-        this.getRedyforNewRond();
-        //const overview=this.tokens.getOverview()
-        const praisingMethod=new PraisingMethod(this.tokens.tokens)
-        if (praisingMethod.isThereOperatorOtherThanEquals()){
-            const position = new Position(this.tokens);
-            this.addDebugInfo("Parsed expression", JSON.stringify(position, null, 1));
-            if (position === null&&this.tokens.tokens.length>1){
-                //this.addDebugInfo("parse(tokens)",parse(this.tokens.tokens))
-                return "the ****"
-            // return solution(tokens);
-            }
-            if (position.checkFrac()||position.checkMultiStep())
-            {
-                expandExpression(this.tokens,position);
-                this.mathInfo.addSolutionInfo(this.tokens.reconstruct(this.tokens.tokens))
-                return this.controller()
-            }
-            this.useParse(position)
-        }
-        if(praisingMethod.isMultiplicationIsolate()){
-            this.useIsolat(praisingMethod)
-        }
-        const toIsolate=praisingMethod.isAnythingToIsolate()
-        if (toIsolate){
-            rearrangeForIsolation(this.tokens,toIsolate)
-            return this.controller()
-        }   
-        //if (solved === null||typeof solved==="string") {return solved; }
-        return this.finalReturn()//this.tokens.tokens.length>1?this.controller():this.finalReturn();*/
     }
     solutionToString(){
         return (this.tokens.toString())||""
     }
 
-    useQuadratic(){/*
-        this.tokens.tokens=simplifiy(this.tokens.tokens)
-            const filterByType=(type: string)=>this.tokens.tokens.filter((token: { type: string; }) => token.type === type);
-            const [numberIndex,variableIndex,powIndex] = [filterByType("number"),filterByType("variable"),filterByType("powerVariable")]
-            this.mathInfo.addDebugInfo("simplifiy(tokens)",this.tokens.tokens)
-            if (powIndex.length===1&&powIndex[0].pow===2)
-            {
-                return quad(
-                    powIndex[0]?.value  | 0,
-                    variableIndex[0]?.value | 0,
-                    numberIndex[0]?.value * -1| 0,
-                    powIndex[0].variable,
-                );
-            }*/
-    }
     addDebugInfo(mes: string,value: any){
         this.mathInfo.addDebugInfo(mes,value)
     }
@@ -417,6 +353,18 @@ function deepClone(items: any[]) {
     });
     return clone;
 }
+
+function combineSimilarValues(math: MathGroup){
+    
+    const op=math.getItems().find(t=>t instanceof MathJaxOperator)
+    if(!op)return
+    console.log('MathGroup',op.testGroups(testLevels),op.testGroups(testVar))
+    /*const a=new MathOverview()
+    a.defineGlobalOverview(math.getItems())
+    a.separateIntoIndividuals()*/
+
+}
+
 
 class mathVariables{
 
