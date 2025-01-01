@@ -225,7 +225,7 @@ export function createMathJaxOperatorMetadata(
         priority: overrides.priority ?? 0,
         associativity: {
             numPositions: positions.size,
-            ranges: (overrides?.associativity?.ranges ?? { min: minKey, max: maxKey }) as { min: number; max: number },
+            ranges: { ...{ min: minKey, max: maxKey }, ...overrides?.associativity?.ranges },
             positions,
         },
     };
