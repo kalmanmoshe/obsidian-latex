@@ -188,8 +188,7 @@ export function parseOperator(operator: MathJaxOperator): boolean {
     parseSafetyChecks(operator); 
     function getOperableValue(group: MathGroup): number | null {
         if (!group||!group.isOperable()) return null;
-        const value = group.getOperableValue();
-        return value&&!value?.isVar()?value.getNumberValue() : null;
+        return group.getOperableValue();
     }
     const group1 = getOperableValue(operator.groups[0]);
     const group2 = getOperableValue(operator.groups[1]);
@@ -293,7 +292,7 @@ export class MathPraiser{
         this.parse(this.tokens)
         combineSimilarValues(this.tokens)
         this.tokens.removeNested()
-        this.tokens.combiningLikeTerms()
+        this.tokens.combineSimilarValues()
 
     }
     solutionToString(){
@@ -358,7 +357,6 @@ function combineSimilarValues(math: MathGroup){
     
     const op=math.getItems().find(t=>t instanceof MathJaxOperator)
     if(!op)return
-    console.log('MathGroup',op.testGroups(testLevels),op.testGroups(testVar))
     /*const a=new MathOverview()
     a.defineGlobalOverview(math.getItems())
     a.separateIntoIndividuals()*/
