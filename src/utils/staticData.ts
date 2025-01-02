@@ -219,7 +219,7 @@ export function createMathJaxOperatorMetadata(
     return {
         type: overrides.type ?? OperatorType.Arithmetic,
         name: overrides.name ?? 'Unknown',
-        latex: overrides.latex ?? references[0] ?? '',
+        latex: stringLatex(overrides.latex) ?? references[0] ?? '',
         backslash: overrides.backslash ?? false,
         references: [...createReferencesFromlatex(overrides.latex),...references],
         priority: overrides.priority ?? 0,
@@ -240,8 +240,9 @@ function createReferencesFromlatex(latex?: string):string[]{
 }
 const latexCommand= (str: string) => /^[a-zA-Z]+$/.test(str);
 
-function stringLatex(latex: string){
-    return latexCommand(latex)?`\\${latex}\s`:latex
+function stringLatex(latex?: string){
+    if(!latex)return '';
+    return latexCommand(latex)?`\\${latex} `:latex
 }
 
 
