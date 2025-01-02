@@ -41,47 +41,36 @@ export function deepSearchWithPath(
     // If no match is found
     return null;
 }
-export function ensureAcceptableFormatForMathGroupItems(items: (Token|MathGroup|MathJaxOperator)[]|Token|MathGroup|MathJaxOperator): MathGroupItem[] {
+type formattableForMathGroup=MathGroupItem|MathGroup|BasicMathJaxToken
+export function ensureAcceptableFormatForMathGroupItems(items: formattableForMathGroup|formattableForMathGroup[]): MathGroupItem[] {
     if (!Array.isArray(items)) {
-        if (!items.length&&items instanceof MathGroup) {
-            items=items.getItems();
-        }
-        else
-            items=[items]
+        items = [items];
     }
-    const formattedItems=items
-        .map((item: Token|MathGroup|MathJaxOperator|BasicMathJaxToken) => {
-            if (item instanceof Token || item instanceof MathGroup || item instanceof MathJaxOperator) {
-                return item;
+
+    const formattedItems = items
+        .reduce((acc: MathGroupItem[], item: Token | MathGroup | MathJaxOperator | BasicMathJaxToken) => {
+            if (item instanceof MathGroup) {
+                return acc.concat(ensureAcceptableFormatForMathGroupItems(item.getItems()));
             }
+
+            if (item instanceof Token || item instanceof MathJaxOperator) {
+                acc.push(item);
+                return acc;
+            }
+
             if (item instanceof BasicMathJaxToken) {
-                if (item.value&&(item.type=== "number"||item.type==="variable")) {
-                    return new Token(item.value); 
+                if (item.value && (item.type === "number" || item.type === "variable")) {
+                    acc.push(new Token(item.value));
+                    return acc;
                 }
-                throw new Error("Expected item to be a number or variable but received: "+item.value);
+                throw new Error(
+                    `Expected item to be a number or variable but received: ${item.value}`
+                );
             }
+            return acc;
+        }, [])
 
-            return null;
-        })
-        .filter((item: null| Token | MathGroup | MathJaxOperator): item is Token | MathGroup | MathJaxOperator => item !== null);
     return formattedItems;
-}
-
-function typeCheckMathGroupItems(items: any): items is MathGroupItem[] {
-    if(!Array.isArray(items)){
-        console.error('items',items)
-        throw new Error("Expected items to be an array but received: "+items);
-    }
-    items.map((item: any) => {
-        if(Array.isArray(item)){
-            typeCheckMathGroupItems(item);return;
-        }
-        if(!(item instanceof Token||item instanceof MathGroup||item instanceof MathJaxOperator)){
-            console.error('item',item)
-            throw new Error("Expected items to be an array of Token, MathGroup, or MathJaxOperator but received: "+items);
-        }
-    });
-    return true;
 }
 function shouldAddPlus(group1?: any,group2?: any){
     if(!group1||!group2)return '';
@@ -227,9 +216,11 @@ export class MathGroup {
         this.items[index]=item;
         this.updateOverview()
     }
-    setItems(items: MathGroupItem[]) {
-        typeCheckMathGroupItems(this.items)
-        this.items = items;
+    replaceItemCell(item: MathGroupItem|MathGroup,index:number){
+        this.items.splice(index,1,...ensureAcceptableFormatForMathGroupItems(item))
+    }
+    setItems(items: formattableForMathGroup|formattableForMathGroup[]) {
+        this.items = ensureAcceptableFormatForMathGroupItems(items);
         this.updateOverview()    
     }
     combineSimilarValues(){

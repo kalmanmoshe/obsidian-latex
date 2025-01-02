@@ -165,12 +165,6 @@ export class Position {
             throw new Error(`at applyPosition: couldn't find target token for direction ${isLeft?'left':'right'} and operator"${tokens[index].value}"`,);
         }
 
-        //Make sure we don't create duplicate interlocked math groups
-        if(target?.length&&target?.length===1&&target[0]instanceof MathGroup){
-            target=target[0]
-            target.tryRemoveUnnecessaryNested();
-        }
-
         return {
             mathGroup: new MathGroup(target),
             lastItemOfPrevious: breakChar,
@@ -285,13 +279,12 @@ export class MathPraiser{
             return;
         }
         this.mathInfo.addMathSnapshot(this.tokens.clone())
-        tokens.setItem(operator.solution,operatorIndex); 
+        tokens.replaceItemCell(operator.solution,operatorIndex); 
     }
     
     controller(): any{
         this.parse(this.tokens)
         combineSimilarValues(this.tokens)
-        this.tokens.removeNested()
         this.tokens.combineSimilarValues()
 
     }
@@ -327,6 +320,7 @@ export class MathPraiser{
     convertBasicMathJaxTokenaToMathGroup(basicTokens: Array<BasicMathJaxToken|Paren>):void{
         const success=this.defineGroupsAndOperators(basicTokens)
         if(!success)return
+        basicTokens=basicTokens.filter(t=>!(t instanceof Paren))
         this.tokens=new MathGroup(ensureAcceptableFormatForMathGroupItems(basicTokens))
     }
     createMathGroupInsertFromTokens(tokens: Array<any>,start: number,end: number):boolean{
