@@ -163,6 +163,7 @@ export interface MathJaxOperatorMetadata {
     priority: number;
     associativity: {
         numPositions: number;
+        commutative: boolean;
         ranges: { min: number; max: number };
         positions: Map<number, {
             bracketType: BracketType;
@@ -224,7 +225,8 @@ export function createMathJaxOperatorMetadata(
         references: [...createReferencesFromlatex(overrides.latex),...references],
         priority: overrides.priority ?? 0,
         associativity: {
-            numPositions: positions.size,
+            numPositions: overrides?.associativity?.numPositions??positions.size,
+            commutative: overrides.associativity?.commutative ?? false,
             ranges: { ...{ min: minKey, max: maxKey }, ...overrides?.associativity?.ranges },
             positions,
         },
