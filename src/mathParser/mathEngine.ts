@@ -77,7 +77,6 @@ export class MathInfo{
             return string
         };
         this.mathInfo.push(math.toString(customFormatter))
-        console.log(result.item)
         this.solutionInfo.push(result.item.toStringSolution())
         
     }
@@ -173,7 +172,7 @@ export class Position {
 }
 
 function parseSafetyChecks(operator: MathJaxOperator){
-    if (operator.groupNum!==operator.groups.length) {
+    if ((operator.commutative&&operator.groups.length<operator.groupNum)||(!operator.commutative&&operator.groups.length!==operator.groupNum)) {
         throw new Error(`Invalid number of groups for operator ${operator.operator} expected ${operator.groupNum} but got ${operator.groups.length}`);
     }
 }
@@ -285,7 +284,7 @@ export class MathPraiser{
     controller(): any{
         this.parse(this.tokens)
         combineSimilarValues(this.tokens)
-        this.tokens.combineSimilarValues()
+        this.tokens.combiningLikeTerms()
 
     }
     solutionToString(){
@@ -320,8 +319,8 @@ export class MathPraiser{
     convertBasicMathJaxTokenaToMathGroup(basicTokens: Array<BasicMathJaxToken|Paren>):void{
         const success=this.defineGroupsAndOperators(basicTokens)
         if(!success)return
-        basicTokens=basicTokens.filter(t=>!(t instanceof Paren))
-        this.tokens=new MathGroup(ensureAcceptableFormatForMathGroupItems(basicTokens))
+        const GroupedBasicTokens: MathGroupItem[]=(basicTokens.filter((t) => !(t instanceof Paren))as any)
+        this.tokens=new MathGroup(GroupedBasicTokens)
     }
     createMathGroupInsertFromTokens(tokens: Array<any>,start: number,end: number):boolean{
         const newMathGroup=new MathGroup(ensureAcceptableFormatForMathGroupItems(tokens.slice(start,end+1)));
@@ -333,8 +332,7 @@ export class MathPraiser{
         if(!metadata)throw new Error(`Operator ${tokens[index].value} not found in metadata`);
         
         const position=new Position(tokens,index)
-        const c=deepClone(tokens)
-        const newOperator=new MathJaxOperator(position.operator,metadata.associativity.numPositions,position.groups,)
+        const newOperator=MathJaxOperator.create(position.operator,metadata.associativity.numPositions,position.groups)
         tokens.splice(position.start,(position.end-position.start)+1,newOperator);
         return true
     }

@@ -8,7 +8,19 @@ import { Associativity, BracketType, MathJaxOperatorMetadata, mathJaxOperatorsMe
 import { findParenIndex, Paren,idParentheses, isOpenParen, isClosedParen } from "../utils/tokenUtensils";
 import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchSymbols } from "../utils/dataManager";
 import { group } from "console";
+import { key } from "localforage";
+import { value } from "valibot";
 
+function wrapGroup(group: string, wrap: BracketType): string {
+    switch (wrap) {
+        case BracketType.Parentheses:
+            return `(${group})`;
+        case BracketType.CurlyBraces:
+            return `{${group}}`;
+        default:
+            return group;
+    }
+}
 
 export function deepSearchWithPath(
     structure: any,
@@ -81,85 +93,62 @@ function shouldAddPlus(group1?: any,group2?: any){
 function canCombine(math: MathGroup,operator: MathJaxOperator){
 
 }
-export class MathJaxOperator{
+export class MathJaxOperator {
     operator: string;
-    groupNum: number=1;
+    groupNum: number = 1;
     groups: MathGroup[];
     solution: MathGroup;
     commutative: boolean;
-    isOperable: boolean=true;
-    constructor(operator?: string,groupNum?: number,groups?: MathGroup[],solution?: MathGroup,isOperable?: boolean){
-        if (operator)this.operator=operator;
-        if(groupNum)this.groupNum=groupNum;
-        if(groups)this.groups=groups;
-        if(solution)this.solution=solution;
-        if(isOperable)this.isOperable=isOperable;
+    isOperable: boolean = true;
+
+    constructor(operator?: string, groupNum?: number, groups?: MathGroup[], solution?: MathGroup, isOperable?: boolean) {
+        if (operator) this.operator = operator;
+        if (groupNum) this.groupNum = groupNum;
+        if (groups) this.groups = groups;
+        if (solution) this.solution = solution;
+        if (isOperable !== undefined) this.isOperable = isOperable;
     }
-    testGroups(test: (group: MathGroup) => boolean):boolean[]{
-        return this.groups.map(g=> test(g));
+    static create(operator?: string, groupNum?: number, groups?: MathGroup[], solution?: MathGroup, isOperable?: boolean): MathJaxOperator {
+        if (operator === "Multiplication") {
+            return new MultiplicationOperator(groups, solution);
+        }
+        return new MathJaxOperator(operator, groupNum, groups, solution, isOperable);
     }
-    mapVariables(){
-        return this.groups.map(group => group.hasVariables())
+    testGroups(test: (group: MathGroup) => boolean): boolean[] {
+        return this.groups.map(test);
     }
-    static asVariableGroup(occurrencesCount: number,variable: string){
-        return new MathJaxOperator('Multiplication',2,[new MathGroup([new Token(occurrencesCount)]),new MathGroup([new Token(variable)])])
-    }
-    isVariableGroup(): boolean{
-        const testLevels=this.testGroups((item: MathGroup): boolean => {return item.singular()})
-        const testVar=this.mapVariables()
-        const isSingleTrueInTestVar = testVar.filter(Boolean).length === 1;
-        return isSingleTrueInTestVar && testLevels.every((t: boolean) => t);
+
+    mapVariables(): boolean[] {
+        return this.groups.map(group => group.hasVariables());
     }
 
     operatorVariables(): string[] {
-        return [...new Set(this.groups
-            .map(group => group.groupVariables())
-            .flat()
-        )];
-    }
-    
-    getVariableGroup(){
-        if(!this.isVariableGroup) return null;
-
-        const occurrencesCount=this.groups
-        .map(g=> g.getOperableValue())
-        .filter((t: any) => t!==null)
-        .reduce((total: any, item: any) => total + item, 0);
-
-        const variable=this.operatorVariables()[0];
-        return {occurrencesCount,variable}
-    }
-    addToVariableGroup(value: number){
-        if(!this.isVariableGroup) return;
-        const number = this.groups.find(group => group.singleNumber())
-        if(!number) return;
-        number.singleTokenSet(value);
+        return [...new Set(this.groups.map(group => group.groupVariables()).flat())];
     }
 
-    allGroupsAreSimilar(){
+    getDeepth() {
+        const depths = this.groups.map(group => group.getDeepth().max);
+        return { max: Math.max(...depths), depths };
+    }
 
-    }
-    isVar(){}
-    isRootLevel(){
-        return this.getDeepth().max===0;
-    }
-    clone() {
+    clone(): MathJaxOperator {
         const groups = this.groups.map(group => group.clone());
         const solution = this.solution ? this.solution.clone() : undefined;
-        return new MathJaxOperator(this.operator, this.groupNum, groups, solution, this.isOperable);
+        return MathJaxOperator.create(this.operator, this.groupNum, groups, solution, this.isOperable);
     }
-    getDeepth(){
-        let deepths: number[]=[];
-        this.groups.forEach(group => {
-            deepths.push(group.getDeepth().max)
-        });
-        return {max: Math.max(...deepths), deepths: deepths}
+
+    toStringSolution(): string {
+        return this.toString() + ' = ' + this.solution?.toString();
     }
-    setGroup(group: MathGroup,index:number){this.groups[index]=group}
-    toStringSolution(){
-        return this.toString()+' = '+this.solution.toString();
+
+    equals(item: MathGroupItem): boolean {
+        return item instanceof MathJaxOperator &&
+            this.operator === item.operator &&
+            this.groups.length === item.groups.length &&
+            this.groups.every((t, index) => t.equals(item.groups[index]));
     }
-    getId(){return 'operator:'+this.operator}
+    getOccurrenceGroup(): { occurrencesCount: number; occurrencOf: MathGroup[] }|null  { return null; }  
+    isOccurrenceGroupMatch(testItem: MathJaxOperator | Token): boolean {return false;}
     toString(customFormatter?: (check: any,string: string) => any){
         function wrapGroup(group: MathGroup, wrap: BracketType,optional: boolean): string {
             if(optional&&group.singular())return group.toString(customFormatter);
@@ -173,6 +162,7 @@ export class MathJaxOperator{
                     return groupStr;
             }
         }
+        
 
         const metadata = searchMathJaxOperators(this.operator);
         if (!metadata) return '';
@@ -203,12 +193,95 @@ export class MathJaxOperator{
     }
 }
 
+
+export class MultiplicationOperator extends MathJaxOperator {
+    constructor(groups?: MathGroup[], solution?: MathGroup) {
+        super("Multiplication", 2, groups, solution, true);
+        this.commutative = true;
+        this.removeMultiplicationDepths();
+    }
+    removeMultiplicationDepths(){
+        this.groups.forEach((group: MathGroup) => {
+            if(group.singular()&&group.getItems()[0] instanceof MultiplicationOperator){
+                const items=(group.getItems()[0] as MultiplicationOperator).groups;
+                this.groups.splice(this.groups.indexOf(group),1,...items)
+            }
+        });
+        console.log('this.groups',this.groups)
+    }
+
+    static asOccurrenceGroup(occurrencesCount: number,occurrencOf: string|Token|MathGroup): MultiplicationOperator {
+        occurrencOf=typeof occurrencOf==="string"?
+            new MathGroup([new Token(occurrencOf)]):occurrencOf instanceof Token?
+                new MathGroup([occurrencOf]):occurrencOf;
+
+        return new MultiplicationOperator([new MathGroup([new Token(occurrencesCount)]),occurrencOf])
+    }
+    
+    override getOccurrenceGroup(): { occurrencesCount: number; occurrencOf: MathGroup[] } {
+        const result = this.groups.reduce(
+            (acc: { totalNum: number; arr: MathGroup[] }, item: MathGroup) => {
+                if (item.getOperableValue()) {
+                    acc.totalNum += item.getOperableValue()!;
+                } else {
+                    acc.arr.push(item);
+                }
+                return acc;
+            },
+            { totalNum: 0, arr: [] }
+        );
+        return { occurrencesCount: result.totalNum, occurrencOf: result.arr };
+    }
+
+    addToOccurrenceGroup(value: number): void {
+        const numberGroup = this.groups.find(group => group.singleNumber());
+        if (numberGroup) {
+            numberGroup.singleTokenSet(value, true);
+        } else {
+            this.groups.push(new MathGroup([new Token(1 + value)]));
+        }
+    }
+
+    override isOccurrenceGroupMatch(testItem: MathJaxOperator | Token): boolean {
+        if (!(testItem instanceof Token || (testItem instanceof MathJaxOperator && testItem.operator === "Multiplication"))) {
+            return false;
+        }
+
+        const occurrenceGroup = this.getOccurrenceGroup()?.occurrencOf;
+        if (!occurrenceGroup) return false;
+
+        const items = occurrenceGroup.flatMap(group => group.getItems());
+        if (testItem instanceof Token) {
+            const match = items.length === 1 && items[0].equals(testItem);
+            if (match) this.addToOccurrenceGroup(1);
+            return match;
+        }
+        const testItemsArray = testItem.getOccurrenceGroup()?.occurrencOf;
+        return false;
+    }
+    toString(customFormatter?: (check: any,string: string) => any){ 
+        const operator = '\\cdot ';
+        let string = '';
+
+        this.groups.forEach((group,index) => {
+            string += wrapGroup(group.toString(), group.singular()?BracketType.CurlyBraces:BracketType.None);
+            if (index < this.groups.length - 1)
+                string += operator;
+        });
+        if (customFormatter) 
+            return customFormatter(this,string)
+        return string.trim();
+    }
+}
+
+
 export type MathGroupItem=Token|MathJaxOperator
+
 export class MathGroup {
     private items: MathGroupItem[] = [];
     //overview: MathOverview
     
-    constructor(items?: MathGroupItem[]) {
+    constructor(items?: formattableForMathGroup|formattableForMathGroup[]) {
         if(items)this.setItems(items);
     }
     getItems(): MathGroupItem[] {return this.items;}
@@ -222,25 +295,6 @@ export class MathGroup {
     setItems(items: formattableForMathGroup|formattableForMathGroup[]) {
         this.items = ensureAcceptableFormatForMathGroupItems(items);
         this.updateOverview()    
-    }
-    combineSimilarValues(){
-        const overview=new MathOverview()
-        overview.defineOverviewSeparateIntoIndividuals(this.items)
-        let newItems: MathGroupItem[] = [];
-        newItems.push(overview.)
-        if (overview.getNumber()) {
-            newItems.push(new Token(overview.getNumber()));
-        }
-        for (const [key, value] of overview.getVariables().entries()) {
-            if (value.count > 1) {
-                newItems.push(MathJaxOperator.asVariableGroup(value.count, key));
-            }
-            else {
-                newItems.push(new Token(key));
-            }
-        }
-        this.items = newItems;
-
     }
     groupVariables(): string[] {
         const variables: string[] = [];
@@ -259,10 +313,11 @@ export class MathGroup {
         this.overview=new MathOverview()
         this.overview.defineOverviewseparateIntoIndividuals(this.items)*/
     }
-    singleTokenSet(value: number){
+    singleTokenSet(value: number,toAdd?: boolean){
         const token=this.items[0] as Token;
+        const newValue=toAdd?value+token.getNumberValue():value;
         if(this.singulToken()){
-            token.setValue(value);
+            token.setValue(newValue)
         }
     }
     clone(): MathGroup {
@@ -288,23 +343,6 @@ export class MathGroup {
     singular():boolean {return this.items.length === 1 && this.items[0] !== undefined;}
     singulToken(): this is { items: [Token] } {return this.singular() && this.items[0] instanceof Token;}
     isRootLevel(){return this.items.every((item) => item instanceof Token);}
-    extremeSimplifyAndGroup(){
-        this.tryRemoveUnnecessaryNested();
-        this.combiningLikeTerms()
-    }
-
-    tryRemoveUnnecessaryNested(): void {
-        if (this.singular()) {
-            if(this.items[0] instanceof MathGroup){
-                this.items = this.items[0].items;
-                this.items.forEach(item => {
-                    if (item instanceof MathGroup) {
-                        item.tryRemoveUnnecessaryNested();
-                    }
-                });
-            }
-        }
-    }
     getDeepth(){
         let deepths: number[]=[];
         this.items.forEach(item => {
@@ -319,8 +357,6 @@ export class MathGroup {
 
     getOperableValue(): number | null
     {
-        this.tryRemoveUnnecessaryNested();
-        this.combiningLikeTerms();
         const items = this.items;
         if (this.numberOnly()) {
             let value=0;
@@ -331,23 +367,43 @@ export class MathGroup {
         }
         return null;
     }
+    equals(item: Token|MathJaxOperator|MathGroup){
+        if(item instanceof Token){
+            return this.items.length===1&&this.items[0] instanceof Token&&this.items[0].getStringValue()===item.getStringValue()
+        }
+        if(item instanceof MathJaxOperator){
+            return this.items.length===1&&this.items[0] instanceof MathJaxOperator&&this.items[0].operator===item.operator
+        }
+        if(item instanceof MathGroup){
+            return this.items.length===item.items.length&&this.items.every((t: MathGroupItem)=>{
+                return item.items.some((i)=>t.equals(i))
+            })
+        }
+        return false;
+    }
+
     getId(){
         return 'MathGroup'
     }
-    combiningLikeTerms() {/*
-        const overview=this.levelMap()
-        const combinedItems = [];
-        for (const [key, value] of overview.entries()) {
-            if (key.includes("operator")) {
-                combinedItems.push(...value.items);
-                continue;
+    combiningLikeTerms() {
+        const overview=new MathOverview()
+        overview.defineOverviewSeparateIntoIndividuals(this.items)
+        this.setItems(overview.reconstructAsMathGroupItems())
+        
+        this.items.forEach((item: MathGroupItem, index: number) => {
+            if (item instanceof MathJaxOperator) {
+                const occurrenceGroup = item.getOccurrenceGroup();
+                if (occurrenceGroup) {
+                    this.items = this.items.filter((otherItem: MathGroupItem, otherIndex: number) => {
+                        // Skip the current item itself
+                        if (index === otherIndex) return true;
+        
+                        const isMatch = item.isOccurrenceGroupMatch(otherItem);
+                        return !isMatch;
+                    });
+                }
             }
-            const sum = value.items.reduce((total: any, item: Token) => total + (item.getValue?item.getValue(): 0), 0);
-    
-            const token = new Token(sum, value.variable??undefined);
-            combinedItems.push(token);
-        }
-        this.items = combinedItems;*/
+        });
     }
 
     toString(customFormatter?: (check: any,string: string) => any){
@@ -374,19 +430,17 @@ class MathOverview {
     private variables: Map<string, any>;
     private operators: Map<string, any>;
     private number: number;
-    private mathGroups: MathGroup[]=[];
     getNumber(): number{return this.number;}
     getVariables(): Map<string, any>{return this.variables;}
-    constructor(variables?: Map<string, any>,operators?: Map<string, any>,number?: number,mathGroups?: MathGroup[]){
+    getOperators(): Map<string, any>{return this.operators;}
+    constructor(variables?: Map<string, any>,operators?: Map<string, any>,number?: number){
         if(variables)this.variables=variables;
         if(operators)this.operators=operators;
         if(number)this.number=number;
-        if(mathGroups)this.mathGroups=mathGroups;
     }
     defineOverviewSeparateIntoIndividuals(items: MathGroupItem[]) {
         this.variables=new Map();
         this.operators=new Map();
-
         items.forEach(item => {
             switch (true) {
                 case item instanceof Token&&item.isVar():
@@ -398,9 +452,6 @@ class MathOverview {
                 case item instanceof MathJaxOperator:
                     this.updateOperatorsMap(item);
                     break;
-                case item instanceof MathGroup:
-                    this.mathGroups.push(item)
-                    break;
                 default:
                     throw new Error("Unknown category in MathOverview separateIntoIndividuals");
             }
@@ -410,34 +461,38 @@ class MathOverview {
     updateMumber(number: number){ this.number=this.number?this.number+number:number;}
     updateVariablesMap(key: string){
         this.variables ??= new Map<string, { count: number; items: any[] }>();
-        if(!this.variables.has(key)){this.variables.set(key,{count: 0, items: []})}
+        if(!this.variables.has(key)){this.variables.set(key,{count: 0})}
         this.variables.get(key).count++;
     }
     updateOperatorsMap(operator: MathJaxOperator){
-        const variableGroup=operator.getVariableGroup()
-        if(variableGroup){
-            Array.from({ length: variableGroup.occurrencesCount }).forEach(() => {
-                this.updateVariablesMap(variableGroup.variable);
-            })
-            return
-        }
         const key=operator.operator;
         if(!this.operators) this.operators=new Map();
         if(!this.operators.has(key)){this.operators.set(key,{count: 0, items: []})}
-        this.operators.get(key).count++;
+        const entry = this.operators.get(key)!;
+        entry.count += 1;
+        entry.items.push(operator);
     }
 
     hasVar(){return this.variables&&this.variables.size>0}
     hasOp(){return this.operators&&this.operators.size>0}
-    hasGroup(){return this.mathGroups.length>0}
     onlyNumeric(){
-        return this.number&&!this.hasVar()&&!this.hasOp()&&!this.hasGroup()
+        return this.number&&!this.hasVar()&&!this.hasOp()
     }
-    deepNumeric(){
-
-    }
-    explorAllLevels(){
-        
+    reconstructAsMathGroupItems(){
+        const items: MathGroupItem[]=[];
+        if(this.number)items.push(new Token(this.number));
+        this.variables.forEach((value, key) => {
+            if(value.count===1){
+                items.push(new Token(key))
+            }
+            else if(value.count>1){
+                items.push(MultiplicationOperator.asOccurrenceGroup(value.count,key))
+            }
+        });
+        if(this.operators){
+            items.push(...Array.from(this.operators.values()).flatMap((operator: any) => operator.items))
+        }
+        return items;
     }
 }
 
@@ -456,7 +511,9 @@ export class Token{
     getValue(){return this.value}
     setValue(value: number|string){this.value=value;}
     isVar() {return typeof this.value === 'string';}
-    
+    equals(item: MathGroupItem) {
+        return item instanceof Token&&this.value === item.value;
+    }
     toString(customFormatter?: (check: any,string: string) => any){
         let string=''
         if(!this.isVar()&&this.getNumberValue()<0)
@@ -569,7 +626,6 @@ export class BasicMathJaxTokens{
                 return null;
             })
             .filter((item) => item !== null);
-        console.log(this.tokens,map)
         return map;
     }
     
