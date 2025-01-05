@@ -11,6 +11,7 @@ import { group } from "console";
 import { key } from "localforage";
 import { value } from "valibot";
 import { parseOperator } from "./mathEngine";
+import { boolean } from "zod";
 
 function wrapGroup(group: string, wrap: BracketType): string {
     switch (wrap) {
@@ -262,6 +263,7 @@ export class MultiplicationOperator extends MathJaxOperator {
         const testItemsArray = testItem.getOccurrenceGroup()?.occurrencOf;
         return false;
     }
+
     toString(customFormatter?: (check: any,string: string) => any){ 
         const operator = '\\cdot ';
         let string = '';
@@ -288,8 +290,8 @@ export class MultiplicationOperator extends MathJaxOperator {
         6*7, 6*8, 6*9
     ]  
     */
+
     parseMathjaxOperator(): void {
-        console.log("MultiplicationOperator parseMathjaxOperator", this.groups);
 
         const mathGroupItems: MathGroupItem[] = [];
         for (let i = 0; i < this.groups.length; i++) {
@@ -309,12 +311,10 @@ export class MultiplicationOperator extends MathJaxOperator {
         }
 
         this.solution = new MathGroup(mathGroupItems);
-        console.log(this.solution.toString());
     }
     
 
     parse(group1: Token|MathJaxOperator,group2: Token|MathJaxOperator):MathGroupItem{
-        console.log("input",group1,group2)
         // return number token
         if(group1 instanceof Token&&group2 instanceof Token&&!group1.isVar()&&!group2.isVar()){
             return new Token(group1.getNumberValue()*group2.getNumberValue())
@@ -322,7 +322,16 @@ export class MultiplicationOperator extends MathJaxOperator {
         
         const newOp= MathJaxOperator.create('Multiplication',2,[new MathGroup([group1]),new MathGroup([group2])])
         
-        console.log('newOp',newOp)
+
+        newOp.groups.forEach((group: MathGroup, index: number) => {
+            newOp.groups = newOp.groups.filter((otherGroup: MathGroup, otherIndex: number) => {
+                if (index === otherIndex) return true;
+                const isMatch = group.isPowGroupMatch(otherGroup);
+                return !isMatch;
+            });  
+            
+        });
+        
         return newOp
     }
 }
@@ -420,22 +429,33 @@ export class MathGroup {
         }
         return null;
     }
-    isPowGroupEquals(item: Token|MathJaxOperator|MathGroup){
+    isPowGroupMatch(group: MathGroup):boolean{
         //Placeholder for now
+        if(this.items.length!==1)return false
+        // if it eq
+        // if it occurrence eq
+        let sameVar=false;
+        if(this.items.length===1&&this.items[0] instanceof Token){
+
+        }
+        const thisOverview=new MathOverview()
+        thisOverview.defineOverviewSeparateIntoIndividuals(this.items)
+        console.log('thisOverview',thisOverview)
+
         return this.equals(item)
     }
 
-    isOccurrenceGroupEquals(item: Token|MathJaxOperator|MathGroup){
+    isOccurrenceGroupMatch(item: Token|MathJaxOperator|MathGroup){
         //Placeholder for now
         return this.equals(item)
     }
 
     equals(item: Token|MathJaxOperator|MathGroup){
         if(item instanceof Token){
-            return this.items.length===1&&this.items[0] instanceof Token&&this.items[0].getStringValue()===item.getStringValue()
+            return this.items.length===1&&this.items[0] instanceof Token&&this.items[0].equals(item);
         }
         if(item instanceof MathJaxOperator){
-            return this.items.length===1&&this.items[0] instanceof MathJaxOperator&&this.items[0].operator===item.operator
+            return this.items.length===1&&this.items[0] instanceof MathJaxOperator&&this.items[0].equals(item)
         }
         if(item instanceof MathGroup){
             return this.items.length===item.items.length&&this.items.every((t: MathGroupItem)=>{
@@ -487,6 +507,7 @@ export class MathGroup {
         return string;
     }
 }
+
 
 
 class MathOverview {
