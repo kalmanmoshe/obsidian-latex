@@ -1,6 +1,6 @@
 
 import { quad,calculateBinom,roundBySettings ,degreesToRadians,radiansToDegrees, calculateFactorial} from "./mathUtilities";
-import { expandExpression,curlyBracketsRegex } from "../imVeryLazy";
+import { expandExpression,curlyBracketsRegex } from "./imVeryLazy";
 import { type } from "os";
 import { arrToRegexString, Axis, regExp } from "../tikzjax/tikzjax";
 import { Associativity, BracketType, MathJaxOperatorMetadata, mathJaxOperatorsMetadata, OperatorType } from "src/utils/staticData";
@@ -10,6 +10,7 @@ import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByA
 import { group } from "console";
 import { key } from "localforage";
 import { value } from "valibot";
+import { parseOperator } from "./mathEngine";
 
 function wrapGroup(group: string, wrap: BracketType): string {
     switch (wrap) {
@@ -191,6 +192,9 @@ export class MathJaxOperator {
             return customFormatter(this,string)
         return string.trim();
     }
+    parseMathjaxOperator() {
+        parseOperator(this);
+    }
 }
 
 
@@ -207,7 +211,6 @@ export class MultiplicationOperator extends MathJaxOperator {
                 this.groups.splice(this.groups.indexOf(group),1,...items)
             }
         });
-        console.log('this.groups',this.groups)
     }
 
     static asOccurrenceGroup(occurrencesCount: number,occurrencOf: string|Token|MathGroup): MultiplicationOperator {
@@ -264,13 +267,63 @@ export class MultiplicationOperator extends MathJaxOperator {
         let string = '';
 
         this.groups.forEach((group,index) => {
-            string += wrapGroup(group.toString(), group.singular()?BracketType.CurlyBraces:BracketType.None);
+            string += wrapGroup(group.toString(), group.singular()?BracketType.None:BracketType.Parentheses);
             if (index < this.groups.length - 1)
                 string += operator;
         });
         if (customFormatter) 
             return customFormatter(this,string)
         return string.trim();
+    }
+
+    /*
+    this.groups = [[1, 2, 3],[4, 5, 6],[7, 8, 9]]
+    Expected Output:
+    [
+        1*4, 1*5, 1*6, 1*7, 1*8, 1*9,
+        2*4, 2*5, 2*6, 2*7, 2*8, 2*9,
+        3*4, 3*5, 3*6, 3*7, 3*8, 3*9,
+        4*7, 4*8, 4*9,
+        5*7, 5*8, 5*9,
+        6*7, 6*8, 6*9
+    ]  
+    */
+    parseMathjaxOperator(): void {
+        console.log("MultiplicationOperator parseMathjaxOperator", this.groups);
+
+        const mathGroupItems: MathGroupItem[] = [];
+        for (let i = 0; i < this.groups.length; i++) {
+            const groupA = this.groups[i].getItems();
+
+            // Determine which groups to pair with
+            for (let j = i + 1; j < this.groups.length; j++) {
+                const groupB = this.groups[j].getItems();
+
+                // Generate pairwise products
+                for (let a of groupA) {
+                    for (let b of groupB) {
+                        mathGroupItems.push(this.parse(a, b));
+                    }
+                }
+            }
+        }
+
+        this.solution = new MathGroup(mathGroupItems);
+        console.log(this.solution.toString());
+    }
+    
+
+    parse(group1: Token|MathJaxOperator,group2: Token|MathJaxOperator):MathGroupItem{
+        console.log("input",group1,group2)
+        // return number token
+        if(group1 instanceof Token&&group2 instanceof Token&&!group1.isVar()&&!group2.isVar()){
+            return new Token(group1.getNumberValue()*group2.getNumberValue())
+        }
+        
+        const newOp= MathJaxOperator.create('Multiplication',2,[new MathGroup([group1]),new MathGroup([group2])])
+        
+        console.log('newOp',newOp)
+        return newOp
     }
 }
 
@@ -308,7 +361,7 @@ export class MathGroup {
         });
         return variables;
     }
-
+    
     updateOverview(){/*
         this.overview=new MathOverview()
         this.overview.defineOverviewseparateIntoIndividuals(this.items)*/
@@ -367,6 +420,16 @@ export class MathGroup {
         }
         return null;
     }
+    isPowGroupEquals(item: Token|MathJaxOperator|MathGroup){
+        //Placeholder for now
+        return this.equals(item)
+    }
+
+    isOccurrenceGroupEquals(item: Token|MathJaxOperator|MathGroup){
+        //Placeholder for now
+        return this.equals(item)
+    }
+
     equals(item: Token|MathJaxOperator|MathGroup){
         if(item instanceof Token){
             return this.items.length===1&&this.items[0] instanceof Token&&this.items[0].getStringValue()===item.getStringValue()
