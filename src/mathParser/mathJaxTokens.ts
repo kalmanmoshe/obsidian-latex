@@ -349,8 +349,8 @@ export class MultiplicationOperator extends MathJaxOperator {
             return new Token(group1.getNumberValue()*group2.getNumberValue())
         }
         
-        const newArr= MathJaxOperator.create('Multiplication',2,[new MathGroup([group1.clone()]),new MathGroup([group2.clone()])])
-        
+        const newArr= [new MathGroup([group1.clone()]),new MathGroup([group2.clone()])])
+        //MathJaxOperator.create('Multiplication',2,
 
         newOp.groups.forEach((group: MathGroup, index: number) => {
             newOp.groups = newOp.groups.filter((otherGroup: MathGroup, otherIndex: number) => {
