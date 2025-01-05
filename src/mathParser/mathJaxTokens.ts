@@ -238,6 +238,7 @@ export class MultiplicationOperator extends MathJaxOperator {
     }
 
     override isOccurrenceGroupMatch(testItem: MathJaxOperator | Token): boolean {
+        
         const isValidItem = testItem instanceof Token || testItem instanceof MultiplicationOperator;
         if (!isValidItem) {
             return false;
@@ -257,7 +258,7 @@ export class MultiplicationOperator extends MathJaxOperator {
         }
         const testItemGroup = testItem.getOccurrenceGroup();
         if (!testItemGroup) return false;
-    
+        
         const testItemGroupItems = testItemGroup.occurrencOf;
     
         const areGroupsMatching =currentGroupItems.length === testItemGroupItems.length &&
@@ -266,13 +267,14 @@ export class MultiplicationOperator extends MathJaxOperator {
                     currentSubGroup.isOccurrenceGroupMatch(testSubGroup)
                 )
             );
+        return false/*
         if (areGroupsMatching) { 
             console.log(testItemGroup.occurrencesCount)
             this.addToOccurrenceGroup(testItemGroup.occurrencesCount);
             return true;
         }
     
-        return false;
+        return false;*/
     }
     
     
@@ -344,25 +346,30 @@ export class MultiplicationOperator extends MathJaxOperator {
     
 
     parse(group1: Token|MathJaxOperator,group2: Token|MathJaxOperator):MathGroupItem{
-        // return number token
         if(group1 instanceof Token&&group2 instanceof Token&&!group1.isVar()&&!group2.isVar()){
             return new Token(group1.getNumberValue()*group2.getNumberValue())
         }
         
-        const newArr= [new MathGroup([group1.clone()]),new MathGroup([group2.clone()])]
+        let arr= [new MathGroup([group1.clone()]),new MathGroup([group2.clone()])]
         
-        //MathJaxOperator.create('Multiplication',2,
-        //)
         
-        newOp.groups.forEach((group: MathGroup, index: number) => {
-            newOp.groups = newOp.groups.filter((otherGroup: MathGroup, otherIndex: number) => {
+        arr.forEach((group: MathGroup, index: number) => {
+            arr = arr.filter((otherGroup: MathGroup, otherIndex: number) => {
                 if (index === otherIndex) return true;
                 const isMatch = group.isPowGroupMatch(otherGroup);
                 return !isMatch;
             }); 
         });
+        if(arr.length>1){
+            return MathJaxOperator.create('Multiplication',2,arr)
+        }
+        if(arr.length===0)
+            throw new Error("");
+        const group=arr[0];
+        if(group.singular())
+            return group.getItems()[0];
 
-        return newOp
+        throw new Error("");
     }
 }
 function trigonometricIdentities(){
@@ -486,18 +493,19 @@ export class MathGroup {
         const overview=new MathOverview()
         overview.defineOverviewSeparateIntoIndividuals(this.items)
         this.setItems(overview.reconstructAsMathGroupItems())
-        console.log("befor",this.items,this.toString())
-
+        console.log("befor",this.items,this.toString(),this.items.map(t=>t instanceof MultiplicationOperator))
         this.items.forEach((item: MathGroupItem, index: number) => {
             if (item instanceof MultiplicationOperator) {
                 this.items = this.items.filter((otherItem: MathGroupItem, otherIndex: number) => {
                     if (index === otherIndex) return true;
-    
+        
                     const isMatch = item.isOccurrenceGroupMatch(otherItem);
-                    return !isMatch;
+                    console.log(item ,otherItem,isMatch);
+                    return !isMatch; // Remove matched items
                 });
             }
         });
+
         console.log("after",this.items,this.toString())
     }
 
