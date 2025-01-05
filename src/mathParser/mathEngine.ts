@@ -6,8 +6,6 @@ import { Associativity } from "src/utils/staticData";
 import { findParenIndex, Paren,idParentheses, isOpenParen, findDeepestParenthesesScope } from "../utils/tokenUtensils";
 import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, searchMathJaxOperators } from "../utils/dataManager";
 import { MathGroup, MathJaxOperator, Token, BasicMathJaxTokens, BasicMathJaxToken, ensureAcceptableFormatForMathGroupItems, deepSearchWithPath, MathGroupItem } from "./mathJaxTokens";
-import { start } from "repl";
-import { group } from "console";
 const greekLetters = [
     'Alpha','alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 
     'Iota', 'Kappa', 'Lambda', 'Mu','mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 
@@ -32,15 +30,6 @@ export function findConsecutiveSequences(arr: any[]) {
     return sequences;
 }
 
-
-const operatorsForMathinfo = {
-    bothButRightBracket: ["^"],
-    rightBracketAndRequiresSlash: ["sqrt"],
-    both: ["+", "-", "*"],
-    special: ["="],
-    RightParenAndRequiresSlash: ["sin", "cos", "tan", "asin", "acos", "atan", "arcsin", "arccos", "arctan"],
-    doubleRightButBracket: ["frac", "binom","/"]
-};
 
 
 export class MathInfo{
