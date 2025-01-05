@@ -1,6 +1,6 @@
 
 import { quad,calculateBinom,roundBySettings ,degreesToRadians,radiansToDegrees, calculateFactorial} from "./mathUtilities";
-import { expandExpression,curlyBracketsRegex } from "../imVeryLazy";
+import { expandExpression,curlyBracketsRegex } from "./imVeryLazy";
 import { arrToRegexString, Axis, regExp } from "../tikzjax/tikzjax";
 import { Associativity } from "src/utils/staticData";
 import { findParenIndex, Paren,idParentheses, isOpenParen, findDeepestParenthesesScope } from "../utils/tokenUtensils";
@@ -208,10 +208,6 @@ export function parseOperator(operator: MathJaxOperator): boolean {
             operator.solution = new MathGroup([new Token(Math.pow(group1,group2!))]);
             break;
         }
-        case "Multiplication": {
-            operator.solution = new MathGroup([new Token(group1 * group2!)]);
-            break;
-        }
         default:
             throw new Error(
                 `Unknown operator type in parseOperator: ${operator.operator}`
@@ -249,9 +245,10 @@ export class MathPraiser{
         
         const tokens=new BasicMathJaxTokens();
         tokens.addInput(this.input)
+        console.log("basicTokens",tokens.clone());
         const basicTokens=tokens.tokens
-        
         this.convertBasicMathJaxTokenaToMathGroup(basicTokens)
+        
         this.addDebugInfo("convertBasicMathJaxTokenaToMathGroup",this.tokens)
         
         this.input=this.tokens.toString()
@@ -272,7 +269,7 @@ export class MathPraiser{
         operator.groups.forEach(group => {
             this.parse(group);
         });
-        parseOperator(operator)
+        operator.parseMathjaxOperator()
         if (!operator.solution) {
             operator.isOperable = false;
             return;
