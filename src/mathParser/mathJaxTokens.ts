@@ -267,14 +267,13 @@ export class MultiplicationOperator extends MathJaxOperator {
                     currentSubGroup.isOccurrenceGroupMatch(testSubGroup)
                 )
             );
-        return false/*
+
         if (areGroupsMatching) { 
-            console.log(testItemGroup.occurrencesCount)
+            console.log(testItemGroup.occurrencesCount,this,testItem)
             this.addToOccurrenceGroup(testItemGroup.occurrencesCount);
             return true;
         }
-    
-        return false;*/
+        return true
     }
     
     
@@ -490,23 +489,30 @@ export class MathGroup {
         return 'MathGroup'
     }
     combiningLikeTerms() {
-        const overview=new MathOverview()
-        overview.defineOverviewSeparateIntoIndividuals(this.items)
-        this.setItems(overview.reconstructAsMathGroupItems())
-        console.log("befor",this.items,this.toString(),this.items.map(t=>t instanceof MultiplicationOperator))
-        this.items.forEach((item: MathGroupItem, index: number) => {
+        const overview = new MathOverview();
+        overview.defineOverviewSeparateIntoIndividuals(this.items);
+        this.setItems(overview.reconstructAsMathGroupItems());
+    
+        let index = 0;
+        while (index < this.items.length) {
+            const item = this.items[index];
             if (item instanceof MultiplicationOperator) {
+                const originalLength = this.items.length;
                 this.items = this.items.filter((otherItem: MathGroupItem, otherIndex: number) => {
                     if (index === otherIndex) return true;
-        
+                    
                     const isMatch = item.isOccurrenceGroupMatch(otherItem);
-                    console.log(item ,otherItem,isMatch);
-                    return !isMatch; // Remove matched items
+                    return !isMatch;
                 });
+                // Restart iteration if items were removed
+                if (this.items.length < originalLength) {
+                    index = 0;
+                    continue;
+                }
             }
-        });
-
-        console.log("after",this.items,this.toString())
+    
+            index++;
+        }
     }
 
     toString(customFormatter?: (check: any,string: string) => any){
