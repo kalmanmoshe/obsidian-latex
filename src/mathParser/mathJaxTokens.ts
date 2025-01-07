@@ -218,13 +218,13 @@ export class MultiplicationOperator extends MathJaxOperator {
         this.commutative = true;
         this.removeMultiplicationDepths();
     }
+
     removeMultiplicationDepths(){
-        this.groups.forEach((group: MathGroup) => {
-            if(group.singular()&&group.getItems()[0] instanceof MultiplicationOperator){
-                const items=(group.getItems()[0] as MultiplicationOperator).groups;
-                this.groups.splice(this.groups.indexOf(group),1,...items)
-            }
-        });
+        while(this.groups.some((g: MathGroup)=> g.singular()&&g.getItems()[0] instanceof MultiplicationOperator)){
+            const group=this.groups.find((g: MathGroup)=> g.singular()&&g.getItems()[0] instanceof MultiplicationOperator)
+            if(group)
+            this.groups.splice(this.groups.indexOf(group),1,...(group.getItems()[0] as MultiplicationOperator).groups)
+        }
     }
 
     static asOccurrenceGroup(occurrencesCount: number,occurrencOf: string|Token|MathGroup): MultiplicationOperator {
@@ -342,18 +342,19 @@ export class MultiplicationOperator extends MathJaxOperator {
     ]  
     */
     parseMathjaxOperator(): void {
-        const multArr=this.eliminatGroupsWithMultipleTerms();
-        multArr.forEach(o=> o.parse())
-        this.solution=new MathGroup(multArr)
-        this.solution.combiningLikeTerms()
-        
+        const multArr=this.eliminatGroupsWithMultipleTerms().getItems();
+        console.log(multArr.map(i=>i.toString()))
+        const name=multArr.map((o: MultiplicationOperator)=> {o.parse();return o.solution})
+        console.log(name.map((o: MathGroup)=> o.toString()));
+        this.solution=new MathGroup(multArr);
+        this.solution.combiningLikeTerms();
     }
-    eliminatGroupsWithMultipleTerms(): MultiplicationOperator[] {
+    eliminatGroupsWithMultipleTerms():MathGroup {
         let operatorsAccumulation: MultiplicationOperator[] = [];
         
         const singleTermGroups = this.groups.filter(group => group.singular());
         const multiTermGroups = this.groups.filter(group => !group.singular());
-    
+        
         const singlesMathGroup = singleTermGroups.length !== 0 
             ? [new MathGroup([new MultiplicationOperator(singleTermGroups)])] 
             : [];
@@ -371,49 +372,43 @@ export class MultiplicationOperator extends MathJaxOperator {
             for (const a of groupAItems) {
                 for (const b of groupBItems) {
                     operatorsAccumulation.push(
-                        new MultiplicationOperator(ensureAcceptableFormatForMathOperator([a, b]))
+                        new MultiplicationOperator(ensureAcceptableFormatForMathOperator([a.clone(), b.clone()]))
                     );
                 }
             }
     
-            groups.unshift(operatorsAccumulation);
+            groups.unshift(new MathGroup(operatorsAccumulation));
         }
-    
-        return operatorsAccumulation;
+        return groups[0];
     }
     
     
    
     
 
-    parse(group1: Token|MathJaxOperator,group2: Token|MathJaxOperator):MathGroupItem|MathGroup{
-        if(group1 instanceof Token&&group2 instanceof Token&&!group1.isVar()&&!group2.isVar()){
-            return new Token(group1.getNumberValue()*group2.getNumberValue())
+    parse(){
+        const { numbers, other } = this.groups.reduce((result: { numbers: MathGroup[]; other: MathGroup[] }, item: MathGroup) => {
+                if (item.singleNumber()) {
+                    result.numbers.push(item);
+                } else {
+                    result.other.push(item);
+                }
+                return result;
+            },
+            { numbers: [], other: [] }
+        );
+        let value=1;
+        numbers.forEach(group => {
+            value*=(group.getItems()[0]as Token).getNumberValue()
+        });
+        if(this.groups.length===0)
+            throw new Error("");
+        if((numbers.length>0&&other.length===0)||value===0){
+            this.solution=new MathGroup(new Token(value));return;
         }
-        let arr= ensureAcceptableFormatForMathOperator([group1.clone(),group2.clone()])
-        if(group1 instanceof MultiplicationOperator || group2 instanceof MultiplicationOperator){
-            const thinkOfNameLater=new MultiplicationOperator(arr)
-            thinkOfNameLater.parseMathjaxOperator()
-            return thinkOfNameLater.solution;
-        }
-        
-        
-        
-        const filterOrgs=(mainItem: any,testItem: any):boolean=>{
-            if(!(mainItem instanceof MathGroup&&testItem instanceof MathGroup))return false;
-            return mainItem.isPowGroupMatch(testItem)
-        }
+        if()
 
-        arr = filterByTestConst(arr, filterOrgs);
-
-        if(arr.length>1){
-            return MathJaxOperator.create('Multiplication',2,arr)
-        }
-        const group=arr[0];
-        if(group.singular())
-            return group.getItems()[0];
-
-        throw new Error("");
+        this.solution=new MathGroup([new Token(value),...other]);
     }
 }
 
