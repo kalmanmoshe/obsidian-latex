@@ -8,6 +8,8 @@ import { findParenIndex, Paren,idParentheses, isOpenParen, isClosedParen } from 
 import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchSymbols } from "../utils/dataManager";
 
 import { parseOperator } from "./mathEngine";
+import { it } from "node:test";
+import { signal } from "codemirror";
 
 function wrapGroup(group: string, wrap: BracketType): string {
     switch (wrap) {
@@ -82,6 +84,21 @@ export function ensureAcceptableFormatForMathGroupItems(items: formattableForMat
 
     return formattedItems;
 }
+function ensureAcceptableFormatForMathOperator(groups: (MathGroupItem|MathGroup)[]):MathGroup[]{
+    const formattedGroups = groups
+        .reduce((acc: MathGroup[], item: Token | MathGroup | MathJaxOperator ) => {
+            if (item instanceof MathGroup) {
+                acc.push(item);
+            }
+            if (item instanceof Token || item instanceof MathJaxOperator) {
+                acc.push(new MathGroup(item));
+            }
+            return acc;
+        }, [])
+
+    return formattedGroups;
+}
+
 function shouldAddPlus(group1?: any,group2?: any){
     if(!group1||!group2)return '';
 
@@ -188,7 +205,12 @@ export class MathJaxOperator {
         parseOperator(this);
     }
 }
+export class EqualsOperator extends MathJaxOperator{
 
+}
+export class DivisionOperator extends MathJaxOperator{
+
+}
 
 export class MultiplicationOperator extends MathJaxOperator {
     constructor(groups?: MathGroup[], solution?: MathGroup) {
@@ -269,7 +291,6 @@ export class MultiplicationOperator extends MathJaxOperator {
             );
 
         if (areGroupsMatching) { 
-            console.log(testItemGroup.occurrencesCount,this,testItem)
             this.addToOccurrenceGroup(testItemGroup.occurrencesCount);
             return true;
         }
@@ -283,7 +304,7 @@ export class MultiplicationOperator extends MathJaxOperator {
         let string = '';
         const toAddCdot=(thisGroup: MathGroup,nextGroup?:MathGroup)=>{
             if(!nextGroup)return false;
-            if((thisGroup.singleNumber()&&nextGroup.isSingleVar())||(thisGroup.isSingleVar()&&nextGroup.singleNumber()))
+            if(nextGroup.isSingleVar()||thisGroup.isSingleVar())
                 return false;
 
             return true;
@@ -320,50 +341,74 @@ export class MultiplicationOperator extends MathJaxOperator {
         6*7, 6*8, 6*9
     ]  
     */
-
     parseMathjaxOperator(): void {
-
-        const mathGroupItems: MathGroupItem[] = [];
-        for (let i = 0; i < this.groups.length; i++) {
-            const groupA = this.groups[i].getItems();
-
-            // Determine which groups to pair with
-            for (let j = i + 1; j < this.groups.length; j++) {
-                const groupB = this.groups[j].getItems();
-
-                // Generate pairwise products
-                for (let a of groupA) {
-                    for (let b of groupB) {
-                        console.log(this.parse(a, b))
-                        mathGroupItems.push(this.parse(a, b));
-                    }
+        const multArr=this.eliminatGroupsWithMultipleTerms();
+        multArr.forEach(o=> o.parse())
+        this.solution=new MathGroup(multArr)
+        this.solution.combiningLikeTerms()
+        
+    }
+    eliminatGroupsWithMultipleTerms(): MultiplicationOperator[] {
+        let operatorsAccumulation: MultiplicationOperator[] = [];
+        
+        const singleTermGroups = this.groups.filter(group => group.singular());
+        const multiTermGroups = this.groups.filter(group => !group.singular());
+    
+        const singlesMathGroup = singleTermGroups.length !== 0 
+            ? [new MathGroup([new MultiplicationOperator(singleTermGroups)])] 
+            : [];
+        let groups = [...singlesMathGroup, ...multiTermGroups];
+    
+        while (groups.length > 1) {
+            const groupA = groups.shift();
+            const groupB = groups.shift();
+    
+            if (!groupA || !groupB) break;
+    
+            const groupAItems = groupA.getItems();
+            const groupBItems = groupB.getItems();
+            operatorsAccumulation = [];
+            for (const a of groupAItems) {
+                for (const b of groupBItems) {
+                    operatorsAccumulation.push(
+                        new MultiplicationOperator(ensureAcceptableFormatForMathOperator([a, b]))
+                    );
                 }
             }
+    
+            groups.unshift(operatorsAccumulation);
         }
-        this.solution = new MathGroup(mathGroupItems);
+    
+        return operatorsAccumulation;
     }
     
+    
+   
+    
 
-    parse(group1: Token|MathJaxOperator,group2: Token|MathJaxOperator):MathGroupItem{
+    parse(group1: Token|MathJaxOperator,group2: Token|MathJaxOperator):MathGroupItem|MathGroup{
         if(group1 instanceof Token&&group2 instanceof Token&&!group1.isVar()&&!group2.isVar()){
             return new Token(group1.getNumberValue()*group2.getNumberValue())
         }
+        let arr= ensureAcceptableFormatForMathOperator([group1.clone(),group2.clone()])
+        if(group1 instanceof MultiplicationOperator || group2 instanceof MultiplicationOperator){
+            const thinkOfNameLater=new MultiplicationOperator(arr)
+            thinkOfNameLater.parseMathjaxOperator()
+            return thinkOfNameLater.solution;
+        }
         
-        let arr= [new MathGroup([group1.clone()]),new MathGroup([group2.clone()])]
         
         
-        arr.forEach((group: MathGroup, index: number) => {
-            arr = arr.filter((otherGroup: MathGroup, otherIndex: number) => {
-                if (index === otherIndex) return true;
-                const isMatch = group.isPowGroupMatch(otherGroup);
-                return !isMatch;
-            }); 
-        });
+        const filterOrgs=(mainItem: any,testItem: any):boolean=>{
+            if(!(mainItem instanceof MathGroup&&testItem instanceof MathGroup))return false;
+            return mainItem.isPowGroupMatch(testItem)
+        }
+
+        arr = filterByTestConst(arr, filterOrgs);
+
         if(arr.length>1){
             return MathJaxOperator.create('Multiplication',2,arr)
         }
-        if(arr.length===0)
-            throw new Error("");
         const group=arr[0];
         if(group.singular())
             return group.getItems()[0];
@@ -371,6 +416,35 @@ export class MultiplicationOperator extends MathJaxOperator {
         throw new Error("");
     }
 }
+
+
+
+function filterByTestConst(
+    items: any[],
+    test: (mainItem: any, testItem: any) => boolean
+): any[] {
+    let index = 0;
+    while (index < items.length) {
+        const mainItem = items[index];
+        const originalLength = items.length;
+
+        items = items.filter((otherItem, otherIndex) => {
+            if (index === otherIndex) return true; // Keep current item
+            const temp=!test(mainItem, otherItem);
+            return temp
+        });
+
+        // Restart iteration if items were removed
+        if (items.length < originalLength) {
+            index = 0;
+        } else {
+            index++;
+        }
+    }
+    return items;
+}
+
+
 function trigonometricIdentities(){
 
 }
@@ -457,7 +531,6 @@ export class MathGroup {
 
     isPowGroupMatch(group: MathGroup):boolean{
         if(this.items.length!==1)return false
-
         if(this.isSingleVar()&&group.isSingleVar()&&this.equals(group)){
             this.items=[MathJaxOperator.create("Power",2,[new MathGroup(this.items[0]),new MathGroup(new Token(2))])]
             return true
@@ -492,7 +565,6 @@ export class MathGroup {
         const overview = new MathOverview();
         overview.defineOverviewSeparateIntoIndividuals(this.items);
         this.setItems(overview.reconstructAsMathGroupItems());
-    
         let index = 0;
         while (index < this.items.length) {
             const item = this.items[index];
@@ -693,18 +765,25 @@ export class BasicMathJaxTokens{
         this.validatePlusMinus()
     }
     implicitMultiplicationMap() {
+        const isABasicMathJaxTokenDoubleRightOp=(token?: any)=>{
+            if(token&&token instanceof BasicMathJaxToken){
+                return getOperatorsByAssociativity([1, 2]).includes(token.value?.toString() || '')
+            }
+            return false
+        }
+
+        /**
+         * 
+         * @param index 
+         * @returns boolan => True if thar isn't a doubleRight operator.
+         */
         const testDoubleRight = (index: number) => {
             if (!this.validateIndex(index)||!(this.tokens[index] instanceof Paren)) return false;
             const idx = findParenIndex(index,this.tokens)?.open;
-            
             if (idx == null || !isOpenParen(this.tokens[index + 1])) return false;
     
             const prevToken = this.tokens[idx - 1];
-            return !(
-                idx > 0 &&
-                prevToken instanceof BasicMathJaxToken &&
-                !getOperatorsByAssociativity([1, 2]).includes(prevToken.value?.toString() || '')
-            );
+            return !isABasicMathJaxTokenDoubleRightOp(prevToken)
         };
 
     
