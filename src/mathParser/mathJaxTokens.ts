@@ -260,7 +260,6 @@ export class MultiplicationOperator extends MathJaxOperator {
     }
 
     override isOccurrenceGroupMatch(testItem: MathJaxOperator | Token): boolean {
-        
         const isValidItem = testItem instanceof Token || testItem instanceof MultiplicationOperator;
         if (!isValidItem) {
             return false;
@@ -278,12 +277,13 @@ export class MultiplicationOperator extends MathJaxOperator {
             }
             return isSingleItemMatch;
         }
+
         const testItemGroup = testItem.getOccurrenceGroup();
         if (!testItemGroup) return false;
         
         const testItemGroupItems = testItemGroup.occurrencOf;
-    
-        const areGroupsMatching =currentGroupItems.length === testItemGroupItems.length &&
+        console.log(currentGroup.occurrencOf,testItemGroupItems)
+        const areGroupsMatching =currentGroup.occurrencOf.length === testItemGroupItems.length &&
             currentGroup.occurrencOf.every((currentSubGroup: MathGroup) =>
                 testItemGroupItems.some((testSubGroup: MathGroup) => 
                     currentSubGroup.isOccurrenceGroupMatch(testSubGroup)
@@ -345,9 +345,10 @@ export class MultiplicationOperator extends MathJaxOperator {
         const multArr=this.eliminatGroupsWithMultipleTerms().getItems();
         console.log(multArr.map(i=>i.toString()))
         const name=multArr.map((o: MultiplicationOperator)=> {o.parse();return o.solution})
-        console.log(name.map((o: MathGroup)=> o.toString()));
-        this.solution=new MathGroup(multArr);
+        this.solution=new MathGroup(name);
+        console.log(this.solution.toString(),this.solution.clone().getItems())
         this.solution.combiningLikeTerms();
+        console.log(this.solution.toString(),this.solution.clone().getItems())
     }
     eliminatGroupsWithMultipleTerms():MathGroup {
         let operatorsAccumulation: MultiplicationOperator[] = [];
@@ -406,12 +407,29 @@ export class MultiplicationOperator extends MathJaxOperator {
         if((numbers.length>0&&other.length===0)||value===0){
             this.solution=new MathGroup(new Token(value));return;
         }
-        if()
+        const test=(mainGroup: any, testGroup: any)=>{
+            if(mainGroup instanceof MathGroup&&testGroup instanceof MathGroup){
+                return mainGroup.isPowGroupMatch(testGroup)
+            }
+            return false;
+        }
+        const filtered=filterByTestConst(other,test);
+        const arr=[...filtered];
+        if(value!==1)
+            arr.push(new Token(value));
 
-        this.solution=new MathGroup([new Token(value),...other]);
+        if(arr.length>1){
+            this.solution=new MathGroup([new MultiplicationOperator(ensureAcceptableFormatForMathOperator(arr))]);
+            return;
+        }
+        this.solution=new MathGroup(arr[0]);
     }
 }
-
+function a(groups: MathGroup[]){
+    const areAllGroupsSingular=groups.every(g=>g.singular())
+    let value=0;
+    if()
+}
 
 
 function filterByTestConst(
@@ -533,9 +551,14 @@ export class MathGroup {
         return this.equals(group)
     }
 
-    isOccurrenceGroupMatch(item: Token|MathJaxOperator|MathGroup){
-        //Placeholder for now
-        return this.equals(item)
+    isOccurrenceGroupMatch(other: MathGroup){
+        const bothSingular=this.singular()&&other.singular()
+        const firstItemMathJaxoOerator=this.items[0] instanceof MathJaxOperator&&other.getItems()[0] instanceof MathJaxOperator
+        if(!bothSingular&&!firstItemMathJaxoOerator)return false;
+        const a=(this.items[0]as MathJaxOperator).isOccurrenceGroupMatch(other.getItems()[0])
+        return true
+        
+        return this.equals(other)
     }
 
     equals(item: Token|MathJaxOperator|MathGroup){
@@ -571,7 +594,6 @@ export class MathGroup {
                     const isMatch = item.isOccurrenceGroupMatch(otherItem);
                     return !isMatch;
                 });
-                // Restart iteration if items were removed
                 if (this.items.length < originalLength) {
                     index = 0;
                     continue;
@@ -731,7 +753,8 @@ export class BasicMathJaxTokens{
                 this.tokens.push(new BasicMathJaxToken('number',parseFloat(match[0])));
                 continue;
             }
-            match=math.slice(i).match(/[a-zA-Z]+(_\([a-zA-Z0-9]*\))*/)
+            //Add plus to make it multiple Letters.
+            match=math.slice(i).match(/[a-zA-Z](_\([a-zA-Z0-9]*\))*/)
             if (!!match) {
                 i+=match[0].length-1
                 this.tokens.push(new BasicMathJaxToken("variable",match[0]))
