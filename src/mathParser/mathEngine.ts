@@ -14,7 +14,6 @@ const greekLetters = [
     'tan', 'sin', 'cos', 'binom', 'frac', 'asin', 'acos', 
     'atan', 'arccos', 'arcsin', 'arctan', 'cdot','sqrt'
 ]*/
-
 export function findConsecutiveSequences(arr: any[]) {
     const sequences = [];
     let start = 0;
@@ -57,6 +56,7 @@ export class MathInfo{
             (item) => item instanceof MathJaxOperator && item.solution !== undefined
         );
         if(!result)return
+        
 
         const customFormatter = (check: any,string: string): string => {
             if (check instanceof MathJaxOperator && check.solution !== undefined) {
@@ -101,13 +101,16 @@ export class Position {
     specialChar: string;
     
     groups: MathGroup[];
-    constructor(tokens: any[], index: number){
+    constructor(tokens: any[], index: number){  
         this.index = index;
         this.transition = this.index;
         this.start = this.index;
         this.end = this.index;
         this.position(tokens)
     }
+
+    
+
     position(tokens: any[]) {
         this.operator = tokens[this.index].value;
         const metadata = searchMathJaxOperators(this.operator);

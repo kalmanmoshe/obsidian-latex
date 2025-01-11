@@ -172,7 +172,6 @@ export class MathJaxOperator {
         const operator = metadata.latex;
         let index=0;
         let string = '';
-
         const groupBracketType=(pos: { bracketType: BracketType; isBracketOptional: boolean },group: MathGroup)=>{
             if(!pos.isBracketOptional)
                 return pos.bracketType
