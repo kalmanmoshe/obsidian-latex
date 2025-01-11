@@ -1,12 +1,13 @@
 import { App, MarkdownView, Scope, WorkspaceWindow } from "obsidian";
-import MathPlugin from "src/main";
+import MathPlugin, { SvgBounds } from "src/main";
 import { optimize } from "./svgo.browser.js";
 // @ts-ignore
 import tikzjaxJs from "inline:./tikzjax.js";
 import { cartesianToPolar, findIntersectionPoint, findSlope, polarToCartesian, toNumber } from "src/mathParser/mathUtilities.js";
 import { DebugModal } from "src/desplyModals.js";
-import { BasicTikzToken, FormatTikzjax } from "./interpret/tokenizeTikzjax.js";
-import { mapBrackets } from "src/utils/tokenUtensils.js";
+import { FormatTikzjax } from "./interpret/tokenizeTikzjax.js";
+import { mapBrackets } from "src/utils/ParenUtensils.js";
+import { BasicTikzToken } from "src/basicToken.js";
 
 
 
@@ -84,12 +85,12 @@ export class Tikzjax {
                 textContent: "🛈",
             });
             try{
-            const script = el.createEl("script");
-            script.setAttribute("type", "text/tikz");
-            script.setAttribute("data-show-console", "true");
-            const tikzjax=new FormatTikzjax(source);
-            icon.onclick = () => new DebugModal(this.app,tikzjax.getCode()).open();
-            script.setText(tikzjax.getCode());
+                const script = el.createEl("script");
+                script.setAttribute("type", "text/tikz");
+                script.setAttribute("data-show-console", "true");
+                const tikzjax=new FormatTikzjax(source,false);
+                icon.onclick = () => new DebugModal(this.app,tikzjax.getCode()).open();
+                script.setText(tikzjax.getCode());
             }
             catch(e){
                 el.innerHTML = "";
@@ -490,9 +491,13 @@ export class Axis {
         const y=midPoint.cartesianY>this.cartesianY;
         this.quadrant=x?y?1:4:y?2:3;
     }
-    toStringSVG(){
-        return this.cartesianX+" "+this.cartesianY;
+    toStringSVG(bounds: SvgBounds): string {
+        const normalizedX = ((this.cartesianX - bounds.min.cartesianX) / (bounds.max.cartesianX - bounds.min.cartesianX)) * bounds.getWidth();
+        const normalizedY = bounds.getHeight() - ((this.cartesianY - bounds.min.cartesianY) / (bounds.max.cartesianY - bounds.min.cartesianY)) * bounds.getHeight();
+    
+        return `${normalizedX} ${normalizedY}`;
     }
+    
     toString(){
         return this.cartesianX+","+this.cartesianY;
     }
@@ -953,11 +958,11 @@ export class Draw {
             schematic.splice(0,1)
         }
         const referenceFirstAxisMap = schematic
-            .map((coor, index) => (coor instanceof BasicTikzToken && coor.name === 'ReferenceFirstAxis' ? index : null))
+            .map((coor, index) => (coor instanceof BasicTikzToken && coor.getStringValue() === 'ReferenceFirstAxis' ? index : null))
             .filter((t): t is number => t !== null); 
 
         const referenceLastAxisMap = schematic
-            .map((coor, index) => (coor instanceof BasicTikzToken && coor.name === 'ReferenceLastAxis' ? index : null))
+            .map((coor, index) => (coor instanceof BasicTikzToken && coor.getStringValue() === 'ReferenceLastAxis' ? index : null))
             .filter((t): t is number => t !== null);
         
         const mappedReferences = referenceFirstAxisMap.map(index => {

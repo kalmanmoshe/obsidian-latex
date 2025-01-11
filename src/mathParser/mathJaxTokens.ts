@@ -2,14 +2,15 @@
 import { quad,calculateBinom,roundBySettings ,degreesToRadians,radiansToDegrees, calculateFactorial} from "./mathUtilities";
 import { expandExpression,curlyBracketsRegex } from "./imVeryLazy";
 import { arrToRegexString, Axis, regExp } from "../tikzjax/tikzjax";
-import { Associativity, BracketType, MathJaxOperatorMetadata, mathJaxOperatorsMetadata, OperatorType } from "src/utils/staticData";
+import { Associativity, BracketState, BracketType, MathJaxOperatorMetadata, mathJaxOperatorsMetadata, OperatorType } from "src/staticData/mathParserStaticData";
 
-import { findParenIndex, Paren,idParentheses, isOpenParen, isClosedParen } from "../utils/tokenUtensils";
-import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchSymbols } from "../utils/dataManager";
+import { findParenIndex, Paren,idParentheses, parenState,  } from "../utils/ParenUtensils";
+import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchSymbols } from "../staticData/dataManager";
 
 import { parseOperator } from "./mathEngine";
 import { it } from "node:test";
 import { signal } from "codemirror";
+import { BasicMathJaxToken } from "src/basicToken";
 
 function wrapGroup(group: string, wrap: BracketType): string {
     switch (wrap) {
@@ -71,12 +72,12 @@ export function ensureAcceptableFormatForMathGroupItems(items: formattableForMat
             }
 
             if (item instanceof BasicMathJaxToken) {
-                if (item.value && (item.type === "number" || item.type === "variable")) {
-                    acc.push(new Token(item.value));
+                if (item.getValue() && (item.getType() === "number" || item.getType() === "variable")) {
+                    acc.push(new Token(item.getValue()));
                     return acc;
                 }
                 throw new Error(
-                    `Expected item to be a number or variable but received: ${item.value}`
+                    `Expected item to be a number or variable but received: ${item.getValue()}`
                 );
             }
             return acc;
@@ -99,8 +100,8 @@ function ensureAcceptableFormatForMathOperator(groups: (MathGroupItem|MathGroup)
     return formattedGroups;
 }
 
-function shouldAddPlus(group1?: any,group2?: any){
-    if(!group1||!group2)return '';
+function shouldAddPlus(group1?: any,group2?: any,distanceFromOperator?: number){
+    if(!group1||!group2||!distanceFromOperator||distanceFromOperator===-1||distanceFromOperator===1)return '';
 
     return '+';
 }
@@ -160,18 +161,6 @@ export class MathJaxOperator {
     getOccurrenceGroup(): { occurrencesCount: number; occurrencOf: MathGroup[] }|null  { return null; }  
     isOccurrenceGroupMatch(testItem: MathJaxOperator | Token): boolean {return false;}
     toString(customFormatter?: (check: any,string: string) => any){
-        function wrapGroup(group: MathGroup, wrap: BracketType,optional: boolean): string {
-            if(optional&&group.singular())return group.toString(customFormatter);
-            const groupStr=group.toString(customFormatter)
-            switch (wrap) {
-                case BracketType.Parentheses:
-                    return `(${groupStr})`;
-                case BracketType.CurlyBraces:
-                    return `{${groupStr}}`;
-                default:
-                    return groupStr;
-            }
-        }
         
 
         const metadata = searchMathJaxOperators(this.operator);
@@ -184,16 +173,24 @@ export class MathJaxOperator {
         let index=0;
         let string = '';
 
+        const groupBracketType=(pos: { bracketType: BracketType; isBracketOptional: boolean },group: MathGroup)=>{
+            if(!pos.isBracketOptional)
+                return pos.bracketType
+            return group.singular()?BracketType.None:pos.bracketType
+        }
+
         getValuesWithKeysBySide(metadata.associativity.positions,true).forEach(item => {
             if (!item) return;
-            string += shouldAddPlus(this.groups[index-1],this.groups[index])+wrapGroup(this.groups[index], item.bracketType, item.isBracketOptional);
+            string += shouldAddPlus(this.groups[index-1],this.groups[index],index);
+            string += wrapGroup(this.groups[index].toString(),groupBracketType(item,this.groups[index]));
             index++;
         });
 
         string += operator;
         getValuesWithKeysBySide(metadata.associativity.positions,false).forEach(item => {
             if (!item) return;
-            string += shouldAddPlus(this.groups[index],this.groups[index+1])+wrapGroup(this.groups[index], item.bracketType, item.isBracketOptional);
+            string += shouldAddPlus(this.groups[index],this.groups[index+1],index)
+            string += wrapGroup(this.groups[index].toString(),groupBracketType(item,this.groups[index]));
             index++;
         });
 
@@ -282,7 +279,6 @@ export class MultiplicationOperator extends MathJaxOperator {
         if (!testItemGroup) return false;
         
         const testItemGroupItems = testItemGroup.occurrencOf;
-        console.log(currentGroup.occurrencOf,testItemGroupItems)
         const areGroupsMatching =currentGroup.occurrencOf.length === testItemGroupItems.length &&
             currentGroup.occurrencOf.every((currentSubGroup: MathGroup) =>
                 testItemGroupItems.some((testSubGroup: MathGroup) => 
@@ -343,12 +339,9 @@ export class MultiplicationOperator extends MathJaxOperator {
     */
     parseMathjaxOperator(): void {
         const multArr=this.eliminatGroupsWithMultipleTerms().getItems();
-        console.log(multArr.map(i=>i.toString()))
         const name=multArr.map((o: MultiplicationOperator)=> {o.parse();return o.solution})
         this.solution=new MathGroup(name);
-        console.log(this.solution.toString(),this.solution.clone().getItems())
         this.solution.combiningLikeTerms();
-        console.log(this.solution.toString(),this.solution.clone().getItems())
     }
     eliminatGroupsWithMultipleTerms():MathGroup {
         let operatorsAccumulation: MultiplicationOperator[] = [];
@@ -382,9 +375,6 @@ export class MultiplicationOperator extends MathJaxOperator {
         }
         return groups[0];
     }
-    
-    
-   
     
 
     parse(){
@@ -425,10 +415,10 @@ export class MultiplicationOperator extends MathJaxOperator {
         this.solution=new MathGroup(arr[0]);
     }
 }
+
 function a(groups: MathGroup[]){
     const areAllGroupsSingular=groups.every(g=>g.singular())
     let value=0;
-    if()
 }
 
 
@@ -742,22 +732,22 @@ export class BasicMathJaxTokens{
         for (let i = 0; i < math.length; i++) {
             let match = math.slice(i).match(regExp('^' + operators));
             if (!!match) {
-                const type=/[\(\)]/.test(match[0])?'paren':'operator'
-                this.tokens.push(new  BasicMathJaxToken(type,match[0]));
+                this.tokens.push(BasicMathJaxToken.create(match[0]));
                 i+=match[0].length-1;
                 continue;
             }
+
             match = math.slice(i).match(/^([0-9.]+)/);//([a-zA-Z]?)/);
             if (!!match)
             {   i+=match[0].length-1
-                this.tokens.push(new BasicMathJaxToken('number',parseFloat(match[0])));
+                this.tokens.push(BasicMathJaxToken.create(parseFloat(match[0])));
                 continue;
             }
             //Add plus to make it multiple Letters.
             match=math.slice(i).match(/[a-zA-Z](_\([a-zA-Z0-9]*\))*/)
             if (!!match) {
                 i+=match[0].length-1
-                this.tokens.push(new BasicMathJaxToken("variable",match[0]))
+                this.tokens.push(BasicMathJaxToken.create(match[0]))
                 continue;
             }
 
@@ -785,7 +775,7 @@ export class BasicMathJaxTokens{
     implicitMultiplicationMap() {
         const isABasicMathJaxTokenDoubleRightOp=(token?: any)=>{
             if(token&&token instanceof BasicMathJaxToken){
-                return getOperatorsByAssociativity([1, 2]).includes(token.value?.toString() || '')
+                return getOperatorsByAssociativity([1, 2]).includes(token.getStringValue())
             }
             return false
         }
@@ -798,7 +788,7 @@ export class BasicMathJaxTokens{
         const testDoubleRight = (index: number) => {
             if (!this.validateIndex(index)||!(this.tokens[index] instanceof Paren)) return false;
             const idx = findParenIndex(index,this.tokens)?.open;
-            if (idx == null || !isOpenParen(this.tokens[index + 1])) return false;
+            if (idx == null || parenState(this.tokens[index + 1])) return false;
     
             const prevToken = this.tokens[idx - 1];
             return !isABasicMathJaxTokenDoubleRightOp(prevToken)
@@ -812,10 +802,10 @@ export class BasicMathJaxTokens{
         };
 
         const checkImplicitMultiplication=(token: any)=>{
-            return token instanceof BasicMathJaxToken&&typeof token.value==='string'&&hasImplicitMultiplication(token.value)
+            return token instanceof BasicMathJaxToken&&typeof token.getValue()==='string'&&hasImplicitMultiplication(token.getStringValue())
         }
 
-        const isVar=(token: any)=>{return token instanceof BasicMathJaxToken &&token.type==='variable'}
+        const isVar=(token: any)=>{return token instanceof BasicMathJaxToken &&token.getType()==='variable'}
 
         const precedesVariable = (tokens: any,index: number) => {
             return index>0&&isVar(tokens[index])
@@ -827,9 +817,9 @@ export class BasicMathJaxTokens{
         
         const map = this.tokens
             .map((token, index) => {
-                if (isOpenParen(token)|| checkImplicitMultiplication(token)||precedesVariable(this.tokens,index)) {
+                if (index>0&&(parenState(token,true)|| checkImplicitMultiplication(token)||precedesVariable(this.tokens,index))) {
                     return check(index - 1) ? index : null;
-                } else if (isClosedParen(token)||followsVariable(this.tokens,index)) {
+                } else if (index<this.tokens.length-1&&(parenState(token,)||followsVariable(this.tokens,index))) {
                     return check(index + 1) || testDoubleRight(index) ? index + 1 : null;
                 }
                 return null;
@@ -842,17 +832,17 @@ export class BasicMathJaxTokens{
     validatePlusMinus(){
         // Pluses are separators.Therefore, they do not need to be here As the expression is token[]
         //Minuses on the other hand.can either be a separator. Or a negative sign
-        const plusMap=this.tokens.map((token: BasicMathJaxToken, index: any) => token.value === 'Addition'?index : null).filter((index: number | null) => index !== null)
+        const plusMap=this.tokens.map((token: BasicMathJaxToken|Paren, index: any) => token instanceof BasicMathJaxToken&&token.getValue() === 'Addition'?index : null).filter((index: number | null) => index !== null)
         plusMap.reverse().forEach((index: number) => {
             this.tokens.splice(index,1)
         });
-        const minusMap=this.tokens.map((token: BasicMathJaxToken, index: any) => token.value === 'Subtraction'?index : null).filter((index: number | null) => index !== null)
+        const minusMap=this.tokens.map((token: BasicMathJaxToken|Paren, index: any) => token instanceof BasicMathJaxToken&&token.getValue() === 'Subtraction'?index : null).filter((index: number | null) => index !== null)
         
         minusMap.reverse().forEach((index: number) => {
             const nextToken = this.tokens[index + 1];
-            if (nextToken instanceof BasicMathJaxToken && typeof nextToken.value === 'number') {
-              nextToken.value *= -1;
-              this.tokens.splice(index, 1);
+            if (nextToken instanceof BasicMathJaxToken && typeof nextToken.getValue() === 'number') {
+                nextToken.setValue(nextToken.getNumberValue() * -1)
+                this.tokens.splice(index, 1);
             }
           });
     }
@@ -963,55 +953,4 @@ export class BasicMathJaxTokens{
         );
     }
     */
-}
-
-
-
-
-
-
-
-export class BasicMathJaxToken{
-    type: string;
-    value?: string|number;
-
-    constructor(type:string ,value: string | number | undefined){
-        this.type=type;
-        this.value=value;
-        this.insurProperFormatting()
-    }
-    insurProperFormatting(){
-        if (!this.isValueToken()&&typeof this.value==="string"){
-            this.value=searchAllMathJaxOperatorsAndSymbols(this.value)?.name
-        }
-    }
-
-    getLatexSymbol(){return typeof this.value==='string'?searchMathJaxOperators(this.value)?.latex:undefined}
-
-    getfullType(){
-        return this.type
-    }
-    clone(){
-        return new BasicMathJaxToken(this.type, this.value)
-    }
-
-
-    isString(){return this.type==='paren'||this.type==='operator'}
-
-    isValueToken(){return this.type==='variable'||this.type==='number'}
-
-    toStringLatex(){
-        let string=''
-        if (this.isString())
-            string+=this.getLatexSymbol()
-        if (this.type==='number') string+=this.value;
-        return string
-    }
-    affectedOperatorRange(direction: string){
-        if(this.type!=='operator'||this.value==='Equals')
-            return false
-        if(typeof this.value==='string'&&direction==='left'&&!isOperatorWithAssociativity(this.value, [-1, 1],true))
-            return false
-        return true
-    }
 }

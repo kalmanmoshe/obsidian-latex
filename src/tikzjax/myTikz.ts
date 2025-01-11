@@ -26,14 +26,14 @@ export class TikzSvg {
         this.svg.appendChild(this.createSVGElement('line',a))
     }//38.87 0.53  1pt=38.87 0.4pt=0.53 // 2pt=75.58 1pt=37.79
 
-    private setSVGenvironment() {
+    private setSVGenvironment() {/*
         const min=this.tikzjax.getMin();
         const max=this.tikzjax.getMax();
         this.svg = this.createSVGElement('svg', {
             width: fromPt(min.cartesianX+max.cartesianX),
             height: 2//fromPt(min.cartesianY+max.cartesianY+0.2),
             //preserveAspectRatio: "none",
-        }) as SVGSVGElement;
+        }) as SVGSVGElement;*/
     }
 
     getSvg(): SVGSVGElement {return this.svg;}

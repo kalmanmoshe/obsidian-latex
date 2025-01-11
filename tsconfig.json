@@ -23,7 +23,7 @@
   },
   "include": [
     "**/*.ts" 
-  ],
+, "src/staticData/default_snippet_variables.js", "src/staticData/default_snippets.js"  ],
   "exclude": [
     "node_modules",
     "dist" 

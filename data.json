@@ -8,6 +8,7 @@
   "autoDelete$": true,
   "loadSnippetsFromFile": true,
   "loadSnippetVariablesFromFile": false,
+  "preambleFileLocation": "",
   "snippetsFileLocation": "obsidian/data/Snippets",
   "snippetVariablesFileLocation": "",
   "concealEnabled": false,
@@ -22,7 +23,7 @@
   "matrixShortcutsEnabled": true,
   "taboutEnabled": true,
   "autoEnlargeBrackets": true,
-  "wordDelimiters": "., +-\\n\t:;!?\\/{}[]()=~$",
+  "wordDelimiters": "",
   "invertColorsInDarkMode": false,
   "numberFormatting": "100000",
   "background": "#62657a",
@@ -195,5 +196,5 @@
   "autofractionExcludedEnvs": "[\n\t\t[\"^{\", \"}\"],\n\t\t[\"\\\\pu{\", \"}\"]\n\t]",
   "matrixShortcutsEnvNames": "pmatrix, cases, align, gather, bmatrix, Bmatrix, vmatrix, Vmatrix, array, matrix",
   "autoEnlargeBracketsTriggers": "sum, int, frac, prod, bigcup, bigcap",
-  "forceMathLanguages": "math"
+  "forceMathLanguages": "math-en"
 }

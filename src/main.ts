@@ -1,6 +1,6 @@
 //git reset --hard
 import {Plugin, MarkdownRenderer,addIcon, App, Modal, Component, Setting,Notice, WorkspaceWindow,loadMathJax,renderMath, MarkdownView, EditorSuggest, EditorSuggestTriggerInfo, EditorPosition, Editor, TFile, EditorSuggestContext} from "obsidian";
-
+import { html as beautifyHTML } from 'js-beautify';
 import { MathInfo, MathPraiser } from "./mathParser/mathEngine";
 import { InfoModal, DebugModal } from "./desplyModals";
 import { CustomInputModal, HistoryModal, InputModal, VecInputModel } from "./temp";
@@ -8,8 +8,6 @@ import {LatexSuitePluginSettings, DEFAULT_SETTINGS, LatexSuiteCMSettings, proces
 import { LatexSuiteSettingTab } from "./settings/settings_tab";
 import { calculateBinom, degreesToRadians, findAngleByCosineRule, getUsableDegrees, polarToCartesian, radiansToDegrees, roundBySettings } from "src/mathParser/mathUtilities";
 import { Axis, Coordinate, Draw, Formatting, Tikzjax } from "./tikzjax/tikzjax";
-import { Suggestor } from "./suggestor.js";
-import { TikzSvg } from "./tikzjax/myTikz.js";
 
 import {Extension, EditorState, SelectionRange,RangeSet, Prec } from "@codemirror/state";
 import { FormatTikzjax } from "./tikzjax/interpret/tokenizeTikzjax.js";
@@ -20,7 +18,6 @@ import { ICONS } from "./settings/ui/icons";
 
 import { getEditorCommands } from "./features/editor_commands";
 import { SnippetVariables, parseSnippetVariables, parseSnippets } from "./snippets/parse";
-import {  PluginManifest, PluginSettingTab,  } from 'obsidian';
 
 
 
@@ -105,24 +102,22 @@ export default class Moshe extends Plugin {
 	}
 
   processTikzBlock(source: string, container: HTMLElement): void {
-  const svg = new TikzSvg(source);
-  
-  const icon = Object.assign(container.createEl("div"), {
-    className: "math-debug-icon",
-    textContent: "🛈",
-  });
-  
-
-  const graph = Object.assign(document.createElement("div"), {
-    style: "display: flex; justify-content: center; align-items: center;"
-  });
-  graph.appendChild(svg.getSvg());
-  svg.debugInfo+=graph.outerHTML
-  icon.onclick = () => new DebugModal(this.app, svg.debugInfo).open();
-  
-  container.appendChild(icon);
-  container.appendChild(graph);
+    try{
+      const a=new FormatTikzjax(source,true)
+    console.log(a)
+    }catch(e){
+      console.error(e)
+    }
+    
+    const svgContainer = Object.assign(document.createElement("div"), {
+        style: "display: flex; justify-content: center; align-items: center;"
+    });
+    svgContainer.appendChild(dummyFunction());
+    container.appendChild(svgContainer);
+    console.log(beautifyHTML(container.innerHTML, { indent_size: 2 }))
 }
+
+
 
 loadIcons() {
   for (const [iconId, svgContent] of Object.entries(ICONS)) {
@@ -269,6 +264,113 @@ async loadSettings() {
   
 }
 
+function dummyFunction():SVGSVGElement{
+  
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  
+  const bounds=new SvgBounds()
+  const func = (x: number) => x * x;
+  const arr=[]
+  for(let i=-5;i<=5;i++){
+    arr.push(new Axis(i,func(i)))
+  }
+  const paths = [
+    new SVGpath(arr, { stroke: "black", strokeWidth: 1 }),
+    /*new SVGpath([new Axis(0,30),new Axis(100,30)], { stroke: "black", strokeWidth: 1 }),
+    new SVGpath([new Axis(0,60),new Axis(100,60)], { stroke: "black", strokeWidth: 1 }),
+    new SVGpath([new Axis(0,90),new Axis(100,90)], { stroke: "black", strokeWidth: 1 }),*/
+  ];
+  
+  paths.forEach(p=>bounds.improveBounds(p.getBounds()))
+  //console.log(bounds)
+
+  svg.setAttribute("width", `${bounds.getWidth()}`);
+  svg.setAttribute("height", `${bounds.getHeight()}`);
+  //svg.style.border = "1px solid black";
+  paths.forEach(path => svg.appendChild(path.toElement(bounds)));
+  return svg
+}
+
+
+export class SvgBounds{
+  min: Axis;
+  max: Axis;
+
+  constructor(min?: Axis,max?: Axis){
+    this.min=min??new Axis();
+    this.max=max??new Axis();
+  }
+  improveBounds(axis: Axis | SvgBounds): void {
+    const updateBounds = (value: number, min?: number, max?: number): [number, number] => {
+      return [Math.min(value, min??Infinity), Math.max(value, max??-Infinity)];
+    };
+    const improveWithAxis = (inputAxis: Axis): void => {
+      const { cartesianX: x, cartesianY: y } = inputAxis;
+      [this.min.cartesianX, this.max.cartesianX] = updateBounds(x, this.min?.cartesianX, this.max?.cartesianX);
+      [this.min.cartesianY, this.max.cartesianY] = updateBounds(y, this.min?.cartesianY, this.max?.cartesianY);
+    };
+    const improveWithBounds = (inputBounds: SvgBounds): void => {
+      improveWithAxis(inputBounds.min);
+      improveWithAxis(inputBounds.max);
+    };
+    if (axis instanceof SvgBounds) {
+      improveWithBounds(axis);
+    } else {
+      improveWithAxis(axis as Axis);
+    }
+  }
+  getWidth(){return Math.abs(this.max.cartesianX-this.min.cartesianX)}
+  getHeight(){return Math.abs(this.max.cartesianY-this.min.cartesianY)}
+  compare(other: SvgBounds){
+    
+  }
+  clone(){
+    return new SvgBounds(this.min,this.max)
+  }
+  static improvedBounds(){
+
+  }
+}
+class mathFunction{
+  yIntersect: Axis;
+  xIntersects: Axis[];
+
+}
+
+class SVGpath {
+  axes: Axis[];
+  formatting: { stroke?: string, strokeWidth?: number, fill?: string };
+  
+  constructor(coordinates: Axis[], formatting: { stroke?: string, strokeWidth?: number, fill?: string } = {}) {
+      this.axes = coordinates;
+      this.formatting = formatting;
+  }
+  getBounds(){
+    const bounds=new SvgBounds()
+    this.axes.forEach(axis => {
+      bounds.improveBounds(axis);
+    });
+    return bounds;
+  }
+  toElement(bounds: SvgBounds): SVGPathElement {
+      const pathElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      const pathData = this.axes.map((coord, index) => {
+          const command = index === 0 ? 'M' : 'L';
+          return `${command} ${coord.toStringSVG(bounds)}`;
+      }).join(' ') + ' Z';
+
+      pathElement.setAttribute("d", pathData);
+
+      if (this.formatting.stroke) pathElement.setAttribute("stroke", this.formatting.stroke);
+      if (this.formatting.strokeWidth) pathElement.setAttribute("stroke-width", this.formatting.strokeWidth.toString());
+      if (this.formatting.fill) pathElement.setAttribute("fill", this.formatting.fill);
+      else pathElement.setAttribute("fill", "none");
+
+      return pathElement;
+  }
+}
+
 
 
 
@@ -351,7 +453,6 @@ class ProcessMath {
     inputDiv.appendChild(renderMath(input,true))
     //MarkdownRenderer.renderMarkdown(`\${${input}}$`, inputDiv, "", new Component());
     //const resultOutput = /(true|false)/.test(result) ? result : `\${${result}}$`;
-    console.log(result)
     resultDiv.appendChild(renderMath(String(roundBySettings(result.solutionToString())),true))
     //MarkdownRenderer.renderMarkdown(resultOutput, resultDiv, "", new Component());
   }

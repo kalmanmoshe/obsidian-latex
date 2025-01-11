@@ -2,7 +2,7 @@ import { EditorState, Extension } from "@codemirror/state";
 import { EditorView, ViewUpdate } from "@codemirror/view";
 import { App, ButtonComponent,Notice, ExtraButtonComponent, Modal, PluginSettingTab, Setting, debounce, setIcon } from "obsidian";
 import { parseSnippetVariables, parseSnippets } from "src/snippets/parse";
-import { DEFAULT_SNIPPETS } from "src/utils/default_snippets";
+import { DEFAULT_SNIPPETS } from "src/staticData/default_snippets";
 import LatexSuitePlugin from "../main";
 import { DEFAULT_SETTINGS } from "./settings";
 import { FileSuggest } from "./ui/file_suggest";
