@@ -1,11 +1,10 @@
 
 import { quad,calculateBinom,roundBySettings ,degreesToRadians,radiansToDegrees, calculateFactorial} from "./mathUtilities";
-import { expandExpression,curlyBracketsRegex } from "./imVeryLazy";
-import { arrToRegexString, Axis, regExp } from "../tikzjax/tikzjax";
-import { Associativity } from "src/utils/staticData";
-import { findParenIndex, Paren,idParentheses, isOpenParen, findDeepestParenthesesScope } from "../utils/tokenUtensils";
-import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, searchMathJaxOperators } from "../utils/dataManager";
-import { MathGroup, MathJaxOperator, Token, BasicMathJaxTokens, BasicMathJaxToken, ensureAcceptableFormatForMathGroupItems, deepSearchWithPath, MathGroupItem } from "./mathJaxTokens";
+
+import { findParenIndex, Paren,idParentheses, findDeepestParenthesesScope } from "../utils/ParenUtensils";
+import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, searchMathJaxOperators } from "../staticData/dataManager";
+import { MathGroup, MathJaxOperator, Token, BasicMathJaxTokens, ensureAcceptableFormatForMathGroupItems, deepSearchWithPath, MathGroupItem } from "./mathJaxTokens";
+import { BasicMathJaxToken } from "src/basicToken";
 const greekLetters = [
     'Alpha','alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 
     'Iota', 'Kappa', 'Lambda', 'Mu','mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 
@@ -234,7 +233,7 @@ export class MathPraiser{
         
         const tokens=new BasicMathJaxTokens();
         tokens.addInput(this.input)
-        console.log("basicTokens",tokens.clone());
+        //console.log("basicTokens",tokens.clone());
         const basicTokens=tokens.tokens
         this.convertBasicMathJaxTokenaToMathGroup(basicTokens)
         

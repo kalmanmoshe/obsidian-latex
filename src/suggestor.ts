@@ -8,7 +8,6 @@ import { Context } from "./utils/context";
 import { replaceRange, setCursor } from "./editor utilities/editor_utils";
 import { expandSnippets } from "./snippets/snippet_management";
 import { queueSnippet } from "./snippets/codemirror/snippet_queue_state_field";
-import { BasicTikzToken, BasicTikzTokens } from "./tikzjax/interpret/tokenizeTikzjax";
 
 
 class SuggestorTrigger{
@@ -18,8 +17,8 @@ class SuggestorTrigger{
 		this.text=this.getCurrentLineText(ctx.pos, view)
 		const source=this.getCodeBlockText(ctx,view)
 		if(!source)return
-		const tokens=new BasicTikzTokens(source)
-		console.log(tokens)
+		//const tokens=new BasicTikzTokens(source)
+		//console.log(tokens)
 	}
 	setTrigger(trigger: string){
 

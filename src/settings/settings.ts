@@ -1,7 +1,7 @@
 import { Snippet } from "../snippets/snippets";
 import { Environment } from "../snippets/environment";
-import { DEFAULT_SNIPPETS } from "src/utils/default_snippets";
-import { DEFAULT_SNIPPET_VARIABLES } from "src/utils/default_snippet_variables";
+import { DEFAULT_SNIPPETS } from "src/staticData/default_snippets";
+import { DEFAULT_SNIPPET_VARIABLES } from "src/staticData/default_snippet_variables";
 
 interface LatexSuiteBasicSettings {
     invertColorsInDarkMode: boolean;

@@ -4,7 +4,7 @@ import { EditorView, ViewPlugin, ViewUpdate ,Decoration, tooltips, } from "@code
 import { EditorState, Prec,Extension } from "@codemirror/state";
 import { Context } from "./utils/context";
 import { isComposing, replaceRange, setCursor } from "./editor utilities/editor_utils";
-import { keyboardAutoReplaceHebrewToEnglishTriggers } from "./utils/staticData";
+import { keyboardAutoReplaceHebrewToEnglishTriggers } from "./staticData/mathParserStaticData";
 import { getCharacterAtPos, Suggestor } from "./suggestor";
 import { RtlForc } from "./editorDecorations";
 import { setSelectionToNextTabstop } from "./snippets/snippet_management";
@@ -252,7 +252,6 @@ const handleDropdownNavigation=(event: KeyboardEvent,view:EditorView,suggestor: 
 
 
 export const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, isIME: boolean, view: EditorView) => {
-
 	const settings = getLatexSuiteConfig(view);
 	const ctx = Context.fromView(view);
 
