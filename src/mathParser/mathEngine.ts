@@ -14,6 +14,7 @@ const greekLetters = [
     'tan', 'sin', 'cos', 'binom', 'frac', 'asin', 'acos', 
     'atan', 'arccos', 'arcsin', 'arctan', 'cdot','sqrt'
 ]*/
+
 export function findConsecutiveSequences(arr: any[]) {
     const sequences = [];
     let start = 0;
