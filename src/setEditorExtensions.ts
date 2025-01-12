@@ -55,17 +55,13 @@ export class EditorExtensions {
 			const timeout = app.CMSettings.concealRevealTimeout;
 			app.editorExtensions.push(mkConcealPlugin(timeout).extension);
 		}
-		if (app.CMSettings.colorPairedBracketsEnabled)
 			app.editorExtensions.push(colorPairedBracketsPluginLowestPrec);
-		if (app.CMSettings.highlightCursorBracketsEnabled)
 			app.editorExtensions.push(highlightCursorBracketsPlugin.extension);
-		if (app.CMSettings.mathPreviewEnabled)
 			app.editorExtensions.push([
 				cursorTooltipField.extension,
 				cursorTooltipBaseTheme,
 				tooltips({ position: "absolute" }),
 			]);
-
 
 		this.monitor(app); 
 		this.snippetExtensions(app);
@@ -296,8 +292,7 @@ export const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, 
 
 		if (success) return true;
 	}
-
-	if (settings.autofractionEnabled && ctx.mode.strictlyInMath()) {
+	if (ctx.mode.strictlyInMath()) {
 		if (key === "/") {
 			success = runAutoFraction(view, ctx);
 

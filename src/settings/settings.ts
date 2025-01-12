@@ -1,7 +1,5 @@
 import { Snippet } from "../snippets/snippets";
 import { Environment } from "../snippets/environment";
-import { DEFAULT_SNIPPETS } from "src/staticData/default_snippets";
-import { DEFAULT_SNIPPET_VARIABLES } from "src/staticData/default_snippet_variables";
 
 interface LatexSuiteBasicSettings {
     invertColorsInDarkMode: boolean;
@@ -24,15 +22,12 @@ interface LatexSuiteBasicSettings {
 	snippetsFileLocation: string;
 	preambleFileLocation: string;
 	snippetVariablesFileLocation: string;
-	autofractionEnabled: boolean;
 	concealEnabled: boolean;
 	concealRevealTimeout: number;
 	colorPairedBracketsEnabled: boolean;
 	highlightCursorBracketsEnabled: boolean;
 	mathPreviewEnabled: boolean;
 	mathPreviewPositionIsAbove: boolean;
-	autofractionSymbol: string;
-	autofractionBreakingChars: string;
 	matrixShortcutsEnabled: boolean;
 	taboutEnabled: boolean;
 	autoEnlargeBrackets: boolean;
@@ -62,8 +57,8 @@ export type LatexSuiteCMSettings = {snippets: Snippet[]} & LatexSuiteBasicSettin
 
 export const DEFAULT_SETTINGS: LatexSuitePluginSettings = {
 
-	snippets: DEFAULT_SNIPPETS,
-	snippetVariables: DEFAULT_SNIPPET_VARIABLES,
+	snippets: '[]',
+	snippetVariables: '[]',
 
 	// Basic settings
 	snippetsEnabled: true,
@@ -82,9 +77,6 @@ export const DEFAULT_SETTINGS: LatexSuitePluginSettings = {
 	highlightCursorBracketsEnabled: true,
 	mathPreviewEnabled: true,
 	mathPreviewPositionIsAbove: true,
-	autofractionEnabled: true,
-	autofractionSymbol: "\\frac",
-	autofractionBreakingChars: "+-=\t",
 	matrixShortcutsEnabled: true,
 	taboutEnabled: true,
 	autoEnlargeBrackets: true,

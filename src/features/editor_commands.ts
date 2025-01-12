@@ -89,7 +89,6 @@ function getEnableAllFeaturesCommand(plugin: LatexSuitePlugin) {
 		name: "Enable all features",
 		callback: async () => {
 			plugin.settings.snippetsEnabled = true;
-			plugin.settings.autofractionEnabled = true;
 			plugin.settings.matrixShortcutsEnabled = true;
 			plugin.settings.taboutEnabled = true;
 			plugin.settings.autoEnlargeBrackets = true;
@@ -106,7 +105,6 @@ function getDisableAllFeaturesCommand(plugin: LatexSuitePlugin) {
 		name: "Disable all features",
 		callback: async () => {
 			plugin.settings.snippetsEnabled = false;
-			plugin.settings.autofractionEnabled = false;
 			plugin.settings.matrixShortcutsEnabled = false;
 			plugin.settings.taboutEnabled = false;
 			plugin.settings.autoEnlargeBrackets = false;
