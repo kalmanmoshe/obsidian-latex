@@ -1,6 +1,5 @@
 import { BasicMathJaxToken, BasicTikzToken } from "src/basicToken";
 import { BracketState, BracketType } from "../staticData/mathParserStaticData";
-import { keyof } from "valibot";
 
 export class Paren{
     type: BracketType;

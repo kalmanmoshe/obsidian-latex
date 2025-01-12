@@ -2,7 +2,6 @@ import { EditorState, Extension } from "@codemirror/state";
 import { EditorView, ViewUpdate } from "@codemirror/view";
 import { App, ButtonComponent,Notice, ExtraButtonComponent, Modal, PluginSettingTab, Setting, debounce, setIcon } from "obsidian";
 import { parseSnippetVariables, parseSnippets } from "src/snippets/parse";
-import { DEFAULT_SNIPPETS } from "src/staticData/default_snippets";
 import LatexSuitePlugin from "../main";
 import { DEFAULT_SETTINGS } from "./settings";
 import { FileSuggest } from "./ui/file_suggest";
@@ -48,7 +47,6 @@ export class LatexSuiteSettingTab extends PluginSettingTab {
 		this.displayConcealSettings();
 		this.displayColorHighlightBracketsSettings();
 		this.displayPopupPreviewSettings();
-		this.displayAutofractionSettings();
 		this.displayMatrixShortcutsSettings();
 		this.displayTaboutSettings();
 		this.displayAutoEnlargeBracketsSettings();
@@ -244,58 +242,6 @@ export class LatexSuiteSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				})
 			);
-	}
-
-	private displayAutofractionSettings() {
-		const containerEl = this.containerEl;
-		this.addHeading(containerEl, "Auto-fraction", "math-x-divide-y-2");
-
-		new Setting(containerEl)
-			.setName("Enabled")
-			.setDesc("Whether auto-fraction is enabled.")
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.autofractionEnabled)
-				.onChange(async (value) => {
-					this.plugin.settings.autofractionEnabled = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName("Fraction symbol")
-			.setDesc("The fraction symbol to use in the replacement. e.g. \\frac, \\dfrac, \\tfrac")
-			.addText(text => text
-				.setPlaceholder(DEFAULT_SETTINGS.autofractionSymbol)
-				.setValue(this.plugin.settings.autofractionSymbol)
-				.onChange(async (value) => {
-					this.plugin.settings.autofractionSymbol = value;
-
-					await this.plugin.saveSettings();
-				}));
-
-
-		new Setting(containerEl)
-			.setName("Excluded environments")
-			.setDesc("A list of environments to exclude auto-fraction from running in. For example, to exclude auto-fraction from running while inside an exponent, such as e^{...}, use  [\"^{\", \"}\"]")
-			.addTextArea(text => text
-				.setPlaceholder("[ [\"^{\", \"}] ]")
-				.setValue(this.plugin.settings.autofractionExcludedEnvs)
-				.onChange(async (value) => {
-					this.plugin.settings.autofractionExcludedEnvs = value;
-					await this.plugin.saveSettings();
-				}));
-
-
-		new Setting(containerEl)
-			.setName("Breaking characters")
-			.setDesc("A list of characters that denote the start/end of a fraction. e.g. if + is included in the list, \"a+b/c\" will expand to \"a+\\frac{b}{c}\". If + is not in the list, it will expand to \"\\frac{a+b}{c}\".")
-			.addText(text => text
-				.setPlaceholder(DEFAULT_SETTINGS.autofractionBreakingChars)
-				.setValue(this.plugin.settings.autofractionBreakingChars)
-				.onChange(async (value) => {
-					this.plugin.settings.autofractionBreakingChars = value;
-
-					await this.plugin.saveSettings();
-				}));
 	}
 
 	private displayMatrixShortcutsSettings() {
@@ -687,10 +633,10 @@ export class LatexSuiteSettingTab extends PluginSettingTab {
 						.setButtonText("Reset to default snippets")
 						.setWarning(),
 					async () => {
-						this.snippetsEditor.setState(EditorState.create({ doc: DEFAULT_SNIPPETS, extensions: extensions }));
+						this.snippetsEditor.setState(EditorState.create({ doc: '[]', extensions: extensions }));
 						updateValidityIndicator(true);
 
-						this.plugin.settings.snippets = DEFAULT_SNIPPETS;
+						this.plugin.settings.snippets = '[]';
 
 						await this.plugin.saveSettings();
 					}
