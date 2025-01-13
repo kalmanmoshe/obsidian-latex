@@ -59,7 +59,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 
 import fs from "fs";
 import path from "path";
-import createLatexWorker from "./swiftlatexpdftex.worker.js";
+import { createLatexWorker } from "./swiftlatexpdftex.worker";
 
 class CompileResult {
     constructor() {

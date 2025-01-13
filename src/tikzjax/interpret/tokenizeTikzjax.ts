@@ -261,11 +261,11 @@ export class FormatTikzjax {
         }*/
     }
 
-    getCode(){
+    getCode(app: App){
         if (typeof this.source==="string"&&this.source.match(/(usepackage|usetikzlibrary)/)){
             return this.processedCode
         }
-        return getPreamble()+this.processedCode+"\n\\end{tikzpicture}\\end{document}";
+        return getPreamble(app)+this.processedCode+"\n\\end{tikzpicture}\\end{document}";
     }
     
     applyPostProcessing(){
@@ -396,21 +396,29 @@ function getExtremeXY(tokens: any) {
 
 
 
-import fs from 'fs';
+import * as fs from 'fs';
 import { BasicTikzToken } from "src/basicToken";
+import { App, FileSystemAdapter } from "obsidian";
 
 function getStyFileContent(filePath: fs.PathOrFileDescriptor) {
     try {
-        return fs.readFileSync(filePath, 'utf8'); // Read the file synchronously
+        return fs.readFileSync(filePath, 'utf8');
     } catch (error) {
         console.error('Error reading the .sty file:', error);
-        return ''; // Return an empty string on error
+        return '';
     }
 }
 
-function getPreamble():string{
-    const styContent = getStyFileContent('/Users/moshe/Desktop/school/obsidian/data/Files/preamble.sty');
+function getPreamble(app: App):string{
     
+    let styContent = ''
+    const adapter = app.vault.adapter;
+    if (adapter instanceof FileSystemAdapter) {
+        const vaultPath = adapter.getBasePath();
+        const preamblePath = `${vaultPath}/data/Files/preamble.sty`;
+        styContent = getStyFileContent(preamblePath);
+    }
+
     const ang="\\tikzset{ang/.style 2 args={fill=black!50,opacity=0.5,text opacity=0.9,draw=orange,<->,angle eccentricity=#1,angle radius=#2cm,text=orange,font=\\large},ang/.default={1.6}{0.5}}"
   
     const mark="\\def\\mark#1#2#3{\\path [decoration={markings, mark=at position 0.5 with {\\foreach \\x in {#1} { \\draw[line width=1pt] (\\x,-3pt) -- (\\x,3pt); }}}, postaction=decorate] (#2) -- (#3);}"

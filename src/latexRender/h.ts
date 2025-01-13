@@ -5,7 +5,7 @@ import * as temp from 'temp';
 import * as path from 'path';
 import {PdfTeXEngine} from './PdfTeXEngine.js';
 import {PDFDocument} from 'pdf-lib';
-const PdfToCairo = require("./pdftocairo.js")
+import PdfToCairo from "./pdftocairo.js";
 import {optimize,Config } from 'svgo';
 import Moshe from 'src/main.js';
 

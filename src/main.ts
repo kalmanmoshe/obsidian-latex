@@ -17,7 +17,6 @@ import { ICONS } from "./settings/ui/icons";
 
 import { getEditorCommands } from "./features/editor_commands";
 import { SnippetVariables, parseSnippetVariables, parseSnippets } from "./snippets/parse";
-import {SwiftlatexRender} from "./latexRender/h"
 // i want to make some code that will outo insot metadata to fillls
 
 
@@ -31,7 +30,6 @@ export default class Moshe extends Plugin {
   async onload() {
     console.log("new lod")
     await this.loadSettings();
-    new SwiftlatexRender(this.app,this)
 		this.loadIcons();
 		this.addSettingTab(new LatexSuiteSettingTab(this.app, this));
 		loadMathJax();
@@ -50,9 +48,6 @@ export default class Moshe extends Plugin {
     
     this.registerMarkdownCodeBlockProcessor("math-engine", this.processMathBlock.bind(this));
     this.registerMarkdownCodeBlockProcessor("tikzjax", processTikzBlock.bind(this));
-    
-      
-    //this.registerEditorSuggest(new NumeralsSuggestor(this));
     
   }
 
@@ -609,12 +604,12 @@ class tikzGraph extends Modal {
     const script = contentEl.createEl("script");
     script.setAttribute("type", "text/tikz");
     script.setAttribute("data-show-console", "true");
-    script.setText(code.getCode());
+    script.setText(code.getCode(this.app));
     
     const actionButton = contentEl.createEl("button", { text: "Copy graph", cls: "info-modal-Copy-button" });
 
     actionButton.addEventListener("click", () => {
-      navigator.clipboard.writeText(this.tikz.getCode());
+      navigator.clipboard.writeText(this.tikz.getCode(this.app));
       new Notice("Graph copied to clipboard!");
     });
   }
