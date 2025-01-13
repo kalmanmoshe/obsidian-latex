@@ -3,7 +3,6 @@ import {Plugin, MarkdownRenderer,addIcon, App, Modal, Component, Setting,Notice,
 import { html as beautifyHTML } from 'js-beautify';
 import { MathInfo, MathPraiser } from "./mathParser/mathEngine";
 import { InfoModal, DebugModal } from "./desplyModals";
-import { CustomInputModal, HistoryModal, InputModal, VecInputModel } from "./temp";
 import {LatexSuitePluginSettings, DEFAULT_SETTINGS, LatexSuiteCMSettings, processLatexSuiteSettings} from "./settings/settings";
 import { LatexSuiteSettingTab } from "./settings/settings_tab";
 import { calculateBinom, degreesToRadians, findAngleByCosineRule, getUsableDegrees, polarToCartesian, radiansToDegrees, roundBySettings } from "src/mathParser/mathUtilities";
@@ -18,7 +17,8 @@ import { ICONS } from "./settings/ui/icons";
 
 import { getEditorCommands } from "./features/editor_commands";
 import { SnippetVariables, parseSnippetVariables, parseSnippets } from "./snippets/parse";
-
+import {SwiftlatexRender} from "./latexRender/h"
+// i want to make some code that will outo insot metadata to fillls
 
 
 export default class Moshe extends Plugin {
@@ -31,7 +31,7 @@ export default class Moshe extends Plugin {
   async onload() {
     console.log("new lod")
     await this.loadSettings();
-
+    new SwiftlatexRender(this.app,this)
 		this.loadIcons();
 		this.addSettingTab(new LatexSuiteSettingTab(this.app, this));
 		loadMathJax();
@@ -49,38 +49,14 @@ export default class Moshe extends Plugin {
 		this.tikzProcessor.registerTikzCodeBlock();
     
     this.registerMarkdownCodeBlockProcessor("math-engine", this.processMathBlock.bind(this));
-    this.registerMarkdownCodeBlockProcessor("tikzjax", this.processTikzBlock.bind(this));
-    this.registerCommands();
+    this.registerMarkdownCodeBlockProcessor("tikzjax", processTikzBlock.bind(this));
     
       
     //this.registerEditorSuggest(new NumeralsSuggestor(this));
     
   }
 
-  private processMathBlock(source: string, mainContainer: HTMLElement): void {
-    
-    mainContainer.classList.add("math-container");
-    
-    const userVariables: { variable: string; value: string }[] = [];
-    let skippedIndexes = 0;
-    
-    const expressions = source.split("\n").map(line => line.replace(/[\s]+/,'').trim()).filter(line => line && !line.startsWith("//"));
-    if (expressions.length === 0) {return;}
-
-    expressions.forEach((expression, index) => {
-      let lineContainer: HTMLDivElement = document.createElement("div");
-      lineContainer.classList.add("math-line-container", (index-skippedIndexes) % 2 === 0 ? "math-row-even" : "math-row-odd");
-      //if (expression.match(/^\/\//)){}
-      const processMath = new ProcessMath(expression,userVariables, this.app,lineContainer);
-      processMath.initialize();
-
-      if(processMath.mode!=="variable"){
-        lineContainer = processMath.container as HTMLDivElement;
-        mainContainer.appendChild(lineContainer);
-      }
-      else{skippedIndexes++;}
-    });
-  }
+  
 
   addEditorCommands() {
 		for (const command of getEditorCommands(this)) {
@@ -100,23 +76,6 @@ export default class Moshe extends Plugin {
 			return [];
 		}
 	}
-
-  processTikzBlock(source: string, container: HTMLElement): void {
-    try{
-      const a=new FormatTikzjax(source,true)
-    console.log(a)
-    }catch(e){
-      console.error(e)
-    }
-    
-    const svgContainer = Object.assign(document.createElement("div"), {
-        style: "display: flex; justify-content: center; align-items: center;"
-    });
-    svgContainer.appendChild(dummyFunction());
-    container.appendChild(svgContainer);
-    console.log(beautifyHTML(container.innerHTML, { indent_size: 2 }))
-}
-
 
 
 loadIcons() {
@@ -208,6 +167,11 @@ async loadSettings() {
 
 		return snippets;
 	}
+
+
+
+  
+  
   showSnippetsLoadedNotice(nSnippets: number, nSnippetVariables: number, becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean) {
 		if (!(becauseFileLocationUpdated || becauseFileUpdated))
 			return;
@@ -223,24 +187,35 @@ async loadSettings() {
 		const suffix = " from files.";
 		new Notice(prefix + body.join(" and ") + suffix, 5000);
 	}
-  private registerCommands() {
-    this.addCommand({
-      id: "open-input-form",
-      name: "Open Input Form",
-      callback: () => new VecInputModel(this.app,this).open(),
-    });
 
-    this.addCommand({
-      id: "view-session-history",
-      name: "View Session History",
-      //callback: () => new HistoryModal(this.app, this).open(),
-    });
-    this.addCommand({
-      id: "test-mathEngine",
-      name: "test math engine",
-      callback: () =>testMathEngine(),
+
+
+  private processMathBlock(source: string, mainContainer: HTMLElement): void {
+    
+    mainContainer.classList.add("math-container");
+    
+    const userVariables: { variable: string; value: string }[] = [];
+    let skippedIndexes = 0;
+    
+    const expressions = source.split("\n").map(line => line.replace(/[\s]+/,'').trim()).filter(line => line && !line.startsWith("//"));
+    if (expressions.length === 0) {return;}
+
+    expressions.forEach((expression, index) => {
+      let lineContainer: HTMLDivElement = document.createElement("div");
+      lineContainer.classList.add("math-line-container", (index-skippedIndexes) % 2 === 0 ? "math-row-even" : "math-row-odd");
+      //if (expression.match(/^\/\//)){}
+      const processMath = new ProcessMath(expression,userVariables, this.app,lineContainer);
+      processMath.initialize();
+
+      if(processMath.mode!=="variable"){
+        lineContainer = processMath.container as HTMLDivElement;
+        mainContainer.appendChild(lineContainer);
+      }
+      else{skippedIndexes++;}
     });
   }
+
+
   watchFiles() {
 		// Only begin watching files once the layout is ready
 		// Otherwise, we'll be unnecessarily reacting to many onFileCreate events of snippet files
@@ -253,16 +228,33 @@ async loadSettings() {
 				"delete": onFileDelete,
 				"create": onFileCreate
 			};
-
+       
 			for (const [key, value] of Object.entries(eventsAndCallbacks)) {
 				// @ts-expect-error
 				this.registerEvent(this.app.vault.on(key, (file) => value(this, file)));
 			}
 		});
 	}
-
-  
 }
+
+
+function processTikzBlock(source: string, container: HTMLElement): void {
+  try{
+    const a=new FormatTikzjax(source,true)
+  console.log(a)
+  }catch(e){
+    console.error(e)
+  }
+  
+  const svgContainer = Object.assign(document.createElement("div"), {
+      style: "display: flex; justify-content: center; align-items: center;"
+  });
+  svgContainer.appendChild(dummyFunction());
+  container.appendChild(svgContainer);
+  console.log(beautifyHTML(container.innerHTML, { indent_size: 2 }))
+}
+
+
 
 function dummyFunction():SVGSVGElement{
   
