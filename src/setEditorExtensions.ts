@@ -303,17 +303,16 @@ export const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, 
 	if (settings.matrixShortcutsEnabled && ctx.mode.blockMath) {
 		if (["Tab", "Enter"].contains(key)) {
 			success = runMatrixShortcuts(view, ctx, key, shiftKey);
-
 			if (success) return true;
 		}
 	}
-
-	if (settings.taboutEnabled) {
-		if (key === "Tab" || shouldTaboutByCloseBracket(view, key)) {
-			success = tabout(view, ctx);
-
-			if (success) return true;
-		}
+	if (key === "Tab"&&shiftKey) {
+		success = tabout(view, ctx,-1);
+		if (success) return true;
+	}
+	else if (key === "Tab" || shouldTaboutByCloseBracket(view, key)) {
+		success = tabout(view, ctx,1);
+		if (success) return true;
 	}
 
 	return false;
