@@ -1,40 +1,38 @@
 import { EditorView } from "@codemirror/view";
 import { replaceRange, setCursor, getCharacterAtPos } from "src/utils/editor_utils";
 import { Context } from "src/utils/context";
+import { match } from "assert";
 
 
-export const tabout = (view: EditorView, ctx: Context):boolean => {
+export const tabout = (view: EditorView, ctx: Context,dir: 1|-1):boolean => {
     if (!ctx.mode.inMath()) return false;
 
 	const result = ctx.getBounds();
 	if (!result) return false;
-	const end = result.end;
-
+	const { start, end } = result;
+	
 	const pos = view.state.selection.main.to;
 	const d = view.state.doc;
 	const text = d.toString();
-
 	// Move to the next closing bracket: }, ), ], >, |, or \\rangle
-	const rangle = "\\rangle";
-
-	for (let i = pos; i < end; i++) {
-		if (["}", ")", "]", ">", "|", "$"].contains(text.charAt(i))) {
-			setCursor(view, i+1);
-
-			return true;
-		}
-		else if (text.slice(i, i + rangle.length) === rangle) {
-			setCursor(view, i + rangle.length);
-
+	const chars = [
+		["{", "(", "[", "<"],
+		[],
+		["}", ")", "]", ">"]
+	];
+	
+	const searchEnd = dir === 1 ? end+1 : start-1;
+	const modifier = dir === 1 ? 0 : -1;
+	for (let i = pos+modifier; i !== searchEnd; i += dir) {
+		const targetChars = chars[dir + 1].concat(["\\rangle", "|", "$"]);
+		const match = targetChars.find(s => text.startsWith(s, i));
+		if (match !== undefined) {
+			setCursor(view, i + match.length+modifier);
 			return true;
 		}
 	}
 
 
-	// If cursor at end of line/equation, move to next line/outside $$ symbols
-
-	// Check whether we're at end of equation
-	// Accounting for whitespace, using trim
 	const textBtwnCursorAndEnd = d.sliceString(pos, end);
 	const atEnd = textBtwnCursorAndEnd.trim().length === 0;
 
