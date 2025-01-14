@@ -1,4 +1,5 @@
 //git reset --hard
+//git branch
 import {Plugin, MarkdownRenderer,addIcon, App, Modal, Component, Setting,Notice, WorkspaceWindow,loadMathJax,renderMath, MarkdownView, EditorSuggest, EditorSuggestTriggerInfo, EditorPosition, Editor, TFile, EditorSuggestContext} from "obsidian";
 import { html as beautifyHTML } from 'js-beautify';
 import { MathInfo, MathPraiser } from "./mathParser/mathEngine";
