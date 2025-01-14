@@ -400,22 +400,30 @@ import * as fs from 'fs';
 import { BasicTikzToken } from "src/basicToken";
 import { App, FileSystemAdapter } from "obsidian";
 
-function getStyFileContent(filePath: fs.PathOrFileDescriptor) {
+
+function getStyFileContent(filePath: fs.PathLike): string {
     try {
-        return fs.readFileSync(filePath, 'utf8');
+        // Check if the file exists before trying to read
+        if (fs.existsSync(filePath)) {
+            return fs.readFileSync(filePath, 'utf8');
+        } else {
+            console.error(`File does not exist: ${filePath}`);
+            return '';
+        }
     } catch (error) {
-        console.error('Error reading the .sty file:', error);
+        console.error('Error reading the .sty file:', error instanceof Error ? error.message : error);
         return '';
     }
 }
 
+import * as path from 'path';
 function getPreamble(app: App):string{
     
     let styContent = ''
     const adapter = app.vault.adapter;
     if (adapter instanceof FileSystemAdapter) {
         const vaultPath = adapter.getBasePath();
-        const preamblePath = `${vaultPath}/data/Files/preamble.sty`;
+        const preamblePath = path.join(vaultPath, 'obsidian','data', 'Files', 'preamble.sty');
         styContent = getStyFileContent(preamblePath);
     }
 
