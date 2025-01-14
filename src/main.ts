@@ -17,6 +17,7 @@ import { ICONS } from "./settings/ui/icons";
 
 import { getEditorCommands } from "./features/editor_commands";
 import { SnippetVariables, parseSnippetVariables, parseSnippets } from "./snippets/parse";
+import { LatexRender } from "./latexRender/main";
 // i want to make some code that will outo insot metadata to fillls
 
 
@@ -29,6 +30,7 @@ export default class Moshe extends Plugin {
 
   async onload() {
     console.log("new lod")
+    new LatexRender(this.app,this)
     await this.loadSettings();
 		this.loadIcons();
 		this.addSettingTab(new LatexSuiteSettingTab(this.app, this));
