@@ -65,7 +65,7 @@ export const runAutoFractionCursor = (view: EditorView, ctx: Context, range: Sel
 		string=string.slice(string.lastIndexOf(" ")+1);
 		string = string.slice(identifyBrackets(string));
 
-		const removeRegex = /(?:^|[^\\])[^a-zA-Z0-9\\(){}[\]]/;
+		const removeRegex = /(?:^|[^\\])[^a-zA-Z0-9-+^%$#@!,_.\\(){}[\]]/;
 		while (removeRegex.test(string)) {
 			string = string.slice(string.match(removeRegex)?.index! + 1);
 		}
