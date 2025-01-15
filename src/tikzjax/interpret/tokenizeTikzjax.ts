@@ -426,6 +426,7 @@ function getPreamble(app: App):string{
         const preamblePath = path.join(vaultPath, 'obsidian','data', 'Files', 'preamble.sty');
         styContent = getStyFileContent(preamblePath);
     }
+    styContent=styContent.split('\n').filter(line=>!line.match(/(int|frac)/)).join('\n')
 
     const ang="\\tikzset{ang/.style 2 args={fill=black!50,opacity=0.5,text opacity=0.9,draw=orange,<->,angle eccentricity=#1,angle radius=#2cm,text=orange,font=\\large},ang/.default={1.6}{0.5}}"
   
