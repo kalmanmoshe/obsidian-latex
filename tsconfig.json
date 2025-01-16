@@ -6,7 +6,6 @@
     "module": "ESNext",
     "target": "esnext",               // Latest JavaScript features
     "allowJs": true,
-    "checkJs": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "noImplicitAny": true,
@@ -24,7 +23,7 @@
   },
   "include": [
     "**/*.ts" 
-, "src/staticData/default_snippet_variables.js", "src/staticData/default_snippets.js", "src/latexRender/PdfTeXEngine.ts", "src/latexRender/swiftlatexpdftex.worker.ts"  ],
+, "src/staticData/default_snippet_variables.js", "src/staticData/default_snippets.js", "src/latexRender/PdfTeXEngine.js", "src/latexRender/swiftlatexpdftex.worker.ts"  ],
   "exclude": [
     "node_modules",
     "dist" 
