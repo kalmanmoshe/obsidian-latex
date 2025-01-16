@@ -3,11 +3,11 @@ import { Md5 } from 'ts-md5';
 import * as fs from 'fs';
 import * as temp from 'temp';
 import * as path from 'path';
-import {PdfTeXEngine} from './PdfTeXEngine.js';
+import {PdfTeXEngine} from './PdfTeXEngine';
 import {PDFDocument} from 'pdf-lib';
-import PdfToCairo from "./pdftocairo.js";
 import {Config, optimize} from 'svgo';
 import Moshe from 'src/main.js';
+
 
 
 type StringMap = { [key: string]: string };
@@ -42,27 +42,33 @@ export class LatexRender {
 	constructor(app: App, plugin: Moshe) {
 		this.app=app;
 		this.plugin=plugin;
+		this.onload();
 	}
 
 	async onload() {
+		console.log("SwiftLaTeX: Loading SwiftLaTeX plugin");
 		await this.loadCache();
 		this.pluginFolderPath = path.join(this.getVaultPath(), this.app.vault.configDir, "plugins/moshe-math/");
 		// initialize the latex compiler
+		console.log("SwiftLaTeX: Initializing LaTeX compiler");
 		this.pdfEngine = new PdfTeXEngine();
+		console.log("SwiftLaTeX: Loading LaTeX engine");
 		await this.pdfEngine.loadEngine();
-		//await this.loadPackageCache();
-		//this.pdfEngine.setTexliveEndpoint(this.package_url);
+		console.log("SwiftLaTeX: Loading cache");
+		await this.loadPackageCache();
 
-		//this.addSyntaxHighlighting();
+		this.pdfEngine.setTexliveEndpoint(this.package_url);
 
-		if (false) {
+		this.addSyntaxHighlighting();
+		console.log("SwiftLaTeX: Registering post processors");
+		if (true) {
 			const pdfBlockProcessor = MarkdownPreviewRenderer.createCodeBlockPostProcessor("latex", (source, el, ctx) => this.renderLatexToElement(source, el, ctx, false));
 			MarkdownPreviewRenderer.registerPostProcessor(pdfBlockProcessor);
 			const svgBlockProcessor = MarkdownPreviewRenderer.createCodeBlockPostProcessor("latexsvg", (source, el, ctx) => this.renderLatexToElement(source, el, ctx, true));
 			MarkdownPreviewRenderer.registerPostProcessor(svgBlockProcessor);
 		} else {
-			//this.plugin.registerMarkdownCodeBlockProcessor("latex", (source, el, ctx) => this.renderLatexToElement(source, el, ctx, false));
-			//this.plugin.registerMarkdownCodeBlockProcessor("latexsvg", (source, el, ctx) => this.renderLatexToElement(source, el, ctx, true));
+			this.plugin.registerMarkdownCodeBlockProcessor("latex", (source, el, ctx) => this.renderLatexToElement(source, el, ctx, false));
+			this.plugin.registerMarkdownCodeBlockProcessor("latexsvg", (source, el, ctx) => this.renderLatexToElement(source, el, ctx, true));
 		}
 	}
 
@@ -186,7 +192,7 @@ export class LatexRender {
 		const {width, height} = firstPage.getSize();
 		return {width, height};
 	}
-
+	/*
 	pdfToSVG(pdfData: any) {
 		return PdfToCairo().then((pdftocairo: any) => {
 			pdftocairo.FS.writeFile('input.pdf', pdfData);
@@ -204,7 +210,7 @@ export class LatexRender {
 
 			return svg;
 	});
-	}
+	}*/
 
 	colorSVGinDarkMode(svg: string) {
 		// Replace the color "black" with currentColor (the current text color)
@@ -219,6 +225,7 @@ export class LatexRender {
 
 
 	async renderLatexToElement(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext, outputSVG: boolean = false) {
+		console.log("renderLatexToElement called");
 		return new Promise<void>((resolve, reject) => {
 			let md5Hash = this.hashLatexSource(source);
 			let pdfPath = path.join(this.cacheFolderPath, `${md5Hash}.pdf`);
@@ -229,7 +236,7 @@ export class LatexRender {
 				// console.log("Using cached PDF: ", md5Hash);
 				let pdfData = fs.readFileSync(pdfPath);
 				if (outputSVG) {
-					this.pdfToSVG(pdfData).then((svg: string) => { el.innerHTML = this.svgToHtml(svg);})
+					throw new Error()//this.pdfToSVG(pdfData).then((svg: string) => { el.innerHTML = this.svgToHtml(svg);})
 				} else {
 					this.pdfToHtml(pdfData).then((htmlData)=>{el.createEl("object", htmlData); resolve();});
 				}
@@ -238,11 +245,11 @@ export class LatexRender {
 			}
 			else {
 				// console.log("Rendering PDF: ", md5Hash);
-
+				
 				this.renderLatexToPDF(source, md5Hash).then((r: any) => {
 					this.addFileToCache(md5Hash, ctx.sourcePath);
 					if (outputSVG) {
-						this.pdfToSVG(r.pdf).then((svg: string) => { el.innerHTML = this.svgToHtml(svg);})
+						throw new Error();//this.pdfToSVG(r.pdf).then((svg: string) => { el.innerHTML = this.svgToHtml(svg);})
 					} else {
 						this.pdfToHtml(r.pdf).then((htmlData)=>{el.createEl("object", htmlData); resolve();});
 					}
