@@ -59,9 +59,9 @@ export const runAutoFractionCursor = (view: EditorView, ctx: Context, range: Sel
 		// Also, allow spaces after greek letters
 		// By replacing spaces after greek letters with a dummy character (#)
 
-		const greek = "alpha|beta|gamma|Gamma|delta|Delta|epsilon|varepsilon|zeta|eta|theta|Theta|iota|kappa|lambda|Lambda|mu|nu|omicron|xi|Xi|pi|Pi|rho|sigma|Sigma|tau|upsilon|Upsilon|varphi|phi|Phi|chi|psi|Psi|omega|Omega";
-		const regex = new RegExp("(" + greek + ")\s", "g");
-		string = string.replace(regex, "$1#$2");
+		const greek = "alpha|beta|gamma|Gamma|delta|Delta|epsilon|varepsilon|zeta|eta|theta|Theta|iota|kappa|lambda|Lambda|mu|nu|omicron|xi|Xi|pi|Pi|rho|sigma|Sigma|tau|upsilon|Upsilon|varphi|phi|Phi|chi|psi|Psi|omega|Omega|cdot|frac|binom";
+		const regex = new RegExp("(" + greek + ") ", "g");
+		string = string.replace(regex, "$1#");
 		string=string.slice(string.lastIndexOf(" ")+1);
 		string = string.slice(identifyBrackets(string));
 
@@ -83,7 +83,7 @@ export const runAutoFractionCursor = (view: EditorView, ctx: Context, range: Sel
 			numerator = numerator.slice(1, -1);
 		}
 	}
-	const replacement = `\\frac{${string}}{$0}$1`
+	const replacement = `\\frac{${numerator}}{$0}$1`
 	queueSnippet(view, to-string.length, to, replacement, "/");
 	return true;
 }

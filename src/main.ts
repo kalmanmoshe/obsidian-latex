@@ -31,8 +31,8 @@ export default class Moshe extends Plugin {
 
   async onload() {
     console.log("new lod")
-    new LatexRender(this.app,this)
-    
+    //new LatexRender(this.app,this)
+
     await this.loadSettings();
 		this.loadIcons();
 		this.addSettingTab(new LatexSuiteSettingTab(this.app, this));
