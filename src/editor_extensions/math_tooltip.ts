@@ -49,7 +49,10 @@ export function handleMathTooltip(update: ViewUpdate) {
 	const eqnBounds = ctx.getBounds();
 	if(!eqnBounds)
 		return
-	const eqn = update.state.sliceDoc(eqnBounds.start, eqnBounds.end);
+	let eqn = update.state.sliceDoc(eqnBounds.start, eqnBounds.end);
+	const index = update.state.selection.main.head-eqnBounds.start;
+
+	eqn = eqn.slice(0, index) + '{\\Huge\\color\\red\\mid}' + eqn.slice(index);
 
 	const above = settings.mathPreviewPositionIsAbove;
 	const create = () => {
