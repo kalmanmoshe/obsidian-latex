@@ -62,8 +62,11 @@ export const runAutoFractionCursor = (view: EditorView, ctx: Context, range: Sel
 		const greek = "alpha|beta|gamma|Gamma|delta|Delta|epsilon|varepsilon|zeta|eta|theta|Theta|iota|kappa|lambda|Lambda|mu|nu|omicron|xi|Xi|pi|Pi|rho|sigma|Sigma|tau|upsilon|Upsilon|varphi|phi|Phi|chi|psi|Psi|omega|Omega|cdot|frac|binom";
 		const regex = new RegExp("(" + greek + ") ", "g");
 		string = string.replace(regex, "$1#");
+		console.log("replace(regex, \"$1#\")",string);
 		string=string.slice(string.lastIndexOf(" ")+1);
+		console.log("lastIndexOf(\" \")",string);
 		string = string.slice(identifyBrackets(string));
+		console.log("identifyBrackets",string);
 
 		const removeRegex = /(?:^|[^\\])[^a-zA-Z0-9-+^%$#@!,_.\\(){}[\]]/;
 		while (removeRegex.test(string)) {
@@ -159,10 +162,23 @@ export function identifyBrackets(input: string) {
 			['subnumcases','\\begin{subnumcases}','\\end{subnumcases}'],
 			['substack','\\begin{substack}','\\end{substack}'],
 		].map(env => ([env[0], { open: env[1], close: env[2], fond: [] }])));
-
-    for (const [key, value] of map.entries()) {
-        value.fond = indexEnvironment(input, value.open, value.close);
-    }
+	
+		
+	const keysToDelete = [];
+	for (const [key, value] of map.entries()) {
+		if (input.includes(value.open) || input.includes(value.close)) {
+			value.fond = indexEnvironment(input, value.open, value.close);
+		} else {
+			keysToDelete.push(key);
+		}
+	}
+	
+	// Delete keys after iteration
+	for (const key of keysToDelete) {
+		map.delete(key);
+	}
+		
+	console.log("map",map);
     const unmatched: number[] = [];
 
     for (const [key, value] of map.entries()) {
@@ -172,6 +188,9 @@ export function identifyBrackets(input: string) {
 				if(match)
                 	unmatched.push(match.index+value.open.length);
             }
+			else if(obj.depth<0||obj.depthID<0){
+				unmatched.push(obj.index+value.close.length);
+			}
         }
     }
 
