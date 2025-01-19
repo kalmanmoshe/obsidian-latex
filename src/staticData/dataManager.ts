@@ -1,5 +1,6 @@
 import { regExp } from "src/tikzjax/tikzjax";
-import { Associativity, BracketType, MathJaxOperatorMetadata, mathJaxOperatorsMetadata, operatorsWithImplicitMultiplication,OperatorType, operatorNames } from "./mathParserStaticData";
+import { Associativity, MathJaxOperatorMetadata, mathJaxOperatorsMetadata, operatorsWithImplicitMultiplication,OperatorType, operatorNames } from "./mathParserStaticData";
+import { BracketType } from "./encasings";
 import { brackets, LatexMetadata } from "./latexStaticData";
 
 /**

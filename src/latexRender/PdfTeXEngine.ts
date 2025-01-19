@@ -22,7 +22,7 @@ export enum EngineStatus {
 	Error
 }
 
-const ENGINE_PATH = 'swiftlatexpdftex.js';
+const ENGINE_PATH = './swiftlatexpdftex.worker.js';
 
 export class CompileResult {
 	pdf: Uint8Array | undefined = undefined;
@@ -45,12 +45,15 @@ export class PdfTeXEngine {
 		console.log('Loading engine');
 		await new Promise<void>((resolve, reject) => {
 			this.latexWorker = new Worker(ENGINE_PATH);
-			console.log('Engine loaded');
+
+			console.log('Engine loaded',this.latexWorker);
+
 			this.latexWorker.onmessage = (ev: any) => {
+
 				console.log('Engine status: ' + ev);
+
 				const data: any = ev['data'];
 				const cmd: string = data['result'] as string;
-				console.log('Engine status: ' + cmd);
 				if (cmd === 'ok') {
 					this.latexWorkerStatus = EngineStatus.Ready;
 					resolve();

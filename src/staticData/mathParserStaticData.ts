@@ -1,4 +1,4 @@
-
+import { BracketType } from './encasings';
 export const  keyboardAutoReplaceHebrewToEnglishTriggers =
 [
     { key: "\u05D0", code: "KeyT", replacement: "t" },
@@ -88,16 +88,7 @@ export enum Associativity {
     DoubleRight = 'doubleRight',
 }
 
-export enum BracketType {
-    Parentheses = 'parentheses',
-    SquareBrackets = 'squareBrackets',
-    CurlyBraces = 'curlyBracket',
-    None = 'none',
-}
-export enum BracketState{
-    Open='open',
-    Close='close',
-}
+
 
 
 export interface MathJaxOperatorMetadata {

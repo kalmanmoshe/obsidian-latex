@@ -1,14 +1,5 @@
-import { BracketState, BracketType } from "./mathParserStaticData";
+import { BracketState, BracketType } from './encasings';
 
-export enum Encasing {
-    None='none',
-    Brackets='brackets',
-    Parentheses='parentheses',
-    SquareBrackets='squareBrackets',
-    CurlyBraces='curlyBraces',
-    Scope='scope',
-    Tikzpicture='tikzpicture',
-}
 
 
 

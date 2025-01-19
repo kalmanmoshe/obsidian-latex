@@ -2,8 +2,7 @@
 import { quad,calculateBinom,roundBySettings ,degreesToRadians,radiansToDegrees, calculateFactorial} from "./mathUtilities";
 import { expandExpression,curlyBracketsRegex } from "./imVeryLazy";
 import { arrToRegexString, Axis, regExp } from "../tikzjax/tikzjax";
-import { Associativity, BracketState, BracketType, MathJaxOperatorMetadata, mathJaxOperatorsMetadata, OperatorType } from "src/staticData/mathParserStaticData";
-
+import { BracketType } from "../staticData/encasings";
 import { findParenIndex, Paren,idParentheses, parenState,  } from "../utils/ParenUtensils";
 import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchSymbols } from "../staticData/dataManager";
 
