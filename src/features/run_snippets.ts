@@ -11,10 +11,8 @@ import { autoEnlargeBrackets } from "./auto_enlarge_brackets";
 export const runSnippets = (view: EditorView, ctx: Context, key: string):boolean => {
 
 	let shouldAutoEnlargeBrackets = false;
-
 	for (const range of ctx.ranges) {
 		const result = runSnippetCursor(view, ctx, key, range);
-
 		if (result.shouldAutoEnlargeBrackets) shouldAutoEnlargeBrackets = true;
 	}
 
