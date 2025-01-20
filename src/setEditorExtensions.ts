@@ -3,9 +3,9 @@ import { getTikzSuggestions, Latex } from "./utilities";
 import { EditorView, ViewPlugin, ViewUpdate ,Decoration, tooltips, } from "@codemirror/view";
 import { EditorState, Prec,Extension } from "@codemirror/state";
 import { Context } from "./utils/context";
-import { isComposing, replaceRange, setCursor } from "./editor utilities/editor_utils";
+import { getCharacterAtPos, isComposing, replaceRange, setCursor } from "./editor utilities/editor_utils";
 import { keyboardAutoReplaceHebrewToEnglishTriggers } from "./staticData/mathParserStaticData";
-import { getCharacterAtPos, Suggestor } from "./suggestor";
+import {  Suggestor } from "./suggestor";
 import { RtlForc } from "./editorDecorations";
 import { setSelectionToNextTabstop } from "./snippets/snippet_management";
 
@@ -33,109 +33,16 @@ spellcheck="false" autocorrect="off" translate="no" contenteditable="true"
 
 
 export class EditorExtensions {
-    private shouldListenForTransaction: boolean = false;
-    private activeEditorView: EditorView | null = null;
-    private suggestionActive: boolean = false;
     private suggestor: Suggestor = new Suggestor();
-
-    private isSuggesterDeployed(): boolean {
-        return !!document.body.querySelector(".suggestion-dropdown");
-    }
-
-    setEditorExtensions(app: Moshe) {
-		while (app.editorExtensions.length) app.editorExtensions.pop();
-		app.editorExtensions.push([
-			getLatexSuiteConfigExtension(app.CMSettings),
-			Prec.highest(EditorView.domEventHandlers({ "keydown": this.onKeydown })),
-			EditorView.updateListener.of(handleUpdate),
-			snippetExtensions,
-		]);
-		this.registerDecorations(app)
-		if (app.CMSettings.concealEnabled) {
-			const timeout = app.CMSettings.concealRevealTimeout;
-			app.editorExtensions.push(mkConcealPlugin(timeout).extension);
-		}
-			app.editorExtensions.push(colorPairedBracketsPluginLowestPrec);
-			app.editorExtensions.push(highlightCursorBracketsPlugin.extension);
-			app.editorExtensions.push([
-				cursorTooltipField.extension,
-				cursorTooltipBaseTheme,
-				tooltips({ position: "absolute" }),
-			]);
-
-		this.monitor(app); 
-		this.snippetExtensions(app);
-	
-		const flatExtensions = app.editorExtensions.flat();
-	
-		app.registerEditorExtension(flatExtensions);
+    
+	private onScroll (event: Event,view: EditorView) {
+		console.log(this.suggestor)
+		this.suggestor.updatePositionFromView(view);
 	}
-	
-
-    private monitor(app: Moshe) {
-        app.registerEditorExtension([
-            Prec.highest(
-                EditorView.domEventHandlers({
-                    keydown: (event, view) => {
-                        this.onKeydown(event, view);
-                        if (event.code.startsWith("Key") && !event.ctrlKey) {
-                            this.shouldListenForTransaction = true;
-                        }
-                    },
-					mousemove: (event, view) => {
-						/*const { clientX, clientY } = event;
-						const position = view.posAtCoords({ x: clientX, y: clientY });
-	
-						if (position) {
-							//this.onCursorMove(event, view);
-						}*/
-					},
-                    focus: (event, view) => {
-                        // Track the active editor view
-                        this.activeEditorView = view;
-                    },
-                })
-            ),
-            EditorView.updateListener.of((update) => {
-                if (this.shouldListenForTransaction && update.docChanged) {
-                    this.onTransaction(update.view);
-                    this.shouldListenForTransaction = false;
-                }
-            }),
-        ]);
-
-        // Global click listener to handle suggestions
-        document.addEventListener("click", (event) => {
-            this.suggestionActive = this.isSuggesterDeployed();
-            if (this.suggestionActive && this.activeEditorView) {
-                this.onClick(event, this.activeEditorView);
-            }
-        });
-		document.addEventListener('mousemove', (event) => {
-			this.suggestionActive = this.isSuggesterDeployed();
-            if (this.suggestionActive && this.activeEditorView) {
-                this.onCursorMove(event, this.activeEditorView)
-            }
-		});
-    }
-
-    private snippetExtensions(app: Moshe) {
-		app.editorExtensions.push([
-			tabstopsStateField.extension,
-			snippetQueueStateField.extension,
-			snippetInvertedEffects,
-		]);
+	closeSuggestor(){
+		if(this.suggestor)this.suggestor.close()
 	}
-	
-
-    private registerDecorations(app: Moshe){
-        app.registerEditorExtension(
-            ViewPlugin.fromClass(RtlForc, {
-            decorations: (v) => v.decorations,
-          }
-        ));
-    }
-	private onCursorMove(event: MouseEvent,view: EditorView){
+	private onMove(event: MouseEvent,view: EditorView){
 		const suggestionItems = document.body.querySelectorAll(".suggestion-item");
 
 		const clickedSuggestion = Array.from(suggestionItems).find((item) =>
@@ -147,7 +54,8 @@ export class EditorExtensions {
 			this.suggestor.updateSelection(suggestionItems)
 		}
 	}
-	private onClick=(event: MouseEvent,view: EditorView)=>{
+	private onClick (event: MouseEvent,view: EditorView) {
+		if(!this.suggestor||!this.suggestor.isSuggesterDeployed()){return}
 		const suggestionItems = document.body.querySelectorAll(".suggestion-item");
 	
 		// Check if the click is on a suggestion item
@@ -162,17 +70,9 @@ export class EditorExtensions {
 			item.contains(event.target as Node)
 		);
 		if(!clickedDropdown){
-			this.suggestor.removeSuggestor()
-		}
-		
-	}
-	private onTransaction=(view: EditorView)=> {
-		const ctx = Context.fromView(view);
-		if (ctx.codeblockLanguage === "tikz") {
-			this.suggestor.deploySuggestor(ctx,view)
+			this.suggestor.close()
 		}
 	}
-
 	private onKeydown = (event: KeyboardEvent, view: EditorView) => {
 		let key = event.key;
 		let trigger
@@ -181,9 +81,13 @@ export class EditorExtensions {
 		  trigger = keyboardAutoReplaceHebrewToEnglishTriggers.find((trigger2) => trigger2.key === event.key && trigger2.code === event.code);
 		  key = trigger?.replacement||key;
 		}
-		if(this.suggestor.isSuggesterDeployed){
+		if(ctx.codeblockLanguage==="tikz"){
+			this.suggestor.open(ctx,view)
+		}
+		if(this.suggestor.isSuggesterDeployed()){
 			handleDropdownNavigation(event,view,this.suggestor)
 		}
+		
 		const success = handleKeydown(key, event.shiftKey, event.ctrlKey || event.metaKey, isComposing(view, event), view);
 		if (success) 
 		  event.preventDefault();
@@ -194,11 +98,8 @@ export class EditorExtensions {
 			setCursor(view,view.state.selection.main.from+key.length)
 	  }
 	};
-
-	private decorat(){
-
-	}
 }
+
 const handleUpdate = (update: ViewUpdate) => {
 	const settings = getLatexSuiteConfig(update.state);
 
@@ -225,10 +126,10 @@ const handleDropdownNavigation=(event: KeyboardEvent,view:EditorView,suggestor: 
 			event.preventDefault();
 			break;
 		case event.key === "ArrowLeft"||event.key === "ArrowRight":
-			suggestor.removeSuggestor();
+			suggestor.close();
 			break;
 		case event.key === "Backspace":
-			suggestor.removeSuggestor();
+			suggestor.close();
 			//suggestor.deploySuggestor(ctx,view)
 			break;
 		default:

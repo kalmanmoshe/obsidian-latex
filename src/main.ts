@@ -25,9 +25,8 @@ import { LatexRender } from "./latexRender/main";
 export default class Moshe extends Plugin {
   settings: LatexSuitePluginSettings;
 	CMSettings: LatexSuiteCMSettings;
-	editorExtensions: Extension[] = [];
   tikzProcessor: Tikzjax
-  editorExtensions2: EditorExtensions= new EditorExtensions();
+  editorExtensions: Extension[]=[]
 
   async onload() {
     console.log("new lod")
@@ -39,7 +38,7 @@ export default class Moshe extends Plugin {
 		loadMathJax();
 
 		// Register Latex Suite extensions and optional editor extensions for editor enhancements
-		this.registerEditorExtension(this.editorExtensions);
+		//this.registerEditorExtension(this.editorExtensions);
 
 		// Watch for changes to the snippet variables and snippets files
 		this.watchFiles();
@@ -50,10 +49,49 @@ export default class Moshe extends Plugin {
 		this.tikzProcessor.addSyntaxHighlighting();
 		this.tikzProcessor.registerTikzCodeBlock();
     
-    this.registerMarkdownCodeBlockProcessor("math-engine", this.processMathBlock.bind(this));
+    this.registerMarkdownCodeBlockProcessor("math-engine", processMathBlock.bind(this));
     this.registerMarkdownCodeBlockProcessor("tikzjax", processTikzBlock.bind(this));
     
   }
+  setEditorExtensions(app: Moshe) {
+		while (app.editorExtensions.length) app.editorExtensions.pop();
+		
+		app.editorExtensions.push([
+			getLatexSuiteConfigExtension(app.CMSettings),
+			Prec.highest(EditorView.domEventHandlers({ "keydown": this.onKeydown })),
+  			Prec.default(EditorView.domEventHandlers({ "scroll": this.onScroll, "click": this.onClick, "mousemove": this.onMove })),
+			EditorView.updateListener.of(handleUpdate),
+			snippetExtensions,
+			colorPairedBracketsPluginLowestPrec,
+			highlightCursorBracketsPlugin.extension,
+			cursorTooltipField.extension,
+			cursorTooltipBaseTheme,
+			tooltips({ position: "absolute" }),
+		]);
+		this.registerDecorations(app)
+
+		if (app.CMSettings.concealEnabled) {
+			const timeout = app.CMSettings.concealRevealTimeout;
+			app.editorExtensions.push(mkConcealPlugin(timeout).extension);
+		}
+		this.snippetExtensions(app);
+
+		app.registerEditorExtension(app.editorExtensions.flat());
+	}
+    private snippetExtensions(app: Moshe) {
+		app.editorExtensions.push([
+			tabstopsStateField.extension,
+			snippetQueueStateField.extension,
+			snippetInvertedEffects,
+		]);
+	}
+    private registerDecorations(app: Moshe){
+        app.registerEditorExtension(
+            ViewPlugin.fromClass(RtlForc, {
+            decorations: (v) => v.decorations,
+          }
+        ));
+    }
 
   
 
@@ -65,6 +103,7 @@ export default class Moshe extends Plugin {
   onunload() {
 		this.tikzProcessor.unloadTikZJaxAllWindows();
 		this.tikzProcessor.removeSyntaxHighlighting();
+    this.editorExtensions.closeSuggestor()
 	}
 
   async getSettingsSnippets(snippetVariables: SnippetVariables) {
@@ -127,8 +166,7 @@ async loadSettings() {
 
   async processSettings(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
 		this.CMSettings = processLatexSuiteSettings(await this.getSnippets(becauseFileLocationUpdated, becauseFileUpdated), this.settings);
-    this.editorExtensions2.setEditorExtensions(this)
-    //this.setEditorExtensions();
+    this.editorExtensions.setEditorExtensions(this)
 		this.app.workspace.updateOptions();
 	}
   
