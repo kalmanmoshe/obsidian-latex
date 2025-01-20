@@ -9,9 +9,9 @@ import { LatexSuiteSettingTab } from "./settings/settings_tab";
 import { calculateBinom, degreesToRadians, findAngleByCosineRule, getUsableDegrees, polarToCartesian, radiansToDegrees, roundBySettings } from "src/mathParser/mathUtilities";
 import { Axis, Coordinate, Draw, Formatting, Tikzjax } from "./tikzjax/tikzjax";
 
-import {Extension, EditorState, SelectionRange,RangeSet, Prec } from "@codemirror/state";
+import {Extension, Prec } from "@codemirror/state";
 import { FormatTikzjax } from "./tikzjax/interpret/tokenizeTikzjax.js";
-import { EditorExtensions } from "./setEditorExtensions.js";
+
 
 import { onFileCreate, onFileChange, onFileDelete, getSnippetsFromFiles, getFileSets, getVariablesFromFiles, tryGetVariablesFromUnknownFiles } from "./settings/file_watch";
 import { ICONS } from "./settings/ui/icons";
@@ -19,6 +19,20 @@ import { ICONS } from "./settings/ui/icons";
 import { getEditorCommands } from "./features/editor_commands";
 import { SnippetVariables, parseSnippetVariables, parseSnippets } from "./snippets/parse";
 import { LatexRender } from "./latexRender/main";
+import { tabstopsStateField } from "./snippets/codemirror/tabstops_state_field";
+import { snippetQueueStateField } from "./snippets/codemirror/snippet_queue_state_field";
+import { snippetInvertedEffects } from "./snippets/codemirror/history";
+
+import { EditorView, ViewPlugin, ViewUpdate ,Decoration, tooltips, } from "@codemirror/view";
+import { RtlForc } from "./editorDecorations";
+
+import { getLatexSuiteConfig, getLatexSuiteConfigExtension } from "./snippets/codemirror/config";
+import { snippetExtensions } from "./snippets/codemirror/extensions";
+import { colorPairedBracketsPluginLowestPrec, highlightCursorBracketsPlugin } from "./editor_extensions/highlight_brackets";
+import { mkConcealPlugin } from "./editor_extensions/conceal";
+import { cursorTooltipBaseTheme, cursorTooltipField, handleMathTooltip } from "./editor_extensions/math_tooltip";
+import { handleUpdate, onClick, onKeydown, onMove, onScroll } from "./setEditorExtensions";
+
 // i want to make some code that will outo insot metadata to fillls
 
 
@@ -26,7 +40,7 @@ export default class Moshe extends Plugin {
   settings: LatexSuitePluginSettings;
 	CMSettings: LatexSuiteCMSettings;
   tikzProcessor: Tikzjax
-  editorExtensions: Extension[]=[]
+  editorExtensions: Extension[]=[];
 
   async onload() {
     console.log("new lod")
@@ -53,13 +67,13 @@ export default class Moshe extends Plugin {
     this.registerMarkdownCodeBlockProcessor("tikzjax", processTikzBlock.bind(this));
     
   }
-  setEditorExtensions(app: Moshe) {
-		while (app.editorExtensions.length) app.editorExtensions.pop();
+  setEditorExtensions() {
+		while (this.editorExtensions.length) this.editorExtensions.pop();
 		
-		app.editorExtensions.push([
-			getLatexSuiteConfigExtension(app.CMSettings),
-			Prec.highest(EditorView.domEventHandlers({ "keydown": this.onKeydown })),
-  			Prec.default(EditorView.domEventHandlers({ "scroll": this.onScroll, "click": this.onClick, "mousemove": this.onMove })),
+		this.editorExtensions.push([
+			getLatexSuiteConfigExtension(this.CMSettings),
+			Prec.highest(EditorView.domEventHandlers({ "keydown": onKeydown })),
+      Prec.default(EditorView.domEventHandlers({ "scroll": onScroll, "click": onClick, "mousemove": onMove })),
 			EditorView.updateListener.of(handleUpdate),
 			snippetExtensions,
 			colorPairedBracketsPluginLowestPrec,
@@ -68,33 +82,33 @@ export default class Moshe extends Plugin {
 			cursorTooltipBaseTheme,
 			tooltips({ position: "absolute" }),
 		]);
-		this.registerDecorations(app)
 
-		if (app.CMSettings.concealEnabled) {
-			const timeout = app.CMSettings.concealRevealTimeout;
-			app.editorExtensions.push(mkConcealPlugin(timeout).extension);
+		this.registerDecorations()
+
+		if (this.CMSettings.concealEnabled) {
+			const timeout = this.CMSettings.concealRevealTimeout;
+			this.editorExtensions.push(mkConcealPlugin(timeout).extension);
 		}
-		this.snippetExtensions(app);
 
-		app.registerEditorExtension(app.editorExtensions.flat());
+		this.snippetExtensions();
+		this.registerEditorExtension(this.editorExtensions.flat());
 	}
-    private snippetExtensions(app: Moshe) {
-		app.editorExtensions.push([
+
+  private snippetExtensions() {
+		this.editorExtensions.push([
 			tabstopsStateField.extension,
 			snippetQueueStateField.extension,
 			snippetInvertedEffects,
 		]);
 	}
-    private registerDecorations(app: Moshe){
-        app.registerEditorExtension(
-            ViewPlugin.fromClass(RtlForc, {
-            decorations: (v) => v.decorations,
-          }
-        ));
-    }
 
-  
-
+  private registerDecorations(){
+      this.registerEditorExtension(
+          ViewPlugin.fromClass(RtlForc, {
+          decorations: (v) => v.decorations,
+        }
+      ));
+  }
   addEditorCommands() {
 		for (const command of getEditorCommands(this)) {
 			this.addCommand(command);
@@ -103,7 +117,6 @@ export default class Moshe extends Plugin {
   onunload() {
 		this.tikzProcessor.unloadTikZJaxAllWindows();
 		this.tikzProcessor.removeSyntaxHighlighting();
-    this.editorExtensions.closeSuggestor()
 	}
 
   async getSettingsSnippets(snippetVariables: SnippetVariables) {
@@ -116,48 +129,49 @@ export default class Moshe extends Plugin {
 	}
 
 
-loadIcons() {
-  for (const [iconId, svgContent] of Object.entries(ICONS)) {
-    addIcon(iconId, svgContent);
-  }
-}
-async loadSettings() {
-  let data = await this.loadData();
-
-  // Migrate settings from v1.8.0 - v1.8.4
-  const shouldMigrateSettings = data ? "basicSettings" in data : false;
-
-  // @ts-ignore
-  function migrateSettings(oldSettings) {
-    return {
-      ...oldSettings.basicSettings,
-      ...oldSettings.rawSettings,
-      snippets: oldSettings.snippets,
-    };
+  loadIcons() {
+    for (const [iconId, svgContent] of Object.entries(ICONS)) {
+      addIcon(iconId, svgContent);
+    }
   }
 
-  if (shouldMigrateSettings) {
-    data = migrateSettings(data);
+  async loadSettings() {
+    let data = await this.loadData();
+
+    // Migrate settings from v1.8.0 - v1.8.4
+    const shouldMigrateSettings = data ? "basicSettings" in data : false;
+
+    // @ts-ignore
+    function migrateSettings(oldSettings) {
+      return {
+        ...oldSettings.basicSettings,
+        ...oldSettings.rawSettings,
+        snippets: oldSettings.snippets,
+      };
+    }
+
+    if (shouldMigrateSettings) {
+      data = migrateSettings(data);
+    }
+
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+
+
+    if (this.settings.loadSnippetsFromFile || this.settings.loadSnippetVariablesFromFile) {
+      const tempSnippetVariables = await this.getSettingsSnippetVariables();
+      const tempSnippets = await this.getSettingsSnippets(tempSnippetVariables);
+
+      this.CMSettings = processLatexSuiteSettings(tempSnippets, this.settings);
+
+      // Use onLayoutReady so that we don't try to read the snippets file too early
+      this.app.workspace.onLayoutReady(() => {
+        this.processSettings();
+      });
+    }
+    else {
+      await this.processSettings();
+    }
   }
-
-  this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
-
-
-  if (this.settings.loadSnippetsFromFile || this.settings.loadSnippetVariablesFromFile) {
-    const tempSnippetVariables = await this.getSettingsSnippetVariables();
-    const tempSnippets = await this.getSettingsSnippets(tempSnippetVariables);
-
-    this.CMSettings = processLatexSuiteSettings(tempSnippets, this.settings);
-
-    // Use onLayoutReady so that we don't try to read the snippets file too early
-    this.app.workspace.onLayoutReady(() => {
-      this.processSettings();
-    });
-  }
-  else {
-    await this.processSettings();
-  }
-}
 
   async saveSettings(didFileLocationChange = false) {
 		await this.saveData(this.settings);
@@ -166,7 +180,7 @@ async loadSettings() {
 
   async processSettings(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
 		this.CMSettings = processLatexSuiteSettings(await this.getSnippets(becauseFileLocationUpdated, becauseFileUpdated), this.settings);
-    this.editorExtensions.setEditorExtensions(this)
+    this.setEditorExtensions();
 		this.app.workspace.updateOptions();
 	}
   
@@ -227,32 +241,6 @@ async loadSettings() {
 
 
 
-  private processMathBlock(source: string, mainContainer: HTMLElement): void {
-    
-    mainContainer.classList.add("math-container");
-    
-    const userVariables: { variable: string; value: string }[] = [];
-    let skippedIndexes = 0;
-    
-    const expressions = source.split("\n").map(line => line.replace(/[\s]+/,'').trim()).filter(line => line && !line.startsWith("//"));
-    if (expressions.length === 0) {return;}
-
-    expressions.forEach((expression, index) => {
-      let lineContainer: HTMLDivElement = document.createElement("div");
-      lineContainer.classList.add("math-line-container", (index-skippedIndexes) % 2 === 0 ? "math-row-even" : "math-row-odd");
-      //if (expression.match(/^\/\//)){}
-      const processMath = new ProcessMath(expression,userVariables, this.app,lineContainer);
-      processMath.initialize();
-
-      if(processMath.mode!=="variable"){
-        lineContainer = processMath.container as HTMLDivElement;
-        mainContainer.appendChild(lineContainer);
-      }
-      else{skippedIndexes++;}
-    });
-  }
-
-
   watchFiles() {
 		// Only begin watching files once the layout is ready
 		// Otherwise, we'll be unnecessarily reacting to many onFileCreate events of snippet files
@@ -274,6 +262,31 @@ async loadSettings() {
 	}
 }
 
+
+function processMathBlock(source: string, mainContainer: HTMLElement): void {
+    
+  mainContainer.classList.add("math-container");
+  
+  const userVariables: { variable: string; value: string }[] = [];
+  let skippedIndexes = 0;
+  
+  const expressions = source.split("\n").map(line => line.replace(/[\s]+/,'').trim()).filter(line => line && !line.startsWith("//"));
+  if (expressions.length === 0) {return;}
+
+  expressions.forEach((expression, index) => {
+    let lineContainer: HTMLDivElement = document.createElement("div");
+    lineContainer.classList.add("math-line-container", (index-skippedIndexes) % 2 === 0 ? "math-row-even" : "math-row-odd");
+    //if (expression.match(/^\/\//)){}
+    const processMath = new ProcessMath(expression,userVariables, this.app,lineContainer);
+    processMath.initialize();
+
+    if(processMath.mode!=="variable"){
+      lineContainer = processMath.container as HTMLDivElement;
+      mainContainer.appendChild(lineContainer);
+    }
+    else{skippedIndexes++;}
+  });
+}
 
 function processTikzBlock(source: string, container: HTMLElement): void {
   try{

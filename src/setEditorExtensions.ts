@@ -1,11 +1,8 @@
-import Moshe from "./main";
-import { getTikzSuggestions, Latex } from "./utilities";
+
 import { EditorView, ViewPlugin, ViewUpdate ,Decoration, tooltips, } from "@codemirror/view";
-import { EditorState, Prec,Extension } from "@codemirror/state";
 import { Context } from "./utils/context";
 import { getCharacterAtPos, isComposing, replaceRange, setCursor } from "./editor utilities/editor_utils";
 import { keyboardAutoReplaceHebrewToEnglishTriggers } from "./staticData/mathParserStaticData";
-import {  Suggestor } from "./suggestor";
 import { RtlForc } from "./editorDecorations";
 import { setSelectionToNextTabstop } from "./snippets/snippet_management";
 
@@ -14,15 +11,11 @@ import { getLatexSuiteConfig, getLatexSuiteConfigExtension } from "./snippets/co
 import { runAutoFraction } from "./features/autofraction";
 import { runMatrixShortcuts } from "./features/matrix_shortcuts";
 import { shouldTaboutByCloseBracket, tabout } from "./features/tabout";
-import { snippetExtensions } from "./snippets/codemirror/extensions";
-import { colorPairedBracketsPluginLowestPrec, highlightCursorBracketsPlugin } from "./editor_extensions/highlight_brackets";
-import { mkConcealPlugin } from "./editor_extensions/conceal";
 import { cursorTooltipBaseTheme, cursorTooltipField, handleMathTooltip } from "./editor_extensions/math_tooltip";
-import { context } from "esbuild-wasm";
 import { removeAllTabstops, tabstopsStateField } from "./snippets/codemirror/tabstops_state_field";
 import { clearSnippetQueue, snippetQueueStateField } from "./snippets/codemirror/snippet_queue_state_field";
 import { handleUndoRedo, snippetInvertedEffects } from "./snippets/codemirror/history";
-
+import { suggestor } from "./suggestor";
 
 /*
 class="cm-gutters" aria-hidden="true" style="min-height: 7865px; position: sticky;"
@@ -30,77 +23,71 @@ spellcheck="false" autocorrect="off" translate="no" contenteditable="true"
 
 */
 
-
-
-export class EditorExtensions {
-    private suggestor: Suggestor = new Suggestor();
-    
-	private onScroll (event: Event,view: EditorView) {
-		console.log(this.suggestor)
-		this.suggestor.updatePositionFromView(view);
-	}
-	closeSuggestor(){
-		if(this.suggestor)this.suggestor.close()
-	}
-	private onMove(event: MouseEvent,view: EditorView){
-		const suggestionItems = document.body.querySelectorAll(".suggestion-item");
-
-		const clickedSuggestion = Array.from(suggestionItems).find((item) =>
-			item.contains(event.target as Node)
-		);
-		if (clickedSuggestion) {
-			const index = Array.from(suggestionItems).indexOf(clickedSuggestion);
-			this.suggestor.selectionIndex=index
-			this.suggestor.updateSelection(suggestionItems)
-		}
-	}
-	private onClick (event: MouseEvent,view: EditorView) {
-		if(!this.suggestor||!this.suggestor.isSuggesterDeployed()){return}
-		const suggestionItems = document.body.querySelectorAll(".suggestion-item");
-	
-		// Check if the click is on a suggestion item
-		const clickedSuggestion = Array.from(suggestionItems).find((item) =>
-			item.contains(event.target as Node)
-		);
-		if (clickedSuggestion) {
-			this.suggestor.selectDropdownItem(clickedSuggestion,view);
-		}
-		const dropdownItem = document.body.querySelector(".suggestion-dropdown");
-		const clickedDropdown = Array.from(suggestionItems).find((item) =>
-			item.contains(event.target as Node)
-		);
-		if(!clickedDropdown){
-			this.suggestor.close()
-		}
-	}
-	private onKeydown = (event: KeyboardEvent, view: EditorView) => {
-		let key = event.key;
-		let trigger
-		const ctx = Context.fromView(view);
-		if (!(event.ctrlKey || event.metaKey) && ctx.shouldTranslate()) {
-		  trigger = keyboardAutoReplaceHebrewToEnglishTriggers.find((trigger2) => trigger2.key === event.key && trigger2.code === event.code);
-		  key = trigger?.replacement||key;
-		}
-		if(ctx.codeblockLanguage==="tikz"){
-			this.suggestor.open(ctx,view)
-		}
-		if(this.suggestor.isSuggesterDeployed()){
-			handleDropdownNavigation(event,view,this.suggestor)
-		}
-		
-		const success = handleKeydown(key, event.shiftKey, event.ctrlKey || event.metaKey, isComposing(view, event), view);
-		if (success) 
-		  event.preventDefault();
-		else if (key !== event.key&&trigger) {
-			event.preventDefault();
-			key = trigger.replacement;
-			replaceRange(view,view.state.selection.main.from,view.state.selection.main.to,key)
-			setCursor(view,view.state.selection.main.from+key.length)
-	  }
-	};
+export const onScroll=(event: Event,view: EditorView)=>{
+	console.log(suggestor)
+	suggestor.updatePositionFromView(view);
 }
 
-const handleUpdate = (update: ViewUpdate) => {
+export const onMove=(event: MouseEvent,view: EditorView)=>{
+	const suggestionItems = document.body.querySelectorAll(".suggestion-item");
+
+	const clickedSuggestion = Array.from(suggestionItems).find((item) =>
+		item.contains(event.target as Node)
+	);
+	if (clickedSuggestion) {
+		const index = Array.from(suggestionItems).indexOf(clickedSuggestion);
+		suggestor.selectionIndex=index
+		suggestor.updateSelection(suggestionItems)
+	}
+}
+
+
+export const onClick=(event: MouseEvent,view: EditorView)=>{
+	if(!suggestor.isSuggesterDeployed()){return}
+	const suggestionItems = document.body.querySelectorAll(".suggestion-item");
+
+	// Check if the click is on a suggestion item
+	const clickedSuggestion = Array.from(suggestionItems).find((item) =>
+		item.contains(event.target as Node)
+	);
+	if (clickedSuggestion) {
+		suggestor.selectDropdownItem(clickedSuggestion,view);
+	}
+	const dropdownItem = document.body.querySelector(".suggestion-dropdown");
+	const clickedDropdown = Array.from(suggestionItems).find((item) =>
+		item.contains(event.target as Node)
+	);
+	if(!clickedDropdown){
+		suggestor.close()
+	}
+}
+export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
+	let key = event.key;
+	let trigger
+	const ctx = Context.fromView(view);
+	if (!(event.ctrlKey || event.metaKey) && ctx.shouldTranslate()) {
+	  trigger = keyboardAutoReplaceHebrewToEnglishTriggers.find((trigger2) => trigger2.key === event.key && trigger2.code === event.code);
+	  key = trigger?.replacement||key;
+	}
+	if(ctx.codeblockLanguage==="tikz"){
+		suggestor.open(ctx,view)
+	}
+	if(suggestor.isSuggesterDeployed()){
+		handleDropdownNavigation(event,view)
+	}
+	
+	const success = handleKeydown(key, event.shiftKey, event.ctrlKey || event.metaKey, isComposing(view, event), view);
+	if (success) 
+	  event.preventDefault();
+	else if (key !== event.key&&trigger) {
+		event.preventDefault();
+		key = trigger.replacement;
+		replaceRange(view,view.state.selection.main.from,view.state.selection.main.to,key)
+		setCursor(view,view.state.selection.main.from+key.length)
+  }
+};
+
+export const handleUpdate = (update: ViewUpdate) => {
 	const settings = getLatexSuiteConfig(update.state);
 
 	// The math tooltip handler is driven by view updates because it utilizes
@@ -112,7 +99,7 @@ const handleUpdate = (update: ViewUpdate) => {
 	handleUndoRedo(update);
 }
 
-const handleDropdownNavigation=(event: KeyboardEvent,view:EditorView,suggestor: Suggestor)=>{
+const handleDropdownNavigation=(event: KeyboardEvent,view:EditorView)=>{
 	const items = suggestor.getAlldropdownItems();
 	switch (true) {
 		case event.key === "ArrowDown":
@@ -218,3 +205,4 @@ export const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, 
 
 	return false;
 }
+

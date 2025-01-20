@@ -9,7 +9,6 @@ import { replaceRange, setCursor } from "./editor utilities/editor_utils";
 import { expandSnippets } from "./snippets/snippet_management";
 import { queueSnippet } from "./snippets/codemirror/snippet_queue_state_field";
 
-
 class SuggestorTrigger{
 	text: string
 	codeBlockText: string;
@@ -59,14 +58,13 @@ const findLine = (state: EditorState, lineNumber: number,dir: number, startsWith
 	return null;
 };
 
-export class Suggestor {
+class Suggestor {
 	private trigger: SuggestorTrigger;
 	selectionIndex: number;
 	private context: Context;
 	private suggestions = [];
 	private containerEl: HTMLElement;
-	setContext(context: Context){this.context=context;}
-	isSuggesterDeployed(): boolean {return !!document.body.querySelector(".suggestion-dropdown");}
+
 	open(context: Context,view: EditorView){
 		// If the suggestor is already deployed, close it
 		this.close();
@@ -76,7 +74,12 @@ export class Suggestor {
 		document.body.appendChild(this.containerEl);
 		console.log("Suggestor deployed",this.containerEl);
 	}
-	
+	close(){
+		document.body.querySelectorAll(".suggestion-item").forEach(node => node.remove());
+		document.body.querySelector(".suggestion-dropdown")?.remove();
+	}
+	isSuggesterDeployed(): boolean {return !!document.body.querySelector(".suggestion-dropdown");}
+
 	updatePositionFromView(view: EditorView): boolean{
 		const coords=view.coordsAtPos(view.state.selection.main.head)
 		if (!coords) return false;
@@ -84,12 +87,9 @@ export class Suggestor {
 		return true;
 	}
 	
-	close(){
-		document.body.querySelectorAll(".suggestion-item").forEach(node => node.remove());
-		document.body.querySelector(".suggestion-dropdown")?.remove();
-	}
+	
 	createContainerEl(view: EditorView){
-		const suggestions=["1","12","123"]/*this.getSuggestions(view)*/
+		const suggestions=this.getSuggestions(view)
 		if(suggestions.length<1)return;
 		this.containerEl = document.createElement("div");
 		this.containerEl.addClass("suggestion-dropdown")
@@ -179,7 +179,6 @@ export class Suggestor {
 		console.log(`Selected: ${selectedText}`);
 		return success;
 	}
-	
 }
 
 
@@ -188,3 +187,4 @@ function calculateNewCursorPosition(triggerText: string, selectedText: string, o
     return originalPos + lengthDifference;
 }
 
+export const suggestor = new Suggestor();
