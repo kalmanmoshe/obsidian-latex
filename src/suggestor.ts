@@ -63,31 +63,59 @@ export class Suggestor {
 	private trigger: SuggestorTrigger;
 	selectionIndex: number;
 	private context: Context;
-	isSuggesterDeployed: boolean=false;
-
-	deploySuggestor(context: Context,view: EditorView){
-		console.log("sjdsjd")
-		this.removeSuggestor()
+	private suggestions = [];
+	private containerEl: HTMLElement;
+	setContext(context: Context){this.context=context;}
+	isSuggesterDeployed(): boolean {return !!document.body.querySelector(".suggestion-dropdown");}
+	open(context: Context,view: EditorView){
+		// If the suggestor is already deployed, close it
+		this.close();
 		this.context=context;
-		const suggestions=this.getSuggestions(view)
-		if(suggestions.length<1)return;
-
-		const suggestionDropdown = createFloatingSuggestionDropdown(suggestions,view, this.context.pos);
-		if (!suggestionDropdown) return;
-		document.body.appendChild(suggestionDropdown);
-		this.isSuggesterDeployed=true;
-		this.selectionIndex=0;
-		this.updateSelection(this.getAlldropdownItems());
-
+		this.createContainerEl(view);
+		this.updatePositionFromView(view);
+		document.body.appendChild(this.containerEl);
+		console.log("Suggestor deployed",this.containerEl);
 	}
-	updateSuggestorPosition(){
-
+	
+	updatePositionFromView(view: EditorView): boolean{
+		const coords=view.coordsAtPos(view.state.selection.main.head)
+		if (!coords) return false;
+		this.updatePosition(coords.left,coords.bottom)
+		return true;
 	}
-
-	removeSuggestor() {
+	
+	close(){
 		document.body.querySelectorAll(".suggestion-item").forEach(node => node.remove());
-		document.body.querySelector(".suggestion-dropdown")?.remove()
-		this.isSuggesterDeployed=false;
+		document.body.querySelector(".suggestion-dropdown")?.remove();
+	}
+	createContainerEl(view: EditorView){
+		const suggestions=["1","12","123"]/*this.getSuggestions(view)*/
+		if(suggestions.length<1)return;
+		this.containerEl = document.createElement("div");
+		this.containerEl.addClass("suggestion-dropdown")
+
+		suggestions.forEach((suggestion) => {
+			this.renderSuggestion(suggestion);
+		});
+	}
+
+	renderSuggestion(suggestion: string){
+		this.containerEl.appendChild(
+			Object.assign(document.createElement("div"), {
+				className: "suggestion-item",
+				innerText: suggestion
+			})
+		);
+	}
+
+	updatePosition(left: number,top: number){
+		if (!this.containerEl) return false;
+		Object.assign(this.containerEl.style,{
+			position: "absolute",
+			left: `${left}px`,
+			top: `${top}px`,
+		});
+		return true;
 	}
 
 	getAlldropdownItems(){return document.body.querySelectorAll(".suggestion-item")}
@@ -128,8 +156,6 @@ export class Suggestor {
 		return sortedSuggestions;
 	}
 
-	
-
 	updateSelection(items: NodeListOf<Element>) {
 		items.forEach((item, index) => {
 			if (index === this.selectionIndex) {
@@ -142,93 +168,23 @@ export class Suggestor {
 	}
 
 	selectDropdownItem(item: Element,view: EditorView) {
-		this.removeSuggestor()
+		this.close()
 		if(!this.context)return ;
 		const selectedText = item.textContent || "";
 		const pos=this.context.pos;
 		queueSnippet(view,pos-this.trigger.text.length,pos,selectedText)
 		const success = expandSnippets(view);
-		//view.focus();
-		//setCursor(view,calculateNewCursorPosition(this.trigger.text,selectedText,pos))
+		view.focus();
+		setCursor(view,calculateNewCursorPosition(this.trigger.text,selectedText,pos))
 		console.log(`Selected: ${selectedText}`);
+		return success;
 	}
+	
 }
+
+
 function calculateNewCursorPosition(triggerText: string, selectedText: string, originalPos: number): number {
     const lengthDifference = selectedText.length - triggerText.length;
     return originalPos + lengthDifference;
-}
-
-function createFloatingSuggestionDropdown(suggestions: any[],editorView: EditorView, position: number) {
-
-    const coordinates = editorView.coordsAtPos(position);
-    if (!coordinates) return;
-
-    const suggestionDropdown = createSuggestionDropdown(suggestions);
-
-    suggestionDropdown.style.position = "absolute";
-    suggestionDropdown.style.left = `${coordinates.left}px`;
-    suggestionDropdown.style.top = `${coordinates.bottom}px`;
-	return suggestionDropdown;
-}
-
-
-function createSuggestionDropdown(suggestions: string[]) {
-    const dropdownContainer = document.createElement("div");
-    dropdownContainer.className = "suggestion-dropdown";
-
-    suggestions.forEach((suggestion) => {
-        const item = createSuggestionItem(suggestion)
-		dropdownContainer.appendChild(item)
-    });
-
-    return dropdownContainer;
-}
-
-function createSuggestionItem(displayText: string): HTMLElement {
-	// Create the outer suggestion item container
-	const container = document.createElement("div");
-	container.classList.add("suggestion-item");
-	container.innerText=displayText
-  	return container
-	// Create the icon container
-	const icon = document.createElement("div");
-	icon.classList.add("icon");
-	icon.textContent = "ƒ"; // Placeholder icon content
-  
-	// Create the details container
-	const details = document.createElement("div");
-	details.classList.add("details");
-  
-	// Add a name span to details
-	const name = document.createElement("span");
-	name.classList.add("name");
-	name.textContent = "function"; // Placeholder name content
-  
-	// Add a type span to details
-	const type = document.createElement("span");
-	type.classList.add("type");
-	type.textContent = "Keyword"; // Placeholder type content
-  
-	// Append name and type to details
-	details.appendChild(name);
-	details.appendChild(type);
-  
-	// Append icon and details to the container
-	container.appendChild(icon);
-	container.appendChild(details);
-  
-	return container;
-}
-
-
-
-
-
-
-
-export function getCharacterAtPos(viewOrState: EditorView | EditorState, pos: number) {
-	const state = viewOrState instanceof EditorView ? viewOrState.state : viewOrState;
-	const doc = state.doc;
-	return doc.slice(pos, pos+1).toString();
 }
 
