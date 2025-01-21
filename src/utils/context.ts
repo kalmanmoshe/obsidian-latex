@@ -274,7 +274,7 @@ const findFirstNonNewlineBefore = (state: EditorState, pos: number): number => {
     }
     return 0;
 };
-
+//The position I get has.to be.at least one line.before the head of the code block
 const langIfWithinCodeblock = (state: EditorState): string | null => {
 	const tree = syntaxTree(state);
 
@@ -283,6 +283,7 @@ const langIfWithinCodeblock = (state: EditorState): string | null => {
 
 	const adjustedPos =pos === 0 ? 0 : findFirstNonNewlineBefore(state, pos);
 	const cursor = tree.cursorAt(adjustedPos, -1);
+	//console.log(cursor.name)
 	
 	const inCodeblock = cursor.name.contains("codeblock");
 	

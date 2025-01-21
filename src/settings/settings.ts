@@ -43,6 +43,8 @@ interface LatexSuiteRawSettings {
 	matrixShortcutsEnvNames: string;
 	autoEnlargeBracketsTriggers: string;
 	forceMathLanguages: string;
+	forceTranslateLanguages: string;
+	suggestorLanguages: string;
 }
 
 interface LatexSuiteParsedSettings {
@@ -50,6 +52,8 @@ interface LatexSuiteParsedSettings {
 	matrixShortcutsEnvNames: string[];
 	autoEnlargeBracketsTriggers: string[];
 	forceMathLanguages: string[];
+	forceTranslateLanguages: string[];
+	suggestorLanguages: string[];
 }
 
 export type LatexSuitePluginSettings = {snippets: string, snippetVariables: string} & LatexSuiteBasicSettings & LatexSuiteRawSettings;
@@ -103,6 +107,8 @@ export const DEFAULT_SETTINGS: LatexSuitePluginSettings = {
 	matrixShortcutsEnvNames: "pmatrix, cases, align, gather, bmatrix, Bmatrix, vmatrix, Vmatrix, array, matrix",
 	autoEnlargeBracketsTriggers: "sum, int, frac, prod, bigcup, bigcap",
 	forceMathLanguages: "math",
+	forceTranslateLanguages: 'tikz',
+	suggestorLanguages: 'tikz',
 }
 
 export function processLatexSuiteSettings(snippets: Snippet[], settings: LatexSuitePluginSettings):LatexSuiteCMSettings {
@@ -136,6 +142,8 @@ export function processLatexSuiteSettings(snippets: Snippet[], settings: LatexSu
 		matrixShortcutsEnvNames: strToArray(settings.matrixShortcutsEnvNames),
 		autoEnlargeBracketsTriggers: strToArray(settings.autoEnlargeBracketsTriggers),
 		forceMathLanguages: strToArray(settings.forceMathLanguages),
+		forceTranslateLanguages: strToArray(settings.forceTranslateLanguages),
+		suggestorLanguages: strToArray(settings.suggestorLanguages),
 	}
 }
 
