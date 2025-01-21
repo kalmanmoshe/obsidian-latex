@@ -24,13 +24,13 @@ spellcheck="false" autocorrect="off" translate="no" contenteditable="true"
 */
 
 export const onScroll=(event: Event,view: EditorView)=>{
-	console.log(suggestor)
 	suggestor.updatePositionFromView(view);
 }
 
-export const onMove=(event: MouseEvent,view: EditorView)=>{
-	const suggestionItems = document.body.querySelectorAll(".suggestion-item");
 
+export const onMove=(event: MouseEvent,view: EditorView)=>{
+	if(!suggestor.isSuggesterDeployed()){return}
+	const suggestionItems = document.body.querySelectorAll(".suggestion-item");
 	const clickedSuggestion = Array.from(suggestionItems).find((item) =>
 		item.contains(event.target as Node)
 	);
@@ -61,6 +61,7 @@ export const onClick=(event: MouseEvent,view: EditorView)=>{
 		suggestor.close()
 	}
 }
+
 export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
 	let key = event.key;
 	let trigger
@@ -77,7 +78,7 @@ export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
 	}
 	
 	const success = handleKeydown(key, event.shiftKey, event.ctrlKey || event.metaKey, isComposing(view, event), view);
-	if (success) 
+	if (success)
 	  event.preventDefault();
 	else if (key !== event.key&&trigger) {
 		event.preventDefault();
@@ -117,21 +118,20 @@ const handleDropdownNavigation=(event: KeyboardEvent,view:EditorView)=>{
 			break;
 		case event.key === "Backspace":
 			suggestor.close();
-			//suggestor.deploySuggestor(ctx,view)
+			//suggestor.open(ctx,view)
+			break;
+		case event.key === "Enter":
+			suggestor.selectDropdownItem(items[suggestor.selectionIndex],view);
+			event.preventDefault();
+			break;
+		case event.key === "Escape":
+			suggestor.close();
+			event.preventDefault();
 			break;
 		default:
-			break;
+			return false;
 	}
-	if (event.key === "ArrowDown") {
-		
-	}else if (event.key === "Enter") {
-		const selectedItem = items[suggestor.selectionIndex];
-		suggestor.selectDropdownItem(selectedItem,view);
-		event.preventDefault();
-	} /*else if (event.key === "Escape") {
-		dropdown.remove();
-		event.preventDefault();
-	}*/
+	return true;
 }
 
 

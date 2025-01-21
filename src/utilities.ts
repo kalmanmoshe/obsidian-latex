@@ -9,49 +9,49 @@ export function getTikzSuggestions(): Array<Latex> {
 
 	const Latex=[
 		// Shapes
-		{trigger: undefined, replacement: "rectangle",},
-     	{trigger: undefined, replacement: "parabola"},
+		{replacement: "rectangle",},
+     	{replacement: "parabola"},
 		// spy
 		{replacement: 'spy using outlines,'},
 		// Arrow
 		{replacement: '-{Stealth},'},
 		{replacement: '{Stealth}-,'},
 		// plots
-		{trigger: undefined, replacement: "samples="},
+		{replacement: "samples="},
 		// axis 
-		{trigger: undefined, replacement: "axis on top,"},
+		{replacement: "axis on top,"},
 		// marks
-		{trigger: undefined, replacement: "mark=none"},
-    	{trigger: undefined, replacement: "mark=$1,"},
-    	{trigger: undefined, replacement: "only marks"},
+		{replacement: "mark=none"},
+    	{replacement: "mark=$1,"},
+    	{replacement: "only marks"},
 		// line width
-		{trigger: undefined, replacement: "line width=1pt,"},
+		{replacement: "line width=1pt,"},
 		// line type
-		{trigger: undefined, replacement: "loosely dotted,"},
-		{trigger: undefined, replacement: "dotted,"},
-		{trigger: undefined, replacement: "densely dotted,"},
-		{trigger: undefined, replacement: "loosely dashed,"},
-		{trigger: undefined, replacement: "dashed,"},
-		{trigger: undefined, replacement: "densely dashed,"},
+		{replacement: "loosely dotted,"},
+		{replacement: "dotted,"},
+		{replacement: "densely dotted,"},
+		{replacement: "loosely dashed,"},
+		{replacement: "dashed,"},
+		{replacement: "densely dashed,"},
 		// positions
-		{trigger: undefined, replacement: "sloped"},
-		{trigger: undefined, replacement: "above"},
-		{trigger: undefined, replacement: "below"},
-		{trigger: undefined, replacement: "left"},
-		{trigger: undefined, replacement: "right"},
-		{trigger: undefined, replacement: "upper"},
-		{trigger: undefined, replacement: "lower"},
+		{replacement: "sloped"},
+		{replacement: "above"},
+		{replacement: "below"},
+		{replacement: "left"},
+		{replacement: "right"},
+		{replacement: "upper"},
+		{replacement: "lower"},
 		// grid styles
-		{trigger: undefined, replacement: "none"},
-		{trigger: undefined, replacement: "major"},
-		{trigger: undefined, replacement: "minor"},
-		{trigger: undefined, replacement: "both"},
+		{replacement: "none"},
+		{replacement: "major"},
+		{replacement: "minor"},
+		{replacement: "both"},
 		//cycle list
-		{trigger: undefined, replacement: "cycle list={$0},$1"},
-		{trigger: undefined, replacement: "cycle list name=mark list,"},
-		{trigger: undefined, replacement: "cycle list name=exotic,"},
-		{trigger: undefined, replacement: "cycle list name=color,"},
-		{trigger: undefined, replacement: "cycle list name=color list,"},
+		{replacement: "cycle list={$0},$1"},
+		{replacement: "cycle list name=mark list,"},
+		{replacement: "cycle list name=exotic,"},
+		{replacement: "cycle list name=color,"},
+		{replacement: "cycle list name=color list,"},
 		//Rambled mess
 		{replacement: "draw"},
 		{replacement: "blue"},
@@ -170,7 +170,7 @@ export function getTikzSuggestions(): Array<Latex> {
 		{replacement: ""},
 		{replacement: ""},
 		{replacement: ""},
-		{replacement: ""},
+		{replacement: "smooth"},
 		
 	];
 

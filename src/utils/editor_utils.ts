@@ -120,6 +120,7 @@ export function escalateToToken(cursor: TreeCursor, dir: Direction, target: stri
 		|| (dir == Direction.Forward && cursor.next())
 		|| cursor.parent())
 	) {
+		console.log(cursor.name,target);
 		if (cursor.name.contains(target)) {
 			return cursor.node;
 		}
