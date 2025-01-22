@@ -5,6 +5,7 @@ import { Mode } from "../snippets/options";
 import { Environment } from "../snippets/environment";
 import { getLatexSuiteConfig } from "../snippets/codemirror/config";
 import { syntaxTree } from "@codemirror/language";
+import { queueSnippet } from "src/snippets/codemirror/snippet_queue_state_field";
 
 export interface Bounds {
 	start: number;
@@ -143,7 +144,7 @@ export class Context {
 	// Accounts for equations within text environments, e.g. $$\text{... $...$}$$
 	getInnerBounds(pos: number = this.pos): Bounds|null {
 		let bounds;
-		if (this.mode.codeMath) {
+		if (this.mode.code) {
 			// means a codeblock language triggered the math mode -> use the codeblock bounds instead
 			bounds = getCodeblockBounds(this.state, pos);
 		} else {
@@ -244,17 +245,36 @@ const getInnerEquationBounds = (state: EditorState, pos?: number):Bounds|null =>
 
 	return {start: left + 1, end: right};
 }
+export const getHtmlBounds= (state: EditorState, pos: number = state.selection.main.from):Bounds|null => {
+	state=fixState(state)
+	const tree = syntaxTree(state);
+	let cursor = tree.cursorAt(pos, -1);
+	const blockBegin = escalateToToken(cursor, Direction.Backward, "html-begin");
 
+	cursor = tree.cursorAt(pos, -1);
+	const blockEnd = escalateToToken(cursor, Direction.Forward, "html-end");
+	if(blockBegin&&blockEnd)
+		return { start: blockBegin.from, end: blockEnd.to };
+	if (!blockBegin&&!blockEnd)
+		return null;
+	if(!blockBegin&&blockEnd)
+		throw new Error("html block end without start")
+
+	//if end whth tag
+	
+	return null
+}
 /**
  * Figures out where this codeblock starts and where it ends.
  *
  * **Note:** If you intend to use this directly, check out Context.getBounds instead, which caches and also takes care of codeblock languages which should behave like math mode.
  */
 const getCodeblockBounds = (state: EditorState, pos: number = state.selection.main.from):Bounds|null => {
+	state=fixState(state)
 	const tree = syntaxTree(state);
 
 	let cursor = tree.cursorAt(pos, -1);
-	const blockBegin = findLine(state,state.doc.lineAt(pos).number,Direction.Backward,/^\`\`\`/)
+	const blockBegin = escalateToToken(cursor, Direction.Backward, "HyperMD-codeblock-begin");
 
 	cursor = tree.cursorAt(pos, -1);
 	const blockEnd = escalateToToken(cursor, Direction.Forward, "HyperMD-codeblock-end");
@@ -262,7 +282,14 @@ const getCodeblockBounds = (state: EditorState, pos: number = state.selection.ma
 	return { start: blockBegin.to + 1, end: blockEnd.from - 1 };
 	return null
 }
-
+const fixState=(state:EditorState)=>{
+	if(syntaxTree(state).cursorAt(state.selection.main.from, -1).name === "Document"){
+		state = state.update({
+			changes: { from: state.selection.main.from, insert: "\u200B" }
+		  }).state;
+	}
+	return state
+}
 const findFirstNonNewlineBefore = (state: EditorState, pos: number): number => {
     let currentPos = pos;
     while (currentPos >= 0) {
