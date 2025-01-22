@@ -3,7 +3,6 @@ import { EditorView, ViewPlugin, ViewUpdate ,Decoration, tooltips, } from "@code
 import { Context } from "./utils/context";
 import { getCharacterAtPos, isComposing, replaceRange, setCursor } from "./editor utilities/editor_utils";
 import { keyboardAutoReplaceHebrewToEnglishTriggers } from "./staticData/mathParserStaticData";
-import { RtlForc } from "./editorDecorations";
 import { setSelectionToNextTabstop } from "./snippets/snippet_management";
 
 import { runSnippets } from "./features/run_snippets";
@@ -85,7 +84,7 @@ export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
   }
 };
 export const onTransaction = (update: ViewUpdate) => {
-	if(update.transactions[0].docChanged){
+	if(update.transactions[0]&&update.transactions[0].docChanged){
 		const ctx=Context.fromView(update.view);
 		if(ctx.codeblockLanguage==="tikz"){
 			suggestor.open(ctx,update.view)

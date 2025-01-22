@@ -24,14 +24,14 @@ import { snippetQueueStateField } from "./snippets/codemirror/snippet_queue_stat
 import { snippetInvertedEffects } from "./snippets/codemirror/history";
 
 import { EditorView, ViewPlugin, ViewUpdate ,Decoration, tooltips, } from "@codemirror/view";
-import { RtlForc } from "./editorDecorations";
+import { HtmlBackgroundPlugin, rtlForcePlugin } from "./editorDecorations";
 
 import { getLatexSuiteConfig, getLatexSuiteConfigExtension } from "./snippets/codemirror/config";
 import { snippetExtensions } from "./snippets/codemirror/extensions";
-import { colorPairedBracketsPluginLowestPrec, highlightCursorBracketsPlugin } from "./editor_extensions/highlight_brackets";
+import { colorPairedBracketsPlugin, colorPairedBracketsPluginLowestPrec, highlightCursorBracketsPlugin } from "./editor_extensions/highlight_brackets";
 import { mkConcealPlugin } from "./editor_extensions/conceal";
 import { cursorTooltipBaseTheme, cursorTooltipField, handleMathTooltip } from "./editor_extensions/math_tooltip";
-import { onClick, onKeydown, onMove, onScroll, onTransaction } from "./setEditorExtensions";
+import { onClick, onKeydown, onMove, onScroll, onTransaction } from "./ inputMonitors";
 
 // i want to make some code that will outo insot metadata to fillls
 
@@ -74,41 +74,28 @@ export default class Moshe extends Plugin {
 			getLatexSuiteConfigExtension(this.CMSettings),
 			Prec.highest(EditorView.domEventHandlers({ "keydown": onKeydown })),
       Prec.default(EditorView.domEventHandlers({"scroll": onScroll, "click": onClick, "mousemove": onMove })),
+      Prec.lowest([colorPairedBracketsPlugin.extension, rtlForcePlugin.extension,HtmlBackgroundPlugin.extension]),
       EditorView.updateListener.of(onTransaction),
 			snippetExtensions,
-			colorPairedBracketsPluginLowestPrec,
+
 			highlightCursorBracketsPlugin.extension,
 			cursorTooltipField.extension,
 			cursorTooltipBaseTheme,
+
+      tabstopsStateField.extension,
+			snippetQueueStateField.extension,
+			snippetInvertedEffects,
 			tooltips({ position: "absolute" }),
 		]);
-
-		this.registerDecorations()
 
 		if (this.CMSettings.concealEnabled) {
 			const timeout = this.CMSettings.concealRevealTimeout;
 			this.editorExtensions.push(mkConcealPlugin(timeout).extension);
 		}
 
-		this.snippetExtensions();
 		this.registerEditorExtension(this.editorExtensions.flat());
 	}
 
-  private snippetExtensions() {
-		this.editorExtensions.push([
-			tabstopsStateField.extension,
-			snippetQueueStateField.extension,
-			snippetInvertedEffects,
-		]);
-	}
-
-  private registerDecorations(){
-      this.registerEditorExtension(
-          ViewPlugin.fromClass(RtlForc, {
-          decorations: (v) => v.decorations,
-        }
-      ));
-  }
   addEditorCommands() {
 		for (const command of getEditorCommands(this)) {
 			this.addCommand(command);
