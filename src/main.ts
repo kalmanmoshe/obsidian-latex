@@ -31,7 +31,7 @@ import { snippetExtensions } from "./snippets/codemirror/extensions";
 import { colorPairedBracketsPluginLowestPrec, highlightCursorBracketsPlugin } from "./editor_extensions/highlight_brackets";
 import { mkConcealPlugin } from "./editor_extensions/conceal";
 import { cursorTooltipBaseTheme, cursorTooltipField, handleMathTooltip } from "./editor_extensions/math_tooltip";
-import { handleUpdate, onClick, onKeydown, onMove, onScroll } from "./setEditorExtensions";
+import { onClick, onKeydown, onMove, onScroll, onTransaction } from "./setEditorExtensions";
 
 // i want to make some code that will outo insot metadata to fillls
 
@@ -73,8 +73,8 @@ export default class Moshe extends Plugin {
 		this.editorExtensions.push([
 			getLatexSuiteConfigExtension(this.CMSettings),
 			Prec.highest(EditorView.domEventHandlers({ "keydown": onKeydown })),
-      Prec.default(EditorView.domEventHandlers({ "scroll": onScroll, "click": onClick, "mousemove": onMove })),
-			EditorView.updateListener.of(handleUpdate),
+      Prec.default(EditorView.domEventHandlers({"scroll": onScroll, "click": onClick, "mousemove": onMove })),
+      EditorView.updateListener.of(onTransaction),
 			snippetExtensions,
 			colorPairedBracketsPluginLowestPrec,
 			highlightCursorBracketsPlugin.extension,
