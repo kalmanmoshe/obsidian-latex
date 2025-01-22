@@ -77,7 +77,7 @@ export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
 		handleDropdownNavigation(event,view)
 	}
 	
-	const success = handleKeydown(key, event.shiftKey, event.ctrlKey || event.metaKey, isComposing(view, event), view);
+	const success = handleKeydown(key, event.shiftKey, event.ctrlKey || event.metaKey, isComposing(view, event), view,ctx);
 	if (success)
 	  event.preventDefault();
 	else if (key !== event.key&&trigger) {
@@ -135,9 +135,8 @@ const handleDropdownNavigation=(event: KeyboardEvent,view:EditorView)=>{
 }
 
 
-export const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, isIME: boolean, view: EditorView) => {
+export const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, isIME: boolean, view: EditorView, ctx: Context) => {
 	const settings = getLatexSuiteConfig(view);
-	const ctx = Context.fromView(view);
 
 	let success = false;
 

@@ -95,8 +95,8 @@ export function getCloseBracket(openBracket: string) {
 
 
 export enum Direction {
-	Backward,
-	Forward,
+	Backward=-1,
+	Forward=1,
 }
 
 /**
@@ -120,7 +120,6 @@ export function escalateToToken(cursor: TreeCursor, dir: Direction, target: stri
 		|| (dir == Direction.Forward && cursor.next())
 		|| cursor.parent())
 	) {
-		console.log(cursor.name,target);
 		if (cursor.name.contains(target)) {
 			return cursor.node;
 		}
@@ -140,3 +139,13 @@ export function isComposing(view: EditorView, event: KeyboardEvent): boolean {
 	// Note that keyCode is deprecated - it is used here because it is apparently the only way to detect the first keydown event of an IME composition.
 	return view.composing || event.keyCode === 229;
 }
+
+
+export const findLine = (state: EditorState, pos: number,dir: Direction, regex: RegExp) => {
+	const {doc}=state
+	for (let i = pos + dir; i > 0 && i <= doc.lines; i += dir) {
+	const line = doc.line(i).text.trim();
+	if (line.match(regex)) return doc.line(i);
+	}
+	return null;
+};

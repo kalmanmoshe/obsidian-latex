@@ -1,9 +1,5 @@
 import { getTikzSuggestions,  } from "./utilities";
 import { EditorView, } from "@codemirror/view";
-import { syntaxTree } from "@codemirror/language";
-import { EditorState} from "@codemirror/state";
-import { SyntaxNode, TreeCursor } from "@lezer/common";
-import Moshe from "./main";
 import { Context } from "./utils/context";
 import { replaceRange, setCursor } from "./editor utilities/editor_utils";
 import { expandSnippets } from "./snippets/snippet_management";
@@ -28,7 +24,6 @@ class SuggestorTrigger{
 		const textUpToCursor = line.text.slice(0, pos- line.from).trim();
 		const words = textUpToCursor.split(/([\s,\[\](){};]|--\+\+|--\+|--)+/);
 		const word=words[words.length - 1]||'';
-		console.log(word)
 		/* Checks that need to be made
 		1. In what command are we in if any.
 		2. Are we inputting a Variable a coordinate or formatting.
@@ -38,25 +33,16 @@ class SuggestorTrigger{
 	}
 	getCodeBlockText(ctx: Context,view: EditorView){
 		const doc = view.state.doc;
-		const { number } = doc.lineAt(ctx.pos);
+		const s = doc.lineAt(ctx.pos);
 
-		const beforeLine = findLine(view.state,number,-1,'```');
-		const afterLine =  findLine(view.state,number,1,'```');;
-		if (!beforeLine || !afterLine) return null;
-		const betweenText = doc.sliceString(beforeLine.to, afterLine.from).trim();
-		const relativePos = ctx.pos - beforeLine.to;
+		const bounds=ctx.getBounds()
+		if(bounds===null)
+			throw new Error("No bounds found")
+
+		const betweenText = doc.sliceString(bounds.start, bounds.end).trim();
 		return betweenText
 	}
 }
-
-const findLine = (state: EditorState, lineNumber: number,dir: number, startsWith: string) => {
-	const {doc}=state
-	for (let i = lineNumber + dir; i > 0 && i <= doc.lines; i += dir) {
-	const line = doc.line(i).text.trim();
-	if (line.startsWith(startsWith)) return doc.line(i);
-	}
-	return null;
-};
 
 class Suggestor {
 	private trigger: SuggestorTrigger;
@@ -72,7 +58,6 @@ class Suggestor {
 		this.createContainerEl(view);
 		this.updatePositionFromView(view);
 		document.body.appendChild(this.containerEl);
-		console.log("Suggestor deployed",this.containerEl);
 	}
 	close(){
 		document.body.querySelectorAll(".suggestion-item").forEach(node => node.remove());

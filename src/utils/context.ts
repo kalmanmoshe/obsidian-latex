@@ -1,6 +1,6 @@
 import { EditorState, SelectionRange } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { Direction, escalateToToken, findMatchingBracket, getCharacterAtPos, getCloseBracket } from "src/utils/editor_utils";
+import { Direction, escalateToToken, findLine, findMatchingBracket, getCharacterAtPos, getCloseBracket } from "src/utils/editor_utils";
 import { Mode } from "../snippets/options";
 import { Environment } from "../snippets/environment";
 import { getLatexSuiteConfig } from "../snippets/codemirror/config";
@@ -129,7 +129,7 @@ export class Context {
 		}
 
 		let bounds;
-		if (this.mode.codeMath) {
+		if (this.mode.code) {
 			// means a codeblock language triggered the math mode -> use the codeblock bounds instead
 			bounds = getCodeblockBounds(this.state, pos);
 		} else {
@@ -254,7 +254,7 @@ const getCodeblockBounds = (state: EditorState, pos: number = state.selection.ma
 	const tree = syntaxTree(state);
 
 	let cursor = tree.cursorAt(pos, -1);
-	const blockBegin = escalateToToken(cursor, Direction.Backward, "HyperMD-codeblock-begin");
+	const blockBegin = findLine(state,state.doc.lineAt(pos).number,Direction.Backward,/^\`\`\`/)
 
 	cursor = tree.cursorAt(pos, -1);
 	const blockEnd = escalateToToken(cursor, Direction.Forward, "HyperMD-codeblock-end");
@@ -274,26 +274,25 @@ const findFirstNonNewlineBefore = (state: EditorState, pos: number): number => {
     }
     return 0;
 };
+
 //The position I get has.to be.at least one line.before the head of the code block
 const langIfWithinCodeblock = (state: EditorState): string | null => {
 	const tree = syntaxTree(state);
 
 	const pos = state.selection.ranges[0].from;
+	
 
 
 	const adjustedPos =pos === 0 ? 0 : findFirstNonNewlineBefore(state, pos);
 	const cursor = tree.cursorAt(adjustedPos, -1);
-	//console.log(cursor.name)
-	
 	const inCodeblock = cursor.name.contains("codeblock");
 	
-	if (!inCodeblock) {
-		return null;
-	}
+	if (!inCodeblock) return null;
+	
 
 	// locate the start of the block
-	const codeblockBegin = escalateToToken(cursor, Direction.Backward, "HyperMD-codeblock_HyperMD-codeblock-begin");
-
+	const codeblockBegin = findLine(state,state.doc.lineAt(pos).number,Direction.Backward,/^\`\`\`/)
+	
 	if (codeblockBegin == null) {
 		console.warn("unable to locate start of the codeblock even though inside one");
 		return "";
@@ -301,7 +300,6 @@ const langIfWithinCodeblock = (state: EditorState): string | null => {
 
 	// extract the language
 	// codeblocks may start and end with an arbitrary number of backticks
-	const language = state.sliceDoc(codeblockBegin.from, codeblockBegin.to).replace(/`+/, "");
-
+	const language = codeblockBegin.text.replace(/`+/, "");
 	return language;
 }
