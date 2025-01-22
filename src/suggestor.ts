@@ -46,7 +46,7 @@ class SuggestorTrigger{
 
 class Suggestor {
 	private trigger: SuggestorTrigger;
-	selectionIndex: number;
+	private selectionIndex: number=0;
 	private context: Context;
 	private suggestions = [];
 	private containerEl: HTMLElement;
@@ -58,12 +58,22 @@ class Suggestor {
 		this.createContainerEl(view);
 		this.updatePositionFromView(view);
 		document.body.appendChild(this.containerEl);
+		this.updateSelection();
 	}
 	close(){
 		document.body.querySelectorAll(".suggestion-item").forEach(node => node.remove());
 		document.body.querySelector(".suggestion-dropdown")?.remove();
 	}
 	isSuggesterDeployed(): boolean {return !!document.body.querySelector(".suggestion-dropdown");}
+	setSelectionIndex(number: number){
+		this.selectionIndex=number
+		this.updateSelection()
+	}
+	moveSelectionIndex(number: number){
+		const items=this.getAlldropdownItems()
+		this.selectionIndex=(suggestor.selectionIndex +number + items.length) % items.length
+		this.updateSelection(items)
+	}
 
 	updatePositionFromView(view: EditorView): boolean{
 		const coords=view.coordsAtPos(view.state.selection.main.head)
@@ -104,16 +114,42 @@ class Suggestor {
 	}
 
 	getAlldropdownItems(){return document.body.querySelectorAll(".suggestion-item")}
-	private dropdownifAnyDeployed(){return document.body.querySelector(".suggestion-dropdown")}
+	private getDropdown(){return document.body.querySelector(".suggestion-dropdown")}
 
-	private handleDropdownNavigation(event: KeyboardEvent,view:EditorView) {
-		const dropdown = this.dropdownifAnyDeployed();
-		if (!dropdown || this.selectionIndex === undefined) return;
+	handleDropdownNavigation(event: KeyboardEvent,view:EditorView) {
+		const dropdown = this.getDropdown();
+		if (!dropdown) return;
 	
 		const items = this.getAlldropdownItems();
 
 		if (items.length === 0) return;
-		
+		switch (true) {
+			case event.key === "ArrowDown":
+				this.moveSelectionIndex(1)
+				event.preventDefault();
+				break;
+			case event.key === "ArrowUp":
+				this.moveSelectionIndex(-1)
+				event.preventDefault();
+				break;
+			case event.key === "ArrowLeft"||event.key === "ArrowRight":
+				suggestor.close();
+				break;
+			case event.key === "Backspace":
+				suggestor.close();
+				break;
+			case event.key === "Enter":
+				suggestor.selectDropdownItem(view);
+				event.preventDefault();
+				break;
+			case event.key === "Escape":
+				suggestor.close();
+				event.preventDefault();
+				break;
+			default:
+				return false;
+		}
+		return true;
 	}
 
 	private getSuggestions(view: EditorView) {
@@ -141,7 +177,7 @@ class Suggestor {
 		return sortedSuggestions;
 	}
 
-	updateSelection(items: NodeListOf<Element>) {
+	updateSelection(items: NodeListOf<Element>=this.getAlldropdownItems()) {
 		items.forEach((item, index) => {
 			if (index === this.selectionIndex) {
 				item.classList.add("selected");
@@ -152,7 +188,7 @@ class Suggestor {
 		});
 	}
 
-	selectDropdownItem(item: Element,view: EditorView) {
+	selectDropdownItem(view: EditorView,item: Element=this.getAlldropdownItems()[this.selectionIndex]) {
 		this.close()
 		if(!this.context)return ;
 		const selectedText = item.textContent || "";
@@ -161,13 +197,14 @@ class Suggestor {
 		const success = expandSnippets(view);
 		view.focus();
 		setCursor(view,calculateNewCursorPosition(this.trigger.text,selectedText,pos))
-		console.log(`Selected: ${selectedText}`);
+		console.log(`Selected: ${selectedText}`,success,calculateNewCursorPosition(this.trigger.text,selectedText,pos));
 		return success;
 	}
 }
 
 
 function calculateNewCursorPosition(triggerText: string, selectedText: string, originalPos: number): number {
+	console.log(triggerText,selectedText,originalPos)
     const lengthDifference = selectedText.length - triggerText.length;
     return originalPos + lengthDifference;
 }

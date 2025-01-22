@@ -16,6 +16,7 @@ import { removeAllTabstops, tabstopsStateField } from "./snippets/codemirror/tab
 import { clearSnippetQueue, snippetQueueStateField } from "./snippets/codemirror/snippet_queue_state_field";
 import { handleUndoRedo, snippetInvertedEffects } from "./snippets/codemirror/history";
 import { suggestor } from "./suggestor";
+import { context } from "esbuild-wasm";
 
 /*
 class="cm-gutters" aria-hidden="true" style="min-height: 7865px; position: sticky;"
@@ -36,8 +37,7 @@ export const onMove=(event: MouseEvent,view: EditorView)=>{
 	);
 	if (clickedSuggestion) {
 		const index = Array.from(suggestionItems).indexOf(clickedSuggestion);
-		suggestor.selectionIndex=index
-		suggestor.updateSelection(suggestionItems)
+		suggestor.setSelectionIndex(index)
 	}
 }
 
@@ -51,7 +51,7 @@ export const onClick=(event: MouseEvent,view: EditorView)=>{
 		item.contains(event.target as Node)
 	);
 	if (clickedSuggestion) {
-		suggestor.selectDropdownItem(clickedSuggestion,view);
+		suggestor.selectDropdownItem(view);
 	}
 	const dropdownItem = document.body.querySelector(".suggestion-dropdown");
 	const clickedDropdown = Array.from(suggestionItems).find((item) =>
@@ -70,11 +70,8 @@ export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
 	  trigger = keyboardAutoReplaceHebrewToEnglishTriggers.find((trigger2) => trigger2.key === event.key && trigger2.code === event.code);
 	  key = trigger?.replacement||key;
 	}
-	if(ctx.codeblockLanguage==="tikz"){
-		suggestor.open(ctx,view)
-	}
 	if(suggestor.isSuggesterDeployed()){
-		handleDropdownNavigation(event,view)
+		suggestor.handleDropdownNavigation(event,view)
 	}
 	
 	const success = handleKeydown(key, event.shiftKey, event.ctrlKey || event.metaKey, isComposing(view, event), view,ctx);
@@ -87,8 +84,14 @@ export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
 		setCursor(view,view.state.selection.main.from+key.length)
   }
 };
+export const onTransaction = (update: ViewUpdate) => {
+	if(update.transactions[0].docChanged){
+		const ctx=Context.fromView(update.view);
+		if(ctx.codeblockLanguage==="tikz"){
+			suggestor.open(ctx,update.view)
+		}
+	}
 
-export const handleUpdate = (update: ViewUpdate) => {
 	const settings = getLatexSuiteConfig(update.state);
 
 	// The math tooltip handler is driven by view updates because it utilizes
@@ -98,41 +101,9 @@ export const handleUpdate = (update: ViewUpdate) => {
 	}
 
 	handleUndoRedo(update);
+
 }
 
-const handleDropdownNavigation=(event: KeyboardEvent,view:EditorView)=>{
-	const items = suggestor.getAlldropdownItems();
-	switch (true) {
-		case event.key === "ArrowDown":
-			suggestor.selectionIndex = (suggestor.selectionIndex + 1) % items.length;
-			suggestor.updateSelection(items);
-			event.preventDefault();
-			break;
-		case event.key === "ArrowUp":
-			suggestor.selectionIndex = (suggestor.selectionIndex - 1 + items.length) % items.length;
-			suggestor.updateSelection(items);
-			event.preventDefault();
-			break;
-		case event.key === "ArrowLeft"||event.key === "ArrowRight":
-			suggestor.close();
-			break;
-		case event.key === "Backspace":
-			suggestor.close();
-			//suggestor.open(ctx,view)
-			break;
-		case event.key === "Enter":
-			suggestor.selectDropdownItem(items[suggestor.selectionIndex],view);
-			event.preventDefault();
-			break;
-		case event.key === "Escape":
-			suggestor.close();
-			event.preventDefault();
-			break;
-		default:
-			return false;
-	}
-	return true;
-}
 
 
 export const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, isIME: boolean, view: EditorView, ctx: Context) => {
