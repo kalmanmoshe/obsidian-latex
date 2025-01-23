@@ -83,9 +83,9 @@ function computeTabstops(view: EditorView, snippets: SnippetChangeSpec[], origin
 function markTabstops(view: EditorView, tabstops: TabstopSpec[]) {
 	const color = getNextTabstopColor(view);
 	const tabstopGroups = tabstopSpecsToTabstopGroups(tabstops, color);
-
 	addTabstops(view, tabstopGroups);
 }
+
 
 function expandTabstops(view: EditorView, tabstops: TabstopSpec[]) {
 	// Insert the replacements

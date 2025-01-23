@@ -5,8 +5,6 @@ import { Mode } from "../snippets/options";
 import { Environment } from "../snippets/environment";
 import { getLatexSuiteConfig } from "../snippets/codemirror/config";
 import { syntaxTree } from "@codemirror/language";
-import { queueSnippet } from "src/snippets/codemirror/snippet_queue_state_field";
-
 export interface Bounds {
 	start: number;
 	end: number;
@@ -255,13 +253,8 @@ export const getHtmlBounds= (state: EditorState, pos: number = state.selection.m
 	const blockEnd = escalateToToken(cursor, Direction.Forward, "html-end");
 	if(blockBegin&&blockEnd)
 		return { start: blockBegin.from, end: blockEnd.to };
-	if (!blockBegin&&!blockEnd)
-		return null;
-	if(!blockBegin&&blockEnd)
-		throw new Error("html block end without start")
-
-	//if end whth tag
-	
+	if (blockBegin&&!blockEnd)
+	return { start: blockBegin.from, end: state.doc.length };
 	return null
 }
 /**

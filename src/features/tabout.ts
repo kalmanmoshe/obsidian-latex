@@ -1,19 +1,27 @@
 import { EditorView } from "@codemirror/view";
-import { replaceRange, setCursor, getCharacterAtPos } from "src/utils/editor_utils";
+import { replaceRange, setCursor, getCharacterAtPos, Direction } from "src/utils/editor_utils";
 import { Context } from "src/utils/context";
 import { match } from "assert";
 
 
-export const tabout = (view: EditorView, ctx: Context,dir: 1|-1):boolean => {
-    if (!ctx.mode.inMath()) return false;
+export const tabout = (view: EditorView, ctx: Context,dir: Direction):boolean => {
+	if(ctx.mode.codeMath) return taboutMathjax(view,ctx,dir);
+	if(ctx.mode.html) return taboutHtml(view,ctx,dir);
+	return false;
+}
+const taboutHtml=(view: EditorView, ctx: Context,dir: Direction):boolean=>{
+	const Params=ctxTaboutParams(view,ctx);
+	if(!Params) return false;
+	const {start,end,pos,doc,text}=Params;
+	console.log("taboutHtml",start,end,pos,doc,text);
+	return false;
+}
+const taboutMathjax=(view: EditorView,ctx: Context,dir: Direction):boolean=>{
 
-	const result = ctx.getBounds();
-	if (!result) return false;
-	const { start, end } = result;
-	
-	const pos = view.state.selection.main.to;
-	const d = view.state.doc;
-	const text = d.toString();
+	const Params=ctxTaboutParams(view,ctx);
+	if(!Params) return false;
+	const {start,end,pos,doc,text}=Params;
+
 	// Move to the next closing bracket: }, ), ], >, |, or \\rangle
 	const chars = [
 		["{", "(", "[", "<"],
@@ -33,7 +41,7 @@ export const tabout = (view: EditorView, ctx: Context,dir: 1|-1):boolean => {
 	}
 
 
-	const textBtwnCursorAndEnd = d.sliceString(pos, end);
+	const textBtwnCursorAndEnd = doc.sliceString(pos, end);
 	const atEnd = textBtwnCursorAndEnd.trim().length === 0;
 
 	if (!atEnd) return false;
@@ -45,11 +53,11 @@ export const tabout = (view: EditorView, ctx: Context,dir: 1|-1):boolean => {
 	}
 	else {
 		// First, locate the $$ symbol
-		const dollarLine = d.lineAt(end+2);
+		const dollarLine = doc.lineAt(end+2);
 
 		// If there's no line after the equation, create one
 
-		if (dollarLine.number === d.lines) {
+		if (dollarLine.number === doc.lines) {
 			replaceRange(view, dollarLine.to, dollarLine.to, "\n");
 		}
 
@@ -58,12 +66,23 @@ export const tabout = (view: EditorView, ctx: Context,dir: 1|-1):boolean => {
 
 
 		// Trim whitespace at beginning / end of equation
-		const line = d.lineAt(pos);
+		const line = doc.lineAt(pos);
 		replaceRange(view, line.from, line.to, line.text.trim());
 
 	}
 
 	return true;
+}
+const ctxTaboutParams=(view: EditorView, ctx: Context)=>{
+	const result = ctx.getBounds();
+	if (!result) return false;
+	const { start, end } = result;
+	
+	const pos = view.state.selection.main.to;
+	const doc = view.state.doc;
+	const text = doc.toString();
+
+	return {start,end,pos,doc,text};
 }
 
 
