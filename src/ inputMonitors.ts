@@ -1,10 +1,9 @@
 
-import { EditorView, ViewPlugin, ViewUpdate ,Decoration, tooltips, } from "@codemirror/view";
+import { EditorView, ViewPlugin, ViewUpdate  } from "@codemirror/view";
 import { Context } from "./utils/context";
-import { getCharacterAtPos, isComposing, replaceRange, setCursor } from "./editor utilities/editor_utils";
+import { getCharacterAtPos, isComposing, replaceRange, setCursor,Direction } from "./editor utilities/editor_utils";
 import { keyboardAutoReplaceHebrewToEnglishTriggers } from "./staticData/mathParserStaticData";
-import { setSelectionToNextTabstop } from "./snippets/snippet_management";
-
+import { setSelectionToNextTabstop } from "./snippets/snippet_management"; 
 import { runSnippets } from "./features/run_snippets";
 import { getLatexSuiteConfig, getLatexSuiteConfigExtension } from "./snippets/codemirror/config";
 import { runAutoFraction } from "./features/autofraction";
@@ -15,7 +14,6 @@ import { removeAllTabstops, tabstopsStateField } from "./snippets/codemirror/tab
 import { clearSnippetQueue, snippetQueueStateField } from "./snippets/codemirror/snippet_queue_state_field";
 import { handleUndoRedo, snippetInvertedEffects } from "./snippets/codemirror/history";
 import { suggestor } from "./suggestor";
-import { context } from "esbuild-wasm";
 
 /*
 class="cm-gutters" aria-hidden="true" style="min-height: 7865px; position: sticky;"
@@ -146,13 +144,12 @@ export const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, 
 
 	if (key === "Tab") {
 		success = setSelectionToNextTabstop(view);
-
 		if (success) return true;
 	}
+
 	if (ctx.mode.strictlyInMath()) {
 		if (key === "/") {
 			success = runAutoFraction(view, ctx);
-
 			if (success) return true;
 		}
 	}
@@ -164,7 +161,7 @@ export const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, 
 		}
 	}
 	if (key === "Tab"&&shiftKey) {
-		success = tabout(view, ctx,-1);
+		success = tabout(view, ctx,Direction.Backward);
 		if (success) return true;
 	}
 	else if (key === "Tab" || shouldTaboutByCloseBracket(view, key)) {

@@ -45,7 +45,7 @@ export const rtlForcePlugin = ViewPlugin.fromClass(class   {
 
     private getRtlDecoration(pos: number): Range<Decoration> {
         return Decoration.line({
-            attributes: {"data-rtl": "true" },
+            attributes: {"dir": "rtl" },
         }).range(pos);
     }
 }, { decorations: v => v.decorations, });

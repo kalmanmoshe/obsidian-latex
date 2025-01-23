@@ -40,6 +40,7 @@ export class Options {
 
 export class Mode {
 	text: boolean;
+	html: boolean;
 	inlineMath: boolean;
 	blockMath: boolean;
 	codeMath: boolean;
