@@ -3,7 +3,7 @@ import { quad,calculateBinom,roundBySettings ,degreesToRadians,radiansToDegrees,
 
 import { findParenIndex, Paren,idParentheses, findDeepestParenthesesScope } from "../utils/ParenUtensils";
 import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, searchMathJaxOperators } from "../staticData/dataManager";
-import { MathGroup, MathJaxOperator, Token, BasicMathJaxTokens, ensureAcceptableFormatForMathGroupItems, deepSearchWithPath, MathGroupItem } from "./mathJaxTokens";
+import { MathGroup, MathJaxOperator, Token, ensureAcceptableFormatForMathGroupItems, deepSearchWithPath, MathGroupItem, stringToBasicMathJaxTokens } from "./mathJaxTokens";
 import { BasicMathJaxToken } from "src/basicToken";
 const greekLetters = [
     'Alpha','alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 
@@ -210,6 +210,46 @@ export function parseOperator(operator: MathJaxOperator): boolean {
 }
 
 
+function basicMathJaxTokensToMathGroup(basicTokens: Array<BasicMathJaxToken|Paren>): MathGroup|undefined{
+    const defineGroupsAndOperators=(tokens: Array<any>):boolean=>{
+        const range=operationsOrder(tokens);
+        if(range.start===null||range.end===null)return false;
+        if(range.specificOperatorIndex===null&&range.start===0&&range.end===tokens.length)return true;
+        let newMathGroupSuccess=null
+        if (range.specificOperatorIndex!==null)
+            newMathGroupSuccess=createOperatorItemFromTokens(tokens,range.specificOperatorIndex)
+        else
+        newMathGroupSuccess=createMathGroupInsertFromTokens(tokens,range.start,range.end)
+        if(!newMathGroupSuccess)return false;
+        return defineGroupsAndOperators(tokens);
+    }
+    const createMathGroupInsertFromTokens=(tokens: Array<any>,start: number,end: number):boolean=>{
+        const newMathGroup=new MathGroup(ensureAcceptableFormatForMathGroupItems(tokens.slice(start,end+1)));
+        tokens.splice(start,(end-start)+1,newMathGroup);
+        return true
+    }
+    const createOperatorItemFromTokens=(tokens: Array<any>,index: number):boolean=>{
+        const metadata = searchMathJaxOperators(tokens[index].value);
+        if(!metadata)throw new Error(`Operator ${tokens[index].value} not found in metadata`);
+        
+        const position=new Position(tokens,index)
+        const newOperator=MathJaxOperator.create(position.operator,metadata.associativity.numPositions,position.groups)
+        tokens.splice(position.start,(position.end-position.start)+1,newOperator);
+        return true
+    }
+
+    const success=defineGroupsAndOperators(basicTokens)
+    if(!success)return
+    const GroupedBasicTokens: MathGroupItem[]=(basicTokens.filter((t) => !(t instanceof Paren))as any)
+    return new MathGroup(GroupedBasicTokens)
+}
+
+function stringToMathGroup(string: String):MathGroup|undefined{
+    const basicTokens=stringToBasicMathJaxTokens(string);
+    const mathGroup = basicMathJaxTokensToMathGroup(basicTokens)
+    return mathGroup
+}
+
 
 
 function operationsOrder(tokens: any[]) {
@@ -227,25 +267,27 @@ function operationsOrder(tokens: any[]) {
 }
 
 export class MathPraiser{
-    input="";
-    tokens: MathGroup;
+    private input="";
+    private mathGroup: MathGroup;
     solution: any;
     mathInfo=new MathInfo();
-    constructor(input: string){
+    constructor(input?: string,mathGroup?: MathGroup,solution?: any,mathInfo?: MathInfo){
+        if(input)this.input=input;
+        if(mathGroup)this.mathGroup=mathGroup;
+        if(solution)this.solution=solution;
+        if(mathInfo)this.mathInfo=mathInfo;
+    }
+    setInput(input: string){
         this.input=input;
         this.processInput();
-        
-        const tokens=new BasicMathJaxTokens();
-        tokens.addInput(this.input)
-        //console.log("basicTokens",tokens.clone());
-        const basicTokens=tokens.tokens
-        this.convertBasicMathJaxTokenaToMathGroup(basicTokens)
-        
-        this.addDebugInfo("convertBasicMathJaxTokenaToMathGroup",this.tokens)
-        
-        this.input=this.tokens.toString()
+        const mathGroup=stringToMathGroup(this.input);
+        if(!mathGroup)throw new Error("Invalid input");
+        this.mathGroup=mathGroup;
+    }
+    addSolution(){
+        this.input=this.mathGroup.toString()
         this.controller();
-        this.solution=this.tokens
+        this.solution=this.mathGroup
         this.addDebugInfo("solution",this.solution);
     }
 
@@ -266,18 +308,18 @@ export class MathPraiser{
             operator.isOperable = false;
             return;
         }
-        this.mathInfo.addMathSnapshot(this.tokens.clone())
+        this.mathInfo.addMathSnapshot(this.mathGroup.clone())
         tokens.replaceItemCell(operator.solution,operatorIndex); 
     }
     
     controller(): any{
-        this.parse(this.tokens)
-        combineSimilarValues(this.tokens)
-        this.tokens.combiningLikeTerms()
+        this.parse(this.mathGroup)
+        combineSimilarValues(this.mathGroup)
+        this.mathGroup.combiningLikeTerms()
 
     }
     solutionToString(){
-        return (this.tokens.toString())||""
+        return (this.mathGroup.toString())||""
     }
 
     addDebugInfo(mes: string,value: any){
@@ -293,39 +335,8 @@ export class MathPraiser{
     finalReturn(){
        // return this.tokens.reconstruct()
     }
-    defineGroupsAndOperators(tokens: Array<any>):boolean|this{
-        const range=operationsOrder(tokens);
-        if(range.start===null||range.end===null)return false;
-        if(range.specificOperatorIndex===null&&range.start===0&&range.end===tokens.length)return true;
-        let newMathGroupSuccess=null
-        if (range.specificOperatorIndex!==null)
-            newMathGroupSuccess=this.createOperatorItemFromTokens(tokens,range.specificOperatorIndex)
-        else
-        newMathGroupSuccess=this.createMathGroupInsertFromTokens(tokens,range.start,range.end)
-        if(!newMathGroupSuccess)return false;
-        return this.defineGroupsAndOperators(tokens);
-    }
-    convertBasicMathJaxTokenaToMathGroup(basicTokens: Array<BasicMathJaxToken|Paren>):void{
-        const success=this.defineGroupsAndOperators(basicTokens)
-        if(!success)return
-        const GroupedBasicTokens: MathGroupItem[]=(basicTokens.filter((t) => !(t instanceof Paren))as any)
-        this.tokens=new MathGroup(GroupedBasicTokens)
-    }
-    createMathGroupInsertFromTokens(tokens: Array<any>,start: number,end: number):boolean{
-        const newMathGroup=new MathGroup(ensureAcceptableFormatForMathGroupItems(tokens.slice(start,end+1)));
-        tokens.splice(start,(end-start)+1,newMathGroup);
-        return true
-    }
-    createOperatorItemFromTokens(tokens: Array<any>,index: number):boolean{
-        const metadata = searchMathJaxOperators(tokens[index].value);
-        if(!metadata)throw new Error(`Operator ${tokens[index].value} not found in metadata`);
-        
-        const position=new Position(tokens,index)
-        const newOperator=MathJaxOperator.create(position.operator,metadata.associativity.numPositions,position.groups)
-        tokens.splice(position.start,(position.end-position.start)+1,newOperator);
-        return true
-    }
 }
+
 function deepClone(items: any[]) {
     let clone: any[] = [];
     items.forEach(item => {

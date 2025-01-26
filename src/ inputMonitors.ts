@@ -168,7 +168,6 @@ export const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, 
 		success = tabout(view, ctx,Direction.Forward);
 		if (success) return true;
 	}
-
 	return false;
 }
 

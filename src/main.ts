@@ -18,7 +18,7 @@ import { FormatTikzjax } from "./tikzjax/interpret/tokenizeTikzjax.js";
 import { onFileCreate, onFileChange, onFileDelete, getSnippetsFromFiles, getFileSets, getVariablesFromFiles, tryGetVariablesFromUnknownFiles } from "./settings/file_watch";
 import { ICONS } from "./settings/ui/icons";
 
-import { getEditorCommands } from "./features/editor_commands";
+import { getEditorCommands } from "./obsidian/editor_commands";
 import { SnippetVariables, parseSnippetVariables, parseSnippets } from "./snippets/parse";
 import { LatexRender } from "./latexRender/main";
 import { tabstopsStateField } from "./snippets/codemirror/tabstops_state_field";

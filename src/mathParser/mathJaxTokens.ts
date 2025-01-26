@@ -715,240 +715,134 @@ export class Token{
 }
 
 
+export function stringToBasicMathJaxTokens(string: String):Array<BasicMathJaxToken|Paren>{
+    const tokens: Array<BasicMathJaxToken|Paren>=tokenizeToBasicMathJaxTokens(string);
+    postProcessTokens(tokens);
+    validatePlusMinus(tokens);
+    return tokens;
+}
 
-export class BasicMathJaxTokens{
-    tokens: Array<BasicMathJaxToken|Paren>=[];
-    
-    constructor(tokens?: Array<BasicMathJaxToken|Paren>){
-        this.tokens=tokens||[];
-    }
-    addInput(math: string){
-        this.tokenize(math);
-    }
-    tokenize(math: string){
-        const operators=arrToRegexString(getAllMathJaxReferences())
-        for (let i = 0; i < math.length; i++) {
-            let match = math.slice(i).match(regExp('^' + operators));
-            if (!!match) {
-                this.tokens.push(BasicMathJaxToken.create(match[0]));
-                i+=match[0].length-1;
-                continue;
-            }
-
-            match = math.slice(i).match(/^([0-9.]+)/);//([a-zA-Z]?)/);
-            if (!!match)
-            {   i+=match[0].length-1
-                this.tokens.push(BasicMathJaxToken.create(parseFloat(match[0])));
-                continue;
-            }
-            //Add plus to make it multiple Letters.
-            match=math.slice(i).match(/[a-zA-Z](_\([a-zA-Z0-9]*\))*/)
-            if (!!match) {
-                i+=match[0].length-1
-                this.tokens.push(BasicMathJaxToken.create(match[0]))
-                continue;
-            }
-
-            throw new Error(`Unknown char "${math[i]}"`);
-        }
-       this.postProcessTokens();
-    }
-
-    postProcessTokens(){
-        /*rules to abid by:
-        1. +- If part of the number they are absorbed into the number
-        */
-        this.tokens=idParentheses(this.tokens);
-        this.implicitMultiplicationMap()
-        
-        const parenMap=this.implicitMultiplicationMap()
-
-        parenMap.sort((a: number, b: number) => b - a)
-        .forEach((value: any) => {
-            this.tokens.splice(value, 0, new  BasicMathJaxToken('operator','*'));
-        });
-
-        this.validatePlusMinus()
-    }
-    implicitMultiplicationMap() {
-        const isABasicMathJaxTokenDoubleRightOp=(token?: any)=>{
-            if(token&&token instanceof BasicMathJaxToken){
-                return getOperatorsByAssociativity([1, 2]).includes(token.getStringValue())
-            }
-            return false
+function tokenizeToBasicMathJaxTokens(math: String):Array<BasicMathJaxToken|Paren>{
+    const tokens: Array<BasicMathJaxToken|Paren>=[];
+    const operators=arrToRegexString(getAllMathJaxReferences())
+    for (let i = 0; i < math.length; i++) {
+        let match = math.slice(i).match(regExp('^' + operators));
+        if (!!match) {
+            this.tokens.push(BasicMathJaxToken.create(match[0]));
+            i+=match[0].length-1;
+            continue;
         }
 
-        /**
-         * 
-         * @param index 
-         * @returns boolan => True if thar isn't a doubleRight operator.
-         */
-        const testDoubleRight = (index: number) => {
-            if (!this.validateIndex(index)||!(this.tokens[index] instanceof Paren)) return false;
-            const idx = findParenIndex(index,this.tokens)?.open;
-            if (idx == null || parenState(this.tokens[index + 1])) return false;
-    
-            const prevToken = this.tokens[idx - 1];
-            return !isABasicMathJaxTokenDoubleRightOp(prevToken)
-        };
-
-    
-        const check = (index: number) => {
-            if (!this.validateIndex(index)) return false;
-            const token = this.tokens[index];
-            return token instanceof BasicMathJaxToken && token.isValueToken();
-        };
-
-        const checkImplicitMultiplication=(token: any)=>{
-            return token instanceof BasicMathJaxToken&&typeof token.getValue()==='string'&&hasImplicitMultiplication(token.getStringValue())
+        match = math.slice(i).match(/^([0-9.]+)/);//([a-zA-Z]?)/);
+        if (!!match)
+        {   i+=match[0].length-1
+            this.tokens.push(BasicMathJaxToken.create(parseFloat(match[0])));
+            continue;
+        }
+        //Add plus to make it multiple Letters.
+        match=math.slice(i).match(/[a-zA-Z](_\([a-zA-Z0-9]*\))*/)
+        if (!!match) {
+            i+=match[0].length-1
+            this.tokens.push(BasicMathJaxToken.create(match[0]))
+            continue;
         }
 
-        const isVar=(token: any)=>{return token instanceof BasicMathJaxToken &&token.getType()==='variable'}
-
-        const precedesVariable = (tokens: any,index: number) => {
-            return index>0&&isVar(tokens[index])
-        };
-        
-        const followsVariable = (tokens: any,index: number) => {
-            return index<tokens.length-1&&isVar(tokens[index])
-        };
-        
-        const map = this.tokens
-            .map((token, index) => {
-                if (index>0&&(parenState(token,true)|| checkImplicitMultiplication(token)||precedesVariable(this.tokens,index))) {
-                    return check(index - 1) ? index : null;
-                } else if (index<this.tokens.length-1&&(parenState(token,)||followsVariable(this.tokens,index))) {
-                    return check(index + 1) || testDoubleRight(index) ? index + 1 : null;
-                }
-                return null;
-            })
-            .filter((item) => item !== null);
-        return map;
+        throw new Error(`Unknown char "${math[i]}"`);
     }
-    
-
-    validatePlusMinus(){
-        // Pluses are separators.Therefore, they do not need to be here As the expression is token[]
-        //Minuses on the other hand.can either be a separator. Or a negative sign
-        const plusMap=this.tokens.map((token: BasicMathJaxToken|Paren, index: any) => token instanceof BasicMathJaxToken&&token.getValue() === 'Addition'?index : null).filter((index: number | null) => index !== null)
-        plusMap.reverse().forEach((index: number) => {
-            this.tokens.splice(index,1)
-        });
-        const minusMap=this.tokens.map((token: BasicMathJaxToken|Paren, index: any) => token instanceof BasicMathJaxToken&&token.getValue() === 'Subtraction'?index : null).filter((index: number | null) => index !== null)
-        
-        minusMap.reverse().forEach((index: number) => {
-            const nextToken = this.tokens[index + 1];
-            if (nextToken instanceof BasicMathJaxToken && typeof nextToken.getValue() === 'number') {
-                nextToken.setValue(nextToken.getNumberValue() * -1)
-                this.tokens.splice(index, 1);
-            }
-          });
-    }
-    validateIndex(index: number,margin?: number){
-        margin=margin||0;
-        return index>=0+margin&&index<this.tokens.length-margin;
-    }
-    clone(): BasicMathJaxTokens {
-        return new BasicMathJaxTokens(this.tokens.map(token => token.clone()));
-    }
-    /*
-    
-    
-    mapParenIndexes(){
-        return this.tokens
-        .map((token: any, index: any) => token.value === "(" ? findParenIndex(undefined, index) : null)
-        .filter((item: null) => item !== null)
-    }
-
-    filterParenIndexesForRemoval() {
-        return this.mapParenIndexes()
-            .filter((item: any) => {
-                const { open: openIndex, close: closeIndex } = item;
-                if (openIndex > 0) {
-                    if (/(operator|paren)/.test(this.tokens[openIndex - 1]?.type)) {
-                        return false;
-                    }
-                }
-                if (closeIndex < this.tokens.length - 1) {
-                    if (this.tokens[closeIndex + 1]?.isValueToken()) {
-                        return false;
-                    }
-                }
-                return true;
-            }).flatMap((item: any) => [item.open, item.close]);
-    }    
-    
-    
-    findSimilarSuccessor(tokens){
-        return this.tokens.findIndex((token, index) =>
-                ((tokens[index + 2]?.type !== "operator"&&tokens[index -1]?.type !== "operator")
-                &&(this.tokenCompare("type",this.valueTokens(), token, tokens[index + 1]))
-        ));
-     }
-    
-    connectNearbyTokens(){
-        this.tokens.forEach((token: any) => {
-            if (!(token instanceof Token)){
-                throw new Error("ftygubhnimpo")
-            }
-        });
-        const map = new Set(this.filterParenIndexesForRemoval());
-        this.tokens = this.tokens.filter((_: any, idx: unknown) => !map.has(idx));
-        //Problem with  = as it's affecting the variable before it
-        const check = (index: number) => {
-            return (
-                !this.tokens?.[index - 1]?.affectedOperatorRange?.() &&
-                !this.tokens?.[index + 1]?.affectedOperatorRange?.()
-            );
-        };
-
-        const numMap=this.tokens.map((token: { type: string; },index: any)=> token.type==='number'&&check(index)?index:null).filter((item: null) => item !== null)
-        const varMap=this.tokens.map((token: { type: string; },index: any)=> token.type==='variable'&&check(index)?index:null).filter((item: null) => item !== null)
-        
-        const arr = [
-            ...findConsecutiveSequences(numMap), 
-            ...findConsecutiveSequences(varMap), 
-        ];
-        this.connectAndCombine(arr)
-        
-        idParentheses(this.tokens)
-    }
-
-    
-
-    expressionVariableValidity(){
-        if (
-            Array.isArray(this.tokens) 
-            && this.tokens.some(token => /(variable|powerVariable)/.test(token.type)) 
-            && !this.tokens.some(token => token.value === "=")
-        )
-        {return Infinity}
-    }
-
-    insertTokens(start: any, length: number, objects: any[] | Token) {
-        objects = flattenArray(objects);
-        if (!Array.isArray(objects)) {
-            console.error("Expected `objects` to be an array, but received:", objects);
-            return;
-        }
-        this.tokens.splice(start, length, ...objects);
-    }
-
-    
-
-    indexesToAddPlus(tokens: any[]){
-        return tokens.map((token,index)=>index>0
-            &&tokens[index - 1]?.isValueToken()
-            &&token?.isValueToken()&&token.value>=0?index:null
-        ).filter(item=>item!==null)
-    }
-
-    tokenCompare(compare: string | number, value: string|RegExp, token: { [x: string]: any; }, nextToken: { [x: string]: any; }) {
-        const regExpvalue = (value instanceof RegExp) ? value : new RegExp(value);
-        return (
-            (value === null || regExpvalue.test(token[compare])) &&
-            token[compare] === nextToken?.[compare]
-        );
-    }
+    return tokens;
+}
+function postProcessTokens(tokens: Array<BasicMathJaxToken|Paren>){
+    /*rules to abid by:
+    1. +- If part of the number they are absorbed into the number
     */
+    tokens=idParentheses(tokens);
+    
+    const parenMap=implicitMultiplicationMap(tokens);
+
+    parenMap.sort((a: number, b: number) => b - a)
+    .forEach((value: any) => {
+        tokens.splice(value, 0, new  BasicMathJaxToken('operator','*'));
+    });
+}
+
+
+function implicitMultiplicationMap(tokens: Array<BasicMathJaxToken|Paren>) {
+    const isABasicMathJaxTokenDoubleRightOp=(token?: any)=>{
+        if(token&&token instanceof BasicMathJaxToken){
+            return getOperatorsByAssociativity([1, 2]).includes(token.getStringValue())
+        }
+        return false
+    }
+
+    /**
+     * 
+     * @param index 
+     * @returns boolan => True if thar isn't a doubleRight operator.
+     */
+    const testDoubleRight = (index: number) => {
+        if (!validateIndex(tokens,index)||!(tokens[index] instanceof Paren)) return false;
+        const idx = findParenIndex(index,tokens)?.open;
+        if (idx == null || parenState(tokens[index + 1])) return false;
+
+        const prevToken = tokens[idx - 1];
+        return !isABasicMathJaxTokenDoubleRightOp(prevToken)
+    };
+
+
+    const check = (index: number) => {
+        if (!validateIndex(tokens,index)) return false;
+        const token = tokens[index];
+        return token instanceof BasicMathJaxToken && token.isValueToken();
+    };
+
+    const checkImplicitMultiplication=(token: any)=>{
+        return token instanceof BasicMathJaxToken&&typeof token.getValue()==='string'&&hasImplicitMultiplication(token.getStringValue())
+    }
+
+    const isVar=(token: any)=>{return token instanceof BasicMathJaxToken &&token.getType()==='variable'}
+
+    const precedesVariable = (tokens: any,index: number) => {
+        return index>0&&isVar(tokens[index])
+    };
+    
+    const followsVariable = (tokens: any,index: number) => {
+        return index<tokens.length-1&&isVar(tokens[index])
+    };
+    
+    const map = tokens
+        .map((token, index) => {
+            if (index>0&&(parenState(token,true)|| checkImplicitMultiplication(token)||precedesVariable(tokens,index))) {
+                return check(index - 1) ? index : null;
+            } else if (index<tokens.length-1&&(parenState(token,)||followsVariable(tokens,index))) {
+                return check(index + 1) || testDoubleRight(index) ? index + 1 : null;
+            }
+            return null;
+        })
+        .filter((item) => item !== null);
+    return map;
+}
+
+
+
+
+function validatePlusMinus(tokens: Array<BasicMathJaxToken|Paren>){
+    // Pluses are separators.Therefore, they do not need to be here As the expression is token[]
+    //Minuses on the other hand.can either be a separator. Or a negative sign
+    const plusMap=tokens.map((token: BasicMathJaxToken|Paren, index: any) => token instanceof BasicMathJaxToken&&token.getValue() === 'Addition'?index : null).filter((index: number | null) => index !== null)
+    plusMap.reverse().forEach((index: number) => {
+        tokens.splice(index,1)
+    });
+    const minusMap=tokens.map((token: BasicMathJaxToken|Paren, index: any) => token instanceof BasicMathJaxToken&&token.getValue() === 'Subtraction'?index : null).filter((index: number | null) => index !== null)
+    
+    minusMap.reverse().forEach((index: number) => {
+        const nextToken = tokens[index + 1];
+        if (nextToken instanceof BasicMathJaxToken && typeof nextToken.getValue() === 'number') {
+            nextToken.setValue(nextToken.getNumberValue() * -1)
+            tokens.splice(index, 1);
+        }
+      });
+}
+
+const validateIndex=(arr: any[],index: number,margin: number=0)=>{
+    return index>=0+margin&&index<arr.length-margin;
 }
