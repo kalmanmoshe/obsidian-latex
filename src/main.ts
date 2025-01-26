@@ -1,5 +1,7 @@
-//git reset --hard
-//git branch
+//git reset --hard #Undo all changes
+//git fetch --all #Don't use unless necessity. It will overwrite all local changes
+//git branch #Check current branch
+
 import {Plugin, MarkdownRenderer,addIcon, App, Modal, Component, Setting,Notice, WorkspaceWindow,loadMathJax,renderMath, MarkdownView, EditorSuggest, EditorSuggestTriggerInfo, EditorPosition, Editor, TFile, EditorSuggestContext} from "obsidian";
 import { html as beautifyHTML } from 'js-beautify';
 import { MathInfo, MathPraiser } from "./mathParser/mathEngine";

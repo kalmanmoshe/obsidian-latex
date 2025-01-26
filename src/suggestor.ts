@@ -1,9 +1,9 @@
 import { getTikzSuggestions,  } from "./utilities";
 import { EditorView, } from "@codemirror/view";
 import { Context } from "./utils/context";
-import { replaceRange, setCursor } from "./editor utilities/editor_utils";
 import { expandSnippets } from "./snippets/snippet_management";
 import { queueSnippet } from "./snippets/codemirror/snippet_queue_state_field";
+import { setCursor } from "./utils/editor_utils";
 
 class SuggestorTrigger{
 	private text: string
