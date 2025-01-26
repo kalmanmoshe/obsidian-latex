@@ -1,8 +1,9 @@
 import { Editor } from "obsidian";
 import { EditorView } from "@codemirror/view";
 import { replaceRange, setCursor, setSelection } from "../utils/editor_utils";
-import LatexSuitePlugin from "src/main";
+import Moshe from "src/main";
 import { Context } from "src/utils/context";
+import { MathPraiser } from "src/mathParser/mathEngine";
 
 
 function boxCurrentEquation(view: EditorView) {
@@ -28,7 +29,7 @@ function boxCurrentEquation(view: EditorView) {
 
 function getBoxEquationCommand() {
 	return {
-		id: "latex-suite-box-equation",
+		id: "moshe-box-equation",
 		name: "Box current equation",
 		editorCheckCallback: (checking: boolean, editor: Editor) => {
 
@@ -51,7 +52,7 @@ function getBoxEquationCommand() {
 
 function getSelectEquationCommand() {
 	return {
-		id: "latex-suite-select-equation",
+		id: "moshe-select-equation",
 		name: "Select current equation",
 		editorCheckCallback: (checking: boolean, editor: Editor) => {
 
@@ -83,9 +84,9 @@ function getSelectEquationCommand() {
 }
 
 
-function getEnableAllFeaturesCommand(plugin: LatexSuitePlugin) {
+function getEnableAllFeaturesCommand(plugin: Moshe) {
 	return {
-		id: "latex-suite-enable-all-features",
+		id: "moshe-enable-all-features",
 		name: "Enable all features",
 		callback: async () => {
 			plugin.settings.snippetsEnabled = true;
@@ -99,9 +100,9 @@ function getEnableAllFeaturesCommand(plugin: LatexSuitePlugin) {
 }
 
 
-function getDisableAllFeaturesCommand(plugin: LatexSuitePlugin) {
+function getDisableAllFeaturesCommand(plugin: Moshe) {
 	return {
-		id: "latex-suite-disable-all-features",
+		id: "moshe-disable-all-features",
 		name: "Disable all features",
 		callback: async () => {
 			plugin.settings.snippetsEnabled = false;
@@ -114,9 +115,41 @@ function getDisableAllFeaturesCommand(plugin: LatexSuitePlugin) {
 	}
 }
 
+function getTranslateFromMathjaxToLatex(plugin: Moshe) {
+	return {
+		id: "moshe-translate-from-mathjax-to-latex",
+		name: "Translate from mathjax to latex",
+		editorCheckCallback: (checking: boolean, editor: Editor) => {
+			// @ts-ignore
+			const view = editor.cm;
+			const ctx = Context.fromView(view);
+			const withinEquation = ctx.mode.inMath();
 
-export const getEditorCommands = (plugin: LatexSuitePlugin) => {
+			if (checking) return withinEquation;
+			if (!withinEquation) return;
+
+
+			const result = ctx.getBounds();
+			if (!result) return false;
+			let {start, end} = result;
+
+			// Don't include newline characters in the selection
+			const doc = view.state.doc.toString();
+			const math=doc.splice(start,end);
+			console.log(math)
+			const a=new MathPraiser();
+			a.setInput(math);
+			console.log(a);
+
+			return
+		},
+	}
+}
+
+
+export const getEditorCommands = (plugin: Moshe) => {
 	return [
+		getTranslateFromMathjaxToLatex(plugin),
 		getBoxEquationCommand(),
 		getSelectEquationCommand(),
 		getEnableAllFeaturesCommand(plugin),

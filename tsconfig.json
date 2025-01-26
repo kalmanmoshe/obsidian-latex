@@ -11,6 +11,7 @@
     "noImplicitAny": true,
     "moduleResolution": "node",
     "importHelpers": true,
+    "checkJs": false,
     "isolatedModules": true,
     "strictNullChecks": true,
     "downlevelIteration": true,       // Enables iteration over `RegExpMatchArray`
