@@ -78,6 +78,7 @@ const runSnippetCursor = (view: EditorView, ctx: Context, key: string, range: Se
 
 		// Expand the snippet
 		const start = triggerPos;
+		console.log('replacement',replacement);
 		queueSnippet(view, start, to, replacement, key);
 		const containsTrigger = settings.autoEnlargeBracketsTriggers.some(word => replacement.contains("\\" + word));
 		return {success: true, shouldAutoEnlargeBrackets: containsTrigger};

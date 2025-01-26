@@ -1,7 +1,6 @@
 
 import { EditorView, ViewPlugin, ViewUpdate  } from "@codemirror/view";
 import { Context } from "./utils/context";
-import { getCharacterAtPos, isComposing, replaceRange, setCursor,Direction } from "./editor utilities/editor_utils";
 import { keyboardAutoReplaceHebrewToEnglishTriggers } from "./staticData/mathParserStaticData";
 import { setSelectionToNextTabstop } from "./snippets/snippet_management"; 
 import { runSnippets } from "./features/run_snippets";
@@ -14,6 +13,7 @@ import { removeAllTabstops, tabstopsStateField } from "./snippets/codemirror/tab
 import { clearSnippetQueue, snippetQueueStateField } from "./snippets/codemirror/snippet_queue_state_field";
 import { handleUndoRedo, snippetInvertedEffects } from "./snippets/codemirror/history";
 import { suggestor } from "./suggestor";
+import { Direction, getCharacterAtPos, isComposing, replaceRange, setCursor } from "./utils/editor_utils";
 
 /*
 class="cm-gutters" aria-hidden="true" style="min-height: 7865px; position: sticky;"
@@ -164,8 +164,8 @@ export const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, 
 		success = tabout(view, ctx,Direction.Backward);
 		if (success) return true;
 	}
-	else if (key === "Tab" || shouldTaboutByCloseBracket(view, key)) {
-		success = tabout(view, ctx,1);
+	if (key === "Tab" || shouldTaboutByCloseBracket(view, key)) {
+		success = tabout(view, ctx,Direction.Forward);
 		if (success) return true;
 	}
 
