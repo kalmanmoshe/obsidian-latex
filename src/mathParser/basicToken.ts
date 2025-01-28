@@ -1,4 +1,4 @@
-import { isOperatorWithAssociativity, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchTikzComponents } from "./staticData/dataManager";
+import { isOperatorWithAssociativity, mahtjaxAssociativitymetadata, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchTikzComponents } from "../staticData/dataManager";
 
 class BasicToken {
     protected type: string;
@@ -27,9 +27,8 @@ export class BasicMathJaxToken extends BasicToken {
     }
 
     getLatexSymbol(): string | undefined {
-        return typeof this.value === "string"
-            ? searchMathJaxOperators(this.value)?.latex
-            : undefined;
+        const metadata=typeof this.value === "string"?searchMathJaxOperators(this.value):undefined
+        return metadata?mahtjaxAssociativitymetadata(metadata)?.string:undefined
     }
 
     getFullType(): string | undefined {

@@ -17,9 +17,6 @@
     "highlightCursorBracketsEnabled": true,
     "mathPreviewEnabled": true,
     "mathPreviewPositionIsAbove": true,
-    "autofractionEnabled": true,
-    "autofractionSymbol": "\\frac",
-    "autofractionBreakingChars": "+-=\t",
     "matrixShortcutsEnabled": true,
     "taboutEnabled": true,
     "autoEnlargeBrackets": true,
@@ -196,5 +193,10 @@
     "autofractionExcludedEnvs": "[\n\t\t[\"^{\", \"}\"],\n\t\t[\"\\\\pu{\", \"}\"]\n\t]",
     "matrixShortcutsEnvNames": "pmatrix, cases, align, gather, bmatrix, Bmatrix, vmatrix, Vmatrix, array, matrix",
     "autoEnlargeBracketsTriggers": "sum, int, frac, prod, bigcup, bigcap",
-    "forceMathLanguages": "math-en"
+    "forceMathLanguages": "math-en",
+    "forceTranslateLanguages": "tikz",
+    "suggestorLanguages": "tikz",
+    "autofractionEnabled": true,
+    "autofractionSymbol": "\\frac",
+    "autofractionBreakingChars": "+-=\t"
 }

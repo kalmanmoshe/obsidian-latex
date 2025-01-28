@@ -1,7 +1,8 @@
 import { regExp } from "src/tikzjax/tikzjax";
-import { Associativity, MathJaxOperatorMetadata, mathJaxOperatorsMetadata, operatorsWithImplicitMultiplication,OperatorType, operatorNames } from "./mathParserStaticData";
+import { MathJaxOperatorMetadata, mathJaxOperatorsMetadata, operatorsWithImplicitMultiplication,OperatorType, operatorNames, associativityFormatType, AssociativityValue } from "./mathParserStaticData";
 import { BracketType } from "./encasings";
 import { brackets, LatexMetadata } from "./latexStaticData";
+import { metadata } from "valibot";
 
 /**
  * Escapes a string for safe use in a regular expression.
@@ -129,7 +130,7 @@ export function getOperatorsByAssociativity(side: number|number[]): string[] {
         return side.flatMap((s) => getOperatorsByAssociativity(s));
     }
     return mathJaxOperatorsMetadata
-        .filter((operator) => operator.associativity.positions.has(side))
+        .filter((operator) => mahtjaxAssociativitymetadata(operator).positions.has(side))
         .map((operator) => operator.name);
 }
 
@@ -146,7 +147,7 @@ export function getOperatorsByBracketType(
     return mathJaxOperatorsMetadata
         .filter(
             (operator) =>
-                operator.associativity.positions.get(side)?.bracketType === bracket
+                mahtjaxAssociativitymetadata(operator).positions.get(side)?.bracketType === bracket
         )
         .map((operator) => operator.name);
 }
@@ -177,3 +178,14 @@ export function getValuesWithKeysBySide<T>(map: Map<number, T>, left: boolean): 
 
 
 
+export const mahtjaxAssociativitymetadata = (metadata: MathJaxOperatorMetadata): AssociativityValue => {
+    return associativitymetadataByType(metadata, associativityFormatType.MathJax);
+};
+
+export const associativitymetadataByType = (metadata: MathJaxOperatorMetadata,type: associativityFormatType): AssociativityValue => {
+    const value = metadata.associativity.get(type);
+    if (!value) {
+        throw new Error("Associativity value not found");
+    }
+    return value;
+};

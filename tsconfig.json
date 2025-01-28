@@ -4,7 +4,7 @@
     "inlineSourceMap": true,
     "inlineSources": true,
     "module": "ESNext",
-    "target": "ESNext",              // Latest JavaScript features
+    "target": "ES6",              // Latest JavaScript features
     "allowJs": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,

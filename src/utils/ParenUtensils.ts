@@ -1,4 +1,4 @@
-import { BasicMathJaxToken, BasicTikzToken } from "src/basicToken";
+import { BasicMathJaxToken, BasicTikzToken } from "src/mathParser/basicToken";
 import { BracketState, BracketType } from "src/staticData/encasings";
 export class Paren{
     type: BracketType;
@@ -80,6 +80,7 @@ export function idParentheses(tokens: (BasicMathJaxToken|Paren|BasicTikzToken)[]
         console.error(tokens);
         throw new Error(`Unmatched opening parenthesis(es) detected: depth=${depth}`);
     }
+
     return newTokens;
 }
 
@@ -152,12 +153,12 @@ export function findModifiedParenIndex(id: Paren|number, tokens: any[], depth?: 
  */
 
 export function findParenIndex(id: number | Paren, tokens: any[]): { open: number; close: number; id: Paren; } {
-    const index = typeof id === "number" ? id : null;
-    id = index !== null ? tokens[index] : id;
-
-    if (!(id instanceof Paren)) {
-        throw new TypeError("Invalid ID: Expected a Paren object or a valid index.");
+    if(!(id instanceof Paren)){
+        id = tokens[id];
+        if(!(id instanceof Paren))
+            throw new TypeError("Invalid ID: Expected a Paren object or a valid index.");
     }
+
     const openIndex = tokens.findIndex(
         (token: Paren) => parenState(token,true) && id.compare(token)
     );

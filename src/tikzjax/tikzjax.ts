@@ -7,7 +7,7 @@ import { cartesianToPolar, findIntersectionPoint, findSlope, polarToCartesian, t
 import { DebugModal } from "src/desplyModals.js";
 import { FormatTikzjax } from "./interpret/tokenizeTikzjax.js";
 import { mapBrackets } from "src/utils/ParenUtensils.js";
-import { BasicTikzToken } from "src/basicToken.js";
+import { BasicTikzToken } from "src/mathParser/basicToken.js";
 
 
 

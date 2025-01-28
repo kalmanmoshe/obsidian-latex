@@ -1,15 +1,16 @@
 
-import { quad,calculateBinom,roundBySettings ,degreesToRadians,radiansToDegrees, calculateFactorial} from "./mathUtilities";
-import { expandExpression,curlyBracketsRegex } from "./imVeryLazy";
 import { arrToRegexString, Axis, regExp } from "../tikzjax/tikzjax";
 import { BracketType } from "../staticData/encasings";
 import { findParenIndex, Paren,idParentheses, parenState,  } from "../utils/ParenUtensils";
-import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchSymbols } from "../staticData/dataManager";
+import { associativitymetadataByType, getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, mahtjaxAssociativitymetadata, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchSymbols } from "../staticData/dataManager";
 
 import { parseOperator } from "./mathEngine";
-import { it } from "node:test";
-import { signal } from "codemirror";
-import { BasicMathJaxToken } from "src/basicToken";
+import { BasicMathJaxToken } from "src/mathParser/basicToken";
+import { associativityFormatType } from "src/staticData/mathParserStaticData";
+function groupBracketType(group: MathGroup,pos={ bracketType: BracketType.Parentheses, isBracketOptional: true },){
+    if(!pos.isBracketOptional)return pos.bracketType
+    return group.singular()?BracketType.None:pos?.bracketType
+}
 
 function wrapGroup(group: string, wrap: BracketType): string {
     switch (wrap) {
@@ -75,6 +76,7 @@ export function ensureAcceptableFormatForMathGroupItems(items: formattableForMat
                     acc.push(new Token(item.getValue()));
                     return acc;
                 }
+                console.warn("items,acc",items,acc)
                 throw new Error(
                     `Expected item to be a number or variable but received: ${item.getValue()}`
                 );
@@ -159,38 +161,15 @@ export class MathJaxOperator {
     }
     getOccurrenceGroup(): { occurrencesCount: number; occurrencOf: MathGroup[] }|null  { return null; }  
     isOccurrenceGroupMatch(testItem: MathJaxOperator | Token): boolean {return false;}
-    toString(customFormatter?: (check: any,string: string) => any){
-        
-
+    toString(formatType: associativityFormatType=associativityFormatType.MathJax,customFormatter?: (check: any,string: string) => any){
         const metadata = searchMathJaxOperators(this.operator);
         if (!metadata) return '';
-        if(metadata.associativity.numPositions>2||metadata.associativity.numPositions<1){
-            throw new Error(`Invalid number of positions for associativity: ${metadata.associativity.numPositions}`);
-        }
+        const associativity = associativitymetadataByType(metadata, formatType);
 
-        const operator = metadata.latex;
-        let index=0;
-        let string = '';
-        const groupBracketType=(pos: { bracketType: BracketType; isBracketOptional: boolean },group: MathGroup)=>{
-            if(!pos.isBracketOptional)
-                return pos.bracketType
-            return group.singular()?BracketType.None:pos.bracketType
-        }
-
-        getValuesWithKeysBySide(metadata.associativity.positions,true).forEach(item => {
-            if (!item) return;
-            string += shouldAddPlus(this.groups[index-1],this.groups[index],index);
-            string += wrapGroup(this.groups[index].toString(),groupBracketType(item,this.groups[index]));
-            index++;
-        });
-
-        string += operator;
-        getValuesWithKeysBySide(metadata.associativity.positions,false).forEach(item => {
-            if (!item) return;
-            string += shouldAddPlus(this.groups[index],this.groups[index+1],index)
-            string += wrapGroup(this.groups[index].toString(),groupBracketType(item,this.groups[index]));
-            index++;
-        });
+        let index=0,string = '';
+        ({string,index}=processAssociativityPositions(associativity.positions,string,this.groups,index,false));
+        string += associativity.string;
+        ({string,index}=processAssociativityPositions(associativity.positions,string,this.groups,index,true));
 
         if (customFormatter) 
             return customFormatter(this,string)
@@ -200,6 +179,17 @@ export class MathJaxOperator {
         parseOperator(this);
     }
 }
+
+function processAssociativityPositions(positions: Map<number, any>,string: string,groups: any[],index: number,isLeft=false){
+    getValuesWithKeysBySide(positions,true).forEach(item => {
+        if (!item) return;
+        string += shouldAddPlus(groups[isLeft? index-1 : index],groups[isLeft? index : index + 1],index);
+        string += wrapGroup(groups[index].toString(),groupBracketType(item,groups[index]));
+        index++;
+    });
+    return { string, index };
+}
+
 export class EqualsOperator extends MathJaxOperator{
 
 }
@@ -293,7 +283,7 @@ export class MultiplicationOperator extends MathJaxOperator {
     
     
 
-    toString(customFormatter?: (check: any,string: string) => any){ 
+    toString(formatType:associativityFormatType=associativityFormatType.MathJax,customFormatter?: (check: any,string: string) => any){ 
         const operator = '\\cdot ';
         let string = '';
         const toAddCdot=(thisGroup: MathGroup,nextGroup?:MathGroup)=>{
@@ -602,8 +592,30 @@ export class MathGroup {
             if (item instanceof MathGroup && !item.singular()) {
                 string += `(${item.toString(customFormatter)})`;
             }  else {
-                string += item.toString(customFormatter);
+                string += item.toString(undefined,customFormatter);
             } if (customFormatter) {
+                string = customFormatter(item,string);
+            }
+        });
+        return string;
+    }
+
+    toStringLatex(customFormatter?: (check: any,string: string) => any){
+        let string='';
+        if(!Array.isArray(this.items)){
+            throw new Error("Expected items to be an array but received: "+this.items);
+        }
+        this.items.forEach((item, index) => {
+            string+=shouldAddPlus(this.items[index-1],item)
+            if (item instanceof MathGroup && !item.singular()) {
+                string += `(${item.toString(customFormatter)})`;
+            }
+            else if(item instanceof MathJaxOperator){string += item.toString(associativityFormatType.Latex,customFormatter);}
+            else {
+                string += item.toString(customFormatter);
+            }
+
+            if (customFormatter) {
                 string = customFormatter(item,string);
             }
         });
@@ -716,8 +728,8 @@ export class Token{
 
 
 export function stringToBasicMathJaxTokens(string: String):Array<BasicMathJaxToken|Paren>{
-    const tokens: Array<BasicMathJaxToken|Paren>=tokenizeToBasicMathJaxTokens(string);
-    postProcessTokens(tokens);
+    let tokens: Array<BasicMathJaxToken|Paren>=tokenizeToBasicMathJaxTokens(string);
+    tokens = postProcessTokens(tokens);
     validatePlusMinus(tokens);
     return tokens;
 }
@@ -728,7 +740,7 @@ function tokenizeToBasicMathJaxTokens(math: String):Array<BasicMathJaxToken|Pare
     for (let i = 0; i < math.length; i++) {
         let match = math.slice(i).match(regExp('^' + operators));
         if (!!match) {
-            this.tokens.push(BasicMathJaxToken.create(match[0]));
+            tokens.push(BasicMathJaxToken.create(match[0]));
             i+=match[0].length-1;
             continue;
         }
@@ -736,14 +748,14 @@ function tokenizeToBasicMathJaxTokens(math: String):Array<BasicMathJaxToken|Pare
         match = math.slice(i).match(/^([0-9.]+)/);//([a-zA-Z]?)/);
         if (!!match)
         {   i+=match[0].length-1
-            this.tokens.push(BasicMathJaxToken.create(parseFloat(match[0])));
+            tokens.push(BasicMathJaxToken.create(parseFloat(match[0])));
             continue;
         }
         //Add plus to make it multiple Letters.
         match=math.slice(i).match(/[a-zA-Z](_\([a-zA-Z0-9]*\))*/)
         if (!!match) {
             i+=match[0].length-1
-            this.tokens.push(BasicMathJaxToken.create(match[0]))
+            tokens.push(BasicMathJaxToken.create(match[0]))
             continue;
         }
 
@@ -755,7 +767,7 @@ function postProcessTokens(tokens: Array<BasicMathJaxToken|Paren>){
     /*rules to abid by:
     1. +- If part of the number they are absorbed into the number
     */
-    tokens=idParentheses(tokens);
+    tokens = idParentheses(tokens);
     
     const parenMap=implicitMultiplicationMap(tokens);
 
@@ -763,6 +775,7 @@ function postProcessTokens(tokens: Array<BasicMathJaxToken|Paren>){
     .forEach((value: any) => {
         tokens.splice(value, 0, new  BasicMathJaxToken('operator','*'));
     });
+    return tokens;
 }
 
 
@@ -788,37 +801,49 @@ function implicitMultiplicationMap(tokens: Array<BasicMathJaxToken|Paren>) {
         return !isABasicMathJaxTokenDoubleRightOp(prevToken)
     };
 
-
-    const check = (index: number) => {
-        if (!validateIndex(tokens,index)) return false;
-        const token = tokens[index];
-        return token instanceof BasicMathJaxToken && token.isValueToken();
-    };
-
     const checkImplicitMultiplication=(token: any)=>{
         return token instanceof BasicMathJaxToken&&typeof token.getValue()==='string'&&hasImplicitMultiplication(token.getStringValue())
     }
 
     const isVar=(token: any)=>{return token instanceof BasicMathJaxToken &&token.getType()==='variable'}
 
-    const precedesVariable = (tokens: any,index: number) => {
-        return index>0&&isVar(tokens[index])
-    };
-    
-    const followsVariable = (tokens: any,index: number) => {
-        return index<tokens.length-1&&isVar(tokens[index])
-    };
-    
+    const implicitMultiplicationBefore=(token: BasicMathJaxToken|Paren, index: number):boolean=>{
+        //cant have before if it is the first token
+        if(index===0) return false;
+        //the only befor tokens are opaning parentheses certain operator types and variables 
+
+        if(parenState(token,true)){
+            console.log('parenStateOpan')
+            return true;
+        }
+        else if(isVar(token)||checkImplicitMultiplication(token)){
+            return true;
+        }
+        return false;
+    }
+    const implicitMultiplicationAfter=(token: BasicMathJaxToken|Paren, index: number):boolean=>{
+        //cant have after if it is the last token
+        if(index===tokens.length-1) return false;
+        if(parenState(token)||isVar(token)){
+            return true;
+        }
+        return false;
+    }
+    const isImplicitMultiplicationInteraction=(tokens1: BasicMathJaxToken|Paren,token2: BasicMathJaxToken|Paren,index: number)=>{
+        const arr=[tokens1,token2]
+        if(arr.some((token: any)=>!token)){return false;}
+        const varMap=arr.map((token: any)=>isVar(token))
+        return false;
+    }
     const map = tokens
         .map((token, index) => {
-            if (index>0&&(parenState(token,true)|| checkImplicitMultiplication(token)||precedesVariable(tokens,index))) {
-                return check(index - 1) ? index : null;
-            } else if (index<tokens.length-1&&(parenState(token,)||followsVariable(tokens,index))) {
-                return check(index + 1) || testDoubleRight(index) ? index + 1 : null;
+            if (isImplicitMultiplicationInteraction(tokens[index-1],token, index)) {
+                return index;
             }
             return null;
         })
         .filter((item) => item !== null);
+    console.log('map',map)
     return map;
 }
 
