@@ -1,7 +1,7 @@
 import { getAllTikzReferences, searchTikzComponents } from "src/staticData/dataManager";
 import { arrToRegexString } from "../tikzjax";
 import { findDeepestParenthesesScope, idParentheses, Paren } from "src/utils/ParenUtensils";
-import { BasicTikzToken } from "src/basicToken";
+import { BasicTikzToken } from "src/mathParser/basicToken";
 import { Encasing } from "src/staticData/encasings";
 
 const parseNumber = (value: string) => {

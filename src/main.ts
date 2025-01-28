@@ -466,11 +466,20 @@ class ProcessMath {
         case "variable":
           break;
         default:
+          const math=String.raw`(2+3)^{2}`
+          this.result = new MathPraiser();
+          this.result.setInput(math);
+          console.log(this.result.toStringLatex())
+
+          this.addInfoModal(new InfoModal(this.app, this.result.mathInfo));
+          this.addDebugModel(new DebugModal(this.app, this.result.mathInfo.debugInfo));
+          this.mathInput=this.result.input;
+          /*
           // eslint-disable-next-line no-case-declarations
           this.result = new MathPraiser(this.mathInput);
           this.addInfoModal(new InfoModal(this.app, this.result.mathInfo));
           this.addDebugModel(new DebugModal(this.app, this.result.mathInfo.debugInfo));
-          this.mathInput=this.result.input;
+          this.mathInput=this.result.input;*/
           break;
       }
      this.addInputAndResultDiv(inputDiv, resultDiv, typeof this.mathInput==="string"?this.mathInput:this.mathInput[0], this.result/*roundBySettings(this.result)*/);

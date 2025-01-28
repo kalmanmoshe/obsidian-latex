@@ -1,3 +1,4 @@
+import { string } from 'valibot';
 import { BracketType } from './encasings';
 export const  keyboardAutoReplaceHebrewToEnglishTriggers =
 [
@@ -82,68 +83,100 @@ export const operatorsWithImplicitMultiplication = [
 ]
 
 
-export enum Associativity {
-    Right = 'right',
-    Left = 'left',
-    DoubleRight = 'doubleRight',
+export enum associativityFormatType{
+    Latex,
+    MathJax,
 }
-
-
-
 
 export interface MathJaxOperatorMetadata {
     type: OperatorType;
     name: string;
-    latex: string;
-    backslash: boolean;
     references: string[];
     priority: number;
-    associativity: {
-        numPositions: number;
-        commutative: boolean;
-        ranges: { min: number; max: number };
-        positions: Map<number, {
-            bracketType: BracketType;
-            isBracketOptional: boolean;
-        }>;
-    };
+    associativity: Associativity
 }
+
+type Associativity = Map<associativityFormatType,{
+    string: string;
+    backslash: boolean;
+    numPositions: number;
+    commutative: boolean;
+    ranges: { min: number; max: number };
+    positions: Map<number, {
+        bracketType: BracketType;
+        isBracketOptional: boolean;
+    }>;
+}>;
+
+export type AssociativityValue = Associativity extends Map<any, infer V> ? V : never;
 
 
 type DeepPartial<T> = {
-    [P in keyof T]?: T[P] extends Map<number, infer V>
-        ? Record<number, DeepPartial<V>>
-        : T[P] extends object
-        ? DeepPartial<T[P]>
-        : T[P];
+    [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
-
-
 
 export function createMathJaxOperatorMetadata(
     overrides: DeepPartial<MathJaxOperatorMetadata>
 ): MathJaxOperatorMetadata {
+    const references = overrides.references?.filter((ref): ref is string => ref !== undefined) || [];
+    const associativity = createMathJaxAssociativityMetadataFromPartial(
+        (overrides.associativity as [associativityFormatType, Partial<AssociativityValue>][] ?? [])
+    );
+    const associativityFormatTypeString = [...associativity.entries()].map(([_, value]) => value.string);
+    return {
+        type: overrides.type ?? OperatorType.Arithmetic,
+        name: overrides.name ?? 'Unknown',
+        references: [...associativityFormatTypeString, ...references],
+        priority: overrides.priority ?? 0,
+        associativity
+    };
+}
+
+
+
+function createMathJaxAssociativityMetadataFromPartial(
+    overrides?: [associativityFormatType, Partial<AssociativityValue>][]
+): Associativity {
+
+    const overridesMap=new Map(overrides)
+
+    const map = new Map<associativityFormatType, AssociativityValue>();
+
+    const formatTypes = Object.keys(associativityFormatType)
+    
+    for (const format of formatTypes) {
+        const key = associativityFormatType[format as keyof typeof associativityFormatType];
+        let value= overridesMap.get(key) || [...overridesMap.values()].find(v => v !== undefined);
+        map.set(key,createMathJaxAssociativityValue(value));
+    }
+    return map;
+}
+
+
+function createMathJaxAssociativityValue(overrides: Partial<AssociativityValue> = {}): AssociativityValue {
     function calculateDifference(max: number, min: number): number {
         return max === min ? 1 : Math.abs(max - min) + (min > 0 ? 1 : 0);
     }
+
+    const providedPositions = new Map(overrides.positions);
+
+    // Safely get numeric keys, handling empty or missing values
+    const numericKeys = Array.from(providedPositions.keys())
     
-    const providedPositions =
-        overrides.associativity?.positions instanceof Map
-            ? overrides.associativity.positions
-            : objectToMap(overrides.associativity?.positions);
+    const [minKey,maxKey] = [Math.min(...numericKeys),Math.max(...numericKeys)];
 
-    // Extract numeric keys and determine the range
-    const numericKeys = Array.from(providedPositions.keys());
-    const minKey = Math.min(...numericKeys);
-    const maxKey = Math.max(...numericKeys);
 
-    if (!isFinite(minKey) || !isFinite(maxKey)) {
-        throw new Error("No valid numeric keys found for associativity positions.");
+    // Ensure positions are continuous, considering exceptions for 0
+    const expectedLength = calculateDifference(maxKey, minKey);
+    if (numericKeys.length !== expectedLength) {
+        throw new Error(
+            `Associativity positions must be continuous (except for 0). Missing keys, off by: ${expectedLength - numericKeys.length}`
+        );
     }
-    if (numericKeys.length !== calculateDifference(maxKey, minKey)) {
-        throw new Error(`Associativity positions must be continuous (except for 0) missing Keys found, off by: ${calculateDifference(maxKey, minKey)-numericKeys.length}`);
-    }
-    const positions = new Map<number, { bracketType: BracketType,isBracketOptional: boolean }>();
+
+    // Create the `positions` map with default values when necessary
+    const positions = new Map<number, { bracketType: BracketType; isBracketOptional: boolean }>();
+
     for (const key of numericKeys) {
         const provided = providedPositions.get(key);
         positions.set(key, {
@@ -152,46 +185,22 @@ export function createMathJaxOperatorMetadata(
         });
     }
 
-    const references =overrides.references?.filter((ref): ref is string => ref !== undefined) || []
 
-    return {
-        type: overrides.type ?? OperatorType.Arithmetic,
-        name: overrides.name ?? 'Unknown',
-        latex: stringLatex(overrides.latex) ?? references[0] ?? '',
-        backslash: overrides.backslash ?? false,
-        references: [...createReferencesFromlatex(overrides.latex),...references],
-        priority: overrides.priority ?? 0,
-        associativity: {
-            numPositions: overrides?.associativity?.numPositions??positions.size,
-            commutative: overrides.associativity?.commutative ?? false,
-            ranges: { ...{ min: minKey, max: maxKey }, ...overrides?.associativity?.ranges },
-            positions,
-        },
-    };
-}
-
-function createReferencesFromlatex(latex?: string):string[]{
-    const arr: string[]=[];
-    if(!latex)return arr;
-    arr.push(latex)
-    if(latexCommand(latex))arr.push(`\\${latex}`)
-    return arr;
-}
-const latexCommand= (str: string) => /^[a-zA-Z]+$/.test(str);
-
-function stringLatex(latex?: string){
-    if(!latex)return '';
-    return latexCommand(latex)?`\\${latex} `:latex
+        return {
+            string: overrides.string ?? '',
+            backslash: overrides.backslash ?? false,
+            numPositions: overrides.numPositions ?? positions.size,
+            commutative: overrides.commutative ?? false,
+            ranges: overrides.ranges ?? { min: minKey, max: maxKey },
+            positions
+        };
 }
 
 
 
-function objectToMap<T>(obj?: Record<number | string, T>): Map<number, T> {
-    if (!obj) return new Map();
-    return new Map(
-        Object.entries(obj).map(([key, value]) => [parseInt(key, 10), value])
-    );
-}
+
+
+
 
 
 
@@ -203,207 +212,191 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
     {
         type: OperatorType.Comparison,
         name: 'Equals',
-        latex: '=',
         references: ['='],
         priority: 6,
-        associativity: {
-            positions: {
-                '-1': {},
-                '1': {},
-            },
-        },
+        associativity: [
+            [associativityFormatType.MathJax,
+                {
+                    string  : '=',
+                    positions: [[-1,{}], [1,{}]]
+                }
+            ],
+        ]
     },
     {
         type: OperatorType.Comparison,
         name: 'LessThan',
-        latex: '<',
         references: ['<'],
         priority: 6,
-        associativity: {
-            positions: {
-                '-1': {},
-                '1': {},
-            },
-        },
+        associativity: [
+            [associativityFormatType.MathJax,
+                {
+                    string  : '<',
+                    positions: [[-1,{}], [1,{}]]
+                }
+            ],
+        ]
     },
     {
         type: OperatorType.Comparison,
         name: 'GreaterThan',
-        latex: '>',
         references: ['>'],
         priority: 6,
-        associativity: { 
-            positions: {
-                '-1': {},
-                '1': {},
-            },
-        },
+        associativity: [
+            [associativityFormatType.MathJax,
+                {
+                    string  : '>',
+                    positions: [[-1,{}], [1,{}]]
+                }
+            ],
+        ]
     },
     /* Arithmetic */
     {
         type: OperatorType.Arithmetic,
         name: 'Addition',
-        latex: '+',
         references: ['+'],
         priority: 4,
-        associativity: {
-            positions: {
-                '-1': {},
-                '1': {},
-            },
-        },
+        associativity: [
+            [associativityFormatType.MathJax,
+                {
+                    string  : '+',
+                    positions: [[-1,{}], [1,{}]]
+                }
+            ],
+        ]
     },
     {
         type: OperatorType.Arithmetic,
         name: 'Subtraction',
-        latex: '-',
         references: ['-'],
         priority: 4,
-        associativity: {
-            positions: {
-                '-1': {},
-                '1': {},
-            },
-        },
+        associativity: [
+            [associativityFormatType.MathJax,
+                {
+                    string  : '-',
+                    positions: [[-1,{}], [1,{}]]
+                }
+            ],
+        ]
     },
     {
         type: OperatorType.Arithmetic,
         name: 'Multiplication',
-        latex: 'cdot',
         references: ['*'],
         priority: 3,
-        associativity: {
-            positions: {
-                '-1': {bracketType: BracketType.Parentheses,isBracketOptional: true},
-                '1': {bracketType: BracketType.Parentheses,isBracketOptional: true},
-            },
-        },
-    },
-    {
-        type: OperatorType.Arithmetic,
-        name: 'Division',
-        latex: 'div',
-        references: ['/'],
-        priority: 3,
-        associativity: {
-            positions: {
-                '-1': {},
-                '1': {},
-            },
-        },
+        associativity: [
+            [associativityFormatType.MathJax,
+                {
+                    string  : 'cdot',
+                    positions: [[-1,{bracketType: BracketType.Parentheses,isBracketOptional: true}], [1,{bracketType: BracketType.Parentheses,isBracketOptional: true}]]
+                }
+            ],
+        ]
     },
     /* Trigonometric */
     {
         type: OperatorType.Trigonometric,
         name: 'Sine',
-        latex: 'sin',
         priority: 2,
-        associativity: {
-            positions: {
-                '1': { bracketType: BracketType.Parentheses },
-            },
-        },
+        associativity: [
+            [associativityFormatType.MathJax,
+                {
+                    string  : 'sin',
+                    positions: [[1,{bracketType: BracketType.Parentheses }]]
+                }
+            ],
+        ]
     },
     {
         type: OperatorType.Trigonometric,
         name: 'Cosine',
-        latex: 'cos',
         priority: 2,
-        associativity: {
-            positions: {
-                '1': { bracketType: BracketType.Parentheses },
-            },
-        },
+        associativity: [
+            [associativityFormatType.MathJax,
+                {
+                    string  : 'cos',
+                    positions: [[1,{bracketType: BracketType.Parentheses }]]
+                }
+            ],
+        ]
     },
     {
         type: OperatorType.Trigonometric,
         name: 'Tangent',
-        latex: 'tan',
         priority: 2,
-        associativity: {
-            positions: {
-                '1': { bracketType: BracketType.Parentheses },
-            },
-        },
+        associativity: [
+            [associativityFormatType.MathJax,
+                {
+                    string  : 'tan',
+                    positions: [[1,{bracketType: BracketType.Parentheses }]]
+                }
+            ],
+        ]
     },
     /* Exponential */
     {
         type: OperatorType.Exponential,
         name: 'Power',
-        latex: '^',
         references: ['^'],
         priority: 1,
-        associativity: {
-            positions: {
-                '-1': { bracketType: BracketType.Parentheses,isBracketOptional: true },
-                '1': { bracketType: BracketType.CurlyBraces },
-            },
-        },
+        associativity: [
+            [associativityFormatType.MathJax,
+                {
+                    string  : '^',
+                    positions: [[-1,{ bracketType: BracketType.Parentheses,isBracketOptional: true }],[1,{ bracketType: BracketType.CurlyBraces}]]
+                }
+            ],
+            [associativityFormatType.Latex,
+                {
+                    string  : '^',
+                    positions: [[-1,{ bracketType: BracketType.Parentheses,isBracketOptional: true }],[1,{ bracketType: BracketType.Parentheses,isBracketOptional: true }]]
+                }
+            ],
+        ]
     },
     {
         type: OperatorType.Exponential,
         name: 'Exponent',
-        latex: 'e^',
         references: ['e^', '\\exp'],
         priority: 1,
-        associativity: {
-            positions: {
-                '1': { bracketType: BracketType.Parentheses },
-            },
-        },
+        associativity: [
+            [associativityFormatType.MathJax,
+                {
+                    string  : 'e^',
+                    positions: [[1,{bracketType: BracketType.Parentheses }]]
+                }
+            ],
+        ]
     },
     /* Logarithmic */
     /* Fraction */
     {
         type: OperatorType.Fraction,
         name: 'Fraction',
-        latex: 'frac',
         priority: 1,
-        associativity: {
-            positions: {
-                '1': { bracketType: BracketType.CurlyBraces },
-                '2': { bracketType: BracketType.CurlyBraces },
-            },
-        },
+        associativity: [
+            [associativityFormatType.MathJax,
+                {
+                    string  : 'frac',
+                    positions: [[1,{bracketType: BracketType.CurlyBraces }],[2,{bracketType: BracketType.CurlyBraces }]]
+                }
+            ],
+        ]
     },
     /* Radical */
     {
         type: OperatorType.Radical,
         name: 'SquareRoot',
-        latex: 'sqrt',
         priority: 1,
-        associativity: {
-            positions: {
-                '1': {  bracketType: BracketType.CurlyBraces },
-            },
-        },
-    },
-    /* Integral */
-    {
-        type: OperatorType.Integral,
-        name: 'Integral',
-        latex: '\\int',
-        references: ['\\int', 'integral'],
-        priority: 5,
-        associativity: {
-            positions: {
-                '1': {},
-            },
-        },
-    },
-    /* Summation */
-    /* Factorial */
-    {
-        type: OperatorType.Factorial,
-        name: 'Factorial',
-        latex: '!',
-        references: ['!'],
-        priority: 1,
-        associativity: {
-            positions: {
-                '1': {},
-            },
-        },
+        associativity: [
+            [associativityFormatType.MathJax,
+                {
+                    string  : 'sqrt',
+                    positions: [[1,{bracketType: BracketType.CurlyBraces }]]
+                }
+            ],
+        ]
     },
 ];
 

@@ -118,32 +118,46 @@ function getDisableAllFeaturesCommand(plugin: Moshe) {
 function getTranslateFromMathjaxToLatex(plugin: Moshe) {
 	return {
 		id: "moshe-translate-from-mathjax-to-latex",
-		name: "Translate from mathjax to latex",
-		editorCheckCallback: (checking: boolean, editor: Editor) => {
+		name: "Translate from MathJax to LaTeX",
+		callback: async () => {
+			console.log("Hello from callback");
+
+			await plugin.saveSettings();
+		},
+		editorCallback: (editor: Editor) => {
+			return mathjaxToLatex(String.raw`1+\sin (32)*7.06* \frac{x}{\cos (32)*7.06}-5\left(  \frac{x}{\cos (32)*7.06} \right)^{2}`)
 			// @ts-ignore
 			const view = editor.cm;
+			if (!view) return;
+
 			const ctx = Context.fromView(view);
-			const withinEquation = ctx.mode.inMath();
+			const {from, to} = view.state.selection.main;
 
-			if (checking) return withinEquation;
-			if (!withinEquation) return;
+			if(ctx.mode.inMath(),from !== to){
+				console.log('in math');
+				const result = ctx.getBounds();
+				if (!result) return false;
 
+				const doc = view.state.doc.toString();
+				mathjaxToLatex(doc.slice(from, to));
+			}
+			else {
+				console.log('not in math',navigator.clipboard.readText());
+				navigator.clipboard.readText().then((string) => {
+					mathjaxToLatex(string);
+				}).catch((error) => {
+					console.error("Failed to read clipboard: ", error);
+				});;
+			}
+			function mathjaxToLatex(math: string) {
+				console.log('math: ',math);
+				const a = new MathPraiser();
+				a.setInput(math);
 
-			const result = ctx.getBounds();
-			if (!result) return false;
-			let {start, end} = result;
-
-			// Don't include newline characters in the selection
-			const doc = view.state.doc.toString();
-			const math=doc.splice(start,end);
-			console.log(math)
-			const a=new MathPraiser();
-			a.setInput(math);
-			console.log(a);
-
-			return
-		},
-	}
+				console.log(a.getMathGroup());
+			}
+		}
+	};
 }
 
 

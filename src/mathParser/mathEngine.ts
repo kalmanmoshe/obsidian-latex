@@ -2,9 +2,9 @@
 import { quad,calculateBinom,roundBySettings ,degreesToRadians,radiansToDegrees, calculateFactorial} from "./mathUtilities";
 
 import { findParenIndex, Paren,idParentheses, findDeepestParenthesesScope } from "../utils/ParenUtensils";
-import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, searchMathJaxOperators } from "../staticData/dataManager";
+import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, mahtjaxAssociativitymetadata, searchMathJaxOperators } from "../staticData/dataManager";
 import { MathGroup, MathJaxOperator, Token, ensureAcceptableFormatForMathGroupItems, deepSearchWithPath, MathGroupItem, stringToBasicMathJaxTokens } from "./mathJaxTokens";
-import { BasicMathJaxToken } from "src/basicToken";
+import { BasicMathJaxToken } from "src/mathParser/basicToken";
 const greekLetters = [
     'Alpha','alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 
     'Iota', 'Kappa', 'Lambda', 'Mu','mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 
@@ -120,14 +120,14 @@ export class Position {
         const beforeIndex: MathGroup[] = [];
         const afterIndex:  MathGroup[] = [];
     
-        getValuesWithKeysBySide(metadata.associativity.positions, true).forEach(() => {
+        getValuesWithKeysBySide(mahtjaxAssociativitymetadata(metadata).positions, true).forEach(() => {
             const item = this.applyPosition(tokens, this.start, true);
             beforeIndex.push(item.mathGroup);
             this.start = item.lastItemOfPrevious;
         });
     
     
-        getValuesWithKeysBySide(metadata.associativity.positions, false).forEach(() => {
+        getValuesWithKeysBySide(mahtjaxAssociativitymetadata(metadata).positions, false).forEach(() => {
             const item = this.applyPosition(tokens, this.end, false);
             afterIndex.push(item.mathGroup);
             this.end = item.lastItemOfPrevious;
@@ -233,7 +233,7 @@ function basicMathJaxTokensToMathGroup(basicTokens: Array<BasicMathJaxToken|Pare
         if(!metadata)throw new Error(`Operator ${tokens[index].value} not found in metadata`);
         
         const position=new Position(tokens,index)
-        const newOperator=MathJaxOperator.create(position.operator,metadata.associativity.numPositions,position.groups)
+        const newOperator=MathJaxOperator.create(position.operator,mahtjaxAssociativitymetadata(metadata).numPositions,position.groups)
         tokens.splice(position.start,(position.end-position.start)+1,newOperator);
         return true
     }
@@ -280,16 +280,20 @@ export class MathPraiser{
     setInput(input: string){
         this.input=input;
         this.processInput();
+        console.log(this.input);
         const mathGroup=stringToMathGroup(this.input);
         if(!mathGroup)throw new Error("Invalid input");
         this.mathGroup=mathGroup;
+        console.log('this.mathGroup',this.mathGroup.toString(),this.mathGroup);
     }
+    toStringLatex(){return this.mathGroup.toStringLatex()}
     addSolution(){
         this.input=this.mathGroup.toString()
         this.controller();
         this.solution=this.mathGroup
         this.addDebugInfo("solution",this.solution);
     }
+    getMathGroup(){return this.mathGroup}
 
     
     parse(tokens: MathGroup): void {

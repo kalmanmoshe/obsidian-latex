@@ -397,7 +397,7 @@ function getExtremeXY(tokens: any) {
 
 
 import * as fs from 'fs';
-import { BasicTikzToken } from "src/basicToken";
+import { BasicTikzToken } from "src/mathParser/basicToken";
 import { App, FileSystemAdapter } from "obsidian";
 
 
