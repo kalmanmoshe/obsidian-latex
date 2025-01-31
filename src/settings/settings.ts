@@ -1,6 +1,8 @@
 import { Snippet } from "../snippets/snippets";
 import { Environment } from "../snippets/environment";
 
+export type StringMap = { [key: string]: string };
+
 interface LatexSuiteBasicSettings {
     invertColorsInDarkMode: boolean;
     numberFormatting: string
@@ -32,6 +34,12 @@ interface LatexSuiteBasicSettings {
 	taboutEnabled: boolean;
 	autoEnlargeBrackets: boolean;
 	wordDelimiters: string;
+	package_url: string,
+	timeout: number,
+	enableCache: boolean,
+	cache: Array<[string, Set<string>]>;
+	packageCache: Array<StringMap>;
+	onlyRenderInReadingMode: boolean;
 }
 
 /**
@@ -87,7 +95,7 @@ export const DEFAULT_SETTINGS: LatexSuitePluginSettings = {
 	wordDelimiters: "., +-\\n\t:;!?\\/{}[]()=~$",
 
     // stile settings
-    invertColorsInDarkMode: true,
+    invertColorsInDarkMode: false,
     numberFormatting: ".000",
     background: "#44475A",
     evenRowBackground: "#f9f9f9",
@@ -109,6 +117,12 @@ export const DEFAULT_SETTINGS: LatexSuitePluginSettings = {
 	forceMathLanguages: "math",
 	forceTranslateLanguages: 'tikz',
 	suggestorLanguages: 'tikz',
+	package_url: `https://texlive2.swiftlatex.com/`,
+	timeout: 10000,
+	enableCache: true,
+	cache: [],
+	packageCache: [{},{},{},{}],
+	onlyRenderInReadingMode: false,
 }
 
 export function processLatexSuiteSettings(snippets: Snippet[], settings: LatexSuitePluginSettings):LatexSuiteCMSettings {
