@@ -1,8 +1,8 @@
-import * as esbuild from 'esbuild-wasm';
+import esbuild from "esbuild";
 import process from "process";
 import builtins from "builtin-modules";
-import inlineImportPlugin from "esbuild-plugin-inline-import";
-
+import inlineWorkerPlugin from "esbuild-plugin-inline-worker";
+import { wasmLoader } from "esbuild-plugin-wasm";
 
 const banner =
 `/*
@@ -12,53 +12,60 @@ if you want to view the source, please visit the github repository of this plugi
 `;
 
 const prod = (process.argv[2] === "production");
+
 const args = {
-	banner: {
-		js: banner,
-	},
-	entryPoints: ["src/main.ts"],
-	bundle: true,
-	external: [
-		"obsidian",
-		"electron",
-		"@codemirror/autocomplete",
-		"@codemirror/closebrackets",
-		"@codemirror/collab",
-		"@codemirror/commands",
-		"@codemirror/comment",
-		"@codemirror/fold",
-		"@codemirror/gutter",
-		"@codemirror/highlight",
-		"@codemirror/history",
-		"@codemirror/language",
-		"@codemirror/lint",
-		"@codemirror/matchbrackets",
-		"@codemirror/panel",
-		"@codemirror/rangeset",
-		"@codemirror/rectangular-selection",
-		"@codemirror/search",
-		"@codemirror/state",
-		"@codemirror/stream-parser",
-		"@codemirror/text",
-		"@codemirror/tooltip",
-		"@codemirror/view",
-		"@lezer/highlight",
-		...builtins],
-	format: "cjs",
-	target: "es2016",
-	logLevel: "info",
-	sourcemap: prod ? false : "inline",
-	treeShaking: true,
-	outfile: "main.js",
-	plugins: [
-		inlineImportPlugin()
-	]
+  banner: {
+    js: banner,
+  },
+  entryPoints: ["src/main.ts"],
+  bundle: true,
+  external: [
+	"obsidian",
+	"electron",
+	"@codemirror/autocomplete",
+	"@codemirror/closebrackets",
+	"@codemirror/collab",
+	"@codemirror/commands",
+	"@codemirror/comment",
+	"@codemirror/fold",
+	"@codemirror/gutter",
+	"@codemirror/highlight",
+	"@codemirror/history",
+	"@codemirror/language",
+	"@codemirror/lint",
+	"@codemirror/matchbrackets",
+	"@codemirror/panel",
+	"@codemirror/rangeset",
+	"@codemirror/rectangular-selection",
+	"@codemirror/search",
+	"@codemirror/state",
+	"@codemirror/stream-parser",
+	"@codemirror/text",
+	"@codemirror/tooltip",
+	"@codemirror/view",
+	"@lezer/highlight",
+	...builtins],
+  format: "cjs",
+  target: "es2016",
+  logLevel: "info",
+  sourcemap: prod ? false : "inline",
+  treeShaking: true,
+  outfile: "main.js",
+  plugins: [
+    inlineWorkerPlugin({
+      bundle: true,
+      target: ["es2016"],
+      platform: "node",
+      format: "cjs",
+      plugins: [wasmLoader({ mode: "embedded" })],
+    }),
+    wasmLoader({ mode: "embedded" })
+  ]
 };
 
 if (!prod) {
-	const ctx = await esbuild.context(args);
-	ctx.watch().catch(() => process.exit(1));
-}
-else {
-	esbuild.build(args).catch(() => process.exit(1));
+  const ctx = await esbuild.context(args);
+  ctx.watch().catch(() => process.exit(1));
+} else {
+  esbuild.build(args).catch(() => process.exit(1));
 }

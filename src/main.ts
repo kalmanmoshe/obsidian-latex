@@ -20,7 +20,6 @@ import { ICONS } from "./settings/ui/icons";
 
 import { getEditorCommands } from "./obsidian/editor_commands";
 import { SnippetVariables, parseSnippetVariables, parseSnippets } from "./snippets/parse";
-import { LatexRender } from "./latexRender/main";
 import { tabstopsStateField } from "./snippets/codemirror/tabstops_state_field";
 import { snippetQueueStateField } from "./snippets/codemirror/snippet_queue_state_field";
 import { snippetInvertedEffects } from "./snippets/codemirror/history";
@@ -34,9 +33,61 @@ import { colorPairedBracketsPlugin, colorPairedBracketsPluginLowestPrec, highlig
 import { mkConcealPlugin } from "./editor_extensions/conceal";
 import { cursorTooltipBaseTheme, cursorTooltipField, handleMathTooltip } from "./editor_extensions/math_tooltip";
 import { onClick, onKeydown, onMove, onScroll, onTransaction } from "./ inputMonitors";
+import { SwiftlatexRender } from "./latexRender/main";
 
 // i want to make some code that will outo insot metadata to fillls
 
+/**
+ * 
+ * I'm missing the **** **** data filers.Obviously its not gonna work
+ */
+
+/*
+pdfToSVG(pdfData: string | Buffer<ArrayBufferLike> | NodeJS.ArrayBufferView<ArrayBufferLike>) {
+    return new Promise((resolve, reject) => {
+      // Write the input PDF file
+      fs.writeFileSync('input.pdf', pdfData);
+  
+      // Execute pdftocairo to convert the PDF to SVG
+      exec('pdftocairo -svg input.pdf output.svg', (error: { message: any; }, stdout: any, stderr: any) => {
+        if (error) {
+          console.error(`Error: ${error.message}`);
+          reject(error);
+          return;
+        }
+        if (stderr) {
+          console.error(`stderr: ${stderr}`);
+        }
+  
+        // Read the output SVG file
+        fs.readFile('output.svg', 'utf8', (err, svg) => {
+          if (err) {
+            console.error(`Error reading SVG: ${err.message}`);
+            reject(err);
+            return;
+          }
+  
+          console.log("SVG generated successfully");
+  
+          // Generate a unique ID for each SVG to avoid conflicts
+          const id = Md5.hashStr(svg.trim()).toString();
+          const randomString = Math.random().toString(36).substring(2, 10);
+          const uniqueId = id.concat(randomString);
+  
+          // Optimize the SVG
+          const svgoConfig:Config = {
+            plugins: ['sortAttrs', { name: 'prefixIds', params: { prefix: uniqueId } }]
+          };
+          svg = optimize(svg, svgoConfig).data;
+  
+          resolve(svg);
+        });
+      });
+    });
+  }
+
+
+*/ 
 
 export default class Moshe extends Plugin {
   settings: LatexSuitePluginSettings;
@@ -46,12 +97,12 @@ export default class Moshe extends Plugin {
 
   async onload() {
     console.log("new lod")
-    //new LatexRender(this.app,this)
-
     await this.loadSettings();
 		this.loadIcons();
 		this.addSettingTab(new LatexSuiteSettingTab(this.app, this));
 		loadMathJax();
+    const a=new SwiftlatexRender(this)
+    a.onload()
 
 		// Register Latex Suite extensions and optional editor extensions for editor enhancements
 		//this.registerEditorExtension(this.editorExtensions);
@@ -60,10 +111,10 @@ export default class Moshe extends Plugin {
 		this.watchFiles();
 
 		this.addEditorCommands();
-    this.tikzProcessor=new Tikzjax(this.app,this)
-    this.tikzProcessor.readyLayout();
-		this.tikzProcessor.addSyntaxHighlighting();
-		this.tikzProcessor.registerTikzCodeBlock();
+    //this.tikzProcessor=new Tikzjax(this.app,this)
+    //this.tikzProcessor.readyLayout();
+		//this.tikzProcessor.addSyntaxHighlighting();
+		//this.tikzProcessor.registerTikzCodeBlock();
     
     this.registerMarkdownCodeBlockProcessor("math-engine", processMathBlock.bind(this));
     this.registerMarkdownCodeBlockProcessor("tikzjax", processTikzBlock.bind(this));
@@ -104,8 +155,8 @@ export default class Moshe extends Plugin {
 		}
 	}
   onunload() {
-		this.tikzProcessor.unloadTikZJaxAllWindows();
-		this.tikzProcessor.removeSyntaxHighlighting();
+		//this.tikzProcessor.unloadTikZJaxAllWindows();
+		//this.tikzProcessor.removeSyntaxHighlighting();
 	}
 
   async getSettingsSnippets(snippetVariables: SnippetVariables) {

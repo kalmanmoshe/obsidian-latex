@@ -1,15 +1,17 @@
 import { App, MarkdownView, Scope, WorkspaceWindow } from "obsidian";
 import MathPlugin, { SvgBounds } from "src/main";
-import { optimize } from "./svgo.browser.js";
 // @ts-ignore
-import tikzjaxJs from "inline:./tikzjax.js";
+import tikzjaxJs from "./tikzjax.js";
+console.log('tikzjaxJs',tikzjaxJs)
 import { cartesianToPolar, findIntersectionPoint, findSlope, polarToCartesian, toNumber } from "src/mathParser/mathUtilities.js";
 import { DebugModal } from "src/desplyModals.js";
 import { FormatTikzjax } from "./interpret/tokenizeTikzjax.js";
 import { mapBrackets } from "src/utils/ParenUtensils.js";
 import { BasicTikzToken } from "src/mathParser/basicToken.js";
-
-
+import {Config,optimize} from 'svgo';
+import { Md5 } from 'ts-md5';
+// @ts-ignore
+import pdfPoppler from "pdf-poppler";
 
 export class Tikzjax {
     app: App;
@@ -120,35 +122,29 @@ export class Tikzjax {
       }
   
   
-      optimizeSVG(svg: string) {
-          return optimize(svg, {plugins:
-              [
-                  {
-                      name: "preset-default",
-                      params: {
-                          overrides: {
-                              cleanupIDs: false
-                          }
-                      }
-                  }
-              ]
-          // @ts-ignore
-          })?.data;
-      }
+    optimizeSVG(svg: string) {
+        const id = Md5.hashStr(svg.trim()).toString();
+        const randomString = Math.random().toString(36).substring(2, 10);
+        const uniqueId = id.concat(randomString);
+        const svgoConfig: Config =  {
+            plugins: ['sortAttrs', { name: 'prefixIds', params: { prefix: uniqueId } }]
+        };
+        svg = optimize(svg, svgoConfig).data; 
+        return svg;
+    }
   
   
       postProcessSvg = (e: Event) => {
-  
-          const svgEl = e.target as HTMLElement;
-          let svg = svgEl.outerHTML;
-  
-          if (this.plugin.settings.invertColorsInDarkMode) {
+        const svgEl = e.target as HTMLElement;
+        let svg = svgEl.outerHTML;
+
+        if (this.plugin.settings.invertColorsInDarkMode) {
             svg = this.colorSVGinDarkMode(svg);
-          }
-  
-          svg = this.optimizeSVG(svg);
-  
-          svgEl.outerHTML = svg;
+        }
+
+        svg = this.optimizeSVG(svg);
+
+        svgEl.outerHTML = svg;
     }
 }
 export const arrToRegexString = (arr: Array<string>) => '(' + arr.join('|') + ')';

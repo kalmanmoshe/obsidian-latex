@@ -1,112 +1,106 @@
-import { App, FileSystemAdapter, MarkdownPostProcessorContext, Plugin, PluginSettingTab, SectionCache, Setting, TFile, TFolder, MarkdownView, MarkdownPreviewRenderer } from 'obsidian';
+/* eslint-disable @typescript-eslint/no-var-requires */
+/* eslint-disable no-async-promise-executor */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { FileSystemAdapter, MarkdownPostProcessorContext, TFile, MarkdownPreviewRenderer } from 'obsidian';
 import { Md5 } from 'ts-md5';
 import * as fs from 'fs';
 import * as temp from 'temp';
 import * as path from 'path';
-//import {PdfTeXEngine} from './PdfTeXEngine';
-import { PdfTeXEngine } from './PdfTeXEngine.js';
+import {PdfTeXEngine} from './PdfTeXEngine.js';
 import {PDFDocument} from 'pdf-lib';
-import {Config, optimize} from 'svgo';
-import Moshe from 'src/main.js';
-
-
-
-type StringMap = { [key: string]: string };
-
+//import * as PdfToCairo from "./pdftocairo.js";
+const PdfToCairo = require("./pdftocairo.js")
+import {Config,optimize} from 'svgo';
+import Moshe from '../main';
+import { StringMap } from 'src/settings/settings.js';
+const { exec } = require('child_process');
 
 const waitFor = async (condFunc: () => boolean) => {
 	return new Promise<void>((resolve) => {
-	  if (condFunc()) {
+		if (condFunc()) {
 		resolve();
-	  }
-	  else {
+		}
+		else {
 		setTimeout(async () => {
-		  await waitFor(condFunc);
-		  resolve();
+			await waitFor(condFunc);
+			resolve();
 		}, 100);
-	  }
+		}
 	});
   };
   
 
-export class LatexRender {
-	app: App;
+export class SwiftlatexRender {
 	plugin: Moshe;
 	cacheFolderPath: string;
 	packageCacheFolderPath: string;
-	cache: [any, any][] = [];
-	packageCache: { [key: string]: any }[] = [{}, {}, {}, {}];
 	pluginFolderPath: string;
-	pdfEngine: any;
-	package_url: `https://texlive2.swiftlatex.com/`;
-	cacheMap: Map<string, Set<string>>; // Key: md5 hash of latex source. Value: Set of file path names.
-	constructor(app: App, plugin: Moshe) {
-		this.app=app;
-		this.plugin=plugin;
-		this.onload();
+	pdfEngine: PdfTeXEngine;
+
+	cache: Map<string, Set<string>>; // Key: md5 hash of latex source. Value: Set of file path names.
+	constructor(plugin: Moshe) {
+		this.plugin = plugin;
 	}
-
 	async onload() {
-		console.log("SwiftLaTeX: Loading SwiftLaTeX plugin");
-		await this.loadCache();
-		this.pluginFolderPath = path.join(this.getVaultPath(), this.app.vault.configDir, "plugins/moshe-math/");
+		if (this.plugin.settings.enableCache) await this.loadCache();
+		this.pluginFolderPath = path.join(this.getVaultPath(), this.plugin.app.vault.configDir, "plugins/swiftlatex-render/");
 		// initialize the latex compiler
-		console.log("SwiftLaTeX: Initializing LaTeX compiler");
 		this.pdfEngine = new PdfTeXEngine();
-		console.log("SwiftLaTeX: Loading LaTeX engine");
 		await this.pdfEngine.loadEngine();
-		console.log("SwiftLaTeX: Loading cache");
 		await this.loadPackageCache();
-
-		this.pdfEngine.setTexliveEndpoint(this.package_url);
+		this.pdfEngine.setTexliveEndpoint(this.plugin.settings.package_url);
 
 		this.addSyntaxHighlighting();
-		console.log("SwiftLaTeX: Registering post processors");
-		if (true) {
+		if (this.plugin.settings.onlyRenderInReadingMode) {
 			const pdfBlockProcessor = MarkdownPreviewRenderer.createCodeBlockPostProcessor("latex", (source, el, ctx) => this.renderLatexToElement(source, el, ctx, false));
 			MarkdownPreviewRenderer.registerPostProcessor(pdfBlockProcessor);
 			const svgBlockProcessor = MarkdownPreviewRenderer.createCodeBlockPostProcessor("latexsvg", (source, el, ctx) => this.renderLatexToElement(source, el, ctx, true));
 			MarkdownPreviewRenderer.registerPostProcessor(svgBlockProcessor);
 		} else {
-			this.plugin.registerMarkdownCodeBlockProcessor("latex", (source, el, ctx) => this.renderLatexToElement(source, el, ctx, false));
-			this.plugin.registerMarkdownCodeBlockProcessor("latexsvg", (source, el, ctx) => this.renderLatexToElement(source, el, ctx, true));
+			this.plugin.registerMarkdownCodeBlockProcessor("latex", (source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => this.renderLatexToElement(source, el, ctx, false));
+			this.plugin.registerMarkdownCodeBlockProcessor("latexsvg", (source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => this.renderLatexToElement(source, el, ctx, true));
 		}
 	}
 
 	onunload() {
-		this.unloadCache();
+		if (this.plugin.settings.enableCache) this.unloadCache();
 	}
 
 
+
+	async saveSettings() {
+		await this.plugin.saveData(this.plugin.settings);
+	}
+
 	getVaultPath() {
-		if (this.app.vault.adapter instanceof FileSystemAdapter) {
-			return this.app.vault.adapter.getBasePath();
+		if (this.plugin.app.vault.adapter instanceof FileSystemAdapter) {
+			return this.plugin.app.vault.adapter.getBasePath();
 		} else {
-			throw new Error("Moshe: Could not get vault path.");
+			throw new Error("SwiftLaTeX: Could not get vault path.");
 		}
 	}
 
 	async loadCache() {
-		const cacheFolderParentPath = path.join(this.getVaultPath(), this.app.vault.configDir, "swiftlatex-render-cache");
+		const cacheFolderParentPath = path.join(this.getVaultPath(), this.plugin.app.vault.configDir, "swiftlatex-render-cache");
 		if (!fs.existsSync(cacheFolderParentPath)) {
 			fs.mkdirSync(cacheFolderParentPath);
 		}
 		this.cacheFolderPath = path.join(cacheFolderParentPath, "pdf-cache");
 		if (!fs.existsSync(this.cacheFolderPath)) {
 			fs.mkdirSync(this.cacheFolderPath);
-			this.cacheMap = new Map();
+			this.cache = new Map();
 		} else {
-			this.cacheMap = new Map(this.cache);
+			this.cache = new Map(this.plugin.settings.cache);
 			// For some reason `this.cache` at this point is actually `Map<string, Array<string>>`
-			for (const [k, v] of this.cacheMap) {
-				this.cacheMap.set(k, new Set(v))
+			for (const [k, v] of this.cache) {
+				this.cache.set(k, new Set(v))
 			}
 		}
 	}
 
 
 	async loadPackageCache() {
-		const cacheFolderParentPath = path.join(this.getVaultPath(), this.app.vault.configDir, "swiftlatex-render-cache");
+		const cacheFolderParentPath = path.join(this.getVaultPath(), this.plugin.app.vault.configDir, "swiftlatex-render-cache");
 		if (!fs.existsSync(cacheFolderParentPath)) {
 			fs.mkdirSync(cacheFolderParentPath);
 		}
@@ -121,31 +115,31 @@ export class LatexRender {
 		for (const file of packageFiles) {
 			const filename = path.basename(file);
 			const value = "/tex/"+filename;
-			const packageValues = Object.values(this.packageCache[1]);
+			const packageValues = Object.values(this.plugin.settings.packageCache[1]);
 			if (!packageValues.includes(value)) {
 				const key = "26/" + filename
-				this.packageCache[1][key] = value;
+				this.plugin.settings.packageCache[1][key] = value;
 			}
 		}
 		// move packages to the VFS
-		for (const [key, val] of Object.entries(this.packageCache[1])) {
+		for (const [key, val] of Object.entries(this.plugin.settings.packageCache[1])) {
 			const filename = path.basename(val);
-			let read_success = false;
+			//const read_success = false;
 			try {
 				const srccode = fs.readFileSync(path.join(this.packageCacheFolderPath, filename));
 				this.pdfEngine.writeTexFSFile(filename, srccode);
 			} catch (e) {
 				// when unable to read file, remove this from the cache
-				console.log(`Unable to read file ${filename} from package cache`)
-				delete this.packageCache[1][key];
+				console.warn(`Unable to read file ${filename} from package cache`)
+				delete this.plugin.settings.packageCache[1][key];
 			}
 		}
 
 		// write cache data to the VFS, except don't write the texlive404_cache because this will cause problems when switching between texlive sources
 		this.pdfEngine.writeCacheData({},
-			this.packageCache[1],
-			this.packageCache[2],
-			this.packageCache[3]);
+			this.plugin.settings.packageCache[1],
+			this.plugin.settings.packageCache[2],
+			this.plugin.settings.packageCache[3]);
 	}
 
 	unloadCache() {
@@ -165,24 +159,24 @@ export class LatexRender {
 		return Md5.hashStr(source.trim());
 	}
 
-	async pdfToHtml(pdfData: any) {
+	async pdfToHtml(pdfData: BlobPart) {
 		const {width, height} = await this.getPdfDimensions(pdfData);
 		const ratio = width / height;
 		const pdfblob = new Blob([pdfData], { type: 'application/pdf' });
 		const objectURL = URL.createObjectURL(pdfblob);
 		return  {
 			attr: {
-			  data: `${objectURL}#view=FitH&toolbar=0`,
-			  type: 'application/pdf',
-			  class: 'block-lanuage-latex',
-			  style: `width:100%; aspect-ratio:${ratio}`
+			data: `${objectURL}#view=FitH&toolbar=0`,
+			type: 'application/pdf',
+			class: 'block-lanuage-latex',
+			style: `width:100%; aspect-ratio:${ratio}`
 			}
 		};
 	}
 
 	svgToHtml(svg: any) {
-		if (false) {
-			svg = this.colorSVGinDarkMode(svg);
+		if (this.plugin.settings.invertColorsInDarkMode) {
+			//svg = this.colorSVGinDarkMode(svg);
 		}
 		return svg;
 	}
@@ -193,25 +187,49 @@ export class LatexRender {
 		const {width, height} = firstPage.getSize();
 		return {width, height};
 	}
-	/*
-	pdfToSVG(pdfData: any) {
-		return PdfToCairo().then((pdftocairo: any) => {
-			pdftocairo.FS.writeFile('input.pdf', pdfData);
-			pdftocairo._convertPdfToSvg();
-			let svg = pdftocairo.FS.readFile('input.svg', {encoding:'utf8'});
 
-			// Generate a unique ID for each SVG to avoid conflicts
-			const id = Md5.hashStr(svg.trim()).toString();
-			const randomString = Math.random().toString(36).substring(2, 10);
-			const uniqueId = id.concat(randomString);
-			const svgoConfig:Config =  {
+	pdfToSVG(pdfData: string | Buffer<ArrayBufferLike> | NodeJS.ArrayBufferView<ArrayBufferLike>) {
+		return new Promise((resolve, reject) => {
+		  // Write the input PDF file
+		  fs.writeFileSync('input.pdf', pdfData);
+	  
+		  // Execute pdftocairo to convert the PDF to SVG
+		  exec('pdftocairo -svg input.pdf output.svg', (error: { message: any; }, stdout: any, stderr: any) => {
+			if (error) {
+			  console.error(`Error: ${error.message}`);
+			  reject(error);
+			  return;
+			}
+			if (stderr) {
+			  console.error(`stderr: ${stderr}`);
+			}
+	  
+			// Read the output SVG file
+			fs.readFile('output.svg', 'utf8', (err, svg) => {
+			  if (err) {
+				console.error(`Error reading SVG: ${err.message}`);
+				reject(err);
+				return;
+			  }
+	  
+			  console.log("SVG generated successfully");
+	  
+			  // Generate a unique ID for each SVG to avoid conflicts
+			  const id = Md5.hashStr(svg.trim()).toString();
+			  const randomString = Math.random().toString(36).substring(2, 10);
+			  const uniqueId = id.concat(randomString);
+	  
+			  // Optimize the SVG
+			  const svgoConfig:Config = {
 				plugins: ['sortAttrs', { name: 'prefixIds', params: { prefix: uniqueId } }]
-			};
-			svg = optimize(svg, svgoConfig).data; 
-
-			return svg;
-	});
-	}*/
+			  };
+			  svg = optimize(svg, svgoConfig).data;
+	  
+			  resolve(svg);
+			});
+		  });
+		});
+	  }
 
 	colorSVGinDarkMode(svg: string) {
 		// Replace the color "black" with currentColor (the current text color)
@@ -225,19 +243,18 @@ export class LatexRender {
 	}
 
 
-	async renderLatexToElement(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext, outputSVG: boolean = false) {
-		console.log("renderLatexToElement called");
+	async renderLatexToElement(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext, outputSVG = false) {
 		return new Promise<void>((resolve, reject) => {
-			let md5Hash = this.hashLatexSource(source);
-			let pdfPath = path.join(this.cacheFolderPath, `${md5Hash}.pdf`);
+			const md5Hash = this.hashLatexSource(source);
+			const pdfPath = path.join(this.cacheFolderPath, `${md5Hash}.pdf`);
 
 			// PDF file has already been cached
 			// Could have a case where pdfCache has the key but the cached file has been deleted
-			if (this.cacheMap.has(md5Hash) && fs.existsSync(pdfPath)) {
+			if (this.plugin.settings.enableCache && this.cache.has(md5Hash) && fs.existsSync(pdfPath)) {
 				// console.log("Using cached PDF: ", md5Hash);
-				let pdfData = fs.readFileSync(pdfPath);
+				const pdfData = fs.readFileSync(pdfPath);
 				if (outputSVG) {
-					throw new Error()//this.pdfToSVG(pdfData).then((svg: string) => { el.innerHTML = this.svgToHtml(svg);})
+					this.pdfToSVG(pdfData).then((svg: string) => { el.innerHTML = this.svgToHtml(svg);})
 				} else {
 					this.pdfToHtml(pdfData).then((htmlData)=>{el.createEl("object", htmlData); resolve();});
 				}
@@ -246,11 +263,11 @@ export class LatexRender {
 			}
 			else {
 				// console.log("Rendering PDF: ", md5Hash);
-				
+
 				this.renderLatexToPDF(source, md5Hash).then((r: any) => {
-					this.addFileToCache(md5Hash, ctx.sourcePath);
+					if (this.plugin.settings.enableCache) this.addFileToCache(md5Hash, ctx.sourcePath);
 					if (outputSVG) {
-						throw new Error();//this.pdfToSVG(r.pdf).then((svg: string) => { el.innerHTML = this.svgToHtml(svg);})
+						this.pdfToSVG(r.pdf).then((svg: string) => { el.innerHTML = this.svgToHtml(svg);})
 					} else {
 						this.pdfToHtml(r.pdf).then((htmlData)=>{el.createEl("object", htmlData); resolve();});
 					}
@@ -258,13 +275,13 @@ export class LatexRender {
 					resolve();
 				}
 				).catch(err => { 
-					let errorDiv = el.createEl('div', { text: `${err}`, attr: { class: 'block-latex-error' } });
+					//const errorDiv = el.createEl('div', { text: `${err}`, attr: { class: 'block-latex-error' } });
 					reject(err); 
 				});				
 			}
 		}).then(() => { 
 			this.pdfEngine.flushCache();
-			 setTimeout(() => this.cleanUpCache(), 1000);
+			if (this.plugin.settings.enableCache) setTimeout(() => this.cleanUpCache(), 1000);
 		});
 	}
 
@@ -272,7 +289,7 @@ export class LatexRender {
 		return new Promise(async (resolve, reject) => {
 			source = this.formatLatexSource(source);
 
-			temp.mkdir("obsidian-swiftlatex-renderer", async (err, dirPath) => {
+			temp.mkdir("obsidian-swiftlatex-renderer", async (err: any, dirPath: any) => {
 				
 				try {
 					await waitFor(() => this.pdfEngine.isReady());
@@ -299,52 +316,54 @@ export class LatexRender {
 
 	fetchPackageCacheData(): void {
 		this.pdfEngine.fetchCacheData().then((r: StringMap[]) => {
-			for (var i = 0; i < r.length; i++) {
+			for (let i = 0; i < r.length; i++) {
 				if (i === 1) { // currently only dealing with texlive200_cache
 					// get diffs
-					const newFileNames = this.getNewPackageFileNames(this.packageCache[i], r[i]);
+					const newFileNames = this.getNewPackageFileNames(this.plugin.settings.packageCache[i], r[i]);
 					// fetch new package files
 					this.pdfEngine.fetchTexFiles(newFileNames, this.packageCacheFolderPath);
 				}
 			}
-			this.packageCache = r;
+			this.plugin.settings.packageCache = r;
+			this.saveSettings().then(); // hmm
 		});
 	}
 
 	getNewPackageFileNames(oldCacheData: StringMap, newCacheData: StringMap): string[] {
 		// based on the old and new package files in package cache data,
 		// return the new package files
-		let newKeys = Object.keys(newCacheData).filter(key => !(key in oldCacheData));
-		let newPackageFiles = newKeys.map(key => path.basename(newCacheData[key]));		
+		const newKeys = Object.keys(newCacheData).filter(key => !(key in oldCacheData));
+		const newPackageFiles = newKeys.map(key => path.basename(newCacheData[key]));		
 		return newPackageFiles;
 	}
 
 	async saveCache() {
-		let temp = new Map();
-		for (const [k, v] of this.cacheMap) {
+		const temp = new Map();
+		for (const [k, v] of this.cache) {
 			temp.set(k, [...v])
 		}
-		this.cache = [...temp];
+		this.plugin.settings.cache = [...temp];
+		await this.saveSettings();
 
 	}
 
 	addFileToCache(hash: string, file_path: string) {
-		if (!this.cacheMap.has(hash)) {
-			this.cacheMap.set(hash, new Set());
+		if (!this.cache.has(hash)) {
+			this.cache.set(hash, new Set());
 		}
-		this.cacheMap.get(hash)?.add(file_path);
+		this.cache.get(hash)?.add(file_path);
 	}
 
 	async cleanUpCache() {
-		let file_paths = new Set<string>();
-		for (const fps of this.cacheMap.values()) {
+		const file_paths = new Set<string>();
+		for (const fps of this.cache.values()) {
 			for (const fp of fps) {
 				file_paths.add(fp);
 			}
 		}
 
 		for (const file_path of file_paths) {
-			let file = this.app.vault.getAbstractFileByPath(file_path);
+			const file = this.plugin.app.vault.getAbstractFileByPath(file_path);
 			if (file == null) {
 				this.removeFileFromCache(file_path);
 			} else {
@@ -357,12 +376,12 @@ export class LatexRender {
 	}
 
 	async removeUnusedCachesForFile(file: TFile) {
-		let hashes_in_file = await this.getLatexHashesFromFile(file);
-		let hashes_in_cache = this.getLatexHashesFromCacheForFile(file);
+		const hashes_in_file = await this.getLatexHashesFromFile(file);
+		const hashes_in_cache = this.getLatexHashesFromCacheForFile(file);
 		for (const hash of hashes_in_cache) {
 			if (!hashes_in_file.contains(hash)) {
-				this.cacheMap.get(hash)?.delete(file.path);
-				if (this.cacheMap.get(hash)?.size == 0) {
+				this.cache.get(hash)?.delete(file.path);
+				if (this.cache.get(hash)?.size == 0) {
 					this.removePDFFromCache(hash);
 				}
 			}
@@ -370,23 +389,23 @@ export class LatexRender {
 	}
 
 	removePDFFromCache(key: string) {
-		this.cacheMap.delete(key);
+		this.cache.delete(key);
 		fs.rmSync(path.join(this.cacheFolderPath, `${key}.pdf`));
 	}
 
 	removeFileFromCache(file_path: string) {
-		for (const hash of this.cacheMap.keys()) {
-			this.cacheMap.get(hash)?.delete(file_path);
-			if (this.cacheMap.get(hash)?.size == 0) {
+		for (const hash of this.cache.keys()) {
+			this.cache.get(hash)?.delete(file_path);
+			if (this.cache.get(hash)?.size == 0) {
 				this.removePDFFromCache(hash);
 			}
 		}
 	}
 
 	getLatexHashesFromCacheForFile(file: TFile) {
-		let hashes: string[] = [];
-		let path = file.path;
-		for (const [k, v] of this.cacheMap.entries()) {
+		const hashes: string[] = [];
+		const path = file.path;
+		for (const [k, v] of this.cache.entries()) {
 			if (v.has(path)) {
 				hashes.push(k);
 			}
@@ -395,18 +414,17 @@ export class LatexRender {
 	}
 
 	async getLatexHashesFromFile(file: TFile) {
-		let hashes: string[] = [];
-		let sections = this.app.metadataCache.getFileCache(file)?.sections
+		const hashes: string[] = [];
+		const sections = this.plugin.app.metadataCache.getFileCache(file)?.sections
 		if (sections != undefined) {
-			let lines = (await this.app.vault.read(file)).split('\n');
+			const lines = (await this.plugin.app.vault.read(file)).split('\n');
 			for (const section of sections) {
 				if (section.type != "code" && lines[section.position.start.line].match("``` *latex") == null) continue;
-				let source = lines.slice(section.position.start.line + 1, section.position.end.line).join("\n");
-				let hash = this.hashLatexSource(source);
+				const source = lines.slice(section.position.start.line + 1, section.position.end.line).join("\n");
+				const hash = this.hashLatexSource(source);
 				hashes.push(hash);
 			}
 		}
 		return hashes;
 	}
 }
-

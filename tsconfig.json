@@ -23,8 +23,8 @@
     "rootDir": "./"
   },
   "include": [
-    "**/*.ts" 
-, "src/staticData/default_snippet_variables.js", "src/staticData/default_snippets.js", "src/latexRender/PdfTeXEngine.js", "src/latexRender/swiftlatexpdftex.worker.ts"  ],
+    "**/*.ts"
+  ],
   "exclude": [
     "node_modules",
     "dist" 
