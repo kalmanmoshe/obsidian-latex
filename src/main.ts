@@ -3,7 +3,6 @@
 //git branch #Check current branch
 
 import {Plugin, MarkdownRenderer,addIcon, App, Modal, Component, Setting,Notice, WorkspaceWindow,loadMathJax,renderMath, MarkdownView, EditorSuggest, EditorSuggestTriggerInfo, EditorPosition, Editor, TFile, EditorSuggestContext} from "obsidian";
-import { html as beautifyHTML } from 'js-beautify';
 import { MathInfo, MathPraiser } from "./mathParser/mathEngine";
 import { InfoModal, DebugModal } from "./desplyModals";
 import {LatexSuitePluginSettings, DEFAULT_SETTINGS, LatexSuiteCMSettings, processLatexSuiteSettings} from "./settings/settings";
@@ -35,92 +34,60 @@ import { cursorTooltipBaseTheme, cursorTooltipField, handleMathTooltip } from ".
 import { onClick, onKeydown, onMove, onScroll, onTransaction } from "./ inputMonitors";
 import { SwiftlatexRender } from "./latexRender/main";
 
-// i want to make some code that will outo insot metadata to fillls
 
-/**
- * 
- * I'm missing the **** **** data filers.Obviously its not gonna work
+/**Assignments
+ * i want to make some code that will outo insot metadata to fillls
+ * i need to Create something.that would pares the latex error messages to make them sensible
+ * Improve the hashing system. It should be able to hash the same string to the same value But improve it so comments.spaces, new lines are excluded
  */
 
-/*
-pdfToSVG(pdfData: string | Buffer<ArrayBufferLike> | NodeJS.ArrayBufferView<ArrayBufferLike>) {
-    return new Promise((resolve, reject) => {
-      // Write the input PDF file
-      fs.writeFileSync('input.pdf', pdfData);
-  
-      // Execute pdftocairo to convert the PDF to SVG
-      exec('pdftocairo -svg input.pdf output.svg', (error: { message: any; }, stdout: any, stderr: any) => {
-        if (error) {
-          console.error(`Error: ${error.message}`);
-          reject(error);
-          return;
-        }
-        if (stderr) {
-          console.error(`stderr: ${stderr}`);
-        }
-  
-        // Read the output SVG file
-        fs.readFile('output.svg', 'utf8', (err, svg) => {
-          if (err) {
-            console.error(`Error reading SVG: ${err.message}`);
-            reject(err);
-            return;
-          }
-  
-          console.log("SVG generated successfully");
-  
-          // Generate a unique ID for each SVG to avoid conflicts
-          const id = Md5.hashStr(svg.trim()).toString();
-          const randomString = Math.random().toString(36).substring(2, 10);
-          const uniqueId = id.concat(randomString);
-  
-          // Optimize the SVG
-          const svgoConfig:Config = {
-            plugins: ['sortAttrs', { name: 'prefixIds', params: { prefix: uniqueId } }]
-          };
-          svg = optimize(svg, svgoConfig).data;
-  
-          resolve(svg);
-        });
-      });
-    });
-  }
 
-
-*/ 
 
 export default class Moshe extends Plugin {
   settings: LatexSuitePluginSettings;
 	CMSettings: LatexSuiteCMSettings;
-  tikzProcessor: Tikzjax
+  swiftlatexRender: SwiftlatexRender
   editorExtensions: Extension[]=[];
 
   async onload() {
     console.log("new lod")
     await this.loadSettings();
+    await loadMathJax();
 		this.loadIcons();
 		this.addSettingTab(new LatexSuiteSettingTab(this.app, this));
-		loadMathJax();
-    const a=new SwiftlatexRender(this)
-    a.onload()
-
-		// Register Latex Suite extensions and optional editor extensions for editor enhancements
-		//this.registerEditorExtension(this.editorExtensions);
-
-		// Watch for changes to the snippet variables and snippets files
 		this.watchFiles();
-
 		this.addEditorCommands();
-    //this.tikzProcessor=new Tikzjax(this.app,this)
-    //this.tikzProcessor.readyLayout();
-		//this.tikzProcessor.addSyntaxHighlighting();
-		//this.tikzProcessor.registerTikzCodeBlock();
+    await this.loadswiftlatexRender();
     
-    this.registerMarkdownCodeBlockProcessor("math-engine", processMathBlock.bind(this));
-    this.registerMarkdownCodeBlockProcessor("tikzjax", processTikzBlock.bind(this));
-    
+    this.addSyntaxHighlighting();
+    this.setCodeblocks();
   }
-  setEditorExtensions() {
+  onunload() {
+    this.removeSyntaxHighlighting();
+    this.swiftlatexRender.unloadCache()
+	}
+
+  private setCodeblocks(){
+    this.registerMarkdownCodeBlockProcessor("math", processMathBlock.bind(this));
+	
+  }
+  private async loadswiftlatexRender(){
+    this.swiftlatexRender=new SwiftlatexRender()
+    await this.swiftlatexRender.onload(this)
+  }
+
+  private addSyntaxHighlighting(){
+    //@ts-ignore
+    window.CodeMirror.modeInfo.push({name: "latexsvg", mime: "text/x-latex", mode: "stex"});
+    //@ts-ignore
+    window.CodeMirror.modeInfo.push({name: "Tikz", mime: "text/x-latex", mode: "stex"});
+  }
+  private removeSyntaxHighlighting(){
+    //@ts-ignore
+    window.CodeMirror.modeInfo = window.CodeMirror.modeInfo.filter(el => el.name != "Tikz");
+  }
+
+  private setEditorExtensions() {
 		while (this.editorExtensions.length) this.editorExtensions.pop();
 		
 		this.editorExtensions.push([
@@ -149,17 +116,14 @@ export default class Moshe extends Plugin {
 		this.registerEditorExtension(this.editorExtensions.flat());
 	}
 
-  addEditorCommands() {
+  private addEditorCommands() {
 		for (const command of getEditorCommands(this)) {
 			this.addCommand(command);
 		}
 	}
-  onunload() {
-		//this.tikzProcessor.unloadTikZJaxAllWindows();
-		//this.tikzProcessor.removeSyntaxHighlighting();
-	}
+  
 
-  async getSettingsSnippets(snippetVariables: SnippetVariables) {
+  private async getSettingsSnippets(snippetVariables: SnippetVariables) {
 		try {
 			return await parseSnippets(this.settings.snippets, snippetVariables);
 		} catch (e) {
@@ -169,13 +133,13 @@ export default class Moshe extends Plugin {
 	}
 
 
-  loadIcons() {
+  private loadIcons() {
     for (const [iconId, svgContent] of Object.entries(ICONS)) {
       addIcon(iconId, svgContent);
     }
   }
 
-  async loadSettings() {
+  private async loadSettings() {
     let data = await this.loadData();
 
     // Migrate settings from v1.8.0 - v1.8.4
@@ -218,13 +182,13 @@ export default class Moshe extends Plugin {
 		this.processSettings(didFileLocationChange);
 	}
 
-  async processSettings(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
+  private async processSettings(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
 		this.CMSettings = processLatexSuiteSettings(await this.getSnippets(becauseFileLocationUpdated, becauseFileUpdated), this.settings);
     this.setEditorExtensions();
 		this.app.workspace.updateOptions();
 	}
   
-  async getSettingsSnippetVariables() {
+  private async getSettingsSnippetVariables() {
 		try {
 			return await parseSnippetVariables(this.settings.snippetVariables);
 		} catch (e) {
@@ -233,7 +197,7 @@ export default class Moshe extends Plugin {
 			return {};
 		}
 	}
-  async getSnippets(becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean) {
+  private async getSnippets(becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean) {
 		// Get files in snippet/variable folders.
 		// If either is set to be loaded from settings the set will just be empty.
 		const files = getFileSets(this);
@@ -258,12 +222,8 @@ export default class Moshe extends Plugin {
 
 		return snippets;
 	}
-
-
-
   
-  
-  showSnippetsLoadedNotice(nSnippets: number, nSnippetVariables: number, becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean) {
+  private showSnippetsLoadedNotice(nSnippets: number, nSnippetVariables: number, becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean) {
 		if (!(becauseFileLocationUpdated || becauseFileUpdated))
 			return;
 
@@ -279,9 +239,7 @@ export default class Moshe extends Plugin {
 		new Notice(prefix + body.join(" and ") + suffix, 5000);
 	}
 
-
-
-  watchFiles() {
+  private watchFiles() {
 		// Only begin watching files once the layout is ready
 		// Otherwise, we'll be unnecessarily reacting to many onFileCreate events of snippet files
 		// that occur when Obsidian first loads
@@ -301,6 +259,40 @@ export default class Moshe extends Plugin {
 		});
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 function processMathBlock(source: string, mainContainer: HTMLElement): void {
@@ -328,130 +320,7 @@ function processMathBlock(source: string, mainContainer: HTMLElement): void {
   });
 }
 
-function processTikzBlock(source: string, container: HTMLElement): void {
-  try{
-    const a=new FormatTikzjax(source,true)
-  console.log(a)
-  }catch(e){
-    console.error(e)
-  }
-  
-  const svgContainer = Object.assign(document.createElement("div"), {
-      style: "display: flex; justify-content: center; align-items: center;"
-  });
-  svgContainer.appendChild(dummyFunction());
-  container.appendChild(svgContainer);
-  console.log(beautifyHTML(container.innerHTML, { indent_size: 2 }))
-}
 
-
-
-function dummyFunction():SVGSVGElement{
-  
-
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  
-  const bounds=new SvgBounds()
-  const func = (x: number) => x * x;
-  const arr=[]
-  for(let i=-5;i<=5;i++){
-    arr.push(new Axis(i,func(i)))
-  }
-  const paths = [
-    new SVGpath(arr, { stroke: "black", strokeWidth: 1 }),
-    /*new SVGpath([new Axis(0,30),new Axis(100,30)], { stroke: "black", strokeWidth: 1 }),
-    new SVGpath([new Axis(0,60),new Axis(100,60)], { stroke: "black", strokeWidth: 1 }),
-    new SVGpath([new Axis(0,90),new Axis(100,90)], { stroke: "black", strokeWidth: 1 }),*/
-  ];
-  
-  paths.forEach(p=>bounds.improveBounds(p.getBounds()))
-  //console.log(bounds)
-
-  svg.setAttribute("width", `${bounds.getWidth()}`);
-  svg.setAttribute("height", `${bounds.getHeight()}`);
-  //svg.style.border = "1px solid black";
-  paths.forEach(path => svg.appendChild(path.toElement(bounds)));
-  return svg
-}
-
-
-export class SvgBounds{
-  min: Axis;
-  max: Axis;
-
-  constructor(min?: Axis,max?: Axis){
-    this.min=min??new Axis();
-    this.max=max??new Axis();
-  }
-  improveBounds(axis: Axis | SvgBounds): void {
-    const updateBounds = (value: number, min?: number, max?: number): [number, number] => {
-      return [Math.min(value, min??Infinity), Math.max(value, max??-Infinity)];
-    };
-    const improveWithAxis = (inputAxis: Axis): void => {
-      const { cartesianX: x, cartesianY: y } = inputAxis;
-      [this.min.cartesianX, this.max.cartesianX] = updateBounds(x, this.min?.cartesianX, this.max?.cartesianX);
-      [this.min.cartesianY, this.max.cartesianY] = updateBounds(y, this.min?.cartesianY, this.max?.cartesianY);
-    };
-    const improveWithBounds = (inputBounds: SvgBounds): void => {
-      improveWithAxis(inputBounds.min);
-      improveWithAxis(inputBounds.max);
-    };
-    if (axis instanceof SvgBounds) {
-      improveWithBounds(axis);
-    } else {
-      improveWithAxis(axis as Axis);
-    }
-  }
-  getWidth(){return Math.abs(this.max.cartesianX-this.min.cartesianX)}
-  getHeight(){return Math.abs(this.max.cartesianY-this.min.cartesianY)}
-  compare(other: SvgBounds){
-    
-  }
-  clone(){
-    return new SvgBounds(this.min,this.max)
-  }
-  static improvedBounds(){
-
-  }
-}
-class mathFunction{
-  yIntersect: Axis;
-  xIntersects: Axis[];
-
-}
-
-class SVGpath {
-  axes: Axis[];
-  formatting: { stroke?: string, strokeWidth?: number, fill?: string };
-  
-  constructor(coordinates: Axis[], formatting: { stroke?: string, strokeWidth?: number, fill?: string } = {}) {
-      this.axes = coordinates;
-      this.formatting = formatting;
-  }
-  getBounds(){
-    const bounds=new SvgBounds()
-    this.axes.forEach(axis => {
-      bounds.improveBounds(axis);
-    });
-    return bounds;
-  }
-  toElement(bounds: SvgBounds): SVGPathElement {
-      const pathElement = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      const pathData = this.axes.map((coord, index) => {
-          const command = index === 0 ? 'M' : 'L';
-          return `${command} ${coord.toStringSVG(bounds)}`;
-      }).join(' ') + ' Z';
-
-      pathElement.setAttribute("d", pathData);
-
-      if (this.formatting.stroke) pathElement.setAttribute("stroke", this.formatting.stroke);
-      if (this.formatting.strokeWidth) pathElement.setAttribute("stroke-width", this.formatting.strokeWidth.toString());
-      if (this.formatting.fill) pathElement.setAttribute("fill", this.formatting.fill);
-      else pathElement.setAttribute("fill", "none");
-
-      return pathElement;
-  }
-}
 
 
 

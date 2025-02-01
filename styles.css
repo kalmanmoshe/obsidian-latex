@@ -1,3 +1,35 @@
+.block-language-latex {
+  /* filter: invert(100%); */
+  justify-content: center;
+  align-items: center;
+  display: block;
+  width: 100%;
+}
+
+.block-language-latexsvg {
+  /* filter: invert(100%); */
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  min-width: 40%;
+}
+
+.block-language-latexsvg svg {
+  /*width: 100%;
+  height: 100%;*/
+}
+
+
+.block-latex-error {
+  /* filter: invert(100%); */
+  justify-content: center;
+  display: block;
+  width: 100%;
+  background-color: white;
+  color: black;
+}
+
+
 .moshe-rtl-line {
   direction: rtl !important; /* Right-to-left direction */
   /*background-color: lightyellow;  Highlight for testing */

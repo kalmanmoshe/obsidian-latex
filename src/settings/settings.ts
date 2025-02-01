@@ -36,7 +36,6 @@ interface LatexSuiteBasicSettings {
 	wordDelimiters: string;
 	package_url: string,
 	timeout: number,
-	enableCache: boolean,
 	cache: Array<[string, Set<string>]>;
 	packageCache: Array<StringMap>;
 	onlyRenderInReadingMode: boolean;
@@ -119,7 +118,6 @@ export const DEFAULT_SETTINGS: LatexSuitePluginSettings = {
 	suggestorLanguages: 'tikz',
 	package_url: `https://texlive2.swiftlatex.com/`,
 	timeout: 10000,
-	enableCache: true,
 	cache: [],
 	packageCache: [{},{},{},{}],
 	onlyRenderInReadingMode: false,
