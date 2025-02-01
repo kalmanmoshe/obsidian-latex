@@ -1,8 +1,5 @@
 import { App, MarkdownView, Scope, WorkspaceWindow } from "obsidian";
 import MathPlugin, { SvgBounds } from "src/main";
-// @ts-ignore
-import tikzjaxJs from "./tikzjax.js";
-console.log('tikzjaxJs',tikzjaxJs)
 import { cartesianToPolar, findIntersectionPoint, findSlope, polarToCartesian, toNumber } from "src/mathParser/mathUtilities.js";
 import { DebugModal } from "src/desplyModals.js";
 import { FormatTikzjax } from "./interpret/tokenizeTikzjax.js";
@@ -37,7 +34,6 @@ export class Tikzjax {
         const s = document.createElement("script");
         s.id = "tikzjax";
         s.type = "text/javascript";
-        s.innerText = tikzjaxJs;
         doc.body.appendChild(s);
         doc.addEventListener("tikzjax-load-finished", this.postProcessSvg);
     }
@@ -104,15 +100,6 @@ export class Tikzjax {
           });
     }
   
-      addSyntaxHighlighting() {
-          // @ts-ignore
-          window.CodeMirror.modeInfo.push({name: "Tikz", mime: "text/x-latex", mode: "stex"});
-      }
-  
-      removeSyntaxHighlighting() {
-          // @ts-ignore
-          window.CodeMirror.modeInfo = window.CodeMirror.modeInfo.filter(el => el.name != "Tikz");
-      }
 
   
       colorSVGinDarkMode(svg: string) {
@@ -147,6 +134,9 @@ export class Tikzjax {
         svgEl.outerHTML = svg;
     }
 }
+
+
+
 export const arrToRegexString = (arr: Array<string>) => '(' + arr.join('|') + ')';
 
 export function regExp(pattern: string | RegExp | Array<string>, flags: string = ''): RegExp {

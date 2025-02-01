@@ -63,7 +63,7 @@ const args = {
   ]
 };
 
-if (!prod) {
+if (!prod&&1===2) {
   const ctx = await esbuild.context(args);
   ctx.watch().catch(() => process.exit(1));
 } else {
