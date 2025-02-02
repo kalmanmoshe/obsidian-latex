@@ -24,7 +24,7 @@
   },
   "include": [
     "**/*.ts"
-, "src/latexRender/PdfTeXEngine.ts"  ],
+, "src/latexRender/PdfTeXEngine.ts", "src/latexRender/swiftlatexpdftex.worker.js"  ],
   "exclude": [
     "node_modules",
     "dist" 

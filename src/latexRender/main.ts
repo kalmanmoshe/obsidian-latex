@@ -90,7 +90,7 @@ export class SwiftlatexRender {
 			}
 		}
 	}
-
+	
 
 	async loadPackageCache() {
 		const cacheFolderParentPath = path.join(this.getVaultPath(), this.plugin.app.vault.configDir, "swiftlatex-render-cache");
@@ -237,7 +237,7 @@ export class SwiftlatexRender {
 		});
 	}
 
-	private renderLatexToPDF(source: string, md5Hash: string) {
+	private renderLatexToPDF(source: string, md5Hash: string): Promise<CompileResult> {
 		return new Promise(async (resolve, reject) => {
 			temp.mkdir("obsidian-swiftlatex-renderer", async (err: any, dirPath: any) => {
 				
@@ -263,19 +263,22 @@ export class SwiftlatexRender {
 			})
 		});
 	}
-
+	/**
+	 * There are four catches:
+	 * 1. texlive404_cache - Not found files
+	 * 2. texlive200_cache
+	 * 3. pk404_cache - Not found files
+	 * 4. pk200_cache
+	 * currently only dealing with texlive200_cache
+	 */
 	fetchPackageCacheData(): void {
 		this.pdfEngine.fetchCacheData().then((r: StringMap[]) => {
-			for (var i = 0; i < r.length; i++) {
-				if (i === 1) { // currently only dealing with texlive200_cache
-					// get diffs
-					const newFileNames = this.getNewPackageFileNames(this.plugin.settings.packageCache[i], r[i]);
-					// fetch new package files
-					this.pdfEngine.fetchTexFiles(newFileNames, this.packageCacheFolderPath);
-				}
-			}
+			console.log("Successfully fetched cache data:", r);
+			const newFileNames = this.getNewPackageFileNames(this.plugin.settings.packageCache[1], r[1]);
+			this.pdfEngine.fetchTexFiles(newFileNames, this.packageCacheFolderPath);
+			console.log(r);
 			this.plugin.settings.packageCache = r;
-			this.plugin.saveSettings().then(); // hmm
+			this.plugin.saveSettings().then();
 		});
 	}
 
