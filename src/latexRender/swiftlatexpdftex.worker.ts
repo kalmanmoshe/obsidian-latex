@@ -1,3 +1,4 @@
+///@ts-nocheck
 var Module = typeof Module != "undefined" ? Module : {};
 const TEXCACHEROOT = "/tex";
 const WORKROOT = "/work";
@@ -209,6 +210,8 @@ function writeTexFileRoutine(filename, content) {
     self.postMessage({ result: "failed", cmd: "writetexfile" });
   }
 }
+
+  
 function transferTexFileToHost(filename) {
   try {
     let content = FS.readFile(TEXCACHEROOT + "/" + filename, {
@@ -219,9 +222,10 @@ function transferTexFileToHost(filename) {
       [content.buffer],
     );
   } catch (err) {
-    self.postMessage({ result: "failed", cmd: "fetchfile" });
+    self.postMessage({ result: "failed", cmd: "fetchfile",error: err });
   }
 }
+
 function transferCacheDataToHost() {
   try {
     self.postMessage({
@@ -233,8 +237,7 @@ function transferCacheDataToHost() {
       pk200_cache: pk200_cache,
     });
   } catch (err) {
-    console.error("Unable to fetch cache");
-    self.postMessage({ result: "failed", cmd: "fetchcache" });
+    self.postMessage({ result: "failed", cmd: "fetchcache",error: err });
   }
 }
 function setTexliveEndpoint(url) {
@@ -283,6 +286,13 @@ self["onmessage"] = function (ev) {
 let texlive404_cache = {};
 let texlive200_cache = {};
 
+/**
+ * This will download all files needed for the project. The texlive404_cache will always have to be retried because we can't pass it along as the VFS will cause issues when switching between texlive sources.
+ * @param nameptr 
+ * @param format 
+ * @param _mustexist 
+ * @returns 
+ */
 function kpse_find_file_impl(nameptr, format, _mustexist) {
   const reqname = UTF8ToString(nameptr);
   if (reqname.includes("/")) {
@@ -301,7 +311,7 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
   xhr.open("GET", remote_url, false);
   xhr.timeout = 15e4;
   xhr.responseType = "arraybuffer";
-  console.log("Start downloading texlive file " + remote_url);
+  //console.log("Start downloading texlive file " + remote_url);
   try {
     xhr.send();
   } catch (err) {
@@ -316,7 +326,7 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
     texlive200_cache[cacheKey] = savepath;
     return _allocate(intArrayFromString(savepath));
   } else if (xhr.status === 301) {
-    console.log("TexLive File not exists " + remote_url);
+    //console.log("TexLive File not exists " + remote_url);
     texlive404_cache[cacheKey] = 1;
     return 0;
   }
