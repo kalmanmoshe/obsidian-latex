@@ -1,15 +1,16 @@
 {
-  "snippets": "[]",
-  "snippetVariables": "[]",
+  "snippets": "",
+  "snippetVariables": "{}",
   "snippetsEnabled": true,
   "snippetsTrigger": "Tab",
   "suppressSnippetTriggerOnIME": true,
   "removeSnippetWhitespace": true,
   "autoDelete$": true,
-  "loadSnippetsFromFile": false,
+  "loadPreambleFromFile": true,
+  "loadSnippetsFromFile": true,
   "loadSnippetVariablesFromFile": false,
-  "preambleFileLocation": "",
-  "snippetsFileLocation": "",
+  "preambleFileLocation": "obsidian/data/Files/preamble.sty",
+  "snippetsFileLocation": "obsidian/data/Snippets",
   "snippetVariablesFileLocation": "",
   "concealEnabled": false,
   "concealRevealTimeout": 0,
@@ -39,42 +40,20 @@
   "suggestorLanguages": "tikz",
   "package_url": "https://texlive2.swiftlatex.com/",
   "timeout": 10000,
-  "cache": [
-    [
-      "94687a68712203c99236543228cb2b71",
-      [
-        "Untitled 2.md"
-      ]
-    ],
-    [
-      "f535db294da09b7ac64c8ab630758cab",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "e8f0ddddafb8f92a75e0dac282973893",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "64e74c64080ea624f995e8a1ae1a0923",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ]
-  ],
+  "cache": [],
   "packageCache": [
     {
       "26/tikzlibrarypgfplots.surfshading.code.tex": 1,
+      "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/main.aux": 1,
-      "33/cmr10.vf": 1,
-      "33/cmr12.vf": 1,
-      "33/cmmi12.vf": 1,
-      "33/cmbx12.vf": 1,
       "33/cmmi10.vf": 1,
-      "33/cmr7.vf": 1
+      "33/cmmi7.vf": 1,
+      "33/cmr10.vf": 1,
+      "33/cmr7.vf": 1,
+      "33/cmmi12.vf": 1,
+      "33/cmsy10.vf": 1,
+      "33/cmr12.vf": 1,
+      "33/cmsy8.vf": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -219,7 +198,35 @@
       "32/cmr10.pfb": "/tex/cmr10.pfb",
       "32/cmr12.pfb": "/tex/cmr12.pfb",
       "32/cmmi10.pfb": "/tex/cmmi10.pfb",
-      "32/cmr7.pfb": "/tex/cmr7.pfb"
+      "32/cmr7.pfb": "/tex/cmr7.pfb",
+      "26/ifthen.sty": "/tex/ifthen.sty",
+      "26/pgflibraryarrows.meta.code.tex": "/tex/pgflibraryarrows.meta.code.tex",
+      "26/tikzlibraryangles.code.tex": "/tex/tikzlibraryangles.code.tex",
+      "26/tikzlibraryquotes.code.tex": "/tex/tikzlibraryquotes.code.tex",
+      "26/tikzlibrarypositioning.code.tex": "/tex/tikzlibrarypositioning.code.tex",
+      "26/tikzlibrarycalc.code.tex": "/tex/tikzlibrarycalc.code.tex",
+      "26/tikzlibraryintersections.code.tex": "/tex/tikzlibraryintersections.code.tex",
+      "26/pgflibraryintersections.code.tex": "/tex/pgflibraryintersections.code.tex",
+      "26/tikzlibrarydecorations.markings.code.tex": "/tex/tikzlibrarydecorations.markings.code.tex",
+      "26/pgflibrarydecorations.markings.code.tex": "/tex/pgflibrarydecorations.markings.code.tex",
+      "26/tikzlibrarymath.code.tex": "/tex/tikzlibrarymath.code.tex",
+      "26/tikzlibraryfpu.code.tex": "/tex/tikzlibraryfpu.code.tex",
+      "26/tikzlibraryspy.code.tex": "/tex/tikzlibraryspy.code.tex",
+      "26/tikzlibrarymatrix.code.tex": "/tex/tikzlibrarymatrix.code.tex",
+      "26/tikzlibrarypatterns.code.tex": "/tex/tikzlibrarypatterns.code.tex",
+      "26/pgflibrarypatterns.code.tex": "/tex/pgflibrarypatterns.code.tex",
+      "26/tikzlibrarysnakes.code.tex": "/tex/tikzlibrarysnakes.code.tex",
+      "26/tikzlibrarydecorations.shapes.code.tex": "/tex/tikzlibrarydecorations.shapes.code.tex",
+      "26/pgflibrarydecorations.shapes.code.tex": "/tex/pgflibrarydecorations.shapes.code.tex",
+      "26/tikzlibraryshadows.code.tex": "/tex/tikzlibraryshadows.code.tex",
+      "26/tikzlibraryfadings.code.tex": "/tex/tikzlibraryfadings.code.tex",
+      "26/pgflibraryfadings.code.tex": "/tex/pgflibraryfadings.code.tex",
+      "26/tikzlibraryshapes.symbols.code.tex": "/tex/tikzlibraryshapes.symbols.code.tex",
+      "26/pgflibraryshapes.symbols.code.tex": "/tex/pgflibraryshapes.symbols.code.tex",
+      "32/cmsy8.pfb": "/tex/cmsy8.pfb",
+      "3/cmr17": "/tex/cmr17.tfm",
+      "32/cmsy10.pfb": "/tex/cmsy10.pfb",
+      "32/cmmi7.pfb": "/tex/cmmi7.pfb"
     },
     {},
     {}

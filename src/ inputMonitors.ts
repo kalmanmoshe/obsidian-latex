@@ -8,7 +8,7 @@ import { getLatexSuiteConfig, getLatexSuiteConfigExtension } from "./snippets/co
 import { runAutoFraction } from "./features/autofraction";
 import { runMatrixShortcuts } from "./features/matrix_shortcuts";
 import { shouldTaboutByCloseBracket, tabout } from "./features/tabout";
-import { cursorTooltipBaseTheme, cursorTooltipField, handleMathTooltip } from "./editor_extensions/math_tooltip";
+import {  handleMathTooltip } from "./editor_extensions/math_tooltip";
 import { removeAllTabstops, tabstopsStateField } from "./snippets/codemirror/tabstops_state_field";
 import { clearSnippetQueue, snippetQueueStateField } from "./snippets/codemirror/snippet_queue_state_field";
 import { handleUndoRedo, snippetInvertedEffects } from "./snippets/codemirror/history";

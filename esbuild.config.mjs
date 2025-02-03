@@ -50,7 +50,8 @@ const args = {
   logLevel: "info",
   sourcemap: prod ? false : "inline",
   treeShaking: true,
-  outfile: "main.js",
+  outfile: 'main.js',
+  platform: 'node',
   plugins: [
     inlineWorkerPlugin({
       bundle: true,
