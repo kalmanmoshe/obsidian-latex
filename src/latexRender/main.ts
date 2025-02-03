@@ -59,7 +59,7 @@ export class SwiftlatexRender {
 		try {
 			const ast = parse(source);
 			console.log(ast);
-			this.renderLatexToElement(source, el, ctx, true);
+			this.renderLatexToElement(source, el, ctx);
 		} catch (e) {
 			console.error(e);
 		}
@@ -197,21 +197,21 @@ export class SwiftlatexRender {
 
 
 
-	private async renderLatexToElement(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext, outputSVG = false) {
+	private async renderLatexToElement(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
 		return new Promise<void>((resolve, reject) => {
 			const md5Hash = this.hashLatexSource(source);
-			const pdfPath = path.join(this.cacheFolderPath, `${md5Hash}.pdf`);
+			const pdfPath = path.join(this.cacheFolderPath, `${md5Hash}.svg`);
 
 			// PDF file has already been cached
 			// Could have a case where pdfCache has the key but the cached file has been deleted
 			if (this.cache.has(md5Hash) && fs.existsSync(pdfPath)) {
 				const pdfData = fs.readFileSync(pdfPath);
-				this.translatePDF(pdfData, el, outputSVG);
+				this.translatePDF(pdfData, el);
 			}
 			else {
 				this.renderLatexToPDF(source, md5Hash).then((result: CompileResult) => {
-					this.translatePDF(result.pdf, el, outputSVG);
-					fs.writeFileSync(pdfPath, result.pdf);
+					this.translatePDF(result.pdf, el);
+					fs.writeFileSync(pdfPath,el.innerHTML);
 				}
 				).catch(err => {
 					console.warn();
@@ -228,7 +228,7 @@ export class SwiftlatexRender {
 
 	}
 
-	private async translatePDF(pdfData: Buffer<ArrayBufferLike>, el: HTMLElement, outputSVG = false): Promise<void> {
+	private async translatePDF(pdfData: Buffer<ArrayBufferLike>, el: HTMLElement, outputSVG = true): Promise<void> {
 		return new Promise<void>((resolve) => { 
 			if (outputSVG)
 				this.pdfToSVG(pdfData).then((svg: string) => {el.innerHTML = svg;resolve();});
