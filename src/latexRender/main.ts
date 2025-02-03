@@ -9,6 +9,7 @@ import {PDFDocument} from 'pdf-lib';
 import {Config,optimize} from 'svgo';
 import Moshe from '../main';
 import { StringMap } from 'src/settings/settings.js';
+import { getPreamble } from 'src/tikzjax/interpret/tokenizeTikzjax';
 const { exec } = require('child_process');
 let parse: any;
 import('@unified-latex/unified-latex-util-parse').then(module => {
@@ -48,11 +49,10 @@ export class SwiftlatexRender {
 		await this.loadPackageCache();
 		this.pdfEngine.setTexliveEndpoint(this.plugin.settings.package_url);
 		
-		this.plugin.registerMarkdownCodeBlockProcessor("tikz", this.universalCodeBlockProcessor.bind(this));
-		this.plugin.registerMarkdownCodeBlockProcessor("latex", this.universalCodeBlockProcessor.bind(this));
-		this.plugin.registerMarkdownCodeBlockProcessor("latexsvg", this.universalCodeBlockProcessor.bind(this));
+		
 	}
 	universalCodeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext){
+		source=getPreamble(this.plugin.app)+source+"\n\\end{tikzpicture}\\end{document}"
 		if(!this.pdfEngine.isReady()){
 			throw new Error("SwiftLaTeX: Engine is not ready yet!");
 		}
@@ -101,7 +101,6 @@ export class SwiftlatexRender {
 		if (!fs.existsSync(this.packageCacheFolderPath)) {
 			fs.mkdirSync(this.packageCacheFolderPath);
 		}
-		console.log("SwiftLaTeX: Loading package cache");
 
 		// add files in the package cache folder to the cache list
 		const packageFiles = fs.readdirSync(this.packageCacheFolderPath);
@@ -143,7 +142,7 @@ export class SwiftlatexRender {
 
 
 	hashLatexSource(source: string) {
-		return Md5.hashStr(source.trim());
+		return Md5.hashStr(source.replace(/\s/g, ''))
 	}
 
 	async pdfToHtml(pdfData: Buffer<ArrayBufferLike>) {
@@ -215,7 +214,8 @@ export class SwiftlatexRender {
 					fs.writeFileSync(pdfPath, result.pdf);
 				}
 				).catch(err => {
-					const errorDiv = el.createEl('div', { text: `${err}`, attr: { class: 'block-latex-error' } });
+					console.warn();
+					const errorDiv = el.createEl('div', { text: `swiftlatexError`/*text: `${err}`*/, attr: { class: 'block-latex-error' } });
 					reject(err); 
 				});				
 			}
@@ -273,10 +273,8 @@ export class SwiftlatexRender {
 	 */
 	fetchPackageCacheData(): void {
 		this.pdfEngine.fetchCacheData().then((r: StringMap[]) => {
-			console.log("Successfully fetched cache data:", r);
 			const newFileNames = this.getNewPackageFileNames(this.plugin.settings.packageCache[1], r[1]);
 			this.pdfEngine.fetchTexFiles(newFileNames, this.packageCacheFolderPath);
-			console.log(r);
 			this.plugin.settings.packageCache = r;
 			this.plugin.saveSettings().then();
 		});
@@ -348,10 +346,7 @@ export class SwiftlatexRender {
 		const filePath=path.join(this.cacheFolderPath, `${key}.pdf`)
 		if (fs.existsSync(filePath)) {
 			fs.rmSync(filePath);
-		  } else {
-			console.log('File does not exist.',filePath);
-		  }
-		
+		}
 	}
 
 	removeFileFromCache(file_path: string) {
@@ -387,5 +382,12 @@ export class SwiftlatexRender {
 			}
 		}
 		return hashes;
+	}
+}
+class swiftlatexError {
+	version: number;
+	static interpret(error: string): swiftlatexError {
+
+		return new swiftlatexError();
 	}
 }

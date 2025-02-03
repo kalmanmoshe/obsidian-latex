@@ -1,24 +1,35 @@
-///@ts-nocheck
-var Module = typeof Module != "undefined" ? Module : {};
+////@ts-nocheck
+declare global {
+  interface Window {
+    memlog: string;
+    initmem?: any;
+    mainfile: string;
+    texlive_endpoint: string;
+  }
+}
+import Fs from "fs";
+var Module: any = typeof Module !== "undefined" ? Module : {};
 const TEXCACHEROOT = "/tex";
 const WORKROOT = "/work";
-var Module = {};
 self.memlog = "";
 self.initmem = undefined;
 self.mainfile = "main.tex";
 self.texlive_endpoint = "https://texlive2.swiftlatex.com/";
 
-Module["print"] = function (a) {
+Module["print"] = function (a: string) {
   self.memlog += a + "\n";
 };
-Module["printErr"] = function (a) {
+Module["printErr"] = function (a: string) {
   self.memlog += a + "\n";
   console.log(a);
 };
+
 Module["preRun"] = function () {
   FS.mkdir(TEXCACHEROOT);
   FS.mkdir(WORKROOT);
 };
+
+
 function _allocate(content) {
   let res = _malloc(content.length);
   HEAPU8.set(new Uint8Array(content), res);

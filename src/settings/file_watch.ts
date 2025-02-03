@@ -1,4 +1,4 @@
-import LatexSuitePlugin from "../main";
+
 import { Vault, TFile, TFolder, TAbstractFile, Notice, debounce } from "obsidian";
 import { Snippet } from "../snippets/snippets";
 import { parseSnippets, parseSnippetVariables, type SnippetVariables } from "../snippets/parse";
@@ -28,14 +28,14 @@ function isInFolder(file: TFile, dir: TFolder) {
 	return false;
 }
 
-function fileIsInFolder(plugin: LatexSuitePlugin, folderPath: string, file: TFile) {
+function fileIsInFolder(plugin: Moshe, folderPath: string, file: TFile) {
 	const snippetDir = plugin.app.vault.getAbstractFileByPath(folderPath);
 	const isFolder = snippetDir instanceof TFolder;
 
 	return (isFolder && isInFolder(file, snippetDir));
 }
 
-const refreshFromFiles = debounce(async (plugin: LatexSuitePlugin) => {
+const refreshFromFiles = debounce(async (plugin: Moshe) => {
 	if (!(plugin.settings.loadSnippetVariablesFromFile || plugin.settings.loadSnippetsFromFile)) {
 		return;
 	}
@@ -44,29 +44,51 @@ const refreshFromFiles = debounce(async (plugin: LatexSuitePlugin) => {
 
 }, 500, true);
 
-export const onFileChange = async (plugin: LatexSuitePlugin, file: TAbstractFile) => {
-	if (!(file instanceof TFile)) return;
 
-	if (plugin.settings.loadSnippetVariablesFromFile && file.path === plugin.settings.snippetVariablesFileLocation
-		|| plugin.settings.loadSnippetsFromFile && file.path === plugin.settings.snippetsFileLocation
-		|| fileIsInFolder(plugin, plugin.settings.snippetVariablesFileLocation, file)
-		|| fileIsInFolder(plugin, plugin.settings.snippetsFileLocation, file)
+const filePathMatch=(plugin: Moshe, file: TFile)=>{
+	const {
+		snippetVariablesFileLocation: snippetVariablesDir,
+		snippetsFileLocation: snippetsDir,
+		loadSnippetVariablesFromFile,
+		loadSnippetsFromFile,
+	  } = plugin.settings;
+	const match = (enabled: boolean, dir: string) => ({
+		enabled,
+		isInFolder: fileIsInFolder(plugin, dir, file),
+		isFile: file.path === dir,
+	  });
+	return {
+    snippetVariables: match(loadSnippetVariablesFromFile, snippetVariablesDir),
+    snippets: match(loadSnippetsFromFile, snippetsDir),
+  };
+}
+
+export const onFileChange = async (plugin: Moshe, file: TAbstractFile) => {
+	if (!(file instanceof TFile)) return;
+	const {snippetVariables, snippets} = filePathMatch(plugin, file);
+	if (snippetVariables.enabled &&snippetVariables.isFile
+		|| snippets.enabled &&snippets.isFile
+		|| snippetVariables.isInFolder
+		|| snippets.isInFolder
 	) {
 		refreshFromFiles(plugin);
 	}
 }
 
-export const onFileCreate = (plugin: LatexSuitePlugin, file: TAbstractFile) => {
-	if (!(file instanceof TFile)) return;
 
-	if (plugin.settings.loadSnippetVariablesFromFile && fileIsInFolder(plugin,plugin.settings.snippetVariablesFileLocation, file)
-		|| plugin.settings.loadSnippetsFromFile && fileIsInFolder(plugin,plugin.settings.snippetsFileLocation, file)
-	) {
+export const onFileCreate = (plugin: Moshe, file: TAbstractFile) => {
+	if (!(file instanceof TFile)) return;
+	const {snippetVariables, snippets} = filePathMatch(plugin, file);
+	
+	const shouldLoadSnippetVars = snippetVariables.enabled && snippetVariables.isInFolder;
+	const shouldLoadSnippets = snippets.enabled && snippets.isInFolder;
+
+	if (shouldLoadSnippetVars || shouldLoadSnippets) {
 		refreshFromFiles(plugin);
 	}
 }
 
-export const onFileDelete = (plugin: LatexSuitePlugin, file: TAbstractFile) => {
+export const onFileDelete = (plugin: Moshe, file: TAbstractFile) => {
 	if (!(file instanceof TFile)) return;
 
 	const snippetVariablesDir = plugin.app.vault.getAbstractFileByPath(plugin.settings.snippetVariablesFileLocation);
@@ -105,7 +127,7 @@ interface FileSets {
 	snippetOrVariableFiles: Set<TFile>;
 }
 
-export function getFileSets(plugin: LatexSuitePlugin): FileSets {
+export function getFileSets(plugin: Moshe): FileSets {
 	const variablesFolder =
 		plugin.settings.loadSnippetVariablesFromFile
 		? getFilesWithin(plugin.app.vault, plugin.settings.snippetVariablesFileLocation)
@@ -123,7 +145,7 @@ export function getFileSets(plugin: LatexSuitePlugin): FileSets {
 	return {definitelyVariableFiles, definitelySnippetFiles, snippetOrVariableFiles};
 }
 
-export async function getVariablesFromFiles(plugin: LatexSuitePlugin, files: FileSets) {
+export async function getVariablesFromFiles(plugin: Moshe, files: FileSets) {
 	const snippetVariables: SnippetVariables = {};
 
 	for (const file of files.definitelyVariableFiles) {
@@ -140,7 +162,7 @@ export async function getVariablesFromFiles(plugin: LatexSuitePlugin, files: Fil
 	return snippetVariables;
 }
 
-export async function tryGetVariablesFromUnknownFiles(plugin: LatexSuitePlugin, files: FileSets) {
+export async function tryGetVariablesFromUnknownFiles(plugin: Moshe, files: FileSets) {
 	const snippetVariables: SnippetVariables = {};
 
 	for (const file of files.snippetOrVariableFiles) {
@@ -169,7 +191,7 @@ export async function getPreambleFromFiles(
 }
 
 export async function getSnippetsFromFiles(
-	plugin: LatexSuitePlugin,
+	plugin: Moshe,
 	files: FileSets,
 	snippetVariables: SnippetVariables
 ) {

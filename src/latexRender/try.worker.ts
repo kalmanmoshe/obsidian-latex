@@ -8,7 +8,6 @@ declare global {
   }
 }
 import Fs from "fs";
-export default self
 var Module: any = typeof Module !== "undefined" ? Module : {};
 const TEXCACHEROOT = "/tex";
 const WORKROOT = "/work";
