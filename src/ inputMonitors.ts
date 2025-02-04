@@ -82,12 +82,12 @@ export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
   }
 };
 export const onTransaction = (update: ViewUpdate) => {
-	if(update.transactions[0]&&update.transactions[0].docChanged){
+	/*if(update.transactions[0]&&update.transactions[0].docChanged){
 		const ctx=Context.fromView(update.view);
 		if(ctx.codeblockLanguage==="tikz"){
 			suggestor.open(ctx,update.view)
 		}
-	}
+	}*/
 
 	const settings = getLatexSuiteConfig(update.state);
 

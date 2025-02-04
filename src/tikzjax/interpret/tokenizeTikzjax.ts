@@ -424,7 +424,7 @@ export function getPreamble(app: App):string{
     if (adapter instanceof FileSystemAdapter) {
         const vaultPath = adapter.getBasePath();
         const preamblePath = path.join(vaultPath, 'obsidian','data', 'Files', 'preamble.sty');
-        styContent = getStyFileContent(preamblePath);
+        //styContent = getStyFileContent(preamblePath);
     }
     styContent=styContent.split('\n').filter(line=>!line.match(/(int|frac)/)).join('\n')
 

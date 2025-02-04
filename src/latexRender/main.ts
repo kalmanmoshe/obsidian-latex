@@ -12,6 +12,7 @@ import { StringMap } from 'src/settings/settings.js';
 import { getPreamble } from 'src/tikzjax/interpret/tokenizeTikzjax';
 const { exec } = require('child_process');
 let parse: any;
+import Queue from 'bee-queue';
 import('@unified-latex/unified-latex-util-parse').then(module => {
 	parse = module.parse;
 });
@@ -29,26 +30,31 @@ const waitFor = async (condFunc: () => boolean) => {
 		}
 	});
   };
-  
+
+const pdfQueue = new Queue('pdfConversion', {
+// Optional settings (default values shown):
+removeOnSuccess: true, // Remove job from Redis on success
+redis: {
+	host: '127.0.0.1',
+	port: 6379,
+}
+});
+
 
 export class SwiftlatexRender {
 	plugin: Moshe;
 	cacheFolderPath: string;
 	packageCacheFolderPath: string;
-	pluginFolderPath: string;
 	pdfEngine: PdfTeXEngine;
-
 	cache: Map<string, Set<string>>; // Key: md5 hash of latex source. Value: Set of file path names.
 	async onload(plugin: Moshe) {
 		this.plugin = plugin;
 		await this.loadCache();
-		this.pluginFolderPath = path.join(this.getVaultPath(), this.plugin.app.vault.configDir, "plugins/swiftlatex-render/");
 		// initialize the latex compiler
 		this.pdfEngine = new PdfTeXEngine();
 		await this.pdfEngine.loadEngine();
 		await this.loadPackageCache();
 		this.pdfEngine.setTexliveEndpoint(this.plugin.settings.package_url);
-		
 		
 	}
 	universalCodeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext){
@@ -65,7 +71,7 @@ export class SwiftlatexRender {
 		}
 	}
 
-	getVaultPath() {
+	private getVaultPath() {
 		if (this.plugin.app.vault.adapter instanceof FileSystemAdapter) {
 			return this.plugin.app.vault.adapter.getBasePath();
 		} else {
@@ -73,16 +79,19 @@ export class SwiftlatexRender {
 		}
 	}
 
-	async loadCache() {
+	private async loadCache() {
 		const cacheFolderParentPath = path.join(this.getVaultPath(), this.plugin.app.vault.configDir, "swiftlatex-render-cache");
+		//if swiftlatex-render-cache folder does not exist, create it
 		if (!fs.existsSync(cacheFolderParentPath)) {
 			fs.mkdirSync(cacheFolderParentPath);
 		}
 		this.cacheFolderPath = path.join(cacheFolderParentPath, "pdf-cache");
+		//if pdf-cache folder does not exist, create it
 		if (!fs.existsSync(this.cacheFolderPath)) {
 			fs.mkdirSync(this.cacheFolderPath);
 			this.cache = new Map();
 		} else {
+			console.log("Loading cache from", this.cacheFolderPath,this.plugin.settings.cache);
 			this.cache = new Map(this.plugin.settings.cache);
 			// For some reason `this.cache` at this point is actually `Map<string, Array<string>>`
 			for (const [k, v] of this.cache) {
@@ -92,7 +101,7 @@ export class SwiftlatexRender {
 	}
 	
 
-	async loadPackageCache() {
+	private async loadPackageCache() {
 		const cacheFolderParentPath = path.join(this.getVaultPath(), this.plugin.app.vault.configDir, "swiftlatex-render-cache");
 		if (!fs.existsSync(cacheFolderParentPath)) {
 			fs.mkdirSync(cacheFolderParentPath);
@@ -136,16 +145,16 @@ export class SwiftlatexRender {
 	);
 	}
 
-	unloadCache() {
+	private unloadCache() {
 		fs.rmdirSync(this.cacheFolderPath, { recursive: true });
 	}
 
 
-	hashLatexSource(source: string) {
+	private hashLatexSource(source: string) {
 		return Md5.hashStr(source.replace(/\s/g, ''))
 	}
 
-	async pdfToHtml(pdfData: Buffer<ArrayBufferLike>) {
+	private async pdfToHtml(pdfData: Buffer<ArrayBufferLike>) {
 		const {width, height} = await this.getPdfDimensions(pdfData);
 		const ratio = width / height;
 		const pdfblob = new Blob([pdfData], { type: 'application/pdf' });
@@ -160,14 +169,14 @@ export class SwiftlatexRender {
 		};
 	}
 	
-	async getPdfDimensions(pdf: any): Promise<{width: number, height: number}> {
+	private async getPdfDimensions(pdf: any): Promise<{width: number, height: number}> {
 		const pdfDoc = await PDFDocument.load(pdf);
 		const firstPage = pdfDoc.getPages()[0];
 		const {width, height} = firstPage.getSize();
 		return {width, height};
 	}
 
-	pdfToSVG(pdfData: Buffer<ArrayBufferLike>) {
+	private pdfToSVG(pdfData: Buffer<ArrayBufferLike>): Promise<string> {
 		return new Promise((resolve, reject) => {
 			fs.writeFileSync('input.pdf', pdfData);
 
@@ -200,21 +209,23 @@ export class SwiftlatexRender {
 	private async renderLatexToElement(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
 		return new Promise<void>((resolve, reject) => {
 			const md5Hash = this.hashLatexSource(source);
-			const pdfPath = path.join(this.cacheFolderPath, `${md5Hash}.svg`);
+			const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.svg`);
 
 			// PDF file has already been cached
 			// Could have a case where pdfCache has the key but the cached file has been deleted
-			if (this.cache.has(md5Hash) && fs.existsSync(pdfPath)) {
-				const pdfData = fs.readFileSync(pdfPath);
-				this.translatePDF(pdfData, el);
+			if (this.cache.has(md5Hash) && fs.existsSync(dataPath)) {
+				const data = fs.readFileSync(dataPath, 'utf8');
+				el.innerHTML = data
 			}
 			else {
 				this.renderLatexToPDF(source, md5Hash).then((result: CompileResult) => {
-					this.translatePDF(result.pdf, el);
-					fs.writeFileSync(pdfPath,el.innerHTML);
+					this.translatePDF(result.pdf, el).then(() => {
+						fs.writeFileSync(dataPath,el.innerHTML);
+					});
 				}
 				).catch(err => {
-					console.warn();
+					SwiftlatexError.interpret(err);
+					console.error(err,source);
 					const errorDiv = el.createEl('div', { text: `swiftlatexError`/*text: `${err}`*/, attr: { class: 'block-latex-error' } });
 					reject(err); 
 				});				
@@ -303,7 +314,7 @@ export class SwiftlatexRender {
 		if (!this.cache.has(hash)) {
 			this.cache.set(hash, new Set());
 		}
-		this.cache.get(hash)?.add(file_path);
+		this.cache.get(hash)!.add(file_path);
 	}
 
 	private async cleanUpCache() {
@@ -313,15 +324,10 @@ export class SwiftlatexRender {
 				file_paths.add(fp);
 			}
 		}
-
 		for (const file_path of file_paths) {
 			const file = this.plugin.app.vault.getAbstractFileByPath(file_path);
 			if (file == null) {
 				this.removeFileFromCache(file_path);
-			} else {
-				if (file instanceof TFile) {
-					await this.removeUnusedCachesForFile(file);
-				}
 			}
 		}
 		await this.saveCache();
@@ -384,10 +390,10 @@ export class SwiftlatexRender {
 		return hashes;
 	}
 }
-class swiftlatexError {
+class SwiftlatexError {
 	version: number;
-	static interpret(error: string): swiftlatexError {
-
-		return new swiftlatexError();
+	static interpret(error: string): SwiftlatexError {
+		//console.error(error);
+		return new SwiftlatexError();
 	}
 }
