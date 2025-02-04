@@ -40,6 +40,8 @@ import { processMathBlock } from "./mathParser/iNeedToFindABetorPlace";
  * - Improve the hashing system to hash the same string to the same value, excluding comments, spaces, and new lines.
  * - Add an error catch system to avoid reevaluating already proven faulty code.
  * - Don't save files as PDFs save them as SVG as it removes a step in the processing
+ * - Make a queue in which each.code block will be processed so you dont have to multiple processes at once.
+ * - in said  view remove from queue if new one was added
  */
 
 
@@ -101,7 +103,7 @@ export default class Moshe extends Plugin {
 		this.editorExtensions.push([
 			getLatexSuiteConfigExtension(this.CMSettings),
 			Prec.highest(EditorView.domEventHandlers({ "keydown": onKeydown })),
-      Prec.default(EditorView.domEventHandlers({"scroll": onScroll, "click": onClick, "mousemove": onMove })),
+      //Prec.default(EditorView.domEventHandlers({"scroll": onScroll, "click": onClick, "mousemove": onMove })),
       Prec.lowest([colorPairedBracketsPlugin.extension, rtlForcePlugin.extension,HtmlBackgroundPlugin.extension]),
       EditorView.updateListener.of(onTransaction),
 			snippetExtensions,

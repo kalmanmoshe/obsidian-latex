@@ -109,6 +109,7 @@ Module["onAbort"] = function () {
   });
   return;
 };
+
 function compileLaTeXRoutine() {
   prepareExecutionContext();
   const setMainFunction = cwrap("setMainEntry", "number", ["string"]);
