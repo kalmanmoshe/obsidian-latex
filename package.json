@@ -51,6 +51,8 @@
 		"localforage": "^1.10.0",
 		"mathjax": "^3.2.2",
 		"md5": "^2.3.0",
+		"nerdamer": "^1.1.13",
+		"nerdamer-prime": "^1.2.4",
 		"pdf-poppler": "^0.2.1",
 		"pdfjs-dist": "^4.0.379",
 		"rollup": "^4.12.0",

@@ -514,18 +514,25 @@
       [
         "מתמטיקה/איגור/הסתברות.md"
       ]
+    ],
+    [
+      "1a08489a3bf9f48f0155ef334aea29e7",
+      [
+        "Untitled.md"
+      ]
+    ],
+    [
+      "c820da9b94e4420ada73b95430d578da",
+      [
+        "Untitled.md"
+      ]
     ]
   ],
   "packageCache": [
     {
       "26/tikzlibrarypgfplots.surfshading.code.tex": 1,
       "26/tikzlibraryarrows.meta.code.tex": 1,
-      "26/main.aux": 1,
-      "33/cmbx10.vf": 1,
-      "33/cmr10.vf": 1,
-      "33/cmr7.vf": 1,
-      "33/cmmi10.vf": 1,
-      "33/cmsy10.vf": 1
+      "26/main.aux": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -540,6 +547,14 @@
       "26/standalone.cfg": "/tex/standalone.cfg",
       "26/article.cls": "/tex/article.cls",
       "26/size10.clo": "/tex/size10.clo",
+      "26/pgfplots.sty": "/tex/pgfplots.sty",
+      "26/pgfplots.revision.tex": "/tex/pgfplots.revision.tex",
+      "26/graphicx.sty": "/tex/graphicx.sty",
+      "26/graphics.sty": "/tex/graphics.sty",
+      "26/trig.sty": "/tex/trig.sty",
+      "26/graphics.cfg": "/tex/graphics.cfg",
+      "26/pdftex.def": "/tex/pdftex.def",
+      "26/pgfsys-luatex.def": "/tex/pgfsys-luatex.def",
       "26/tikz.sty": "/tex/tikz.sty",
       "26/pgf.sty": "/tex/pgf.sty",
       "26/pgfrcs.sty": "/tex/pgfrcs.sty",
@@ -550,11 +565,6 @@
       "26/pgfrcs.code.tex": "/tex/pgfrcs.code.tex",
       "26/pgf.revision.tex": "/tex/pgf.revision.tex",
       "26/pgfcore.sty": "/tex/pgfcore.sty",
-      "26/graphicx.sty": "/tex/graphicx.sty",
-      "26/graphics.sty": "/tex/graphics.sty",
-      "26/trig.sty": "/tex/trig.sty",
-      "26/graphics.cfg": "/tex/graphics.cfg",
-      "26/pdftex.def": "/tex/pdftex.def",
       "26/pgfsys.sty": "/tex/pgfsys.sty",
       "26/pgfsys.code.tex": "/tex/pgfsys.code.tex",
       "26/pgfkeys.code.tex": "/tex/pgfkeys.code.tex",
@@ -611,9 +621,6 @@
       "26/pgflibraryplothandlers.code.tex": "/tex/pgflibraryplothandlers.code.tex",
       "26/pgfmodulematrix.code.tex": "/tex/pgfmodulematrix.code.tex",
       "26/tikzlibrarytopaths.code.tex": "/tex/tikzlibrarytopaths.code.tex",
-      "26/pgfplots.sty": "/tex/pgfplots.sty",
-      "26/pgfplots.revision.tex": "/tex/pgfplots.revision.tex",
-      "26/pgfsys-luatex.def": "/tex/pgfsys-luatex.def",
       "26/pgfplots.code.tex": "/tex/pgfplots.code.tex",
       "26/pgfplotscore.code.tex": "/tex/pgfplotscore.code.tex",
       "26/pgfplotssysgeneric.code.tex": "/tex/pgfplotssysgeneric.code.tex",
@@ -652,25 +659,6 @@
       "26/pgflibrarydecorations.pathreplacing.code.tex": "/tex/pgflibrarydecorations.pathreplacing.code.tex",
       "26/tikzlibraryplotmarks.code.tex": "/tex/tikzlibraryplotmarks.code.tex",
       "26/pgflibraryplotmarks.code.tex": "/tex/pgflibraryplotmarks.code.tex",
-      "26/l3backend-pdfmode.def": "/tex/l3backend-pdfmode.def",
-      "26/supp-pdf.mkii": "/tex/supp-pdf.mkii",
-      "3/cmr12": "/tex/cmr12.tfm",
-      "3/cmr8": "/tex/cmr8.tfm",
-      "3/cmr6": "/tex/cmr6.tfm",
-      "3/cmmi12": "/tex/cmmi12.tfm",
-      "3/cmmi8": "/tex/cmmi8.tfm",
-      "3/cmmi6": "/tex/cmmi6.tfm",
-      "3/cmsy10": "/tex/cmsy10.tfm",
-      "3/cmsy8": "/tex/cmsy8.tfm",
-      "3/cmsy6": "/tex/cmsy6.tfm",
-      "3/cmbx12": "/tex/cmbx12.tfm",
-      "11/pdftex.map": "/tex/pdftex.map",
-      "32/cmbx12.pfb": "/tex/cmbx12.pfb",
-      "32/cmmi12.pfb": "/tex/cmmi12.pfb",
-      "32/cmr10.pfb": "/tex/cmr10.pfb",
-      "32/cmr12.pfb": "/tex/cmr12.pfb",
-      "32/cmmi10.pfb": "/tex/cmmi10.pfb",
-      "32/cmr7.pfb": "/tex/cmr7.pfb",
       "26/ifthen.sty": "/tex/ifthen.sty",
       "26/pgflibraryarrows.meta.code.tex": "/tex/pgflibraryarrows.meta.code.tex",
       "26/tikzlibraryangles.code.tex": "/tex/tikzlibraryangles.code.tex",
@@ -695,14 +683,9 @@
       "26/pgflibraryfadings.code.tex": "/tex/pgflibraryfadings.code.tex",
       "26/tikzlibraryshapes.symbols.code.tex": "/tex/tikzlibraryshapes.symbols.code.tex",
       "26/pgflibraryshapes.symbols.code.tex": "/tex/pgflibraryshapes.symbols.code.tex",
-      "32/cmsy8.pfb": "/tex/cmsy8.pfb",
-      "3/cmr17": "/tex/cmr17.tfm",
-      "32/cmsy10.pfb": "/tex/cmsy10.pfb",
-      "32/cmmi7.pfb": "/tex/cmmi7.pfb",
-      "32/cmr5.pfb": "/tex/cmr5.pfb",
-      "32/cmsy7.pfb": "/tex/cmsy7.pfb",
-      "3/cmbx10": "/tex/cmbx10.tfm",
-      "32/cmbx10.pfb": "/tex/cmbx10.pfb"
+      "26/l3backend-pdfmode.def": "/tex/l3backend-pdfmode.def",
+      "26/supp-pdf.mkii": "/tex/supp-pdf.mkii",
+      "3/cmr12": "/tex/cmr12.tfm"
     },
     {},
     {}

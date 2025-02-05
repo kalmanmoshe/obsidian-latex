@@ -4,6 +4,8 @@ import { DebugModal, InfoModal } from "src/desplyModals";
 import { MathInfo, MathPraiser } from "./mathEngine";
 import { Axis } from "src/tikzjax/tikzjax";
 import { FormatTikzjax } from "src/tikzjax/interpret/tokenizeTikzjax";
+import nerdamer from "nerdamer";
+import "nerdamer/Solve";
 
 export function processMathBlock(source: string, mainContainer: HTMLElement): void {
     
