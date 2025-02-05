@@ -42,6 +42,7 @@ import { processMathBlock } from "./mathParser/iNeedToFindABetorPlace";
  * - Don't save files as PDFs save them as SVG as it removes a step in the processing
  * - Make a queue in which each.code block will be processed so you dont have to multiple processes at once.
  * - in said  view remove from queue if new one was added
+ * - 
  */
 
 
