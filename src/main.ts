@@ -1,9 +1,11 @@
+//git fetch origin
 //git reset --hard #Undo all changes
 //git fetch --all #Don't use unless necessity. It will overwrite all local changes
 //git branch #Check current branch
 
+
 import {Plugin, MarkdownRenderer,addIcon, App, Modal, Component, Setting,Notice, WorkspaceWindow,loadMathJax,renderMath, MarkdownView, EditorSuggest, EditorSuggestTriggerInfo, EditorPosition, Editor, TFile, EditorSuggestContext, FileSystemAdapter} from "obsidian";
-import * as chokidar from "chokidar";
+import nerdamer from "nerdamer";
 
 import {LatexSuitePluginSettings, DEFAULT_SETTINGS, LatexSuiteCMSettings, processLatexSuiteSettings} from "./settings/settings";
 import { LatexSuiteSettingTab } from "./settings/settings_tab";
@@ -61,10 +63,14 @@ export default class Moshe extends Plugin {
 		this.loadIcons();
 		this.addSettingTab(new LatexSuiteSettingTab(this.app, this));
 		this.watchFiles();
-		this.addEditorCommands();
-    
+    this.addEditorCommands();
+    var eq = nerdamer('a*x^2+b*x=y').evaluate();
+    console.log(eq.toString());
+    var solutions = eq.solveFor('x').toString();
+    console.log(solutions);
 
     this.app.workspace.onLayoutReady(() => {
+      if(1===2*2)
       this.loadSwiftLatexRender().then(()=>{{
         this.addSyntaxHighlighting();
         this.setCodeblocks();

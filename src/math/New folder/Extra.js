@@ -7,12 +7,9 @@
  */
 
 /* global module */
-
-if((typeof module) !== 'undefined') {
-    var nerdamer = require('./nerdamer.core.js');
-    require('./Calculus');
-    require('./Algebra');
-}
+import nerdamer from '../nerdamer.core';
+import './Calculus';
+import './Algebra';
 
 (function () {
     "use strict";

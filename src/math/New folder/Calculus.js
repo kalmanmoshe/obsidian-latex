@@ -6,11 +6,8 @@
  * Email : martin.r.donk@gmail.com
  * Source : https://github.com/jiggzson/nerdamer
  */
-
-if((typeof module) !== 'undefined' && typeof nerdamer === 'undefined') {
-    var nerdamer = require('./nerdamer.core.js');
-    require('./Algebra.js');
-}
+import nerdamer from './nerdamer.core.js';
+import './Algebra.js';
 
 (function () {
     "use strict";
