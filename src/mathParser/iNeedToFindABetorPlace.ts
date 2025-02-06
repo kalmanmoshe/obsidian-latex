@@ -4,11 +4,10 @@ import { DebugModal, InfoModal } from "src/desplyModals";
 import { MathInfo, MathPraiser } from "./mathEngine";
 import { Axis } from "src/tikzjax/tikzjax";
 import { FormatTikzjax } from "src/tikzjax/interpret/tokenizeTikzjax";
-import nerdamer from "nerdamer";
-import "nerdamer/Solve";
+import nerdamer from "../nerdamer/all.min";
 
 export function processMathBlock(source: string, mainContainer: HTMLElement): void {
-    
+    console.log("Processing math block");
     mainContainer.classList.add("math-container");
     
     const userVariables: { variable: string; value: string }[] = [];
@@ -31,11 +30,6 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
       else{skippedIndexes++;}
     });
   }
-  
-  
-  
-  
-  
   
   class ProcessMath {
     mathInput: any;
@@ -101,14 +95,14 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
           case "variable":
             break;
           default:
-            const math=String.raw`(2+3)^{2}`
-            this.result = new MathPraiser();
-            this.result.setInput(math);
-            console.log(this.result.toStringLatex())
+            
   
-            this.addInfoModal(new InfoModal(this.app, this.result.mathInfo));
-            this.addDebugModel(new DebugModal(this.app, this.result.mathInfo.debugInfo));
-            this.mathInput=this.result.input;
+            //this.addInfoModal(new InfoModal(this.app, this.result.mathInfo));
+            //this.addDebugModel(new DebugModal(this.app, this.result.mathInfo.debugInfo));
+            const a=nerdamer.convertFromLaTeX(this.mathInput)
+            const b=nerdamer.solve(a,'x')
+            this.result=nerdamer.convertToLaTeX(b)
+            console.log(this.result)
             /*
             // eslint-disable-next-line no-case-declarations
             this.result = new MathPraiser(this.mathInput);
@@ -124,11 +118,11 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
       }
     }
   
-    private addInputAndResultDiv(inputDiv: HTMLElement, resultDiv: HTMLElement, input: string, result: any) {
+    private addInputAndResultDiv(inputDiv: HTMLElement, resultDiv: HTMLElement, input: string, result: string) {
       inputDiv.appendChild(renderMath(input,true))
       //MarkdownRenderer.renderMarkdown(`\${${input}}$`, inputDiv, "", new Component());
       //const resultOutput = /(true|false)/.test(result) ? result : `\${${result}}$`;
-      resultDiv.appendChild(renderMath(String(roundBySettings(result.solutionToString())),true))
+      resultDiv.appendChild(renderMath(String(roundBySettings(result)),true))
       //MarkdownRenderer.renderMarkdown(resultOutput, resultDiv, "", new Component());
     }
   

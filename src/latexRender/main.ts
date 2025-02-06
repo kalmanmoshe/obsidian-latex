@@ -31,6 +31,7 @@ const waitFor = async (condFunc: () => boolean) => {
 	});
   };
 
+  /*
 const pdfQueue = new Queue('pdfConversion', {
 // Optional settings (default values shown):
 removeOnSuccess: true, // Remove job from Redis on success
@@ -38,7 +39,7 @@ redis: {
 	host: '127.0.0.1',
 	port: 6379,
 }
-});
+});*/
 
 
 export class SwiftlatexRender {
