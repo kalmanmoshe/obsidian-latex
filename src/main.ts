@@ -2,10 +2,12 @@
 //git reset --hard #Undo all changes
 //git fetch --all #Don't use unless necessity. It will overwrite all local changes
 //git branch #Check current branch
-
+//git remote set-url origin https://github.com/kalmanmoshe/Doing-it-myself.git #Change remote url
+//git pull --all#Pull all branches
+//git push --all#Push all branches
 
 import {Plugin, MarkdownRenderer,addIcon, App, Modal, Component, Setting,Notice, WorkspaceWindow,loadMathJax,renderMath, MarkdownView, EditorSuggest, EditorSuggestTriggerInfo, EditorPosition, Editor, TFile, EditorSuggestContext, FileSystemAdapter} from "obsidian";
-import nerdamer from "nerdamer";
+
 
 import {LatexSuitePluginSettings, DEFAULT_SETTINGS, LatexSuiteCMSettings, processLatexSuiteSettings} from "./settings/settings";
 import { LatexSuiteSettingTab } from "./settings/settings_tab";
@@ -34,7 +36,16 @@ import { onClick, onKeydown, onMove, onScroll, onTransaction } from "./ inputMon
 import { SwiftlatexRender } from "./latexRender/main";
 import { processMathBlock } from "./mathParser/iNeedToFindABetorPlace";
 
+/*
 
+| File | Purpose |
+| --- | --- |
+| **`nerdamer.core.js`** | Main math engine (parsing, evaluation, symbolic math). |
+| **`nerdamer.all.js`** | Loads everything (Algebra, Calculus, and Solvers). |
+| **`Algebra.js`** | Implements polynomial manipulation, factoring, simplifications. |
+| **`Calculus.js`** | Implements differentiation and integration. |
+| **`Solve.js`** | Adds equation-solving capabilities. |
+*/
 /**
  * Assignments:
  * - Create code that will auto-insert metadata into files.
@@ -64,10 +75,6 @@ export default class Moshe extends Plugin {
 		this.addSettingTab(new LatexSuiteSettingTab(this.app, this));
 		this.watchFiles();
     this.addEditorCommands();
-    var eq = nerdamer('a*x^2+b*x=y').evaluate();
-    console.log(eq.toString());
-    var solutions = eq.solveFor('x').toString();
-    console.log(solutions);
 
     this.app.workspace.onLayoutReady(() => {
       if(1===2*2)
@@ -83,10 +90,10 @@ export default class Moshe extends Plugin {
 	}
 
   private setCodeblocks(){
+    console.log("setting codeblocks")
     this.registerMarkdownCodeBlockProcessor("math", processMathBlock.bind(this));
-    this.registerMarkdownCodeBlockProcessor("tikz", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
-		this.registerMarkdownCodeBlockProcessor("latex", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
-		this.registerMarkdownCodeBlockProcessor("latexsvg", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
+    //this.registerMarkdownCodeBlockProcessor("tikz", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
+		//this.registerMarkdownCodeBlockProcessor("latex", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
   }
   private async loadSwiftLatexRender(){
     this.swiftlatexRender=new SwiftlatexRender()
