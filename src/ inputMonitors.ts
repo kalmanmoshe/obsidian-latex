@@ -21,43 +21,6 @@ spellcheck="false" autocorrect="off" translate="no" contenteditable="true"
 
 */
 
-export const onScroll=(event: Event,view: EditorView)=>{
-	suggestor.updatePositionFromView(view);
-}
-
-
-export const onMove=(event: MouseEvent,view: EditorView)=>{
-	if(!suggestor.isSuggesterDeployed()){return}
-	const suggestionItems = document.body.querySelectorAll(".suggestion-item");
-	const clickedSuggestion = Array.from(suggestionItems).find((item) =>
-		item.contains(event.target as Node)
-	);
-	if (clickedSuggestion) {
-		const index = Array.from(suggestionItems).indexOf(clickedSuggestion);
-		suggestor.setSelectionIndex(index)
-	}
-}
-
-
-export const onClick=(event: MouseEvent,view: EditorView)=>{
-	if(!suggestor.isSuggesterDeployed()){return}
-	const suggestionItems = document.body.querySelectorAll(".suggestion-item");
-
-	// Check if the click is on a suggestion item
-	const clickedSuggestion = Array.from(suggestionItems).find((item) =>
-		item.contains(event.target as Node)
-	);
-	if (clickedSuggestion) {
-		suggestor.selectDropdownItem(view);
-	}
-	const dropdownItem = document.body.querySelector(".suggestion-dropdown");
-	const clickedDropdown = Array.from(suggestionItems).find((item) =>
-		item.contains(event.target as Node)
-	);
-	if(!clickedDropdown){
-		suggestor.close()
-	}
-}
 
 export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
 	let key = event.key;
@@ -81,14 +44,8 @@ export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
 		setCursor(view,view.state.selection.main.from+key.length)
   }
 };
-export const onTransaction = (update: ViewUpdate) => {
-	/*if(update.transactions[0]&&update.transactions[0].docChanged){
-		const ctx=Context.fromView(update.view);
-		if(ctx.codeblockLanguage==="tikz"){
-			suggestor.open(ctx,update.view)
-		}
-	}*/
 
+export const onTransaction = (update: ViewUpdate) => {
 	const settings = getLatexSuiteConfig(update.state);
 
 	// The math tooltip handler is driven by view updates because it utilizes
@@ -160,14 +117,15 @@ export const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, 
 			if (success) return true;
 		}
 	}
-	if (key === "Tab"&&shiftKey) {
-		success = tabout(view, ctx,Direction.Backward);
+	if (key === "Tab" && shiftKey) {
+		const dir=shiftKey?Direction.Backward:Direction.Forward
+		success = tabout(view, ctx,dir);
 		if (success) return true;
-	}
+	}/*
 	if (key === "Tab" || shouldTaboutByCloseBracket(view, key)) {
 		success = tabout(view, ctx,Direction.Forward);
 		if (success) return true;
-	}
+	}*/
 	return false;
 }
 

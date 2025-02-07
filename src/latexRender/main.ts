@@ -12,7 +12,7 @@ import { StringMap } from 'src/settings/settings.js';
 import { getPreamble } from 'src/tikzjax/interpret/tokenizeTikzjax';
 const { exec } = require('child_process');
 let parse: any;
-import Queue from 'bee-queue';
+import async from 'async';
 import('@unified-latex/unified-latex-util-parse').then(module => {
 	parse = module.parse;
 });
@@ -29,17 +29,9 @@ const waitFor = async (condFunc: () => boolean) => {
 		}, 100);
 		}
 	});
-  };
+};
 
-  /*
-const pdfQueue = new Queue('pdfConversion', {
-// Optional settings (default values shown):
-removeOnSuccess: true, // Remove job from Redis on success
-redis: {
-	host: '127.0.0.1',
-	port: 6379,
-}
-});*/
+type Task = { source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext };
 
 
 export class SwiftlatexRender {
@@ -48,6 +40,7 @@ export class SwiftlatexRender {
 	packageCacheFolderPath: string;
 	pdfEngine: PdfTeXEngine;
 	cache: Map<string, Set<string>>; // Key: md5 hash of latex source. Value: Set of file path names.
+	queue: async.QueueObject<Task>;
 	async onload(plugin: Moshe) {
 		this.plugin = plugin;
 		await this.loadCache();
@@ -56,9 +49,24 @@ export class SwiftlatexRender {
 		await this.pdfEngine.loadEngine();
 		await this.loadPackageCache();
 		this.pdfEngine.setTexliveEndpoint(this.plugin.settings.package_url);
-		
+		this.configQueue();
 	}
-	universalCodeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext){
+	configQueue() {
+		this.queue = async.queue((task, done) => {
+			console.log('Processing task, remaining tasks:', this.queue.length());
+			this.renderLatexToElement(task.source, task.el, task.ctx)
+			.then(() => {
+				done();
+			})
+			.catch((err) => {
+				console.error('Error processing task:', err);
+				done(err);
+			});
+		}, 1);
+	}
+	universalCodeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+		this.queue.push({ source, el, ctx });
+		/*
 		source=getPreamble(this.plugin.app)+source+"\n\\end{tikzpicture}\\end{document}"
 		if(!this.pdfEngine.isReady()){
 			throw new Error("SwiftLaTeX: Engine is not ready yet!");
@@ -69,7 +77,7 @@ export class SwiftlatexRender {
 			this.renderLatexToElement(source, el, ctx);
 		} catch (e) {
 			console.error(e);
-		}
+		}*/
 	}
 
 	private getVaultPath() {
@@ -100,7 +108,6 @@ export class SwiftlatexRender {
 			}
 		}
 	}
-	
 
 	private async loadPackageCache() {
 		const cacheFolderParentPath = path.join(this.getVaultPath(), this.plugin.app.vault.configDir, "swiftlatex-render-cache");
@@ -391,6 +398,7 @@ export class SwiftlatexRender {
 		return hashes;
 	}
 }
+
 class SwiftlatexError {
 	version: number;
 	static interpret(error: string): SwiftlatexError {

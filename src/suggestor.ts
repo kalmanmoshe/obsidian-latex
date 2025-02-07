@@ -4,6 +4,9 @@ import { Context } from "./utils/context";
 import { expandSnippets } from "./snippets/snippet_management";
 import { queueSnippet } from "./snippets/codemirror/snippet_queue_state_field";
 import { setCursor } from "./utils/editor_utils";
+import { Editor, EditorPosition, EditorSuggest, EditorSuggestContext, EditorSuggestTriggerInfo, TFile } from "obsidian";
+import Moshe from "./main";
+
 
 class SuggestorTrigger{
 	private text: string
@@ -72,8 +75,117 @@ class SuggestorTrigger{
 		return betweenText
 	}
 }
+export class Suggestor extends EditorSuggest<string>{
+	private plugin: Moshe;
+	/**
+	 * Time of last suggestion list update
+	 * @type {number}
+	 * @private */
+	private lastSuggestionListUpdate = 0;
+	/**
+	 * List of possible suggestions based on current code block
+	 * @type {string[]}
+	 * @private */
+	private localSuggestionCache: string[] = [];
+	constructor(plugin: Moshe) {
+		super(plugin.app);
+		this.plugin = plugin;
+	}
+	onTrigger(cursor: EditorPosition, editor: Editor, file: TFile,) {
+		const currentFileToCursor = editor.getRange({line: 0, ch: 0}, cursor);
+		const indexOfLastCodeBlockStart = currentFileToCursor.lastIndexOf('```');
+		const isMathBlock = currentFileToCursor.slice(indexOfLastCodeBlockStart + 3, indexOfLastCodeBlockStart + 7).toLowerCase() === 'tikz';
+		if (!isMathBlock) { return null; }
+		const currentLineToCursor = editor.getLine(cursor.line).slice(0, cursor.ch);
 
-class Suggestor {
+		const currentLineLastWordStart = currentLineToCursor.search(/[:]?[$@\w\u0370-\u03FF]+$/);
+		// if there is no word, return null
+		if (currentLineLastWordStart === -1) {
+			return null;
+		}
+
+		return {
+			start: {line: cursor.line, ch: currentLineLastWordStart},
+			end: cursor,
+			query: currentLineToCursor.slice(currentLineLastWordStart)
+		};
+	}
+	getSuggestions(context: EditorSuggestContext): string[] | Promise<string[]> {
+		let localSymbols: string [] = [];	
+
+		// check if the last suggestion list update was less than 200ms ago
+		if (performance.now() - this.lastSuggestionListUpdate > 200) {
+			const currentFileToStart = context.editor.getRange({line: 0, ch: 0}, context.start);
+			const indexOfLastCodeBlockStart = currentFileToStart.lastIndexOf('```');
+	
+			if (indexOfLastCodeBlockStart > -1) {
+				//technically there is a risk we aren't in a math block, but we shouldn't have been triggered if we weren't
+				const lastCodeBlockStart = currentFileToStart.lastIndexOf('```');
+				const lastCodeBlockStartToCursor = currentFileToStart.slice(lastCodeBlockStart);
+	
+				// Return all variable names in the last codeblock up to the cursor
+				const matches = lastCodeBlockStartToCursor.matchAll(/^\s*(\S*?)\s*=.*$/gm);
+				// create array from first capture group of matches and remove duplicates
+				localSymbols = [...new Set(Array.from(matches, (match) => 'v|' + match[1]))];
+			}
+
+
+			this.localSuggestionCache = localSymbols;
+			this.lastSuggestionListUpdate = performance.now();
+		} else {
+			localSymbols = this.localSuggestionCache
+		}
+
+		const query_lower = context.query.toLowerCase();
+
+		// case-insensitive filter local suggestions based on query. Don't return value if full match
+		const local_suggestions = localSymbols.filter((value) => value.slice(0, -1).toLowerCase().startsWith(query_lower, 2));
+		local_suggestions.sort((a, b) => a.slice(2).localeCompare(b.slice(2)));
+		
+		// case-insensitive filter mathjs suggestions based on query. Don't return value if full match
+		let suggestions = local_suggestions;
+
+		suggestions = suggestions.concat(["1","2","3","4"]);
+		return suggestions;
+	}
+	renderSuggestion(value: string, el: HTMLElement): void {
+		el.addClasses(["suggestion-item"]);
+		Object.assign(el, {
+			className: "suggestion-item",
+			innerText: value
+		})
+	}
+	selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
+		if (!this.context) return;
+		const editor = this.context.editor;
+		const start = this.context.start;
+		const end = editor.getCursor();
+		queueSnippet(evt.,pos-trigger.length,pos,selectedText)
+		editor.replaceRange(suggestion, start, end);
+		const newCursor = end;
+
+		if (suggestionType === 'f') {
+			newCursor.ch = start.ch + suggestion.length-1;
+		} else {
+			newCursor.ch = start.ch + suggestion.length;
+		}
+		editor.setCursor(newCursor);			
+
+		this.close()
+		
+		const selectedText = item.textContent || "";
+		const pos=this.context.pos;
+		queueSnippet(view,pos-trigger.length,pos,selectedText)
+		const success = expandSnippets(view);
+		view.focus();
+		setCursor(view,calculateNewCursorPosition(trigger,selectedText,pos))
+		return success;
+		
+	}
+	
+}
+
+class Suggesto {
 	private trigger: SuggestorTrigger;
 	private selectionIndex: number=0;
 	private context: Context;
@@ -170,7 +282,7 @@ class Suggestor {
 				suggestor.close();
 				break;
 			case event.key === "Enter":
-				suggestor.selectDropdownItem(view);
+				//suggestor.selectDropdownItem(view);
 				event.preventDefault();
 				break;
 			case event.key === "Escape":
@@ -216,5 +328,3 @@ function calculateNewCursorPosition(triggerText: string, selectedText: string, o
     const lengthDifference = selectedText.length - triggerText.length;
     return originalPos + lengthDifference;
 }
-
-export const suggestor = new Suggestor();
