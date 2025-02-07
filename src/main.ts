@@ -32,7 +32,7 @@ import { snippetExtensions } from "./snippets/codemirror/extensions";
 import { colorPairedBracketsPlugin, highlightCursorBracketsPlugin } from "./editor_extensions/highlight_brackets";
 import { mkConcealPlugin } from "./editor_extensions/conceal";
 import { cursorTooltipBaseTheme, cursorTooltipField,  } from "./editor_extensions/math_tooltip";
-import { onClick, onKeydown, onMove, onScroll, onTransaction } from "./ inputMonitors";
+import { onKeydown,onTransaction } from "./ inputMonitors";
 import { SwiftlatexRender } from "./latexRender/main";
 import { processMathBlock } from "./mathParser/iNeedToFindABetorPlace";
 
@@ -55,7 +55,7 @@ import { processMathBlock } from "./mathParser/iNeedToFindABetorPlace";
  * - Don't save files as PDFs save them as SVG as it removes a step in the processing
  * - Make a queue in which each.code block will be processed so you dont have to multiple processes at once.
  * - in said  view remove from queue if new one was added
- * - 
+ * - codeBlock specific snippets
  */
 
 
@@ -77,11 +77,11 @@ export default class Moshe extends Plugin {
     this.addEditorCommands();
 
     this.app.workspace.onLayoutReady(() => {
-      if(1===2*2)
-      this.loadSwiftLatexRender().then(()=>{{
+      this.loadSwiftLatexRender().then(() => {
+        console.log("loaded swiftlatex")
         this.addSyntaxHighlighting();
         this.setCodeblocks();
-      }})
+      })
     });
     
   }
@@ -92,8 +92,8 @@ export default class Moshe extends Plugin {
   private setCodeblocks(){
     console.log("setting codeblocks")
     this.registerMarkdownCodeBlockProcessor("math", processMathBlock.bind(this));
-    //this.registerMarkdownCodeBlockProcessor("tikz", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
-		//this.registerMarkdownCodeBlockProcessor("latex", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
+    this.registerMarkdownCodeBlockProcessor("tikz", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
+		this.registerMarkdownCodeBlockProcessor("latex", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
   }
   private async loadSwiftLatexRender(){
     this.swiftlatexRender=new SwiftlatexRender()
@@ -117,7 +117,6 @@ export default class Moshe extends Plugin {
 		this.editorExtensions.push([
 			getLatexSuiteConfigExtension(this.CMSettings),
 			Prec.highest(EditorView.domEventHandlers({ "keydown": onKeydown })),
-      //Prec.default(EditorView.domEventHandlers({"scroll": onScroll, "click": onClick, "mousemove": onMove })),
       Prec.lowest([colorPairedBracketsPlugin.extension, rtlForcePlugin.extension,HtmlBackgroundPlugin.extension]),
       EditorView.updateListener.of(onTransaction),
 			snippetExtensions,

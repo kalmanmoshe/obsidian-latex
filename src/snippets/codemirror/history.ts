@@ -11,7 +11,7 @@ export const undidEndSnippet = StateEffect.define();
 
 
 // Enables undoing and redoing snippets, taking care of the tabstops
-export const snippetInvertedEffects = invertedEffects.of(tr => {
+export const snippetInvertedEffects = invertedEffects.of((tr: { effects: any; }) => {
 	const effects = [];
 
 	for (const effect of tr.effects) {
@@ -37,8 +37,6 @@ export const snippetInvertedEffects = invertedEffects.of(tr => {
 export const handleUndoRedo = (update: ViewUpdate) => {
 	const undoTr = update.transactions.find(tr => tr.isUserEvent("undo"));
 	const redoTr = update.transactions.find(tr => tr.isUserEvent("redo"));
-
-
 	for (const tr of update.transactions) {
 		for (const effect of tr.effects) {
 
