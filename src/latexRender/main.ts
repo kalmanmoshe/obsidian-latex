@@ -11,11 +11,9 @@ import Moshe from '../main';
 import { StringMap } from 'src/settings/settings.js';
 import { getPreamble } from 'src/tikzjax/interpret/tokenizeTikzjax';
 const { exec } = require('child_process');
-let parse: any;
 import async from 'async';
-import('@unified-latex/unified-latex-util-parse').then(module => {
-	parse = module.parse;
-});
+import {LatexabstractSyntaxTree} from './parse/parse';
+
 
 const waitFor = async (condFunc: () => boolean) => {
 	return new Promise<void>((resolve) => {
@@ -31,18 +29,19 @@ const waitFor = async (condFunc: () => boolean) => {
 	});
 };
 
-type Task = { source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext };
-
+type Task = { source: string, el: HTMLElement,md5Hash:string, sourcePath: string , blockId: string};
+const catchFileFormat="svg"
 
 export class SwiftlatexRender {
 	plugin: Moshe;
 	cacheFolderPath: string;
 	packageCacheFolderPath: string;
 	pdfEngine: PdfTeXEngine;
-	cache: Map<string, Set<string>>; // Key: md5 hash of latex source. Value: Set of file path names.
+	cache: Map<string, Set<string>>;
 	queue: async.QueueObject<Task>;
 	async onload(plugin: Moshe) {
 		this.plugin = plugin;
+		this.validateCatchDirectory();
 		await this.loadCache();
 		// initialize the latex compiler
 		this.pdfEngine = new PdfTeXEngine();
@@ -52,33 +51,46 @@ export class SwiftlatexRender {
 		this.configQueue();
 	}
 	configQueue() {
+		const WAIT_TIME_MS = 2 * 1000; // Replace X with your desired seconds
+		
 		this.queue = async.queue((task, done) => {
-			console.log('Processing task, remaining tasks:', this.queue.length());
-			this.renderLatexToElement(task.source, task.el, task.ctx)
+			task.el.innerHTML = "";
+			task.source=getPreamble(this.plugin.app)+task.source+"\n\\end{tikzpicture}\\end{document}"
+
+			const ast = new LatexabstractSyntaxTree();
+			ast.prase(task.source);
+			ast.deleteComments();
+			task.source=ast.toString();
+
+			this.renderLatexToElement(task.source, task.el,task.md5Hash, task.sourcePath)
 			.then(() => {
-				done();
+				// Wait X seconds before marking the task as done
+				setTimeout(() =>{done();updateCountdown();}, WAIT_TIME_MS);
 			})
 			.catch((err) => {
 				console.error('Error processing task:', err);
-				done(err);
+				// Optionally, delay even on errors:
+				setTimeout(() => {done(err);updateCountdown();}, WAIT_TIME_MS);
 			});
-		}, 1);
+		}, 1); // Concurrency is set to 1, so tasks run one at a time
+		const updateCountdown = () => {
+			//@ts-ignore
+			let taskNode = this.queue._tasks.head;
+			let index = 0;
+			while (taskNode) {
+				const task = taskNode.data;
+				const countdown = task.el.querySelector(".moshe-latex-render-countdown");
+				if (countdown) 
+					countdown.textContent = index.toString();
+				else 
+					console.warn(`Countdown not found for task ${index}`);
+				taskNode = taskNode.next;
+				index++;
+			}
+		};
 	}
-	universalCodeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
-		this.queue.push({ source, el, ctx });
-		/*
-		source=getPreamble(this.plugin.app)+source+"\n\\end{tikzpicture}\\end{document}"
-		if(!this.pdfEngine.isReady()){
-			throw new Error("SwiftLaTeX: Engine is not ready yet!");
-		}
-		try {
-			const ast = parse(source);
-			console.log(ast);
-			this.renderLatexToElement(source, el, ctx);
-		} catch (e) {
-			console.error(e);
-		}*/
-	}
+	  
+	
 
 	private getVaultPath() {
 		if (this.plugin.app.vault.adapter instanceof FileSystemAdapter) {
@@ -87,38 +99,34 @@ export class SwiftlatexRender {
 			throw new Error("SwiftLaTeX: Could not get vault path.");
 		}
 	}
-
-	private async loadCache() {
+	private validateCatchDirectory(){
 		const cacheFolderParentPath = path.join(this.getVaultPath(), this.plugin.app.vault.configDir, "swiftlatex-render-cache");
+		this.packageCacheFolderPath = path.join(cacheFolderParentPath, "package-cache");
+		this.cacheFolderPath = path.join(cacheFolderParentPath, "pdf-cache");
+
 		//if swiftlatex-render-cache folder does not exist, create it
 		if (!fs.existsSync(cacheFolderParentPath)) {
 			fs.mkdirSync(cacheFolderParentPath);
 		}
-		this.cacheFolderPath = path.join(cacheFolderParentPath, "pdf-cache");
-		//if pdf-cache folder does not exist, create it
+		if (!fs.existsSync(this.packageCacheFolderPath)) {
+			fs.mkdirSync(this.packageCacheFolderPath);
+		}
 		if (!fs.existsSync(this.cacheFolderPath)) {
 			fs.mkdirSync(this.cacheFolderPath);
 			this.cache = new Map();
-		} else {
-			console.log("Loading cache from", this.cacheFolderPath,this.plugin.settings.cache);
-			this.cache = new Map(this.plugin.settings.cache);
-			// For some reason `this.cache` at this point is actually `Map<string, Array<string>>`
-			for (const [k, v] of this.cache) {
-				this.cache.set(k, new Set(v))
-			}
+		}
+	}
+
+	private async loadCache() {
+		console.log("Loading cache from", this.cacheFolderPath,this.plugin.settings.cache);
+		this.cache = new Map(this.plugin.settings.cache);
+		// For some reason `this.cache` at this point is actually `Map<string, Array<string>>`
+		for (const [k, v] of this.cache) {
+			this.cache.set(k, new Set(v))
 		}
 	}
 
 	private async loadPackageCache() {
-		const cacheFolderParentPath = path.join(this.getVaultPath(), this.plugin.app.vault.configDir, "swiftlatex-render-cache");
-		if (!fs.existsSync(cacheFolderParentPath)) {
-			fs.mkdirSync(cacheFolderParentPath);
-		}
-		this.packageCacheFolderPath = path.join(cacheFolderParentPath, "package-cache");
-		if (!fs.existsSync(this.packageCacheFolderPath)) {
-			fs.mkdirSync(this.packageCacheFolderPath);
-		}
-
 		// add files in the package cache folder to the cache list
 		const packageFiles = fs.readdirSync(this.packageCacheFolderPath);
 		for (const file of packageFiles) {
@@ -152,13 +160,18 @@ export class SwiftlatexRender {
 			this.plugin.settings.packageCache[3]
 	);
 	}
-
+	onunload() {
+		this.pdfEngine.flushCache();
+		this.pdfEngine.closeWorker();
+		this.cleanUpCache();
+	}
 	private unloadCache() {
+		this.pdfEngine.flushCache();
 		fs.rmdirSync(this.cacheFolderPath, { recursive: true });
 	}
 
-
 	private hashLatexSource(source: string) {
+		//i need to also remove all comments
 		return Md5.hashStr(source.replace(/\s/g, ''))
 	}
 
@@ -202,7 +215,8 @@ export class SwiftlatexRender {
 					const uniqueId = id.concat(randomString);
 					// Optimize the SVG
 					const svgoConfig:Config = {
-					plugins: ['sortAttrs', { name: 'prefixIds', params: { prefix: uniqueId } }]
+						//floatPrecision: 2,
+						plugins: ['sortAttrs', { name: 'prefixIds', params: { prefix: uniqueId } }]
 					};
 					svg = optimize(svg, svgoConfig).data;
 			
@@ -211,37 +225,39 @@ export class SwiftlatexRender {
 			});
 		});
 	}
-
-
-
-	private async renderLatexToElement(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+	universalCodeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+		const md5Hash = this.hashLatexSource(source);
+		// PDF file has already been cached
+		// Could have a case where pdfCache has the key but the cached file has been deleted
+		const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${catchFileFormat}`);
+		if (this.cache.has(md5Hash) && fs.existsSync(dataPath)) {
+			const data = fs.readFileSync(dataPath, 'utf8');
+			el.innerHTML = data
+		}
+		else {
+			//Reliable enough for repeated entries
+			const blockId = `${ctx.sourcePath.replace(/[^\wא-ת]/g, '_')}_${ctx.getSectionInfo(el)?.lineStart}`;
+			this.queue.remove(node => node.data.blockId === blockId);
+			el.appendChild(createWaitingCountdown(this.queue.length()));
+			this.queue.push({ source, el,md5Hash, sourcePath: ctx.sourcePath, blockId });
+		}
+	}
+	private async renderLatexToElement(source: string, el: HTMLElement,md5Hash:string, sourcePath: string,) {
 		return new Promise<void>((resolve, reject) => {
-			const md5Hash = this.hashLatexSource(source);
-			const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.svg`);
-
-			// PDF file has already been cached
-			// Could have a case where pdfCache has the key but the cached file has been deleted
-			if (this.cache.has(md5Hash) && fs.existsSync(dataPath)) {
-				const data = fs.readFileSync(dataPath, 'utf8');
-				el.innerHTML = data
-			}
-			else {
+			const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${catchFileFormat}`);
 				this.renderLatexToPDF(source, md5Hash).then((result: CompileResult) => {
 					this.translatePDF(result.pdf, el).then(() => {
 						fs.writeFileSync(dataPath,el.innerHTML);
 					});
-				}
-				).catch(err => {
+				}).catch(err => {
 					SwiftlatexError.interpret(err);
-					console.error(err,source);
 					const errorDiv = el.createEl('div', { text: `swiftlatexError`/*text: `${err}`*/, attr: { class: 'block-latex-error' } });
 					reject(err); 
-				});				
-			}
-			this.addFileToPDFCache(md5Hash, ctx.sourcePath);
+				});		
+			this.addFileToCache(md5Hash, sourcePath);
 			resolve();
 		}).then(() => { 
-			this.pdfEngine.flushCache();
+			//this.pdfEngine.flushCache();
 			setTimeout(() => this.cleanUpCache(), 1000);
 		});
 
@@ -299,7 +315,7 @@ export class SwiftlatexRender {
 		});
 	}
 
-	getNewPackageFileNames(oldCacheData: StringMap, newCacheData: StringMap): string[] 
+	private getNewPackageFileNames(oldCacheData: StringMap, newCacheData: StringMap): string[] 
 	{
 		// based on the old and new package files in package cache data,
 		// return the new package files
@@ -318,7 +334,7 @@ export class SwiftlatexRender {
 
 	}
 
-	private addFileToPDFCache(hash: string, file_path: string) {
+	private addFileToCache(hash: string, file_path: string) {
 		if (!this.cache.has(hash)) {
 			this.cache.set(hash, new Set());
 		}
@@ -334,14 +350,14 @@ export class SwiftlatexRender {
 		}
 		for (const file_path of file_paths) {
 			const file = this.plugin.app.vault.getAbstractFileByPath(file_path);
-			if (file == null) {
-				this.removeFileFromCache(file_path);
+			if (file instanceof TFile) {
+				await this.removeUnusedCachesForFile(file);
 			}
 		}
 		await this.saveCache();
 	}
 
-	async removeUnusedCachesForFile(file: TFile) {
+	private async removeUnusedCachesForFile(file: TFile) {
 		const hashes_in_file = await this.getLatexHashesFromFile(file);
 		const hashes_in_cache = this.getLatexHashesFromCacheForFile(file);
 		for (const hash of hashes_in_cache) {
@@ -354,16 +370,16 @@ export class SwiftlatexRender {
 		}
 	}
 
-	removePDFFromCache(key: string) {
+	private removePDFFromCache(key: string) {
 		if(this.cache.has(key))
 			this.cache.delete(key);
-		const filePath=path.join(this.cacheFolderPath, `${key}.pdf`)
+		const filePath=path.join(this.cacheFolderPath, `${key}.${catchFileFormat}`);
 		if (fs.existsSync(filePath)) {
 			fs.rmSync(filePath);
 		}
 	}
 
-	removeFileFromCache(file_path: string) {
+	private removeFileFromCache(file_path: string) {
 		for (const hash of this.cache.keys()) {
 			this.cache.get(hash)?.delete(file_path);
 			if (this.cache.get(hash)?.size == 0) {
@@ -372,7 +388,7 @@ export class SwiftlatexRender {
 		}
 	}
 
-	getLatexHashesFromCacheForFile(file: TFile) {
+	private getLatexHashesFromCacheForFile(file: TFile) {
 		const hashes: string[] = [];
 		const path = file.path;
 		for (const [k, v] of this.cache.entries()) {
@@ -383,14 +399,14 @@ export class SwiftlatexRender {
 		return hashes;
 	}
 
-	async getLatexHashesFromFile(file: TFile) {
+	private async getLatexHashesFromFile(file: TFile) {
 		const hashes: string[] = [];
 		const sections = this.plugin.app.metadataCache.getFileCache(file)?.sections
 		if (sections != undefined) {
 			const lines = (await this.plugin.app.vault.read(file)).split('\n');
 			for (const section of sections) {
 				if (section.type != "code" && lines[section.position.start.line].match("``` *latex") == null) continue;
-				const source = lines.slice(section.position.start.line + 1, section.position.end.line).join("\n");
+				let source = lines.slice(section.position.start.line + 1, section.position.end.line).join("\n");
 				const hash = this.hashLatexSource(source);
 				hashes.push(hash);
 			}
@@ -399,10 +415,39 @@ export class SwiftlatexRender {
 	}
 }
 
+
+enum latexErrors{
+	undefinedControlSequence="LaTeX does not recognize a command in your document"
+}
+
+
+
 class SwiftlatexError {
 	version: number;
 	static interpret(error: string): SwiftlatexError {
-		//console.error(error);
+		let a=error.split("\n")
+		let version=a[0];
+		a=a.filter((line)=>!line.includes("(/tex/"))
+
+		console.error(a);
 		return new SwiftlatexError();
 	}
+}
+
+
+
+function createWaitingCountdown(index: number){
+	const parentContainer = Object.assign(document.createElement("div"), { 
+		className: "moshe-latex-render-loader-parent-container" 
+	});
+	const loader = Object.assign(document.createElement("div"), { 
+		className: "moshe-latex-render-loader" 
+	});
+	const countdown = Object.assign(document.createElement("div"), { 
+		className: "moshe-latex-render-countdown", 
+		textContent: index.toString()
+	});
+	parentContainer.appendChild(loader);
+	parentContainer.appendChild(countdown);
+	return parentContainer;
 }

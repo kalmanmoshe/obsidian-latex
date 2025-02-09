@@ -1,5 +1,5 @@
 
-function Parser() {
+export function Parser() {
     //Point to the local parser instead of the global one
     var _ = this;
     var bin = {};

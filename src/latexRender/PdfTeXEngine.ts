@@ -187,7 +187,6 @@ export class PdfTeXEngine {
                 this.latexWorker!.postMessage({ cmd: "fetchfile", filename });
             })
         );
-        console.log('resolves',resolves)
 
         await Promise.all(promises);
             this.latexWorker!.onmessage = () => {};

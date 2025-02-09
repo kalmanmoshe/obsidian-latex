@@ -1,5 +1,4 @@
 import { App, MarkdownView, Scope, WorkspaceWindow } from "obsidian";
-import MathPlugin, { SvgBounds } from "src/main";
 import { cartesianToPolar, findIntersectionPoint, findSlope, polarToCartesian, toNumber } from "src/mathParser/mathUtilities.js";
 import { DebugModal } from "src/desplyModals.js";
 import { FormatTikzjax } from "./interpret/tokenizeTikzjax.js";
@@ -9,7 +8,7 @@ import {Config,optimize} from 'svgo';
 import { Md5 } from 'ts-md5';
 // @ts-ignore
 import pdfPoppler from "pdf-poppler";
-
+/*
 export class Tikzjax {
     app: App;
     plugin: MathPlugin;
@@ -134,7 +133,7 @@ export class Tikzjax {
         svgEl.outerHTML = svg;
     }
 }
-
+*/
 
 
 export const arrToRegexString = (arr: Array<string>) => '(' + arr.join('|') + ')';

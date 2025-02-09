@@ -25,7 +25,7 @@ import { snippetQueueStateField } from "./snippets/codemirror/snippet_queue_stat
 import { snippetInvertedEffects } from "./snippets/codemirror/history";
 
 import { EditorView, ViewPlugin, ViewUpdate ,Decoration, tooltips, } from "@codemirror/view";
-import { HtmlBackgroundPlugin, rtlForcePlugin } from "./editorDecorations";
+import { rtlForcePlugin } from "./editor_extensions/editorDecorations";
 
 import { getLatexSuiteConfig, getLatexSuiteConfigExtension } from "./snippets/codemirror/config";
 import { snippetExtensions } from "./snippets/codemirror/extensions";
@@ -35,6 +35,7 @@ import { cursorTooltipBaseTheme, cursorTooltipField,  } from "./editor_extension
 import { onKeydown,onTransaction } from "./ inputMonitors";
 import { SwiftlatexRender } from "./latexRender/main";
 import { processMathBlock } from "./mathParser/iNeedToFindABetorPlace";
+import { Suggestor } from "./suggestor";
 
 /*
 
@@ -46,16 +47,17 @@ import { processMathBlock } from "./mathParser/iNeedToFindABetorPlace";
 | **`Calculus.js`** | Implements differentiation and integration. |
 | **`Solve.js`** | Adds equation-solving capabilities. |
 */
+
 /**
  * Assignments:
- * - Create code that will auto-insert metadata into files.
+ * - Create code that will auto-insert metadata into files. You can use this:
+ *   const file = this.plugin.app.vault.getAbstractFileByPath(ctx.sourcePath);
+ *   if (file instanceof TFile) {
+ *     const metadata = this.plugin.app.metadataCache.getFileCache(file);
+ *     console.log(metadata);
+ *   }
  * - Create a parser that makes LaTeX error messages more sensible.
- * - Improve the hashing system to hash the same string to the same value, excluding comments, spaces, and new lines.
- * - Add an error catch system to avoid reevaluating already proven faulty code.
- * - Don't save files as PDFs save them as SVG as it removes a step in the processing
- * - Make a queue in which each.code block will be processed so you dont have to multiple processes at once.
- * - in said  view remove from queue if new one was added
- * - codeBlock specific snippets
+ * - CodeBlock specific snippets.
  */
 
 
@@ -75,10 +77,11 @@ export default class Moshe extends Plugin {
 		this.addSettingTab(new LatexSuiteSettingTab(this.app, this));
 		this.watchFiles();
     this.addEditorCommands();
+    this.registerEditorSuggest(new Suggestor(this));
 
     this.app.workspace.onLayoutReady(() => {
+      //if(1===2*3)
       this.loadSwiftLatexRender().then(() => {
-        console.log("loaded swiftlatex")
         this.addSyntaxHighlighting();
         this.setCodeblocks();
       })
@@ -87,10 +90,10 @@ export default class Moshe extends Plugin {
   }
   async onunload() {
     this.removeSyntaxHighlighting();
+    this.swiftlatexRender.onunload();
 	}
 
   private setCodeblocks(){
-    console.log("setting codeblocks")
     this.registerMarkdownCodeBlockProcessor("math", processMathBlock.bind(this));
     this.registerMarkdownCodeBlockProcessor("tikz", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
 		this.registerMarkdownCodeBlockProcessor("latex", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
@@ -98,6 +101,7 @@ export default class Moshe extends Plugin {
   private async loadSwiftLatexRender(){
     this.swiftlatexRender=new SwiftlatexRender()
     await this.swiftlatexRender.onload(this)
+    while (this.editorExtensions.length) this.editorExtensions.pop();
   }
 
   private addSyntaxHighlighting(){
@@ -117,7 +121,8 @@ export default class Moshe extends Plugin {
 		this.editorExtensions.push([
 			getLatexSuiteConfigExtension(this.CMSettings),
 			Prec.highest(EditorView.domEventHandlers({ "keydown": onKeydown })),
-      Prec.lowest([colorPairedBracketsPlugin.extension, rtlForcePlugin.extension,HtmlBackgroundPlugin.extension]),
+      Prec.lowest([colorPairedBracketsPlugin.extension, rtlForcePlugin.extension,EditorView.updateListener.of(onTransaction)]),
+      //On transaction causes a lot of a lot of problems and significant.and significantly slows down the computer The more processes are in it
       EditorView.updateListener.of(onTransaction),
 			snippetExtensions,
 

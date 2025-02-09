@@ -39,7 +39,6 @@ interface LatexSuiteBasicSettings {
 	timeout: number,
 	cache: Array<[string, Set<string>]>;
 	packageCache: Array<StringMap>;
-	onlyRenderInReadingMode: boolean;
 }
 
 /**
@@ -121,7 +120,6 @@ export const DEFAULT_SETTINGS: LatexSuitePluginSettings = {
 	timeout: 10000,
 	cache: [],
 	packageCache: [{},{},{},{}],
-	onlyRenderInReadingMode: false,
 }
 
 export function processLatexSuiteSettings(snippets: Snippet[], settings: LatexSuitePluginSettings):LatexSuiteCMSettings {

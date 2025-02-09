@@ -1,0 +1,8 @@
+import * as Ast from "@unified-latex/unified-latex-types";
+type PluginOptions = {
+    fix?: boolean;
+} | undefined;
+export declare const DESCRIPTION = "## Lint Rule\n\nAvoid writing operators in plaintext. For example, instead of `$sin(2)$` write `$\\sin(2)$`.\n\n### See\n\nChkTeX Warning 35\n";
+export declare const unifiedLatexLintNoPlaintextOperators: import('unified').Plugin<void[] | [PluginOptions | [boolean | import('unified-lint-rule/lib').Label | import('unified-lint-rule/lib').Severity, PluginOptions?]], Ast.Root, Ast.Root>;
+export {};
+//# sourceMappingURL=index.d.ts.map

@@ -102,7 +102,7 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
             const a=nerdamer.convertFromLaTeX(this.mathInput)
             const b=nerdamer.solve(a,'x')
             this.result=nerdamer.convertToLaTeX(b)
-            console.log(this.result)
+            console.log(a,b,this.result,)
             /*
             // eslint-disable-next-line no-case-declarations
             this.result = new MathPraiser(this.mathInput);
