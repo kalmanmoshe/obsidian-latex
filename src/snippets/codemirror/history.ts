@@ -37,6 +37,7 @@ export const snippetInvertedEffects = invertedEffects.of((tr: { effects: any; })
 export const handleUndoRedo = (update: ViewUpdate) => {
 	const undoTr = update.transactions.find(tr => tr.isUserEvent("undo"));
 	const redoTr = update.transactions.find(tr => tr.isUserEvent("redo"));
+	if (!undoTr && !redoTr) {return;}
 	for (const tr of update.transactions) {
 		for (const effect of tr.effects) {
 

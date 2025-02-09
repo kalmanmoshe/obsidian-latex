@@ -15,23 +15,9 @@
 var nerdamer = (function (imports) {
   "use strict";
 
-  //version ======================================================================
-  var version = "1.1.16";
-
-  //inits ========================================================================
-  var _ = new Parser(); //nerdamer's parser
 
   //import bigInt
-  var bigInt = imports.bigInt;
-  var bigDec = imports.bigDec;
-
-  //set the precision to js precision
-  bigDec.set({
-    precision: 250,
-  });
-
-  var Groups = {};
-
+ 
   //container of pregenerated primes
   var PRIMES = [
     2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
@@ -180,89 +166,7 @@ var nerdamer = (function (imports) {
     }
   }
 
-  /**
-   * Class used to collect arguments for functions
-   * @returns {Parser.Collection}
-   */
-  function Collection() {
-    this.elements = [];
-  }
-  Collection.prototype.append = function (e) {
-    this.elements.push(e);
-  };
-  Collection.prototype.getItems = function () {
-    return this.elements;
-  };
-  Collection.prototype.toString = function () {
-    return _.pretty_print(this.elements);
-  };
-  Collection.prototype.dimensions = function () {
-    return this.elements.length;
-  };
-  Collection.prototype.text = function (options) {
-    return "(" + this.elements.map((e) => e.text(options)).join(",") + ")";
-  };
-  Collection.create = function (e) {
-    var collection = new Collection();
-    if (e) collection.append(e);
-    return collection;
-  };
-  Collection.prototype.clone = function (elements) {
-    const c = Collection.create();
-    c.elements = this.elements.map((e) => e.clone());
-    return c;
-  };
-  Collection.prototype.expand = function (options) {
-    this.elements = this.elements.map((e) => _.expand(e, options));
-    return this;
-  };
 
-  Collection.prototype.evaluate = function () {
-    this.elements = this.elements.map((e) => _.evaluate(e, options));
-    return this;
-  };
-
-  Collection.prototype.map = function (lambda) {
-    const c2 = this.clone();
-    c2.elements = c2.elements.map((x, i) => lambda(x, i + 1));
-    return c2;
-  };
-
-  // Returns the result of adding the argument to the vector
-  Collection.prototype.add = function (c2) {
-    return block(
-      "SAFE",
-      function () {
-        var V = c2.elements || c2;
-        if (this.elements.length !== V.length) {
-          return null;
-        }
-        return this.map(function (x, i) {
-          return _.add(x, V[i - 1]);
-        });
-      },
-      undefined,
-      this,
-    );
-  };
-
-  // Returns the result of subtracting the argument from the vector
-  Collection.prototype.subtract = function (vector) {
-    return block(
-      "SAFE",
-      function () {
-        var V = vector.elements || vector;
-        if (this.elements.length !== V.length) {
-          return null;
-        }
-        return this.map(function (x, i) {
-          return _.subtract(x, V[i - 1]);
-        });
-      },
-      undefined,
-      this,
-    );
-  };
 
   //Add the groups. These have been reorganized as of v0.5.1 to make CP the highest group
   //The groups that help with organizing during parsing. Note that for FN is still a function even

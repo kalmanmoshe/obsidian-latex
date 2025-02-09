@@ -66,7 +66,7 @@ Module["postRun"] = function () {
   self.postMessage({ result: "ok" });
   self.initmem = dumpHeapMemory();
 };
-function cleanDir(dir) {
+function cleanDir(dir: string) {
   let l = FS.readdir(dir);
   for (let i in l) {
     let item = l[i];
@@ -263,36 +263,49 @@ function setTexliveEndpoint(url) {
 self["onmessage"] = function (ev) {
   let data = ev["data"];
   let cmd = data["cmd"];
-  if (cmd === "compilelatex") {
-    compileLaTeXRoutine();
-  } else if (cmd === "compileformat") {
-    compileFormatRoutine();
-  } else if (cmd === "settexliveurl") {
-    setTexliveEndpoint(data["url"]);
-  } else if (cmd === "mkdir") {
-    mkdirRoutine(data["url"]);
-  } else if (cmd === "writefile") {
-    writeFileRoutine(data["url"], data["src"]);
-  } else if (cmd === "setmainfile") {
-    self.mainfile = data["url"];
-  } else if (cmd === "grace") {
-    console.error("Gracefully Close");
-    self.close();
-  } else if (cmd === "flushcache") {
-    cleanDir(WORKROOT);
-  } else if (cmd === "fetchfile") {
-    transferTexFileToHost(data["filename"]);
-  } else if (cmd === "fetchcache") {
-    transferCacheDataToHost();
-  } else if (cmd === "writetexfile") {
-    writeTexFileRoutine(data["url"], data["src"]);
-  } else if (cmd === "writecache") {
-    texlive404_cache = data["texlive404_cache"];
-    texlive200_cache = data["texlive200_cache"];
-    pk404_cache = data["pk404_cache"];
-    pk200_cache = data["pk200_cache"];
-  } else {
-    console.error("Unknown command " + cmd);
+  switch (cmd) {
+    case "compilelatex":
+      compileLaTeXRoutine();
+      break;
+    case "compileformat":
+      compileFormatRoutine();
+      break;
+    case "settexliveurl":
+      setTexliveEndpoint(data["url"]);
+      break;
+    case "mkdir":
+      mkdirRoutine(data["url"]);
+      break;
+    case "writefile":
+      writeFileRoutine(data["url"], data["src"]);
+      break;
+    case "setmainfile":
+      self.mainfile = data["url"];
+      break;
+    case "grace":
+      console.error("Gracefully Close");
+      self.close();
+      break;
+    case "flushcache":
+      cleanDir(WORKROOT);
+      break;
+    case "fetchfile":
+      transferTexFileToHost(data["filename"]);
+      break;
+    case "fetchcache":
+      transferCacheDataToHost();
+      break;
+    case "writetexfile":
+      writeTexFileRoutine(data["url"], data["src"]);
+      break;
+    case "writecache":
+      texlive404_cache = data["texlive404_cache"];
+      texlive200_cache = data["texlive200_cache"];
+      pk404_cache = data["pk404_cache"];
+      pk200_cache = data["pk200_cache"];
+      break;
+    default:
+      console.error("Unknown command " + cmd);
   }
 };
 let texlive404_cache = {};

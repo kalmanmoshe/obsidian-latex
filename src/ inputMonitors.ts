@@ -9,10 +9,9 @@ import { runAutoFraction } from "./features/autofraction";
 import { runMatrixShortcuts } from "./features/matrix_shortcuts";
 import { shouldTaboutByCloseBracket, tabout } from "./features/tabout";
 import {  handleMathTooltip } from "./editor_extensions/math_tooltip";
-import { removeAllTabstops, tabstopsStateField } from "./snippets/codemirror/tabstops_state_field";
-import { clearSnippetQueue, snippetQueueStateField } from "./snippets/codemirror/snippet_queue_state_field";
-import { handleUndoRedo, snippetInvertedEffects } from "./snippets/codemirror/history";
-import { suggestor } from "./suggestor";
+import { removeAllTabstops,  } from "./snippets/codemirror/tabstops_state_field";
+import { clearSnippetQueue, } from "./snippets/codemirror/snippet_queue_state_field";
+import { handleUndoRedo,  } from "./snippets/codemirror/history";
 import { Direction, getCharacterAtPos, isComposing, replaceRange, setCursor } from "./utils/editor_utils";
 
 /*
@@ -30,9 +29,6 @@ export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
 	  trigger = keyboardAutoReplaceHebrewToEnglishTriggers.find((trigger2) => trigger2.key === event.key && trigger2.code === event.code);
 	  key = trigger?.replacement||key;
 	}
-	if(suggestor.isSuggesterDeployed()){
-		suggestor.handleDropdownNavigation(event,view)
-	}
 	
 	const success = handleKeydown(key, event.shiftKey, event.ctrlKey || event.metaKey, isComposing(view, event), view,ctx);
 	if (success)
@@ -46,13 +42,10 @@ export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
 };
 
 export const onTransaction = (update: ViewUpdate) => {
-	const settings = getLatexSuiteConfig(update.state);
-
+	//const settings = getLatexSuiteConfig(update.state);
 	// The math tooltip handler is driven by view updates because it utilizes
 	// information about visual line, which is not available in EditorState
-	if (settings.mathPreviewEnabled) {
-		handleMathTooltip(update);
-	}
+	handleMathTooltip(update);
 
 	handleUndoRedo(update);
 

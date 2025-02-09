@@ -157,33 +157,27 @@ export class Suggestor extends EditorSuggest<string>{
 	}
 	selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
 		if (!this.context) return;
+		const view = getEditorViewFromEvent(evt);
+		if (!view) return;
 		const editor = this.context.editor;
 		const start = this.context.start;
 		const end = editor.getCursor();
-		queueSnippet(evt.,pos-trigger.length,pos,selectedText)
-		editor.replaceRange(suggestion, start, end);
-		const newCursor = end;
-
-		if (suggestionType === 'f') {
-			newCursor.ch = start.ch + suggestion.length-1;
-		} else {
-			newCursor.ch = start.ch + suggestion.length;
-		}
-		editor.setCursor(newCursor);			
-
-		this.close()
-		
-		const selectedText = item.textContent || "";
-		const pos=this.context.pos;
-		queueSnippet(view,pos-trigger.length,pos,selectedText)
-		const success = expandSnippets(view);
-		view.focus();
-		setCursor(view,calculateNewCursorPosition(trigger,selectedText,pos))
-		return success;
-		
+		queueSnippet(view,start.ch,end.ch,value);
+		setCursor(view,end.ch);
+		this.close();
 	}
 	
 }
+
+function getEditorViewFromEvent(evt: MouseEvent | KeyboardEvent): EditorView | null {
+	// Ensure that evt.target is a Node (or HTMLElement)
+	const target = evt.target as Node | null;
+	if (!target) return null;
+  
+	// Attempt to find the CodeMirror editor view from the event's target element.
+	const info = EditorView.findFromDOM(target as HTMLElement);
+	return info ? info : null;
+  }
 
 class Suggesto {
 	private trigger: SuggestorTrigger;
@@ -214,7 +208,7 @@ class Suggesto {
 	}
 	moveSelectionIndex(number: number){
 		const items=this.getAlldropdownItems()
-		this.selectionIndex=(suggestor.selectionIndex +number + items.length) % items.length
+		//this.selectionIndex=(suggestor.selectionIndex +number + items.length) % items.length
 		this.updateSelection(items)
 	}
 
@@ -276,17 +270,17 @@ class Suggesto {
 				event.preventDefault();
 				break;
 			case event.key === "ArrowLeft"||event.key === "ArrowRight":
-				suggestor.close();
+				//suggestor.close();
 				break;
 			case event.key === "Backspace":
-				suggestor.close();
+				//suggestor.close();
 				break;
 			case event.key === "Enter":
 				//suggestor.selectDropdownItem(view);
 				event.preventDefault();
 				break;
 			case event.key === "Escape":
-				suggestor.close();
+				//suggestor.close();
 				event.preventDefault();
 				break;
 			default:
