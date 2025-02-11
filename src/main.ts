@@ -123,7 +123,6 @@ export default class Moshe extends Plugin {
 			Prec.highest(EditorView.domEventHandlers({ "keydown": onKeydown })),
       Prec.lowest([colorPairedBracketsPlugin.extension, rtlForcePlugin.extension,EditorView.updateListener.of(onTransaction)]),
       //On transaction causes a lot of a lot of problems and significant.and significantly slows down the computer The more processes are in it
-      EditorView.updateListener.of(onTransaction),
 			snippetExtensions,
 
 			highlightCursorBracketsPlugin.extension,

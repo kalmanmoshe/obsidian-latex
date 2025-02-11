@@ -44,7 +44,7 @@ export class LatexabstractSyntaxTree{
     usdLibraries(){}
     usdCommands(){}
     usdEnvironments(){}
-
+    
 }
 
 class Environment{

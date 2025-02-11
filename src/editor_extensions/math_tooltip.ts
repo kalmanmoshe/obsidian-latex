@@ -13,18 +13,15 @@ export const cursorTooltipField = StateField.define<readonly Tooltip[]>({
 		for (const effect of tr.effects) {
 			if (effect.is(updateTooltipEffect)) return effect.value;
 		}
-
 		return tooltips;
 	},
 
 	provide: (f) => showTooltip.computeN([f], (state) => state.field(f)),
 });
-
 // update the tooltip by dispatching an updateTooltipEffect
 export function handleMathTooltip(update: ViewUpdate) {
 	const shouldUpdate = update.docChanged || update.selectionSet;
 	if (!shouldUpdate) return;
-
 	const settings = getLatexSuiteConfig(update.state);
 	const ctx = Context.fromState(update.state);
 
@@ -40,7 +37,6 @@ export function handleMathTooltip(update: ViewUpdate) {
 		}
 		return;
 	}
-
 	/*
 	* process when there is a need to show the tooltip: from here
 	*/
@@ -51,7 +47,7 @@ export function handleMathTooltip(update: ViewUpdate) {
 		return
 	let eqn = update.state.sliceDoc(eqnBounds.start, eqnBounds.end);
 	const index = update.state.selection.main.head-eqnBounds.start;
-
+	
 	eqn = eqn.slice(0, index) + '{\\Huge\\color\\red\\mid}' + eqn.slice(index);
 
 	const above = settings.mathPreviewPositionIsAbove;
@@ -65,7 +61,7 @@ export function handleMathTooltip(update: ViewUpdate) {
 
 		return { dom };
 	};
-
+	
 	let newTooltips: Tooltip[] = [];
 
 	if (ctx.mode.blockMath || ctx.mode.codeMath) {
@@ -100,9 +96,8 @@ export function handleMathTooltip(update: ViewUpdate) {
 			create: create,
 		}];
 	}
-
 	update.view.dispatch({
-		effects: [updateTooltipEffect.of(newTooltips)]
+		effects: [updateTooltipEffect.of(newTooltips)],
 	});
 }
 

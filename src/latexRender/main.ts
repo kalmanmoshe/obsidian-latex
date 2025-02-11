@@ -10,11 +10,9 @@ import {Config,optimize} from 'svgo';
 import Moshe from '../main';
 import { StringMap } from 'src/settings/settings.js';
 import { getPreamble } from 'src/tikzjax/interpret/tokenizeTikzjax';
-const { exec } = require('child_process');
 import async from 'async';
-import {LatexabstractSyntaxTree} from './parse/parse';
-
-
+import { LatexabstractSyntaxTree } from './parse/parse';
+const PdfToCairo = require("./pdftocairo.js")
 const waitFor = async (condFunc: () => boolean) => {
 	return new Promise<void>((resolve) => {
 		if (condFunc()) {
@@ -51,10 +49,9 @@ export class SwiftlatexRender {
 		this.configQueue();
 	}
 	configQueue() {
-		const WAIT_TIME_MS = 2 * 1000; // Replace X with your desired seconds
+		const WAIT_TIME_MS = 4 * 1000; // Replace X with your desired seconds
 		
 		this.queue = async.queue((task, done) => {
-			task.el.innerHTML = "";
 			task.source=getPreamble(this.plugin.app)+task.source+"\n\\end{tikzpicture}\\end{document}"
 
 			const ast = new LatexabstractSyntaxTree();
@@ -99,6 +96,7 @@ export class SwiftlatexRender {
 			throw new Error("SwiftLaTeX: Could not get vault path.");
 		}
 	}
+	
 	private validateCatchDirectory(){
 		const cacheFolderParentPath = path.join(this.getVaultPath(), this.plugin.app.vault.configDir, "swiftlatex-render-cache");
 		this.packageCacheFolderPath = path.join(cacheFolderParentPath, "package-cache");
@@ -196,33 +194,20 @@ export class SwiftlatexRender {
 		const {width, height} = firstPage.getSize();
 		return {width, height};
 	}
+	private pdfToSVG(pdfData: any) {
+		return PdfToCairo().then((pdftocairo: any) => {
+			pdftocairo.FS.writeFile('input.pdf', pdfData);
+			pdftocairo._convertPdfToSvg();
+			let svg = pdftocairo.FS.readFile('input.svg', {encoding:'utf8'});
+			const id = Md5.hashStr(svg.trim()).toString();
+			const randomString = Math.random().toString(36).substring(2, 10);
+			const uniqueId = id.concat(randomString);
+			const svgoConfig:Config =  {
+				plugins: ['sortAttrs', { name: 'prefixIds', params: { prefix: uniqueId } }]
+			};
+			svg = optimize(svg, svgoConfig).data; 
 
-	private pdfToSVG(pdfData: Buffer<ArrayBufferLike>): Promise<string> {
-		return new Promise((resolve, reject) => {
-			fs.writeFileSync('input.pdf', pdfData);
-
-			exec('pdftocairo -svg input.pdf output.svg', (error: { message: any; }, stdout: any, stderr: any) => {
-
-				if (error){console.error(`Error: ${error.message}`);reject(error);return;}
-				if (stderr){console.error(`stderr: ${stderr}`);}
-			
-				// Read the output SVG file
-				fs.readFile('output.svg', 'utf8', (err, svg) => {
-					if (err) {console.error(`Error reading SVG: ${err.message}`);reject(err);return;}
-					// Generate a unique ID for each SVG to avoid conflicts
-					const id = Md5.hashStr(svg.trim()).toString();
-					const randomString = Math.random().toString(36).substring(2, 10);
-					const uniqueId = id.concat(randomString);
-					// Optimize the SVG
-					const svgoConfig:Config = {
-						//floatPrecision: 2,
-						plugins: ['sortAttrs', { name: 'prefixIds', params: { prefix: uniqueId } }]
-					};
-					svg = optimize(svg, svgoConfig).data;
-			
-					resolve(svg);
-				});
-			});
+			return svg;
 		});
 	}
 	universalCodeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
@@ -245,7 +230,8 @@ export class SwiftlatexRender {
 	private async renderLatexToElement(source: string, el: HTMLElement,md5Hash:string, sourcePath: string,) {
 		return new Promise<void>((resolve, reject) => {
 			const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${catchFileFormat}`);
-				this.renderLatexToPDF(source, md5Hash).then((result: CompileResult) => {
+			this.renderLatexToPDF(source, md5Hash).then((result: CompileResult) => {
+					el.innerHTML = ""
 					this.translatePDF(result.pdf, el).then(() => {
 						fs.writeFileSync(dataPath,el.innerHTML);
 					});
@@ -266,7 +252,7 @@ export class SwiftlatexRender {
 	private async translatePDF(pdfData: Buffer<ArrayBufferLike>, el: HTMLElement, outputSVG = true): Promise<void> {
 		return new Promise<void>((resolve) => { 
 			if (outputSVG)
-				this.pdfToSVG(pdfData).then((svg: string) => {el.innerHTML = svg;resolve();});
+				this.pdfToSVG(pdfData).then((svg: string) => { el.innerHTML = svg; resolve();});
 			else
 				this.pdfToHtml(pdfData).then((htmlData) => {el.createEl("object", htmlData);resolve();});
 		});

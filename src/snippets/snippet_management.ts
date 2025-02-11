@@ -15,18 +15,14 @@ export function expandSnippets(view: EditorView):boolean {
 	const originalDocLength = view.state.doc.length;
 
 	handleUndoKeypresses(view, snippetsToExpand);
-
 	const tabstopsToAdd = computeTabstops(view, snippetsToExpand, originalDocLength);
-
 	// Insert any tabstops
 	if (tabstopsToAdd.length === 0) {
 		clearSnippetQueue(view);
 		return true;
 	}
-
 	markTabstops(view, tabstopsToAdd);
 	expandTabstops(view, tabstopsToAdd);
-
 	clearSnippetQueue(view);
 	return true;
 }
@@ -80,6 +76,12 @@ function computeTabstops(view: EditorView, snippets: SnippetChangeSpec[], origin
 	return tabstopsToAdd;
 }
 
+/**
+ * Marks the tabstops in the given editor view with a specific color.
+ *
+ * @param view - The editor view where the tabstops will be marked.
+ * @param tabstops - An array of tabstop specifications to be marked.
+ */
 function markTabstops(view: EditorView, tabstops: TabstopSpec[]) {
 	const color = getNextTabstopColor(view);
 	const tabstopGroups = tabstopSpecsToTabstopGroups(tabstops, color);
@@ -92,11 +94,12 @@ function expandTabstops(view: EditorView, tabstops: TabstopSpec[]) {
 	const changes = tabstops.map((tabstop: TabstopSpec) => {
 		return {from: tabstop.from, to: tabstop.to, insert: tabstop.replacement}
 	});
+	
 
 	view.dispatch({
 		changes: changes
 	});
-
+	console.log("Expanding tabstops1", changes,getTabstopGroupsFromView(view)[0]);
 	// Select the first tabstop
 	const firstGrp = getTabstopGroupsFromView(view)[0];
 	firstGrp.select(view, false, true); // "true" here marks the transaction as the end of the snippet (for undo/history purposes)

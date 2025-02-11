@@ -29,7 +29,6 @@ export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
 	  trigger = keyboardAutoReplaceHebrewToEnglishTriggers.find((trigger2) => trigger2.key === event.key && trigger2.code === event.code);
 	  key = trigger?.replacement||key;
 	}
-	
 	const success = handleKeydown(key, event.shiftKey, event.ctrlKey || event.metaKey, isComposing(view, event), view,ctx);
 	if (success)
 	  event.preventDefault();
@@ -38,7 +37,7 @@ export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
 		key = trigger.replacement;
 		replaceRange(view,view.state.selection.main.from,view.state.selection.main.to,key)
 		setCursor(view,view.state.selection.main.from+key.length)
-  }
+  	}
 };
 
 export const onTransaction = (update: ViewUpdate) => {
@@ -46,9 +45,7 @@ export const onTransaction = (update: ViewUpdate) => {
 	// The math tooltip handler is driven by view updates because it utilizes
 	// information about visual line, which is not available in EditorState
 	handleMathTooltip(update);
-
 	handleUndoRedo(update);
-
 }
 
 
@@ -110,15 +107,11 @@ export const handleKeydown = (key: string, shiftKey: boolean, ctrlKey: boolean, 
 			if (success) return true;
 		}
 	}
-	if (key === "Tab" && shiftKey) {
+	if (key === "Tab") {
 		const dir=shiftKey?Direction.Backward:Direction.Forward
 		success = tabout(view, ctx,dir);
 		if (success) return true;
-	}/*
-	if (key === "Tab" || shouldTaboutByCloseBracket(view, key)) {
-		success = tabout(view, ctx,Direction.Forward);
-		if (success) return true;
-	}*/
+	}
 	return false;
 }
 
