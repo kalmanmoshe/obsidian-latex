@@ -68,7 +68,6 @@ export class SnippetChangeSpec {
             const tabstop = {number: number, from: tabstopStart, to: tabstopEnd, replacement: tabstopReplacement};
             tabstops.push(tabstop);
         }
-
         return tabstops;
     }
 
