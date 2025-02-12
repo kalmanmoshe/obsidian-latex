@@ -9,18 +9,19 @@ export interface GenericNode {
 }
 type _renderInfo=(MacroInfo["renderInfo"] | EnvInfo["renderInfo"]) & {
         defaultArg?: string;
-    } & Record<string, unknown>
-class BaseNode {
-    type: string;
-    _renderInfo?: _renderInfo;
-    position?: {
+} & Record<string, unknown>
+type Position={
         start: { offset: number; line: number; column: number };
         end: { offset: number; line: number; column: number };
     };
+class BaseNode {
+    type: string;
+    _renderInfo?: _renderInfo;
+    position?: Position;
     constructor(type: string, renderInfo?: typeof this._renderInfo, position?: typeof this.position) {
         this.type = type;
-        this._renderInfo = renderInfo;
-        this.position = position;
+        if(renderInfo)this._renderInfo = renderInfo;
+        if(position)this.position = position;
     }
 }
 
@@ -38,12 +39,20 @@ export class Root extends ContentNode {
     constructor(content: Node[], renderInfo?: typeof BaseNode.prototype._renderInfo, position?: typeof BaseNode.prototype.position) {
         super("root", content, renderInfo, position);
     }
+    toString():any {
+        return this.content.map(node => node.toString())
+    }
 }
 
-export class String extends ContentNode {
+export class String extends BaseNode {
     type: "string" = "string";
-    constructor(content: Node[], renderInfo?: typeof BaseNode.prototype._renderInfo, position?: typeof BaseNode.prototype.position) {
-        super("string", content, renderInfo, position);
+    content: string;
+    constructor(content: string, renderInfo?: typeof BaseNode.prototype._renderInfo, position?: typeof BaseNode.prototype.position) {
+        super("string", renderInfo, position);
+        this.content = content;
+    }
+    toString(): string {
+        return this.content
     }
 }
 
@@ -52,12 +61,18 @@ export class Whitespace extends BaseNode {
     constructor(renderInfo?: typeof BaseNode.prototype._renderInfo, position?: typeof BaseNode.prototype.position) {
         super("whitespace", renderInfo, position);
     }
+    toString(): string {
+        return " "
+    }
 }
 
 export class Parbreak extends BaseNode {
     type: "parbreak" = "parbreak";
     constructor(renderInfo?: typeof BaseNode.prototype._renderInfo, position?: typeof BaseNode.prototype.position) {
         super("parbreak", renderInfo, position);
+    }
+    toString(): string {
+        return "\n"
     }
 }
 
@@ -70,22 +85,28 @@ export class Comment extends BaseNode {
     constructor(content: string, sameline?: boolean, suffixParbreak?: boolean, leadingWhitespace?: boolean, renderInfo?: typeof BaseNode.prototype._renderInfo, position?: typeof BaseNode.prototype.position) {
         super("comment", renderInfo, position);
         this.content = content;
-        this.sameline = sameline;
-        this.suffixParbreak = suffixParbreak;
-        this.leadingWhitespace = leadingWhitespace;
+        if(sameline)this.sameline = sameline;
+        if(suffixParbreak)this.suffixParbreak = suffixParbreak;
+        if(leadingWhitespace)this.leadingWhitespace = leadingWhitespace;
+    }
+    toString(): string {
+        return `%${this.content}`
     }
 }
 
 export class Macro extends BaseNode {
-    type: "macro" = "macro";
+    type= "macro";
     content: string;
     escapeToken?: string;
     args?: Argument[];
     constructor(content: string, escapeToken?: string, args?: Argument[], renderInfo?: typeof BaseNode.prototype._renderInfo, position?: typeof BaseNode.prototype.position) {
         super("macro", renderInfo, position);
         this.content = content;
-        this.escapeToken = escapeToken;
-        this.args = args;
+        if(escapeToken)this.escapeToken = escapeToken;
+        if(args)this.args = args;
+    }
+    toString(): string {
+        return `\\${this.content}`
     }
 }
 
@@ -96,7 +117,10 @@ export class Environment extends ContentNode {
     constructor(type: "environment" | "mathenv", env: string, content: Node[], args?: Argument[], renderInfo?: typeof BaseNode.prototype._renderInfo, position?: typeof BaseNode.prototype.position) {
         super(type, content, renderInfo, position);
         this.env = env;
-        this.args = args;
+        if(args)this.args = args;
+    }
+    toString(): string {
+        return `\\begin{${this.env}}${this.content.map(node => node.toString()).join("")}\\end{${this.env}}`
     }
 }
 
@@ -109,12 +133,18 @@ export class VerbatimEnvironment extends BaseNode {
         this.env = env;
         this.content = content;
     }
+    toString(): string {
+        return `\\begin{${this.env}}${this.content}\\end{${this.env}}`
+    }
 }
 
 export class DisplayMath extends ContentNode {
     type: "displaymath" = "displaymath";
     constructor(content: Node[], renderInfo?: typeof BaseNode.prototype._renderInfo, position?: typeof BaseNode.prototype.position) {
         super("displaymath", content, renderInfo, position);
+    }
+    toString(): string {
+        return `\\[${this.content.map(node => node.toString()).join("")}\\]`
     }
 }
 
@@ -123,12 +153,18 @@ export class Group extends ContentNode {
     constructor(content: Node[], renderInfo?: typeof BaseNode.prototype._renderInfo, position?: typeof BaseNode.prototype.position) {
         super("group", content, renderInfo, position);
     }
+    toString(): string {
+        return `{${this.content.map(node => node.toString()).join("")}}`
+    }
 }
 
 export class InlineMath extends ContentNode {
     type: "inlinemath" = "inlinemath";
     constructor(content: Node[], renderInfo?: typeof BaseNode.prototype._renderInfo, position?: typeof BaseNode.prototype.position) {
         super("inlinemath", content, renderInfo, position);
+    }
+    toString(): string {
+        return `\\(${this.content.map(node => node.toString()).join("")}\\)`
     }
 }
 
@@ -143,6 +179,9 @@ export class Verb extends BaseNode {
         this.escape = escape;
         this.content = content;
     }
+    toString(): string {
+        return `\\${this.env}${this.escape}${this.content}${this.escape}`
+    }
 }
 
 export class Argument extends ContentNode {
@@ -153,6 +192,9 @@ export class Argument extends ContentNode {
         super("argument", content, renderInfo, position);
         this.openMark = openMark;
         this.closeMark = closeMark;
+    }
+    toString(): string {
+        return `${this.openMark}${this.content.map(node => node.toString()).join("")}${this.closeMark}`
     }
 }
 

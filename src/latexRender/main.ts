@@ -55,9 +55,14 @@ export class SwiftlatexRender {
 			task.source=getPreamble(this.plugin.app)+task.source+"\n\\end{tikzpicture}\\end{document}"
 
 			const ast = new LatexabstractSyntaxTree();
-			ast.prase(task.source);
-			ast.deleteComments();
-			task.source=ast.toString();
+			try {
+				ast.prase(task.source);
+				console.log("source", ast.a().toString());
+				ast.deleteComments();
+				task.source = ast.toString();
+			} catch (e) {
+				console.error("Error parsing latex", e);
+			}
 
 			this.renderLatexToElement(task.source, task.el,task.md5Hash, task.sourcePath)
 			.then(() => {

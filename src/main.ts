@@ -15,11 +15,11 @@ import { LatexSuiteSettingTab } from "./settings/settings_tab";
 import {Extension, Prec } from "@codemirror/state";
 
 
-import { onFileCreate, onFileChange, onFileDelete, getSnippetsFromFiles, getFileSets, getVariablesFromFiles, tryGetVariablesFromUnknownFiles } from "./settings/file_watch";
+import { onFileCreate, onFileChange, onFileDelete, getSnippetsFromFiles, getFileSets, } from "./settings/file_watch";
 import { ICONS } from "./settings/ui/icons";
 
 import { getEditorCommands } from "./obsidian/editor_commands";
-import { SnippetVariables, parseSnippetVariables, parseSnippets } from "./snippets/parse";
+import {  parseSnippets } from "./snippets/parse";
 import { tabstopsStateField } from "./snippets/codemirror/tabstops_state_field";
 import { snippetQueueStateField } from "./snippets/codemirror/snippet_queue_state_field";
 import { snippetInvertedEffects } from "./snippets/codemirror/history";
@@ -36,17 +36,6 @@ import { onKeydown,onTransaction } from "./inputMonitors";
 import { SwiftlatexRender } from "./latexRender/main";
 import { processMathBlock } from "./mathParser/iNeedToFindABetorPlace";
 import { Suggestor } from "./suggestor";
-
-/*
-
-| File | Purpose |
-| --- | --- |
-| **`nerdamer.core.js`** | Main math engine (parsing, evaluation, symbolic math). |
-| **`nerdamer.all.js`** | Loads everything (Algebra, Calculus, and Solvers). |
-| **`Algebra.js`** | Implements polynomial manipulation, factoring, simplifications. |
-| **`Calculus.js`** | Implements differentiation and integration. |
-| **`Solve.js`** | Adds equation-solving capabilities. |
-*/
 
 /**
  * Assignments:
@@ -151,9 +140,9 @@ export default class Moshe extends Plugin {
 	}
   
 
-  private async getSettingsSnippets(snippetVariables: SnippetVariables) {
-		try {
-			return await parseSnippets(this.settings.snippets, snippetVariables);
+  private async getSettingsSnippets() {
+    try {
+			return await parseSnippets(this.settings.snippets);
 		} catch (e) {
 			new Notice(`Failed to load snippets from settings: ${e}`);
       console.error(`Failed to load snippets from settings: ${e}`);
@@ -170,23 +159,6 @@ export default class Moshe extends Plugin {
 
   private async loadSettings() {
     let data = await this.loadData();
-
-    // Migrate settings from v1.8.0 - v1.8.4
-    const shouldMigrateSettings = data ? "basicSettings" in data : false;
-
-    // @ts-ignore
-    function migrateSettings(oldSettings) {
-      return {
-        ...oldSettings.basicSettings,
-        ...oldSettings.rawSettings,
-        snippets: oldSettings.snippets,
-      };
-    }
-
-    if (shouldMigrateSettings) {
-      data = migrateSettings(data);
-    }
-
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
 
 
@@ -237,15 +209,6 @@ export default class Moshe extends Plugin {
 		this.app.workspace.updateOptions();
 	}
   
-  private async getSettingsSnippetVariables() {
-		try {
-			return await parseSnippetVariables(this.settings.snippetVariables);
-		} catch (e) {
-			new Notice(`Failed to load snippet variables from settings: ${e}`);
-			console.log(`Failed to load snippet variables from settings: ${e}`);
-			return {};
-		}
-	}
   private async getSnippets(becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean) {
 		// Get files in snippet/variable folders.
 		// If either is set to be loaded from settings the set will just be empty.
@@ -253,22 +216,16 @@ export default class Moshe extends Plugin {
 
 
 		// This must be done in either case, because it also updates the set of snippet files
-		const unknownFileVariables = await tryGetVariablesFromUnknownFiles(this, files);
-		if (this.settings.loadSnippetVariablesFromFile) {
-			// But we only use the values if the user wants them
-			Object.assign(snippetVariables, unknownFileVariables);
-		}
-
 		const snippets =
 			this.settings.loadSnippetsFromFile
-				? await getSnippetsFromFiles(this, files, snippetVariables)
-				: await this.getSettingsSnippets(snippetVariables);
-		this.showSnippetsLoadedNotice(snippets.length, Object.keys(snippetVariables).length,  becauseFileLocationUpdated, becauseFileUpdated);
+				? await getSnippetsFromFiles(this, files)
+				: await this.getSettingsSnippets();
+		this.showSnippetsLoadedNotice(snippets.length,  becauseFileLocationUpdated, becauseFileUpdated);
 
 		return snippets;
 	}
   
-  private showSnippetsLoadedNotice(nSnippets: number, nSnippetVariables: number, becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean) {
+  private showSnippetsLoadedNotice(nSnippets: number, becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean) {
 		if (!(becauseFileLocationUpdated || becauseFileUpdated))
 			return;
 
@@ -277,8 +234,6 @@ export default class Moshe extends Plugin {
 
 		if (this.settings.loadSnippetsFromFile)
 			body.push(`${nSnippets} snippets`);
-		if (this.settings.loadSnippetVariablesFromFile)
-			body.push(`${nSnippetVariables} snippet variables`);
 
 		const suffix = " from files.";
 		new Notice(prefix + body.join(" and ") + suffix, 5000);

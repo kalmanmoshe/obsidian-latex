@@ -63,12 +63,11 @@ interface LatexSuiteParsedSettings {
 	suggestorLanguages: string[];
 }
 
-export type LatexSuitePluginSettings = {snippets: string, snippetVariables: string} & LatexSuiteBasicSettings & LatexSuiteRawSettings;
+export type LatexSuitePluginSettings = {snippets: string} & LatexSuiteBasicSettings & LatexSuiteRawSettings;
 export type LatexSuiteCMSettings = {snippets: Snippet[]} & LatexSuiteBasicSettings & LatexSuiteParsedSettings;
 
 export const DEFAULT_SETTINGS: LatexSuitePluginSettings = {
 	snippets: '[]',
-	snippetVariables: '[]',
 
 	// Basic settings
 	snippetsEnabled: true,

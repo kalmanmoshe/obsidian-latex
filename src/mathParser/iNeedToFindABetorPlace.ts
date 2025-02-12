@@ -4,7 +4,6 @@ import { DebugModal, InfoModal } from "src/desplyModals";
 import { MathInfo, MathPraiser } from "./mathEngine";
 import { Axis } from "src/tikzjax/tikzjax";
 import { FormatTikzjax } from "src/tikzjax/interpret/tokenizeTikzjax";
-import nerdamer from "../nerdamer/all.min";
 
 export function processMathBlock(source: string, mainContainer: HTMLElement): void {
     console.log("Processing math block");
@@ -99,10 +98,6 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
   
             //this.addInfoModal(new InfoModal(this.app, this.result.mathInfo));
             //this.addDebugModel(new DebugModal(this.app, this.result.mathInfo.debugInfo));
-            const a=nerdamer.convertFromLaTeX(this.mathInput)
-            const b=nerdamer.solve(a,'x')
-            this.result=nerdamer.convertToLaTeX(b)
-            console.log(a,b,this.result,)
             /*
             // eslint-disable-next-line no-case-declarations
             this.result = new MathPraiser(this.mathInput);

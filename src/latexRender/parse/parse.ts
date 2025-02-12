@@ -35,31 +35,31 @@ interface ast{
 function migrate(ast: any) {
     switch (ast.type) {
         case "root":
-            return new Root(ast.content.map(migrate), ast._renderInfo, ast.position);
+            return new Root(ast.content?.map(migrate), ast._renderInfo, ast.position);
         case "string":
-            return new String(ast.content.map(migrate), ast._renderInfo, ast.position);
+            return new String(ast.content, ast._renderInfo, ast.position);
         case "whitespace":
             return new Whitespace(ast._renderInfo, ast.position);
         case "parbreak":
             return new Parbreak(ast._renderInfo, ast.position);
         case "comment":
-            return new Comment(ast.content.map(migrate), ast.sameline, ast.suffixParbreak, ast.leadingWhitespace, ast._renderInfo, ast.position);
-        case "Macro":
-            return new Macro(ast.name, ast.args.map(migrate), ast._renderInfo, ast.position);
-        case "Environment":
-            return new Environment(ast.name, ast.args.map(migrate), ast.content.map(migrate), ast._renderInfo, ast.position);
-        case "VerbatimEnvironment":
-            return new VerbatimEnvironment(ast.name, ast.args.map(migrate), ast.content.map(migrate), ast._renderInfo, ast.position);
-        case "DisplayMath":
-            return new DisplayMath(ast.content.map(migrate), ast._renderInfo, ast.position);
-        case "InlineMath":
-            return new InlineMath(ast.content.map(migrate), ast._renderInfo, ast.position);
-        case "Group":
-            return new Group(ast.content.map(migrate), ast._renderInfo, ast.position);
-        case "Argument":
-            return new Argument(ast.content.map(migrate), ast._renderInfo, ast.position);
-        case "Verb":
-            return new Verb(ast.content.map(migrate), ast._renderInfo, ast.position);
+            return new Comment(ast.content, ast.sameline, ast.suffixParbreak, ast.leadingWhitespace, ast._renderInfo, ast.position);
+        case "macro":
+            return new Macro(ast.content,ast.escapeToken, ast.args?.map(migrate), ast._renderInfo, ast.position);
+        case "environment":
+            return new Environment(ast.type,ast.env,ast.content?.map(migrate), ast._renderInfo, ast.position);
+        case "verbatimenvironment":
+            return new VerbatimEnvironment(ast.env,ast.content?.map(migrate), ast._renderInfo, ast.position);
+        case "displaymath":
+            return new DisplayMath(ast.content?.map(migrate), ast._renderInfo, ast.position);
+        case "inlinemath":
+            return new InlineMath(ast.content?.map(migrate), ast._renderInfo, ast.position);
+        case "group":
+            return new Group(ast.content?.map(migrate), ast._renderInfo, ast.position);
+        case "argument":
+            return new Argument(ast.content?.map(migrate), ast._renderInfo, ast.position);
+        case "verb":
+            return new Verb(ast.content?.map(migrate), ast._renderInfo, ast.position);
         default:
             throw new Error(`Unknown node type: ${ast.type}`);
     }
@@ -78,6 +78,9 @@ export class LatexabstractSyntaxTree{
     }
     deleteComments(){
         deleteComments(this.ast);
+    }
+    a() {
+        return migrate(this.ast);
     }
     usdPackages(){}
     usdLibraries(){}
