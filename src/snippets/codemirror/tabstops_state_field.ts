@@ -60,6 +60,13 @@ export const tabstopsStateField = StateField.define<TabstopGroup[]>({
 	}
 });
 
+/**
+ * Retrieves the index of the current tabstop group that contains the given selection.
+ *
+ * @param tabstopGroups - An array of `TabstopGroup` objects to search through.
+ * @param sel - The current `EditorSelection` to check against the tabstop groups.
+ * @returns The index of the tabstop group that contains the selection, or the length of the `tabstopGroups` array if no group contains the selection.
+ */
 function getCurrentTabstopGroupIndex(
 	tabstopGroups: TabstopGroup[],
 	sel: EditorSelection
@@ -71,18 +78,39 @@ function getCurrentTabstopGroupIndex(
 	return tabstopGroups.length;
 }
 
+/**
+ * Retrieves the current tabstop groups from the editor view.
+ * 
+ * This function accesses the `tabstopsStateField` in the editor view's state
+ * and returns the array of `TabstopGroup` objects that are currently present.
+ * 
+ * @param view - The editor view from which the tabstop groups will be retrieved.
+ * @returns An array of `TabstopGroup` objects currently in the editor view.
+ */
 export function getTabstopGroupsFromView(view: EditorView) {
 	const currentTabstopGroups = view.state.field(tabstopsStateField);
 
 	return currentTabstopGroups;
 }
 
+/**
+ * Adds the given tabstop groups to the editor view.
+ * 
+ * @param view - The editor view to which the tabstop groups will be added.
+ * @param tabstopGroups - An array of TabstopGroup objects to be added.
+ */
 export function addTabstops(view: EditorView, tabstopGroups: TabstopGroup[]) {
+	console.log("Adding tabstops", tabstopGroups);
 	view.dispatch({
 		effects: [addTabstopsEffect.of(tabstopGroups)],
 	});
 }
 
+/**
+ * Removes all tabstop groups from the editor view.
+ * 
+ * @param view - The editor view from which all tabstop groups will be removed.
+ */
 export function removeAllTabstops(view: EditorView) {
 	view.dispatch({
 		effects: [removeAllTabstopsEffect.of(null)],
@@ -92,14 +120,26 @@ export function removeAllTabstops(view: EditorView) {
 // const COLORS = ["lightskyblue", "orange", "lime"];
 const N_COLORS = 3;
 
+/**
+ * Determines the next available color index for a new tabstop group.
+ * 
+ * This function checks the existing tabstop groups in the editor view and 
+ * returns the first color index that is not currently in use. If all color 
+ * indices are in use, it returns 0 as a fallback.
+ * 
+ * @param view - The editor view from which the tabstop groups will be checked.
+ * @returns The index of the next available color for a new tabstop group.
+ */
 export function getNextTabstopColor(view: EditorView) {
 	const field = view.state.field(tabstopsStateField);
 	const existingColors = field.map(tabstopGroup => tabstopGroup.color);
 	const uniqueExistingColors = new Set(existingColors);
 
+	// Iterate through the possible color indices and return the first one that is not in use
 	for (let i = 0; i < N_COLORS; i++) {
 		if (!uniqueExistingColors.has(i)) return i;
 	}
 
+	// If all color indices are in use, return 0 as a fallback
 	return 0;
 }

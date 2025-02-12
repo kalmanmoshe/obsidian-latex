@@ -19,12 +19,12 @@ interface LatexSuiteBasicSettings {
 	suppressSnippetTriggerOnIME: boolean;
 	removeSnippetWhitespace: boolean;
 	autoDelete$: boolean;
-
 	loadPreambleFromFile: boolean;
 	loadSnippetsFromFile: boolean;
+	loadSnippetVariablesFromFile: boolean;
 	snippetsFileLocation: string;
 	preambleFileLocation: string;
-	
+	snippetVariablesFileLocation: string;
 	concealEnabled: boolean;
 	concealRevealTimeout: number;
 	colorPairedBracketsEnabled: boolean;
@@ -68,7 +68,7 @@ export type LatexSuiteCMSettings = {snippets: Snippet[]} & LatexSuiteBasicSettin
 
 export const DEFAULT_SETTINGS: LatexSuitePluginSettings = {
 	snippets: '[]',
-	snippetVariables: '[]',
+	snippetVariables: '{}',
 
 	// Basic settings
 	snippetsEnabled: true,
@@ -78,8 +78,10 @@ export const DEFAULT_SETTINGS: LatexSuitePluginSettings = {
 	autoDelete$: true,
 	loadPreambleFromFile: true,
 	loadSnippetsFromFile: true,
+	loadSnippetVariablesFromFile: false,
 	preambleFileLocation: "",
 	snippetsFileLocation: "",
+	snippetVariablesFileLocation: "",
 	concealEnabled: false,
 	concealRevealTimeout: 0,
 	colorPairedBracketsEnabled: true,

@@ -34,6 +34,7 @@ export class Context {
 		ctx.mode.codeMath = forceMath;
 		ctx.mode.code = inCode && !forceMath;
 		if (ctx.mode.code&&codeblockLanguage) ctx.codeblockLanguage = codeblockLanguage;
+		ctx.mode.html = getHtmlBounds(state) !== null;
 		
 		// first, check if math mode should be "generally" on
 		const inMath = forceMath || isWithinEquation(state);

@@ -6,7 +6,7 @@
 //git pull --all#Pull all branches
 //git push --all#Push all branches
 
-import {Plugin, MarkdownRenderer,addIcon, App, Modal, Component, Setting,Notice, WorkspaceWindow,loadMathJax,renderMath, MarkdownView, EditorSuggest, EditorSuggestTriggerInfo, EditorPosition, Editor, TFile, EditorSuggestContext, FileSystemAdapter} from "obsidian";
+import {Plugin,addIcon ,Notice,loadMathJax,} from "obsidian";
 
 
 import {LatexSuitePluginSettings, DEFAULT_SETTINGS, LatexSuiteCMSettings, processLatexSuiteSettings} from "./settings/settings";
@@ -32,7 +32,7 @@ import { snippetExtensions } from "./snippets/codemirror/extensions";
 import { colorPairedBracketsPlugin, highlightCursorBracketsPlugin } from "./editor_extensions/highlight_brackets";
 import { mkConcealPlugin } from "./editor_extensions/conceal";
 import { cursorTooltipBaseTheme, cursorTooltipField,  } from "./editor_extensions/math_tooltip";
-import { onKeydown,onTransaction } from "./inputMonitors";
+import { onKeydown,onTransaction } from "./ inputMonitors";
 import { SwiftlatexRender } from "./latexRender/main";
 import { processMathBlock } from "./mathParser/iNeedToFindABetorPlace";
 import { Suggestor } from "./suggestor";
@@ -123,7 +123,6 @@ export default class Moshe extends Plugin {
 			Prec.highest(EditorView.domEventHandlers({ "keydown": onKeydown })),
       Prec.lowest([colorPairedBracketsPlugin.extension, rtlForcePlugin.extension,EditorView.updateListener.of(onTransaction)]),
       //On transaction causes a lot of a lot of problems and significant.and significantly slows down the computer The more processes are in it
-      EditorView.updateListener.of(onTransaction),
 			snippetExtensions,
 
 			highlightCursorBracketsPlugin.extension,
@@ -156,7 +155,6 @@ export default class Moshe extends Plugin {
 			return await parseSnippets(this.settings.snippets, snippetVariables);
 		} catch (e) {
 			new Notice(`Failed to load snippets from settings: ${e}`);
-      console.error(`Failed to load snippets from settings: ${e}`);
 			return [];
 		}
 	}
@@ -190,8 +188,9 @@ export default class Moshe extends Plugin {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
 
 
-    if (this.settings.loadSnippetsFromFile) {
-      const tempSnippets = await this.getSettingsSnippets();
+    if (this.settings.loadSnippetsFromFile || this.settings.loadSnippetVariablesFromFile) {
+      const tempSnippetVariables = await this.getSettingsSnippetVariables();
+      const tempSnippets = await this.getSettingsSnippets(tempSnippetVariables);
 
       this.CMSettings = processLatexSuiteSettings(tempSnippets, this.settings);
 
@@ -251,6 +250,10 @@ export default class Moshe extends Plugin {
 		// If either is set to be loaded from settings the set will just be empty.
 		const files = getFileSets(this);
 
+		const snippetVariables =
+			this.settings.loadSnippetVariablesFromFile
+				? await getVariablesFromFiles(this, files)
+				: await this.getSettingsSnippetVariables();
 
 		// This must be done in either case, because it also updates the set of snippet files
 		const unknownFileVariables = await tryGetVariablesFromUnknownFiles(this, files);
