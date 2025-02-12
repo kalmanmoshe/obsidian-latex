@@ -19,6 +19,7 @@ async function importRaw(maybeJavaScriptCode: string) {
 			raw = await importModuleDefault(`data:text/javascript;base64,${encode(`export default ${maybeJavaScriptCode}`)}`);
 		}
 	} catch (e) {
+		console.error(maybeJavaScriptCode,e);
 		throw "Invalid format.";
 	}
 	return raw;
