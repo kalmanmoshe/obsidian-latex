@@ -8,10 +8,8 @@
   "autoDelete$": true,
   "loadPreambleFromFile": true,
   "loadSnippetsFromFile": true,
-  "loadSnippetVariablesFromFile": false,
   "preambleFileLocation": "obsidian/data/Files/preamble.sty",
   "snippetsFileLocation": "obsidian/data/Snippets",
-  "snippetVariablesFileLocation": "",
   "concealEnabled": false,
   "concealRevealTimeout": 0,
   "colorPairedBracketsEnabled": true,
@@ -436,6 +434,8 @@
     {},
     {}
   ],
+  "loadSnippetVariablesFromFile": false,
+  "snippetVariablesFileLocation": "",
   "onlyRenderInReadingMode": false,
   "enableCache": true
 }
