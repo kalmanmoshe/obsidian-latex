@@ -8,15 +8,21 @@ import { TreeCursor } from "@lezer/common";
 export const tabout = (view: EditorView, ctx: Context, dir: Direction): boolean => {
 	console.log("tabout",ctx,dir);
 	if(ctx.mode.inMath()) return taboutMathjax(view,ctx,dir);
-	if(ctx.mode.text) return taboutText(view,ctx,dir);
+	if(ctx.mode.strictlyInText()) return taboutText(view,ctx,dir);
 	if(ctx.mode.html) return taboutHtml(view,ctx,dir);
 	return false;
 }
 const taboutHtml=(view: EditorView, ctx: Context,dir: Direction):boolean=>{
-	const Params=ctxTaboutParams(view,ctx,TaboutEnv.Html);
+	const Params = ctxTaboutParams(view, ctx,TaboutEnv.Text);
 	if(!Params) return false;
 	const {start,end,pos,doc,text}=Params;
-
+	const chars = [
+		["{", "(", "[", "<"],
+		[],
+		["}", ")", "]", ">"]
+	];
+	const success=findTarget(view,dir,chars[dir + 1],start,end,pos,text);
+	if(success) return true;
 	return false;
 }
 interface tagConstruction{
@@ -34,9 +40,7 @@ const taboutText = (view: EditorView, ctx: Context, dir: Direction): boolean => 
 		[],
 		["}", ")", "]", ">"]
 	];
-	console.log("tabout Doc Text",text.slice(start,end));
 	const success=findTarget(view,dir,chars[dir + 1],start,end,pos,text);
-	console.log("taboutText",success);
 	if(success) return true;
 	return false;
 }
@@ -120,9 +124,7 @@ const ctxTaboutParams = (view: EditorView, ctx: Context, env: TaboutEnv) => {
 	if (env === TaboutEnv.Text) {
 		//forget about couser jest use the html do
 		[start, end] = [Direction.Backward, Direction.Forward].map(dir => {
-			const newPos=pos
-			const cursor = syntaxTree(view.state).cursorAt(newPos - 1);
-			return findNearestBlockBoundary(view.state, cursor, pos, dir);
+			return findNearestBlockBoundary(view.state, pos, dir);
 		})
 	}
 	else {

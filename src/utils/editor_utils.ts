@@ -149,3 +149,27 @@ export const findLine = (state: EditorState, pos: number,dir: Direction, regex: 
 	}
 	return null;
 };
+
+/**
+ * Finds the position of a target regex in a string starting from a given position and direction.
+ *
+ * @param string - The string to search within.
+ * @param target - The regex pattern to search for.
+ * @param pos - The position to start searching from.
+ * @param dir - The direction to search in (forward or backward).
+ * @returns The position of the target regex match or null if not found.
+ */
+export function findWithDirectionFromPos(
+	string: string,
+	target: RegExp,
+	pos = 0,
+	dir = Direction.Forward
+): number | null {
+	const globalTarget = new RegExp(target.source, target.flags.includes('g') ? target.flags : target.flags + 'g');
+	const matches = [...string.matchAll(globalTarget)]
+		.map(match => (match.index !== undefined ? match.index : null))
+		.filter(index => index !== null && (dir === Direction.Forward ? index >= pos : index <= pos));
+
+	if (matches.length === 0) return null;
+	return dir === Direction.Forward ? matches[0]! : matches[matches.length - 1]!;
+}

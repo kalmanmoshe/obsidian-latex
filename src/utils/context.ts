@@ -1,11 +1,10 @@
 import { EditorState, SelectionRange } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { Direction, escalateToToken, findLine, findMatchingBracket, getCharacterAtPos, getCloseBracket } from "src/utils/editor_utils";
+import { Direction, escalateToToken, findLine, findMatchingBracket, findWithDirectionFromPos, getCharacterAtPos, getCloseBracket } from "src/utils/editor_utils";
 import { Mode } from "../snippets/options";
 import { Environment } from "../snippets/environment";
 import { getLatexSuiteConfig } from "../snippets/codemirror/config";
 import { syntaxTree } from "@codemirror/language";
-import { find } from "async";
 export interface Bounds {
 	start: number;
 	end: number;
@@ -315,24 +314,29 @@ const langIfWithinCodeblock = (state: EditorState): string | null => {
 }
 
 
-export function findNearestBlockBoundary(state: EditorState, cursor: TreeCursor, pos: number, dir: Direction): number {
-	const getBoundaryPosition = (node: { from: number; to: number }|number | null) => {
-		if (!node) return dir === Direction.Backward ? 0 : state.doc.length;
-		if (typeof node === "number") return node;
-		else return dir === Direction.Backward ? node.to : node.from;
-	}
-	[/\$(?!\s)/,/(?!\s)\$/]
+export function findNearestBlockBoundary(state: EditorState, pos: number, dir: Direction): number {
+	const getBoundaryPosition = (node: { from: number; to: number } | number | null) => {
+		if (node == null) return dir === Direction.Backward ? 0 : state.doc.length;
+		return typeof node === "number" ? node : (dir === Direction.Backward ? node.to : node.from);
+	};
+
+	// Ensure regex indexing is safe
+	const regexIndex = dir === Direction.Backward ? 0 : 1;
+
 	const boundaries = [
 		findLine(state, state.doc.lineAt(pos).number, dir, /^\`\`\`/),
-		state.doc.toString().search(),
+		findWithDirectionFromPos(state.doc.toString(), [/\$(?!\s)/,/(?!\s)\$/][regexIndex], pos, dir),
+		findWithDirectionFromPos(state.doc.toString(), [/\<(?!\s)/, /(?!\s)\>/][regexIndex], pos, dir),
 	].map(node => getBoundaryPosition(node));
-	
-	console.log(state.doc.toString)
 
-	console.log(boundaries)
+	console.log("Boundaries found:", boundaries);
 
-    return dir === Direction.Backward ? Math.max(...boundaries) : Math.min(...boundaries);
+	// Filter out invalid results before finding max/min
+	const validBoundaries = boundaries.filter(b => b !== null && b !== undefined);
+
+	if (validBoundaries.length === 0) return dir === Direction.Backward ? 0 : state.doc.length;
+
+	return dir === Direction.Backward ? Math.max(...validBoundaries) : Math.min(...validBoundaries);
 }
-function findWithDirectionFromPos(string,1 pos = 0, dir,): number | null {
 
-}
+  

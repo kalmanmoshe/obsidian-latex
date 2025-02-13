@@ -36,6 +36,7 @@ import { onKeydown,onTransaction } from "./inputMonitors";
 import { SwiftlatexRender } from "./latexRender/main";
 import { processMathBlock } from "./mathParser/iNeedToFindABetorPlace";
 import { Suggestor } from "./suggestor";
+import { readAndParseSVG } from "./latexRender/svg2latex/temp";
 
 /**
  * Assignments:
@@ -59,6 +60,7 @@ export default class Moshe extends Plugin {
 
   async onload() {
     console.log("Loading Moshe math plugin")
+    readAndParseSVG().then((res: any)=>console.log(res))
     await this.loadSettings();
     await loadMathJax();
     await this.loadPreamble();

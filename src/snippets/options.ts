@@ -74,6 +74,10 @@ export class Mode {
 	strictlyInMath() {
 		return this.inMath() && !this.textEnv;
 	}
+	strictlyInText(){
+		return this.text&&!this.textEnv&&!this.html
+	}
+	
 
 	constructor() {
 		this.text = false;
