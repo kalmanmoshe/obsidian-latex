@@ -9,10 +9,6 @@ import intersectionImplementation from "set.prototype.intersection";
 import { sortSnippets } from "src/snippets/sort";
 import Moshe from "../main";
 
-const difference: <T>(self: Set<T>) => Set<T> = differenceImplementation;
-const intersection: <T>(self: Set<T>) => Set<T> = intersectionImplementation;
-
-
 function isInFolder(file: TFile, dir: TFolder) {
 	let cur = file.parent;
 	let cnt = 0;
@@ -113,29 +109,18 @@ function getFilesWithin(vault: Vault, path: string): Set<TFile> {
 }
 
 
-interface FileSets {
-	definitelyVariableFiles: Set<TFile>;
-	definitelySnippetFiles: Set<TFile>;
-	snippetOrVariableFiles: Set<TFile>;
-}
 
-export function getFileSets(plugin: Moshe): FileSets {
+export function getFileSets(plugin: Moshe) {
 	const snippetsFolder =
 		plugin.settings.loadSnippetsFromFile
 		? getFilesWithin(plugin.app.vault, plugin.settings.snippetsFileLocation)
 			: new Set<TFile>();
-
-	const definitelyVariableFiles = difference(snippetsFolder);
-	const definitelySnippetFiles = difference(snippetsFolder,);
-	const snippetOrVariableFiles = intersection(snippetsFolder);
-
-	return {definitelyVariableFiles, definitelySnippetFiles, snippetOrVariableFiles};
+	return snippetsFolder
 }
 
 
 export async function getPreambleFromFiles(
 	plugin: Moshe,
-	files: FileSets,
 	preamble: any
 ) {
 
@@ -144,18 +129,18 @@ export async function getPreambleFromFiles(
 
 export async function getSnippetsFromFiles(
 	plugin: Moshe,
-	files: FileSets,
+	files: Set<TFile>,
 ) {
 	const snippets: Snippet[] = [];
 
-	for (const file of files.definitelySnippetFiles) {
+	for (const file of files) {
 		const content = await plugin.app.vault.cachedRead(file);
 		try {
 			snippets.push(...await parseSnippets(content));
 		} catch (e) {
 			new Notice(`Failed to parse snippet file ${file.name}: ${e}`);
 			console.log(`Failed to parse snippet file ${file.name}: ${e}`);
-			files.definitelySnippetFiles.delete(file);
+			files.delete(file);
 		}
 	}
 

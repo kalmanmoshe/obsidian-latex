@@ -13,12 +13,16 @@ async function importRaw(maybeJavaScriptCode: string) {
 			// first, try to import as a plain js module
 			// js-base64.encode is needed over builtin `window.btoa` because the latter errors on unicode
 			raw = await importModuleDefault(`data:text/javascript;base64,${encode(maybeJavaScriptCode)}`);
+			if(raw instanceof String&&raw.length==0)
+				raw='[]';
 		} catch {
 			// otherwise, try to import as a standalone js object
 			raw = await importModuleDefault(`data:text/javascript;base64,${encode(`export default ${maybeJavaScriptCode}`)}`);
+			if(raw instanceof String&&raw.length==0)
+				raw='[]';
 		}
 	} catch (e) {
-		console.error(maybeJavaScriptCode,e);
+		console.error(raw,maybeJavaScriptCode,e);
 		throw "Invalid format.";
 	}
 	return raw;

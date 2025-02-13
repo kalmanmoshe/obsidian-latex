@@ -57,9 +57,9 @@ function migrate(ast: any) {
         case "group":
             return new Group(ast.content?.map(migrate), ast._renderInfo, ast.position);
         case "argument":
-            return new Argument(ast.content?.map(migrate), ast._renderInfo, ast.position);
+            return new Argument(ast.openMark,ast.closeMark,ast.content?.map(migrate), ast._renderInfo, ast.position);
         case "verb":
-            return new Verb(ast.content?.map(migrate), ast._renderInfo, ast.position);
+            return new Verb(ast.env,ast.escape, ast._renderInfo, ast.position);
         default:
             throw new Error(`Unknown node type: ${ast.type}`);
     }
@@ -70,6 +70,7 @@ export class LatexabstractSyntaxTree{
     packages: Array<string>;
     libraries: Array<string>;
     ast: any;
+    myAst: Root;
     prase(latex: string){
         this.ast = parse(latex);
     }
@@ -80,7 +81,16 @@ export class LatexabstractSyntaxTree{
         deleteComments(this.ast);
     }
     a() {
-        return migrate(this.ast);
+        const a=migrate(this.ast)
+        if (a instanceof Root) {
+            this.myAst=a
+        }
+        else{
+            throw new Error("Root not found");
+        }
+    }
+    cleanUp(){
+        //this.myAst.
     }
     usdPackages(){}
     usdLibraries(){}

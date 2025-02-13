@@ -24,10 +24,10 @@ import { tabstopsStateField } from "./snippets/codemirror/tabstops_state_field";
 import { snippetQueueStateField } from "./snippets/codemirror/snippet_queue_state_field";
 import { snippetInvertedEffects } from "./snippets/codemirror/history";
 
-import { EditorView, ViewPlugin, ViewUpdate ,Decoration, tooltips, } from "@codemirror/view";
+import { EditorView, tooltips, } from "@codemirror/view";
 import { rtlForcePlugin } from "./editor_extensions/editorDecorations";
 
-import { getLatexSuiteConfig, getLatexSuiteConfigExtension } from "./snippets/codemirror/config";
+import { getLatexSuiteConfigExtension } from "./snippets/codemirror/config";
 import { snippetExtensions } from "./snippets/codemirror/extensions";
 import { colorPairedBracketsPlugin, highlightCursorBracketsPlugin } from "./editor_extensions/highlight_brackets";
 import { mkConcealPlugin } from "./editor_extensions/conceal";
@@ -58,7 +58,7 @@ export default class Moshe extends Plugin {
   editorExtensions: Extension[]=[];
 
   async onload() {
-    console.log("new lod")
+    console.log("Loading Moshe math plugin")
     await this.loadSettings();
     await loadMathJax();
     await this.loadPreamble();
@@ -67,7 +67,6 @@ export default class Moshe extends Plugin {
 		this.watchFiles();
     this.addEditorCommands();
     this.registerEditorSuggest(new Suggestor(this));
-
     this.app.workspace.onLayoutReady(() => {
       //if(1===2*3)
       this.loadSwiftLatexRender().then(() => {

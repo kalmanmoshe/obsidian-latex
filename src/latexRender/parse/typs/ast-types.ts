@@ -14,6 +14,7 @@ type Position={
         start: { offset: number; line: number; column: number };
         end: { offset: number; line: number; column: number };
     };
+    
 class BaseNode {
     type: string;
     _renderInfo?: _renderInfo;
@@ -106,7 +107,7 @@ export class Macro extends BaseNode {
         if(args)this.args = args;
     }
     toString(): string {
-        return `\\${this.content}`
+        return `\\${this.content}`+(this.args ? this.args.map(arg => arg.toString()).join("") : "")
     }
 }
 
@@ -144,7 +145,7 @@ export class DisplayMath extends ContentNode {
         super("displaymath", content, renderInfo, position);
     }
     toString(): string {
-        return `\\[${this.content.map(node => node.toString()).join("")}\\]`
+        return `${this.content.map(node => node.toString()).join("")}`
     }
 }
 
@@ -164,7 +165,7 @@ export class InlineMath extends ContentNode {
         super("inlinemath", content, renderInfo, position);
     }
     toString(): string {
-        return `\\(${this.content.map(node => node.toString()).join("")}\\)`
+        return `${this.content.map(node => node.toString()).join("")}`
     }
 }
 
@@ -194,7 +195,7 @@ export class Argument extends ContentNode {
         this.closeMark = closeMark;
     }
     toString(): string {
-        return `${this.openMark}${this.content.map(node => node.toString()).join("")}${this.closeMark}`
+        return this.openMark + this.content.map(node => node.toString()).join("") + this.closeMark
     }
 }
 

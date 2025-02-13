@@ -57,7 +57,7 @@ export class SwiftlatexRender {
 			const ast = new LatexabstractSyntaxTree();
 			try {
 				ast.prase(task.source);
-				console.log("source", ast.a().toString());
+				console.log("source", ast.ast,ast.a(),ast.a().toString());
 				ast.deleteComments();
 				task.source = ast.toString();
 			} catch (e) {
@@ -121,7 +121,6 @@ export class SwiftlatexRender {
 	}
 
 	private async loadCache() {
-		console.log("Loading cache from", this.cacheFolderPath,this.plugin.settings.cache);
 		this.cache = new Map(this.plugin.settings.cache);
 		// For some reason `this.cache` at this point is actually `Map<string, Array<string>>`
 		for (const [k, v] of this.cache) {
