@@ -79,7 +79,8 @@ export default class Moshe extends Plugin {
   async onunload() {
     this.removeSyntaxHighlighting();
     this.swiftlatexRender.onunload();
-	}
+  }
+  
 
   private setCodeblocks(){
     this.registerMarkdownCodeBlockProcessor("math", processMathBlock.bind(this));
@@ -155,7 +156,8 @@ export default class Moshe extends Plugin {
       addIcon(iconId, svgContent);
     }
   }
-
+  getApp() { return this.app }
+  
   private async loadSettings() {
     let data = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);

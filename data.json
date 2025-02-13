@@ -254,7 +254,12 @@
       "26/tikzlibrarypgfplots.surfshading.code.tex": 1,
       "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/main.aux": 1,
-      "33/cmmi10.vf": 1
+      "33/cmr10.vf": 1,
+      "33/cmmi10.vf": 1,
+      "33/cmr12.vf": 1,
+      "33/cmsy8.vf": 1,
+      "33/cmr7.vf": 1,
+      "33/cmmi7.vf": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -427,15 +432,9 @@
       "32/cmmi7.pfb": "/tex/cmmi7.pfb",
       "32/cmsy10.pfb": "/tex/cmsy10.pfb",
       "32/cmsy8.pfb": "/tex/cmsy8.pfb",
-      "26/cmbx10.pfb": "/tex/cmbx10.pfb",
-      "26/cmbx10.tfm": "/tex/cmbx10.tfm",
       "26/cmr17.tfm": "/tex/cmr17.tfm",
-      "26/cmr5.pfb": "/tex/cmr5.pfb",
-      "26/cmsy7.pfb": "/tex/cmsy7.pfb",
       "32/cmr8.pfb": "/tex/cmr8.pfb",
-      "3/cmr17": "/tex/cmr17.tfm",
-      "32/cmr5.pfb": "/tex/cmr5.pfb",
-      "32/cmsy7.pfb": "/tex/cmsy7.pfb"
+      "3/cmr17": "/tex/cmr17.tfm"
     },
     {},
     {}

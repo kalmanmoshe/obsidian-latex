@@ -1,17 +1,19 @@
 import { EditorView } from "@codemirror/view";
-import { replaceRange, setCursor, getCharacterAtPos, Direction } from "src/utils/editor_utils";
-import { Context } from "src/utils/context";
-import { start } from "repl";
+import { replaceRange, setCursor, getCharacterAtPos, Direction, escalateToToken, findLine } from "src/utils/editor_utils";
+import { Context, findNearestBlockBoundary } from "src/utils/context";
+import { syntaxTree} from "@codemirror/language";
+import { EditorState } from "@codemirror/state";
+import { TreeCursor } from "@lezer/common";
 
-
-export const tabout = (view: EditorView, ctx: Context,dir: Direction):boolean => {
+export const tabout = (view: EditorView, ctx: Context, dir: Direction): boolean => {
+	console.log("tabout",ctx,dir);
 	if(ctx.mode.inMath()) return taboutMathjax(view,ctx,dir);
 	if(ctx.mode.text) return taboutText(view,ctx,dir);
 	if(ctx.mode.html) return taboutHtml(view,ctx,dir);
 	return false;
 }
 const taboutHtml=(view: EditorView, ctx: Context,dir: Direction):boolean=>{
-	const Params=ctxTaboutParams(view,ctx);
+	const Params=ctxTaboutParams(view,ctx,TaboutEnv.Html);
 	if(!Params) return false;
 	const {start,end,pos,doc,text}=Params;
 
@@ -21,24 +23,25 @@ interface tagConstruction{
 	open: string,
 	close: string
 }
-const taboutText=(view: EditorView,ctx: Context,dir: Direction):boolean=>{
-	const Params=ctxTaboutParams(view,ctx);
+
+const taboutText = (view: EditorView, ctx: Context, dir: Direction): boolean => {
+	const Params = ctxTaboutParams(view, ctx,TaboutEnv.Text);
 	if(!Params) return false;
 	const {start,end,pos,doc,text}=Params;
-
 	// Move to the next closing bracket: }, ), ], >, |, or \\rangle
 	const chars = [
 		["{", "(", "[", "<"],
 		[],
 		["}", ")", "]", ">"]
 	];
-	console.log("tabout",ctx,dir);
+	console.log("tabout Doc Text",text.slice(start,end));
 	const success=findTarget(view,dir,chars[dir + 1],start,end,pos,text);
-	console.log("tabout",success);
+	console.log("taboutText",success);
 	if(success) return true;
 	return false;
 }
-const findTarget=(view: EditorView,dir: number,chars: Array<string>,start: number,end: number,pos: number,text: string)=>{
+
+const findTarget = (view: EditorView, dir: number, chars: Array<string>, start: number, end: number, pos: number, text: string) => {
 	const searchEnd = dir === 1 ? end+1 : start-1;
 	const modifier = dir === 1 ? 0 : -1;
 
@@ -49,10 +52,12 @@ const findTarget=(view: EditorView,dir: number,chars: Array<string>,start: numbe
 			return true;
 		}
 	}
+	return false;
 }
+
 const taboutMathjax=(view: EditorView,ctx: Context,dir: Direction):boolean=>{
 
-	const Params=ctxTaboutParams(view,ctx);
+	const Params=ctxTaboutParams(view,ctx,TaboutEnv.Mathjac);
 	if(!Params) return false;
 	const {start,end,pos,doc,text}=Params;
 
@@ -99,15 +104,32 @@ const taboutMathjax=(view: EditorView,ctx: Context,dir: Direction):boolean=>{
 
 	return true;
 }
-const ctxTaboutParams=(view: EditorView, ctx: Context)=>{
-	const result = ctx.getBounds();
-	if (!result) return false;
-	const { start, end } = result;
-	
+enum TaboutEnv{
+	Mathjac,
+	Html,
+	Text
+}
+
+const ctxTaboutParams = (view: EditorView, ctx: Context, env: TaboutEnv) => {
+	let start: number, end: number;
+
 	const pos = view.state.selection.main.to;
 	const doc = view.state.doc;
 	const text = doc.toString();
 
+	if (env === TaboutEnv.Text) {
+		//forget about couser jest use the html do
+		[start, end] = [Direction.Backward, Direction.Forward].map(dir => {
+			const newPos=pos
+			const cursor = syntaxTree(view.state).cursorAt(newPos - 1);
+			return findNearestBlockBoundary(view.state, cursor, pos, dir);
+		})
+	}
+	else {
+		const result = ctx.getBounds();
+		if (!result) return false;
+			({start, end} = result);
+	}
 	return {start,end,pos,doc,text};
 }
 

@@ -5,6 +5,7 @@ import { Mode } from "../snippets/options";
 import { Environment } from "../snippets/environment";
 import { getLatexSuiteConfig } from "../snippets/codemirror/config";
 import { syntaxTree } from "@codemirror/language";
+import { find } from "async";
 export interface Bounds {
 	start: number;
 	end: number;
@@ -57,10 +58,9 @@ export class Context {
 	static fromView(view: EditorView):Context {
 		return Context.fromState(view.state);
 	}
-	shouldTranslate(){
-		const lengToTranslate= ['tikz']
-		
-		return this.mode.isntInText()&&(!this.mode.code||lengToTranslate.contains(this.codeblockLanguage))
+	shouldTranslate() {
+		const settings = getLatexSuiteConfig(this.state);
+		return this.mode.isntInText()&&(!this.mode.code||settings.forceTranslateLanguages.contains(this.codeblockLanguage))
 	}
 	isWithinEnvironment(pos: number, env: Environment): boolean {
 		if (!this.mode.inMath()) return false;
@@ -244,7 +244,6 @@ const getInnerEquationBounds = (state: EditorState, pos?: number):Bounds|null =>
 	return {start: left + 1, end: right};
 }
 export const getHtmlBounds= (state: EditorState, pos: number = state.selection.main.from):Bounds|null => {
-	state=fixState(state)
 	const tree = syntaxTree(state);
 	let cursor = tree.cursorAt(pos, -1);
 	const blockBegin = escalateToToken(cursor, Direction.Backward, "html-begin");
@@ -263,7 +262,6 @@ export const getHtmlBounds= (state: EditorState, pos: number = state.selection.m
  * **Note:** If you intend to use this directly, check out Context.getBounds instead, which caches and also takes care of codeblock languages which should behave like math mode.
  */
 const getCodeblockBounds = (state: EditorState, pos: number = state.selection.main.from):Bounds|null => {
-	state=fixState(state)
 	const tree = syntaxTree(state);
 
 	let cursor = tree.cursorAt(pos, -1);
@@ -275,15 +273,8 @@ const getCodeblockBounds = (state: EditorState, pos: number = state.selection.ma
 	return { start: blockBegin.to + 1, end: blockEnd.from - 1 };
 	return null
 }
-const fixState=(state:EditorState)=>{
-	if(syntaxTree(state).cursorAt(state.selection.main.from, -1).name === "Document"){
-		state = state.update({
-			changes: { from: state.selection.main.from, insert: "\u200B" }
-		  }).state;
-	}
-	return state
-}
-const findFirstNonNewlineBefore = (state: EditorState, pos: number): number => {
+
+export const findFirstNonNewlineBefore = (state: EditorState, pos: number): number => {
     let currentPos = pos;
     while (currentPos >= 0) {
         const char = getCharacterAtPos(state, currentPos-1);
@@ -297,12 +288,10 @@ const findFirstNonNewlineBefore = (state: EditorState, pos: number): number => {
 
 //The position I get has.to be.at least one line.before the head of the code block
 const langIfWithinCodeblock = (state: EditorState): string | null => {
+
 	const tree = syntaxTree(state);
 
 	const pos = state.selection.ranges[0].from;
-	
-
-
 	const adjustedPos =pos === 0 ? 0 : findFirstNonNewlineBefore(state, pos);
 	const cursor = tree.cursorAt(adjustedPos, -1);
 	const inCodeblock = cursor.name.contains("codeblock");
@@ -314,7 +303,8 @@ const langIfWithinCodeblock = (state: EditorState): string | null => {
 	const codeblockBegin = findLine(state,state.doc.lineAt(pos).number,Direction.Backward,/^\`\`\`/)
 	
 	if (codeblockBegin == null) {
-		console.warn("unable to locate start of the codeblock even though inside one");
+		if(!state.doc.lineAt(pos).text.startsWith("```"))
+			console.warn("unable to locate start of the codeblock even though inside one");
 		return "";
 	}
 
@@ -322,4 +312,27 @@ const langIfWithinCodeblock = (state: EditorState): string | null => {
 	// codeblocks may start and end with an arbitrary number of backticks
 	const language = codeblockBegin.text.replace(/`+/, "");
 	return language;
+}
+
+
+export function findNearestBlockBoundary(state: EditorState, cursor: TreeCursor, pos: number, dir: Direction): number {
+	const getBoundaryPosition = (node: { from: number; to: number }|number | null) => {
+		if (!node) return dir === Direction.Backward ? 0 : state.doc.length;
+		if (typeof node === "number") return node;
+		else return dir === Direction.Backward ? node.to : node.from;
+	}
+	[/\$(?!\s)/,/(?!\s)\$/]
+	const boundaries = [
+		findLine(state, state.doc.lineAt(pos).number, dir, /^\`\`\`/),
+		state.doc.toString().search(),
+	].map(node => getBoundaryPosition(node));
+	
+	console.log(state.doc.toString)
+
+	console.log(boundaries)
+
+    return dir === Direction.Backward ? Math.max(...boundaries) : Math.min(...boundaries);
+}
+function findWithDirectionFromPos(string,1 pos = 0, dir,): number | null {
+
 }
