@@ -29,9 +29,6 @@ import('@unified-latex/unified-latex-util-pgfkeys').then(module => {
  * - Auto load packages
  */
 
-interface ast{
-
-}
 function migrate(ast: any) {
     switch (ast.type) {
         case "root":
@@ -111,27 +108,43 @@ function cleanUpDefs(ast:any) {
 
 
 }
+
 function cleanUpDef(ast: any,index:number) {
     const fondDef = ast[index] instanceof Macro && ast[index].content === "def";
     if (!fondDef) {throw new Error("Def not found");}
     const defCaller = ast[index + 1];
     if (!(defCaller instanceof Macro)) { throw new Error("Def must be followed by a macro"); }
-    
+    const params=parsePlaceholders(ast, index + 2);
+    const items = ast.slice(params.endIndex,params.endIndex+1);
+}
 
-}
-function a(ast, index) {
-    let count = 0,endIndex=index;
-    for (let i = index; i < ast.length; i += 2) {
-        if(ast[i] instanceof Macro && ast[i].content === "def"){
-            if(!(ast[i+1] instanceof Macro)){
-                throw new Error("Def must be followed by a macro");
-            }
-        }
+
+function parsePlaceholders(ast: any[], startIndex: number) {
+    let i = startIndex;
+    const placeholders: number[] = [];
+    
+    while (i < ast.length &&ast[i] instanceof String &&ast[i].content === "#") {
+      if (i + 1 >= ast.length) {throw new Error(`Expected parameter after marker at index ${i}.`);}
+      const param = ast[i + 1];
+      if (!(param instanceof String)) {throw new Error(`Invalid parameter at index ${i + 1}.`);}
+      const num = param.getNumber();
+      if (isNaN(num)) {throw new Error(`Invalid placeholder at index ${i + 1}: not a number.`);}
+      placeholders.push(num);
+      i += 2;
     }
+    if (!placeholders.every((num, index, arr) => index === 0 || num === arr[index - 1] + 1)) {
+        throw new Error("Placeholders must be in ascending order");
+    }
+    if (placeholders.length && placeholders[0] !== 1) {
+        throw new Error("First placeholder must be 1");
+    }
+    return { placeholdersNum: Math.max(...placeholders), endIndex: i };
 }
+  
 
 
 
 class unit{
 
 }
+

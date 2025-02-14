@@ -243,7 +243,7 @@
       ]
     ],
     [
-      "437b24e8bf20bfbee8f1259c8d409b6c",
+      "7f763b83696db64df65ce6657be8a09b",
       [
         "Untitled 2.md"
       ]
@@ -427,9 +427,15 @@
       "32/cmmi7.pfb": "/tex/cmmi7.pfb",
       "32/cmsy10.pfb": "/tex/cmsy10.pfb",
       "32/cmsy8.pfb": "/tex/cmsy8.pfb",
+      "26/cmbx10.pfb": "/tex/cmbx10.pfb",
+      "26/cmbx10.tfm": "/tex/cmbx10.tfm",
       "26/cmr17.tfm": "/tex/cmr17.tfm",
+      "26/cmr5.pfb": "/tex/cmr5.pfb",
+      "26/cmsy7.pfb": "/tex/cmsy7.pfb",
       "32/cmr8.pfb": "/tex/cmr8.pfb",
-      "3/cmr17": "/tex/cmr17.tfm"
+      "3/cmr17": "/tex/cmr17.tfm",
+      "32/cmr5.pfb": "/tex/cmr5.pfb",
+      "32/cmsy7.pfb": "/tex/cmsy7.pfb"
     },
     {},
     {}

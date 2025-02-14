@@ -56,6 +56,7 @@ export class String extends BaseNode {
     toString(): string {
         return this.content
     }
+    getNumber(){return Number(this.content)}
 }
 
 export class Whitespace extends BaseNode {
