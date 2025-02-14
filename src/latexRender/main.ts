@@ -57,11 +57,15 @@ export class SwiftlatexRender {
 			const ast = new LatexabstractSyntaxTree();
 			try {
 				ast.prase(task.source);
-				console.log("source", ast.ast,ast.a(),ast.a().toString());
+				ast.a();
+				console.log("source", ast.ast,ast.myAst);
 				ast.deleteComments();
 				task.source = ast.toString();
 			} catch (e) {
 				console.error("Error parsing latex", e);
+				ast.prase(task.source);
+				ast.deleteComments();
+				task.source = ast.toString();
 			}
 
 			this.renderLatexToElement(task.source, task.el,task.md5Hash, task.sourcePath)

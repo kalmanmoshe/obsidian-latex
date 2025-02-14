@@ -30,7 +30,6 @@ export const snippetQueueStateField = StateField.define<SnippetChangeSpec[]>({
 
 export function queueSnippet(view: EditorView, from: number, to: number, insert: string, keyPressed?: string) {
 	const snippet = new SnippetChangeSpec(from, to, insert, keyPressed);
-
 	view.dispatch({
 		effects: [queueSnippetEffect.of(snippet)],
 	});

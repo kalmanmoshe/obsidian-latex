@@ -43,6 +43,7 @@ export class Root extends ContentNode {
     toString():any {
         return this.content.map(node => node.toString())
     }
+    
 }
 
 export class String extends BaseNode {

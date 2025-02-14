@@ -90,10 +90,48 @@ export class LatexabstractSyntaxTree{
         }
     }
     cleanUp(){
-        //this.myAst.
+        this.ast.find
     }
     usdPackages(){}
     usdLibraries(){}
     usdCommands(){}
     usdEnvironments(){}   
+}
+
+function cleanUpTikzSet(ast: any) {
+    
+}
+function cleanUpDefs(ast:any) {
+    const defMap = ast.map((node: any, index: number) => node instanceof Macro && node.content === "def" ? index : null).filter((index: any) => index !== null).reverse();
+    defMap.forEach((index: number) => {
+        if (!(ast[index + 1] instanceof Macro)) {
+            throw new Error("Def must be followed by a macro");
+        }
+    });
+
+
+}
+function cleanUpDef(ast: any,index:number) {
+    const fondDef = ast[index] instanceof Macro && ast[index].content === "def";
+    if (!fondDef) {throw new Error("Def not found");}
+    const defCaller = ast[index + 1];
+    if (!(defCaller instanceof Macro)) { throw new Error("Def must be followed by a macro"); }
+    
+
+}
+function a(ast, index) {
+    let count = 0,endIndex=index;
+    for (let i = index; i < ast.length; i += 2) {
+        if(ast[i] instanceof Macro && ast[i].content === "def"){
+            if(!(ast[i+1] instanceof Macro)){
+                throw new Error("Def must be followed by a macro");
+            }
+        }
+    }
+}
+
+
+
+class unit{
+
 }

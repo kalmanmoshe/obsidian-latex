@@ -60,7 +60,7 @@ export default class Moshe extends Plugin {
 
   async onload() {
     console.log("Loading Moshe math plugin")
-    readAndParseSVG().then((res: any)=>console.log(res))
+    //readAndParseSVG().then((res: any)=>console.log(res))
     await this.loadSettings();
     await loadMathJax();
     await this.loadPreamble();
@@ -112,7 +112,7 @@ export default class Moshe extends Plugin {
 		this.editorExtensions.push([
 			getLatexSuiteConfigExtension(this.CMSettings),
 			Prec.highest(EditorView.domEventHandlers({ "keydown": onKeydown })),
-      Prec.lowest([colorPairedBracketsPlugin.extension, rtlForcePlugin.extension,EditorView.updateListener.of(onTransaction)]),
+      Prec.lowest([colorPairedBracketsPlugin.extension, rtlForcePlugin.extension,]),
       //On transaction causes a lot of a lot of problems and significant.and significantly slows down the computer The more processes are in it
       EditorView.updateListener.of(onTransaction),
 			snippetExtensions,
