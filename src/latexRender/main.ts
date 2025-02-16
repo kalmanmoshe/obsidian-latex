@@ -61,6 +61,7 @@ export class SwiftlatexRender {
 				console.log("source", ast.ast,ast.myAst);
 				ast.deleteComments();
 				task.source = ast.toString();
+				console.log(ast.cleanUpDefs());
 			} catch (e) {
 				console.error("Error parsing latex", e);
 				ast.prase(task.source);
@@ -214,6 +215,7 @@ export class SwiftlatexRender {
 				plugins: ['sortAttrs', { name: 'prefixIds', params: { prefix: uniqueId } }]
 			};
 			svg = optimize(svg, svgoConfig).data; 
+			svg = this.colorSVGinDarkMode(svg);
 
 			return svg;
 		});
@@ -244,6 +246,7 @@ export class SwiftlatexRender {
 						fs.writeFileSync(dataPath,el.innerHTML);
 					});
 				}).catch(err => {
+					el.innerHTML = "";
 					SwiftlatexError.interpret(err);
 					const errorDiv = el.createEl('div', { text: `swiftlatexError`/*text: `${err}`*/, attr: { class: 'block-latex-error' } });
 					reject(err); 
@@ -265,6 +268,21 @@ export class SwiftlatexRender {
 				this.pdfToHtml(pdfData).then((htmlData) => {el.createEl("object", htmlData);resolve();});
 		});
 	}
+	private colorSVGinDarkMode(svg: string) {
+		// Replace the color "black" with currentColor (the current text color)
+		// so that diagram axes, etc are visible in dark mode
+		// and replace "white" with the background color
+		if (this.plugin.settings.invertColorsInDarkMode) {
+		  if (document.body.classList.contains('theme-dark')) {
+			svg = svg.replace(/rgb\(0%, 0%, 0%\)/g, "currentColor")
+					 .replace(/rgb\(100%, 100%, 100%\)/g, "var(--background-primary)");
+		  } else {
+			svg = svg.replace(/rgb\(100%, 100%, 100%\)/g, "currentColor")
+					 .replace(/rgb\(0%, 0%, 0%\)/g, "var(--background-primary)");
+		  }
+		}
+		return svg;
+	  }
 
 	private renderLatexToPDF(source: string, md5Hash: string): Promise<CompileResult> {
 		return new Promise(async (resolve, reject) => {

@@ -6,7 +6,6 @@ import { expandSnippets } from "src/snippets/snippet_management";
 import { autoEnlargeBrackets } from "./auto_enlarge_brackets";
 import { Context } from "src/utils/context";
 import { getLatexSuiteConfig } from "src/snippets/codemirror/config";
-import { value } from "valibot";
 
 
 export const runAutoFraction = (view: EditorView, ctx: Context):boolean => {
@@ -59,14 +58,11 @@ export const runAutoFractionCursor = (view: EditorView, ctx: Context, range: Sel
 		// Also, allow spaces after greek letters
 		// By replacing spaces after greek letters with a dummy character (#)
 
-		const greek = "alpha|beta|gamma|Gamma|delta|Delta|epsilon|varepsilon|zeta|eta|theta|Theta|iota|kappa|lambda|Lambda|mu|nu|omicron|xi|Xi|pi|Pi|rho|sigma|Sigma|tau|upsilon|Upsilon|varphi|phi|Phi|chi|psi|Psi|omega|Omega|cdot|frac|binom";
+		const greek = "alpha|beta|gamma|Gamma|delta|Delta|epsilon|varepsilon|zeta|eta|theta|Theta|iota|kappa|lambda|Lambda|mu|nu|omicron|xi|Xi|pi|Pi|rho|sigma|Sigma|tau|upsilon|Upsilon|varphi|phi|Phi|chi|psi|Psi|omega|Omega|cdot|frac|binom|cos|sin|tan|arccos|arcsin|arctan|deg|sec";
 		const regex = new RegExp("(" + greek + ") ", "g");
 		string = string.replace(regex, "$1#");
-		console.log("replace(regex, \"$1#\")",string);
 		string=string.slice(string.lastIndexOf(" ")+1);
-		console.log("lastIndexOf(\" \")",string);
 		string = string.slice(identifyBrackets(string));
-		console.log("identifyBrackets",string);
 
 		const removeRegex = /(?:^|[^\\])[^a-zA-Z0-9-+^%$#@!,_.\\(){}[\]]/;
 		while (removeRegex.test(string)) {

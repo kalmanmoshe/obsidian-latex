@@ -35,28 +35,45 @@ export const snippetInvertedEffects = invertedEffects.of((tr: { effects: any; })
 
 
 export const handleUndoRedo = (update: ViewUpdate) => {
-	const undoTr = update.transactions.find(tr => tr.isUserEvent("undo"));
-	const redoTr = update.transactions.find(tr => tr.isUserEvent("redo"));
-	if (!undoTr && !redoTr) {return;}
+	// Flags to track if we need to run certain operations.
+	let hasUndo = false;
+	let hasRedo = false;
+	let startSnippetFound = false;
+	let undidEndSnippetFound = false;
+  
+	// Single pass over transactions and their effects.
 	for (const tr of update.transactions) {
-		for (const effect of tr.effects) {
-
-			if (effect.is(startSnippet)) {
-				if (redoTr) {
-					// Redo the tabstop expansion and selection
-					redo(update.view);
-				}
-			}
-			else if (effect.is(undidEndSnippet)) {
-				if (undoTr) {
-					// Undo the tabstop expansion and selection
-					undo(update.view);
-				}
-			}
+	  // Check if the transaction was triggered by undo/redo.
+	  if (tr.isUserEvent("undo")) hasUndo = true;
+	  if (tr.isUserEvent("redo")) hasRedo = true;
+  
+	  // If we already have both events and have seen both effects, we could even break early:
+	  // if (hasUndo && hasRedo && startSnippetFound && undidEndSnippetFound) break;
+  
+	  // Check for specific snippet-related effects.
+	  for (const effect of tr.effects) {
+		if (effect.is(startSnippet)) {
+		  startSnippetFound = true;
+		} else if (effect.is(undidEndSnippet)) {
+		  undidEndSnippetFound = true;
 		}
+	  }
 	}
-
-	if (undoTr) {
-		removeAllTabstops(update.view);
+  
+	// If there are no undo or redo events, skip further processing.
+	if (!hasUndo && !hasRedo) return;
+  
+	// Trigger the snippet expansion/selection changes only once if needed.
+	if (startSnippetFound && hasRedo) {
+	  redo(update.view);
 	}
-};
+	if (undidEndSnippetFound && hasUndo) {
+	  undo(update.view);
+	}
+  
+	// Remove tabstops if there was an undo.
+	if (hasUndo) {
+	  removeAllTabstops(update.view);
+	}
+  };
+  

@@ -87,7 +87,14 @@ export class LatexabstractSyntaxTree{
         }
     }
     cleanUp(){
-        this.ast.find
+        this.removeAllWhitespace();
+        this.cleanUpDefs();
+    }
+    removeAllWhitespace(){
+        
+    }
+    cleanUpDefs(){
+        cleanUpDefs(this.myAst);
     }
     usdPackages(){}
     usdLibraries(){}
@@ -98,34 +105,36 @@ export class LatexabstractSyntaxTree{
 function cleanUpTikzSet(ast: any) {
     
 }
+
+
 function cleanUpDefs(ast:any) {
-    const defMap = ast.map((node: any, index: number) => node instanceof Macro && node.content === "def" ? index : null).filter((index: any) => index !== null).reverse();
+    const defMap = ast.content.map((node: any, index: number) => node instanceof Macro && node.content === "def" ? index : null).filter((index: any) => index !== null).reverse();
     defMap.forEach((index: number) => {
-        if (!(ast[index + 1] instanceof Macro)) {
-            throw new Error("Def must be followed by a macro");
+        if (!(ast.content[index + 1] instanceof Macro)) {
+            throw new Error("Def must be followed by a macro, got: " + ast.content[index + 1]+" at index "+index);
         }
+        cleanUpDef(ast, index);
     });
-
-
 }
 
 function cleanUpDef(ast: any,index:number) {
-    const fondDef = ast[index] instanceof Macro && ast[index].content === "def";
+    const fondDef = ast.content[index] instanceof Macro && ast.content[index].content === "def";
     if (!fondDef) {throw new Error("Def not found");}
-    const defCaller = ast[index + 1];
+    const defCaller = ast.content[index + 1];
     if (!(defCaller instanceof Macro)) { throw new Error("Def must be followed by a macro"); }
     const params=parsePlaceholders(ast, index + 2);
-    const items = ast.slice(params.endIndex,params.endIndex+1);
+    const items = ast.content.slice(params.endIndex,params.endIndex+1); 
+    ast.content.splice(index, params.endIndex - index + 1, new Def(defCaller.content,items,params.placeholdersNum));
 }
 
 
-function parsePlaceholders(ast: any[], startIndex: number) {
+function parsePlaceholders(ast: any, startIndex: number) {
     let i = startIndex;
     const placeholders: number[] = [];
     
-    while (i < ast.length &&ast[i] instanceof String &&ast[i].content === "#") {
-      if (i + 1 >= ast.length) {throw new Error(`Expected parameter after marker at index ${i}.`);}
-      const param = ast[i + 1];
+    while (i < ast.content.length &&ast.content[i] instanceof String &&ast.content[i].content === "#") {
+      if (i + 1 >= ast.content.length) {throw new Error(`Expected parameter after marker at index ${i}.`);}
+      const param = ast.content[i + 1];
       if (!(param instanceof String)) {throw new Error(`Invalid parameter at index ${i + 1}.`);}
       const num = param.getNumber();
       if (isNaN(num)) {throw new Error(`Invalid placeholder at index ${i + 1}: not a number.`);}
@@ -140,8 +149,20 @@ function parsePlaceholders(ast: any[], startIndex: number) {
     }
     return { placeholdersNum: Math.max(...placeholders), endIndex: i };
 }
-  
 
+
+
+
+class Def{
+    name: string;
+    content: string;
+    params: number;
+    constructor(name: string,content: string,params: number){
+        this.name=name;
+        this.content=content;
+        this.params=params;
+    }
+}
 
 
 class unit{

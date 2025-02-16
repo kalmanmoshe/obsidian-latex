@@ -14,12 +14,6 @@ import { clearSnippetQueue, } from "./snippets/codemirror/snippet_queue_state_fi
 import { handleUndoRedo,  } from "./snippets/codemirror/history";
 import { Direction, getCharacterAtPos, isComposing, replaceRange, setCursor } from "./utils/editor_utils";
 
-/*
-class="cm-gutters" aria-hidden="true" style="min-height: 7865px; position: sticky;"
-spellcheck="false" autocorrect="off" translate="no" contenteditable="true"
-
-*/
-
 
 export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
 	let key = event.key;
@@ -29,6 +23,7 @@ export const onKeydown = (event: KeyboardEvent, view: EditorView) => {
 	  trigger = keyboardAutoReplaceHebrewToEnglishTriggers.find((trigger2) => trigger2.key === event.key && trigger2.code === event.code);
 	  key = trigger?.replacement||key;
 	}
+
 	const success = handleKeydown(key, event.shiftKey, event.ctrlKey || event.metaKey, isComposing(view, event), view,ctx);
 	if (success)
 	  event.preventDefault();

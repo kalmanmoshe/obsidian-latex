@@ -175,6 +175,7 @@ export function getTikzSuggestions(): Array<Latex> {
 		{replacement: `\\\arr{$0}{$1}{$2}{1}{2}{1.2}{0.5}{90}$3`},
 		{replacement: `\\mark{$0}{$1}{$2}$3`},
 		{replacement: `smooth`},
+		{replacement: `trig format=rad,`},
 		
 	];
 

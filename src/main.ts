@@ -48,6 +48,7 @@ import { readAndParseSVG } from "./latexRender/svg2latex/temp";
  *   }
  * - Create a parser that makes LaTeX error messages more sensible.
  * - CodeBlock specific snippets.
+ * - Create qna for better Searching finding and styling
  */
 
 
@@ -85,7 +86,7 @@ export default class Moshe extends Plugin {
   
 
   private setCodeblocks(){
-    this.registerMarkdownCodeBlockProcessor("math", processMathBlock.bind(this));
+    //this.registerMarkdownCodeBlockProcessor("math", processMathBlock.bind(this));
     this.registerMarkdownCodeBlockProcessor("tikz", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
 		this.registerMarkdownCodeBlockProcessor("latex", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
   }
@@ -169,7 +170,6 @@ export default class Moshe extends Plugin {
       const tempSnippets = await this.getSettingsSnippets();
 
       this.CMSettings = processLatexSuiteSettings(tempSnippets, this.settings);
-
       // Use onLayoutReady so that we don't try to read the snippets file too early
       this.app.workspace.onLayoutReady(() => {
         this.processSettings();
@@ -204,6 +204,7 @@ export default class Moshe extends Plugin {
 		await this.saveData(this.settings);
 		this.processSettings(didFileLocationChange);
 	}
+
   async saveSettingsWithoutProcessing(){await this.saveData(this.settings);}
 
   async processSettings(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
@@ -224,7 +225,6 @@ export default class Moshe extends Plugin {
 				? await getSnippetsFromFiles(this, files)
 				: await this.getSettingsSnippets();
 		this.showSnippetsLoadedNotice(snippets.length,  becauseFileLocationUpdated, becauseFileUpdated);
-
 		return snippets;
 	}
   
