@@ -63,18 +63,6 @@
       ]
     ],
     [
-      "7f763b83696db64df65ce6657be8a09b",
-      [
-        "Untitled 2.md"
-      ]
-    ],
-    [
-      "57745f8812749d80ef7c87ba561e5492",
-      [
-        "מתמטיקה/שי/משוואות טריגונומטריות.md"
-      ]
-    ],
-    [
       "30ae824acaf0f89090c57eb1bb6bf842",
       [
         "obsidian/Templates/5-tikz/1-tikz.md"
@@ -85,19 +73,115 @@
       [
         "פיזיקה/יחיאל/שיעורי בית.md"
       ]
+    ],
+    [
+      "cb3f8e301f9ba9a3edd9bdf99a377c84",
+      [
+        "מתמטיקה/שי/משוואות טריגונומטריות.md"
+      ]
+    ],
+    [
+      "26db0e311615000f1a844cf5e23a9779",
+      [
+        "מתמטיקה/שי/משוואות טריגונומטריות.md"
+      ]
+    ],
+    [
+      "4b90a203a1c88753687fdadfe18cb050",
+      [
+        "מתמטיקה/שי/משוואות טריגונומטריות.md"
+      ]
+    ],
+    [
+      "c46d3d5095d6f5fdb074c380a61e272c",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "9bafa6d85bfee2ba821b0d426a264dcd",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "2a5373d5a53dae3f53a2cda88ab5467d",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "e16ee7d3348ec06b5d9ba36c198ddc11",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "53788bfbbbfd2a2b90c9cb9f0487ffb0",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "baafab8836a4c70ee3ad39956ef0a042",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "071067e431642e78ceeae172e2775df2",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "c83d27bb3ba7cfe826ceb2183440eaa9",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "89383f79f31d6a6c2e119a4c650a442c",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "81485ca5d5aa993be590fdbfaee6ef55",
+      [
+        "פיזיקה/איגור/תרגול/קינמטיקה.md"
+      ]
+    ],
+    [
+      "fa0319b007f225e9a2e567b77d174454",
+      [
+        "פיזיקה/איגור/תרגול/קינמטיקה.md"
+      ]
+    ],
+    [
+      "66d81da56088c0eb5dec4a518a6512ad",
+      [
+        "פיזיקה/איגור/תרגול/תרגול-2.md"
+      ]
+    ],
+    [
+      "29250977667bc48864a8eeee25eb0eab",
+      [
+        "פיזיקה/איגור/תרגול/תרגול-2.md"
+      ]
+    ],
+    [
+      "54f5629baac3aa9e2e3d7fd914735eba",
+      [
+        "sent notes/מבחן 2 בפיזיקה 2025 - בליסטיקה, תנועה מעגלית ומתקף ותנע.md"
+      ]
     ]
   ],
   "packageCache": [
     {
       "26/tikzlibrarypgfplots.surfshading.code.tex": 1,
       "26/tikzlibraryarrows.meta.code.tex": 1,
-      "26/main.aux": 1,
-      "33/cmr10.vf": 1,
-      "33/cmr12.vf": 1,
-      "33/cmmi12.vf": 1,
-      "33/cmbx12.vf": 1,
-      "33/cmsy10.vf": 1,
-      "33/cmmi8.vf": 1
+      "26/main.aux": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -270,15 +354,10 @@
       "32/cmmi7.pfb": "/tex/cmmi7.pfb",
       "32/cmsy10.pfb": "/tex/cmsy10.pfb",
       "32/cmsy8.pfb": "/tex/cmsy8.pfb",
-      "26/cmbx10.pfb": "/tex/cmbx10.pfb",
-      "26/cmbx10.tfm": "/tex/cmbx10.tfm",
       "26/cmr17.tfm": "/tex/cmr17.tfm",
-      "26/cmr5.pfb": "/tex/cmr5.pfb",
-      "26/cmsy7.pfb": "/tex/cmsy7.pfb",
       "32/cmr8.pfb": "/tex/cmr8.pfb",
       "3/cmr17": "/tex/cmr17.tfm",
       "32/cmr5.pfb": "/tex/cmr5.pfb",
-      "32/cmsy7.pfb": "/tex/cmsy7.pfb",
       "32/cmmi8.pfb": "/tex/cmmi8.pfb"
     },
     {},

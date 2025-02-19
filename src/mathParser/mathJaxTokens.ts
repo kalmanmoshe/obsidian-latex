@@ -728,7 +728,7 @@ export class Token{
 
 
 export function stringToBasicMathJaxTokens(string: String):Array<BasicMathJaxToken|Paren>{
-    let tokens: Array<BasicMathJaxToken|Paren>=tokenizeToBasicMathJaxTokens(string);
+    let tokens: Array<BasicMathJaxToken | Paren> = tokenizeToBasicMathJaxTokens(string);
     tokens = postProcessTokens(tokens);
     validatePlusMinus(tokens);
     return tokens;
@@ -744,7 +744,6 @@ function tokenizeToBasicMathJaxTokens(math: String):Array<BasicMathJaxToken|Pare
             i+=match[0].length-1;
             continue;
         }
-
         match = math.slice(i).match(/^([0-9.]+)/);//([a-zA-Z]?)/);
         if (!!match)
         {   i+=match[0].length-1
@@ -752,17 +751,17 @@ function tokenizeToBasicMathJaxTokens(math: String):Array<BasicMathJaxToken|Pare
             continue;
         }
         //Add plus to make it multiple Letters.
-        match=math.slice(i).match(/[a-zA-Z](_\([a-zA-Z0-9]*\))*/)
+        match = math.slice(i).match(/[a-zA-Z](_\([a-zA-Z0-9]*\))*/)
         if (!!match) {
             i+=match[0].length-1
             tokens.push(BasicMathJaxToken.create(match[0]))
             continue;
         }
-
         throw new Error(`Unknown char "${math[i]}"`);
     }
     return tokens;
 }
+
 function postProcessTokens(tokens: Array<BasicMathJaxToken|Paren>){
     /*rules to abid by:
     1. +- If part of the number they are absorbed into the number
@@ -843,7 +842,6 @@ function implicitMultiplicationMap(tokens: Array<BasicMathJaxToken|Paren>) {
             return null;
         })
         .filter((item) => item !== null);
-    console.log('map',map)
     return map;
 }
 

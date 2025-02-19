@@ -2,7 +2,6 @@ import { regExp } from "src/tikzjax/tikzjax";
 import { MathJaxOperatorMetadata, mathJaxOperatorsMetadata, operatorsWithImplicitMultiplication,OperatorType, operatorNames, associativityFormatType, AssociativityValue } from "./mathParserStaticData";
 import { BracketType } from "./encasings";
 import { brackets, LatexMetadata } from "./latexStaticData";
-import { metadata } from "valibot";
 
 /**
  * Escapes a string for safe use in a regular expression.
@@ -73,8 +72,11 @@ export function getAllMathJaxReferences() {
 export function searchAllMathJaxOperatorsAndSymbols(query: string) {
     return [...mathJaxOperatorsMetadata, ...brackets]
     .find((operator) =>
-        Object.values(operator).flat().some((value) =>
-            typeof value === 'string' && value.includes(query)
+        Object.values(operator).flat().some((value) => {
+            const a = typeof value === 'string' && value===query;
+            if (a) console.log("value, query, a", value, query, a);
+            return a;
+        }
         ))
 }
 

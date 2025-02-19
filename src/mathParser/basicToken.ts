@@ -34,7 +34,7 @@ export class BasicMathJaxToken extends BasicToken {
     getFullType(): string | undefined {
         return this.type;
     }
-    static create(value: string|number){
+    static create(value: string | number) {
         if (typeof value === "string") {
             const operator = searchAllMathJaxOperatorsAndSymbols(value)
             if (operator) {

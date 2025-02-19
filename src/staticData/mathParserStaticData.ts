@@ -46,10 +46,15 @@ export const  keyboardAutoReplaceHebrewToEnglishTriggers =
 
 
 
+export const greekLetters = [
+    'Alpha','alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 
+    'Iota', 'Kappa', 'Lambda', 'Mu','mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 
+    'Sigma', 'Tau', 'Upsilon', 'Phi', 'Chi', 'Psi', 'Omega'
+];
+
+
+
   
-
-
-
 
 export enum OperatorType {
     Comparison = 'Comparison',
@@ -63,6 +68,7 @@ export enum OperatorType {
     Summation = 'Summation',
     Factorial = 'Factorial',
 }
+
 
 export const operatorNames = new Map<OperatorType, string[]>([
     [OperatorType.Comparison, ['Equals', 'LessThan', 'GreaterThan']],
@@ -122,7 +128,7 @@ export function createMathJaxOperatorMetadata(
     const associativity = createMathJaxAssociativityMetadataFromPartial(
         (overrides.associativity as [associativityFormatType, Partial<AssociativityValue>][] ?? [])
     );
-    const associativityFormatTypeString = [...associativity.entries()].map(([_, value]) => value.string);
+    const associativityFormatTypeString = [...new Set([...associativity.entries()].map(([_, value]) => value.string))];
     return {
         type: overrides.type ?? OperatorType.Arithmetic,
         name: overrides.name ?? 'Unknown',
@@ -404,3 +410,4 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
 export const mathJaxOperatorsMetadata: MathJaxOperatorMetadata[] = partialMathJaxOperatorsMetadata.map(
     (metadata) => createMathJaxOperatorMetadata(metadata)
 );
+console.log(mathJaxOperatorsMetadata)

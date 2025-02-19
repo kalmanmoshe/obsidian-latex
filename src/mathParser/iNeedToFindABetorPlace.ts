@@ -52,7 +52,7 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
       this.mathInput=mathInput;
     }
   
-    async initialize() {
+    initialize() {
       this.assignMode();
       this.setupContainer();
       this.handleVariables();
@@ -94,16 +94,12 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
           case "variable":
             break;
           default:
-            
-  
-            //this.addInfoModal(new InfoModal(this.app, this.result.mathInfo));
-            //this.addDebugModel(new DebugModal(this.app, this.result.mathInfo.debugInfo));
-            /*
-            // eslint-disable-next-line no-case-declarations
-            this.result = new MathPraiser(this.mathInput);
+            this.result = new MathPraiser();
+            this.result.setInput(this.mathInput);
+            console.log("this.result", this.result);
             this.addInfoModal(new InfoModal(this.app, this.result.mathInfo));
             this.addDebugModel(new DebugModal(this.app, this.result.mathInfo.debugInfo));
-            this.mathInput=this.result.input;*/
+            this.mathInput=this.result.input;
             break;
         }
        this.addInputAndResultDiv(inputDiv, resultDiv, typeof this.mathInput==="string"?this.mathInput:this.mathInput[0], this.result/*roundBySettings(this.result)*/);

@@ -5,15 +5,7 @@ import { findParenIndex, Paren,idParentheses, findDeepestParenthesesScope } from
 import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, mahtjaxAssociativitymetadata, searchMathJaxOperators } from "../staticData/dataManager";
 import { MathGroup, MathJaxOperator, Token, ensureAcceptableFormatForMathGroupItems, deepSearchWithPath, MathGroupItem, stringToBasicMathJaxTokens } from "./mathJaxTokens";
 import { BasicMathJaxToken } from "src/mathParser/basicToken";
-const greekLetters = [
-    'Alpha','alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 
-    'Iota', 'Kappa', 'Lambda', 'Mu','mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 
-    'Sigma', 'Tau', 'Upsilon', 'Phi', 'Chi', 'Psi', 'Omega'
-];
-/*const latexOperators=[
-    'tan', 'sin', 'cos', 'binom', 'frac', 'asin', 'acos', 
-    'atan', 'arccos', 'arcsin', 'arctan', 'cdot','sqrt'
-]*/
+
 
 export function findConsecutiveSequences(arr: any[]) {
     const sequences = [];
@@ -109,8 +101,6 @@ export class Position {
         this.end = this.index;
         this.position(tokens)
     }
-
-    
 
     position(tokens: any[]) {
         this.operator = tokens[this.index].value;
@@ -211,29 +201,29 @@ export function parseOperator(operator: MathJaxOperator): boolean {
 
 
 function basicMathJaxTokensToMathGroup(basicTokens: Array<BasicMathJaxToken|Paren>): MathGroup|undefined{
-    const defineGroupsAndOperators=(tokens: Array<any>):boolean=>{
+    const defineGroupsAndOperators = (tokens: Array<any>): boolean => {
         const range=operationsOrder(tokens);
         if(range.start===null||range.end===null)return false;
-        if(range.specificOperatorIndex===null&&range.start===0&&range.end===tokens.length)return true;
-        let newMathGroupSuccess=null
-        if (range.specificOperatorIndex!==null)
+        if (range.specificOperatorIndex === null && range.start === 0 && range.end === tokens.length) return true;
+        let newMathGroupSuccess = false;
+        if (range.specificOperatorIndex !== null)
             newMathGroupSuccess=createOperatorItemFromTokens(tokens,range.specificOperatorIndex)
         else
-        newMathGroupSuccess=createMathGroupInsertFromTokens(tokens,range.start,range.end)
+            newMathGroupSuccess=createMathGroupInsertFromTokens(tokens,range.start,range.end)
         if(!newMathGroupSuccess)return false;
         return defineGroupsAndOperators(tokens);
     }
     const createMathGroupInsertFromTokens=(tokens: Array<any>,start: number,end: number):boolean=>{
         const newMathGroup=new MathGroup(ensureAcceptableFormatForMathGroupItems(tokens.slice(start,end+1)));
         tokens.splice(start,(end-start)+1,newMathGroup);
-        return true
+        return true;
     }
     const createOperatorItemFromTokens=(tokens: Array<any>,index: number):boolean=>{
         const metadata = searchMathJaxOperators(tokens[index].value);
         if(!metadata)throw new Error(`Operator ${tokens[index].value} not found in metadata`);
         
-        const position=new Position(tokens,index)
-        const newOperator=MathJaxOperator.create(position.operator,mahtjaxAssociativitymetadata(metadata).numPositions,position.groups)
+        const position = new Position(tokens, index);
+        const newOperator = MathJaxOperator.create(position.operator, mahtjaxAssociativitymetadata(metadata).numPositions, position.groups);
         tokens.splice(position.start,(position.end-position.start)+1,newOperator);
         return true
     }
@@ -244,8 +234,11 @@ function basicMathJaxTokensToMathGroup(basicTokens: Array<BasicMathJaxToken|Pare
     return new MathGroup(GroupedBasicTokens)
 }
 
+
+
 function stringToMathGroup(string: String):MathGroup|undefined{
-    const basicTokens=stringToBasicMathJaxTokens(string);
+    const basicTokens = stringToBasicMathJaxTokens(string);
+    console.log(basicTokens.map(token=>token instanceof BasicMathJaxToken?token.toStringLatex():token.toString()),basicTokens)
     const mathGroup = basicMathJaxTokensToMathGroup(basicTokens)
     return mathGroup
 }
@@ -258,17 +251,18 @@ function operationsOrder(tokens: any[]) {
         return index>-1?index+begin:null;
     }
     const { begin, end } = findDeepestParenthesesScope(tokens);
-    let priority=null
-    for (let i=1;i<=6;i++){
-        priority = findOperatorIndex(begin , end,tokens, getMathJaxOperatorsByPriority(i,true));
-        if(priority!==null)break;
+    let index=null
+    for (let priority=1;priority<=6;priority++){
+        index = findOperatorIndex(begin , end,tokens, getMathJaxOperatorsByPriority(priority,true));
+        if(index!==null)break;
     }
-    return {start: begin,end: end,specificOperatorIndex: priority}
+    return {start: begin,end: end,specificOperatorIndex: index}
 }
 
 export class MathPraiser{
     private input="";
     private mathGroup: MathGroup;
+    private variables: mathVariables;
     solution: any;
     mathInfo=new MathInfo();
     constructor(input?: string,mathGroup?: MathGroup,solution?: any,mathInfo?: MathInfo){
@@ -280,7 +274,6 @@ export class MathPraiser{
     setInput(input: string){
         this.input=input;
         this.processInput();
-        console.log(this.input);
         const mathGroup=stringToMathGroup(this.input);
         if(!mathGroup)throw new Error("Invalid input");
         this.mathGroup=mathGroup;
@@ -303,7 +296,6 @@ export class MathPraiser{
         if (operatorIndex<0) return;
         const operator = tokens.getItems()[operatorIndex] as MathJaxOperator
     
-        
         operator.groups.forEach(group => {
             this.parse(group);
         });
