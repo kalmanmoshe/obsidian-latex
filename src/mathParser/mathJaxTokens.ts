@@ -473,6 +473,22 @@ export class MathGroup {
         });
         return variables;
     }
+    getVariables(): Set<Token> {
+        const variablesSet = this.items.reduce((acc: Set<Token>, item: MathGroupItem) => {
+          if (item instanceof Token && item.isVar()) {
+            acc.add(item);
+          } else if (item instanceof MathGroup) {
+            item.getVariables().forEach(token => acc.add(token));
+          } else if (item instanceof MathJaxOperator) {
+            item.groups.forEach(group => {
+              group.getVariables().forEach(token => acc.add(token));
+            });
+          }
+          return acc;
+        }, new Set<Token>());
+        return variablesSet;
+      }
+      
     
     updateOverview(){/*
         this.overview=new MathOverview()
@@ -751,7 +767,7 @@ function tokenizeToBasicMathJaxTokens(math: String):Array<BasicMathJaxToken|Pare
             continue;
         }
         //Add plus to make it multiple Letters.
-        match = math.slice(i).match(/[a-zA-Z](_\([a-zA-Z0-9]*\))*/)
+        match = math.slice(i).match(/[a-zA-Z]+(_\([a-zA-Z0-9]*\))*/)
         if (!!match) {
             i+=match[0].length-1
             tokens.push(BasicMathJaxToken.create(match[0]))

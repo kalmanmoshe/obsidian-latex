@@ -238,7 +238,6 @@ function basicMathJaxTokensToMathGroup(basicTokens: Array<BasicMathJaxToken|Pare
 
 function stringToMathGroup(string: String):MathGroup|undefined{
     const basicTokens = stringToBasicMathJaxTokens(string);
-    console.log(basicTokens.map(token=>token instanceof BasicMathJaxToken?token.toStringLatex():token.toString()),basicTokens)
     const mathGroup = basicMathJaxTokensToMathGroup(basicTokens)
     return mathGroup
 }
@@ -277,8 +276,10 @@ export class MathPraiser{
         const mathGroup=stringToMathGroup(this.input);
         if(!mathGroup)throw new Error("Invalid input");
         this.mathGroup=mathGroup;
-        console.log('this.mathGroup',this.mathGroup.toString(),this.mathGroup);
+        console.log('this.mathGroup',this.mathGroup.clone().toString(),this.mathGroup);
     }
+    getMathGroupVariables(){return this.mathGroup.getVariables();}
+
     toStringLatex(){return this.mathGroup.toStringLatex()}
     addSolution(){
         this.input=this.mathGroup.toString()
@@ -287,12 +288,15 @@ export class MathPraiser{
         this.addDebugInfo("solution",this.solution);
     }
     getMathGroup(){return this.mathGroup}
+    evaluate(){
+        return this.parse(this.mathGroup.clone())
+    }
 
-    
     parse(tokens: MathGroup): void {
+        console.log('tokens',tokens.toString())
         const operatorIndex=tokens.getItems().findIndex(
             t => t instanceof MathJaxOperator && t.isOperable
-        ) ;
+        );
         if (operatorIndex<0) return;
         const operator = tokens.getItems()[operatorIndex] as MathJaxOperator
     

@@ -4,6 +4,7 @@ import { DebugModal, InfoModal } from "src/desplyModals";
 import { MathInfo, MathPraiser } from "./mathEngine";
 import { Axis } from "src/tikzjax/tikzjax";
 import { FormatTikzjax } from "src/tikzjax/interpret/tokenizeTikzjax";
+import { Token } from "./mathJaxTokens";
 
 export function processMathBlock(source: string, mainContainer: HTMLElement): void {
     console.log("Processing math block");
@@ -96,7 +97,9 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
           default:
             this.result = new MathPraiser();
             this.result.setInput(this.mathInput);
-            console.log("this.result", this.result);
+            const mathGroupVariables: Set<Token> = this.result.getMathGroupVariables();
+            this.result.evaluate()
+            console.log("this.result", this.result, mathGroupVariables);
             this.addInfoModal(new InfoModal(this.app, this.result.mathInfo));
             this.addDebugModel(new DebugModal(this.app, this.result.mathInfo.debugInfo));
             this.mathInput=this.result.input;

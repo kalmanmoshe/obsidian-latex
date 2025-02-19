@@ -72,12 +72,7 @@ export function getAllMathJaxReferences() {
 export function searchAllMathJaxOperatorsAndSymbols(query: string) {
     return [...mathJaxOperatorsMetadata, ...brackets]
     .find((operator) =>
-        Object.values(operator).flat().some((value) => {
-            const a = typeof value === 'string' && value===query;
-            if (a) console.log("value, query, a", value, query, a);
-            return a;
-        }
-        ))
+        Object.values(operator).flat().some((value) => typeof value === 'string' && value===query))
 }
 
 /**

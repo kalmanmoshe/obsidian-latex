@@ -410,4 +410,3 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
 export const mathJaxOperatorsMetadata: MathJaxOperatorMetadata[] = partialMathJaxOperatorsMetadata.map(
     (metadata) => createMathJaxOperatorMetadata(metadata)
 );
-console.log(mathJaxOperatorsMetadata)
