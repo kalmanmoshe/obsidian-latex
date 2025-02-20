@@ -72,25 +72,26 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
     private calculateMath() {
       const inputDiv = this.container.querySelector(".math-input") as HTMLElement;
       const resultDiv = this.container.querySelector(".math-result") as HTMLElement;
+      let solution: string='';
       try {
         switch (this.mode) {
           case "binom":
             // eslint-disable-next-line no-case-declarations
             const binomModel = new BinomInfoModel(this.app, this.mathInput);
             this.addInfoModal(binomModel);
-            this.result = binomModel.getEqual();
+            //this.result = binomModel.getEqual();
             break;
           case "cos":
             // eslint-disable-next-line no-case-declarations
             const [ , sideA, sideB, sideC ] = this.mathInput.map(Number);
-            this.result=findAngleByCosineRule(sideA, sideB, sideC)
+            //this.result=findAngleByCosineRule(sideA, sideB, sideC)
             break;
           case "vec":
             // eslint-disable-next-line no-case-declarations
-            this.result=new VecProcessor(this.mathInput[1],this.mathInput[2],this.mathInput[3]);
+            //this.result=new VecProcessor(this.mathInput[1],this.mathInput[2],this.mathInput[3]);
             this.addInfoModal(new tikzGraph(this.app, this.result.graph));
             this.addDebugModel(new DebugModal(this.app, this.result.vecInfo.debugInfo));
-            this.result=this.result.result
+            //this.result=this.result.result
             break;
           case "variable":
             break;
@@ -98,14 +99,16 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
             this.result = new MathPraiser();
             this.result.setInput(this.mathInput);
             const mathGroupVariables: Set<Token> = this.result.getMathGroupVariables();
-            this.result.evaluate()
+            const a=this.result.evaluate()
             console.log("this.result", this.result, mathGroupVariables);
+            solution = this.result.toStringLatex();
+            console.log("solution", solution);
             this.addInfoModal(new InfoModal(this.app, this.result.mathInfo));
             this.addDebugModel(new DebugModal(this.app, this.result.mathInfo.debugInfo));
             this.mathInput=this.result.input;
             break;
         }
-       this.addInputAndResultDiv(inputDiv, resultDiv, typeof this.mathInput==="string"?this.mathInput:this.mathInput[0], this.result/*roundBySettings(this.result)*/);
+       this.addInputAndResultDiv(inputDiv, resultDiv, typeof this.mathInput==="string"?this.mathInput:this.mathInput[0], solution);
       } catch (err) {
         this.displayError(inputDiv, resultDiv, err);
         console.error("The initial praising failed",err);
@@ -116,7 +119,8 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
       inputDiv.appendChild(renderMath(input,true))
       //MarkdownRenderer.renderMarkdown(`\${${input}}$`, inputDiv, "", new Component());
       //const resultOutput = /(true|false)/.test(result) ? result : `\${${result}}$`;
-      resultDiv.appendChild(renderMath(String(roundBySettings(result)),true))
+      console.log("result",result,roundBySettings(result))
+      resultDiv.appendChild(renderMath(result,true))
       //MarkdownRenderer.renderMarkdown(resultOutput, resultDiv, "", new Component());
     }
   

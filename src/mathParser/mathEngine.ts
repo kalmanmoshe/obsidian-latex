@@ -287,9 +287,10 @@ export class MathPraiser{
         this.solution=this.mathGroup
         this.addDebugInfo("solution",this.solution);
     }
-    getMathGroup(){return this.mathGroup}
+    getMathGroup() { return this.mathGroup }
+    
     evaluate(){
-        return this.parse(this.mathGroup.clone())
+        return this.parse(this.mathGroup)
     }
 
     parse(tokens: MathGroup): void {

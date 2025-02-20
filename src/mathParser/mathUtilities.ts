@@ -29,10 +29,14 @@ export function degreesToRadians(degrees: number){
 export function radiansToDegrees(radians: number){
     return radians * (180 / Math.PI );
 }
-
-export function roundBySettings(input: any): number  {
-    const number = Number(input);
-    return isNaN(number) ? input : Math.round(number * Number(settings.numberFormatting)) / Number(settings.numberFormatting);
+/** 
+ * is broken becose of the settings.numberFormatting wen to number format the resolt is 0
+*/
+export function roundBySettings(input: string|number|undefined): number  {
+    if (input === undefined) return NaN;
+    const number: number = typeof input === "string" ? Number(input) : input;
+    
+    return Math.round(number * Number(settings.numberFormatting)) / Number(settings.numberFormatting);
 }
 
 
