@@ -54,6 +54,7 @@ export abstract class Snippet<T extends SnippetType = SnippetType> {
 	options: Options;
 	priority?: number;
 	description?: string;
+	codeBlockLanguages?: string[];
 
 	excludedEnvironments: Environment[];
 
@@ -64,6 +65,7 @@ export abstract class Snippet<T extends SnippetType = SnippetType> {
 		options: Options,
 		priority?: number | undefined,
 		description?: string | undefined,
+		codeBlockLanguages?: string[],
 		excludedEnvironments?: Environment[],
 	) {
 		this.type = type;
@@ -72,6 +74,7 @@ export abstract class Snippet<T extends SnippetType = SnippetType> {
 		this.options = options;
 		this.priority = priority;
 		this.description = description;
+		this.codeBlockLanguages = codeBlockLanguages;
 		this.excludedEnvironments = excludedEnvironments ?? [];
 	}
 
@@ -90,14 +93,15 @@ export abstract class Snippet<T extends SnippetType = SnippetType> {
 			options: this.options,
 			priority: this.priority,
 			description: this.description,
+			codeBlockLanguages: this.codeBlockLanguages,
 			excludedEnvironments: this.excludedEnvironments,
 		});
 	}
 }
 
 export class VisualSnippet extends Snippet<"visual"> {
-	constructor({ trigger, replacement, options, priority, description, excludedEnvironments }: CreateSnippet<"visual">) {
-		super("visual", trigger, replacement, options, priority, description, excludedEnvironments);
+	constructor({ trigger, replacement, options, priority, description,codeBlockLanguages, excludedEnvironments }: CreateSnippet<"visual">) {
+		super("visual", trigger, replacement, options, priority, description,codeBlockLanguages, excludedEnvironments);
 	}
 
 	process(effectiveLine: string, range: SelectionRange, sel: string): ProcessSnippetResult {
@@ -126,8 +130,8 @@ export class VisualSnippet extends Snippet<"visual"> {
 
 export class RegexSnippet extends Snippet<"regex"> {
 
-	constructor({ trigger, replacement, options, priority, description, excludedEnvironments }: CreateSnippet<"regex">) {
-		super("regex", trigger, replacement, options, priority, description, excludedEnvironments);
+	constructor({ trigger, replacement, options, priority, description,codeBlockLanguages, excludedEnvironments }: CreateSnippet<"regex">) {
+		super("regex", trigger, replacement, options, priority, description,codeBlockLanguages, excludedEnvironments);
 	}
 
 	process(effectiveLine: string, range: SelectionRange, sel: string): ProcessSnippetResult {
@@ -167,8 +171,8 @@ export class RegexSnippet extends Snippet<"regex"> {
 export class StringSnippet extends Snippet<"string"> {
 	declare data: SnippetData<"string">;
 
-	constructor({ trigger, replacement, options, priority, description, excludedEnvironments: excludeIn }: CreateSnippet<"string">) {
-		super("string", trigger, replacement, options, priority, description, excludeIn);
+	constructor({ trigger, replacement, options, priority, description,codeBlockLanguages, excludedEnvironments: excludeIn }: CreateSnippet<"string">) {
+		super("string", trigger, replacement, options, priority, description,codeBlockLanguages, excludeIn);
 	}
 
 	process(effectiveLine: string, range: SelectionRange, sel: string): ProcessSnippetResult {
@@ -207,6 +211,7 @@ function replacer(k: string, v: unknown) {
 type CreateSnippet<T extends SnippetType> = {
 	options: Options;
 	priority?: number;
+	codeBlockLanguages?: string[];
 	description?: string;
 	excludedEnvironments?: Environment[];
 } & SnippetData<T>

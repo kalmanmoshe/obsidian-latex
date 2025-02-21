@@ -22,7 +22,7 @@ async function importRaw(maybeJavaScriptCode: string) {
 				raw='[]';
 		}
 	} catch (e) {
-		console.error(raw,maybeJavaScriptCode,e);
+		//console.error(raw,maybeJavaScriptCode,e);
 		throw "Invalid format.";
 	}
 	return raw;
@@ -31,12 +31,12 @@ async function importRaw(maybeJavaScriptCode: string) {
 
 export async function parseSnippets(snippetsStr: string) {
 	let rawSnippets = await importRaw(snippetsStr) as RawSnippet[];
+	
 
 	let parsedSnippets;
 	try {
 		// validate the shape of the raw snippets
 		rawSnippets = validateRawSnippets(rawSnippets);
-
 		parsedSnippets = rawSnippets.map((raw) => {
 			try {
 				// Normalize the raw snippet and convert it into a Snippet
@@ -47,7 +47,7 @@ export async function parseSnippets(snippetsStr: string) {
 			}
 		});
 	} catch (e) {
-		console.error("Invalid snippet format: ",e);
+		//console.error("Invalid snippet format: ",e);
 		throw `Invalid snippet format: ${e}`;
 	}
 
@@ -89,6 +89,7 @@ const RawSnippetSchema = z.object({
     options: z.string(),
     flags: z.string().optional(),
     priority: z.number().optional(),
+	codeBlockLanguages: z.array(z.string()).optional(),
     description: z.string().optional(),
   });
 
@@ -102,10 +103,8 @@ function validateRawSnippets(snippets: unknown): RawSnippet[] {
   if (!Array.isArray(snippets)) {
     throw new Error("Expected snippets to be an array");
   }
-
   return snippets.map((raw, index) => {
     const validationResult = RawSnippetSchema.safeParse(raw);
-
     if (!validationResult.success) {
       const errorMessage = validationResult.error.errors
         .map((error) => `${error.path.join(".")}: ${error.message}`)
@@ -131,7 +130,6 @@ function validateRawSnippets(snippets: unknown): RawSnippet[] {
  * - if it is a regex snippet, the trigger is represented as a RegExp instance with flags set
  */
 function parseSnippet(raw: RawSnippet): Snippet {
-	
 	const { replacement, priority, description } = raw;
 	const options = Options.fromSource(raw.options);
 	let trigger;
@@ -173,6 +171,7 @@ function parseSnippet(raw: RawSnippet): Snippet {
 			options,
 			priority,
 			description,
+			codeBlockLanguages: raw.codeBlockLanguages,
 			excludedEnvironments,
 		};		
 		return new RegexSnippet(normalised);
@@ -206,6 +205,7 @@ function parseSnippet(raw: RawSnippet): Snippet {
 			options,
 			priority,
 			description,
+			codeBlockLanguages: raw.codeBlockLanguages,
 			excludedEnvironments,
 		};
 		if (options.visual) {

@@ -6,13 +6,15 @@ import { associativitymetadataByType, getAllMathJaxReferences, getMathJaxOperato
 
 import { parseOperator } from "./mathEngine";
 import { BasicMathJaxToken } from "src/mathParser/basicToken";
-import { associativityFormatType } from "src/staticData/mathParserStaticData";
-function groupBracketType(group: MathGroup,pos={ bracketType: BracketType.Parentheses, isBracketOptional: true },){
+import { associativityFormatType, PositionValue } from "src/staticData/mathParserStaticData";
+
+function groupBracketType(group: MathGroup,pos:PositionValue={ bracketType: BracketType.Parentheses, isBracketOptional: true },){
     if(!pos.isBracketOptional)return pos.bracketType
     return group.singular()?BracketType.None:pos?.bracketType
 }
 
 function wrapGroup(group: string, wrap: BracketType): string {
+    console.log("wrapGroup",group,wrap)
     switch (wrap) {
         case BracketType.Parentheses:
             return `(${group})`;
@@ -54,6 +56,7 @@ export function deepSearchWithPath(
     // If no match is found
     return null;
 }
+
 type formattableForMathGroup=MathGroupItem|MathGroup|BasicMathJaxToken
 export function ensureAcceptableFormatForMathGroupItems(items: formattableForMathGroup|formattableForMathGroup[]): MathGroupItem[] {
     if (!Array.isArray(items)) {
@@ -100,9 +103,17 @@ function ensureAcceptableFormatForMathOperator(groups: (MathGroupItem|MathGroup)
 
     return formattedGroups;
 }
-
+/**
+ * Determines whether to add a plus sign based on the provided groups and distance from an operator.
+ * 
+ * @param group1 - The first group to compare (optional).
+ * @param group2 - The second group to compare (optional).
+ * @param distanceFromOperator - The distance from the operator (optional).
+ * @returns A plus sign ('+') if the conditions are met, otherwise an empty string ('').
+ */
 function shouldAddPlus(group1?: any,group2?: any,distanceFromOperator?: number){
-    if(!group1||!group2||!distanceFromOperator||distanceFromOperator===-1||distanceFromOperator===1)return '';
+    //i removed !distanceFromOperator chack this my cause a bug idk yet
+    if(!group1||!group2||distanceFromOperator===-1||distanceFromOperator===1)return '';
 
     return '+';
 }
@@ -163,13 +174,14 @@ export class MathJaxOperator {
     isOccurrenceGroupMatch(testItem: MathJaxOperator | Token): boolean {return false;}
     toString(formatType: associativityFormatType=associativityFormatType.MathJax,customFormatter?: (check: any,string: string) => any){
         const metadata = searchMathJaxOperators(this.operator);
-        if (!metadata) return '';
+        if (!metadata) throw new Error(`No metadata found for operator: ${this.operator}`);
         const associativity = associativitymetadataByType(metadata, formatType);
 
         let index=0,string = '';
-        ({string,index}=processAssociativityPositions(associativity.positions,string,this.groups,index,false));
-        string += associativity.string;
+        //in processAssociativityPositions the index is always seeps to be 0 for som resin
         ({string,index}=processAssociativityPositions(associativity.positions,string,this.groups,index,true));
+        string += associativity.string;
+        ({string,index}=processAssociativityPositions(associativity.positions,string,this.groups,index));
 
         if (customFormatter) 
             return customFormatter(this,string)
@@ -180,11 +192,11 @@ export class MathJaxOperator {
     }
 }
 
-function processAssociativityPositions(positions: Map<number, any>,string: string,groups: any[],index: number,isLeft=false){
-    getValuesWithKeysBySide(positions,true).forEach(item => {
+function processAssociativityPositions(positions: Map<number, any>,string: string,groups: MathGroup[],index: number,isLeft=false){
+    getValuesWithKeysBySide(positions,isLeft).forEach(item => {
         if (!item) return;
         string += shouldAddPlus(groups[isLeft? index-1 : index],groups[isLeft? index : index + 1],index);
-        string += wrapGroup(groups[index].toString(),groupBracketType(item,groups[index]));
+        string += wrapGroup(groups[index].toString(),groupBracketType(groups[index],item));
         index++;
     });
     return { string, index };
@@ -302,6 +314,7 @@ export class MultiplicationOperator extends MathJaxOperator {
         
             return 0;
         });
+
         reorderedGroups.forEach((group,index) => {
             string += wrapGroup(group.toString(), group.singular()?BracketType.None:BracketType.Parentheses);
             if (toAddCdot(group,reorderedGroups[index+1]))
@@ -473,19 +486,19 @@ export class MathGroup {
         });
         return variables;
     }
-    getVariables(): Set<Token> {
-        const variablesSet = this.items.reduce((acc: Set<Token>, item: MathGroupItem) => {
+    getVariables(): Set<string> {
+        const variablesSet = this.items.reduce((acc: Set<string>, item: MathGroupItem) => {
           if (item instanceof Token && item.isVar()) {
-            acc.add(item);
+            acc.add(item.getStringValue());
           } else if (item instanceof MathGroup) {
-            item.getVariables().forEach(token => acc.add(token));
+            item.getVariables().forEach(variable => acc.add(variable));
           } else if (item instanceof MathJaxOperator) {
             item.groups.forEach(group => {
-              group.getVariables().forEach(token => acc.add(token));
+              group.getVariables().forEach(variable => acc.add(variable));
             });
           }
           return acc;
-        }, new Set<Token>());
+        }, new Set<string>());
         return variablesSet;
       }
       
@@ -604,7 +617,8 @@ export class MathGroup {
             throw new Error("Expected items to be an array but received: "+this.items);
         }
         this.items.forEach((item, index) => {
-            string+=shouldAddPlus(this.items[index-1],item)
+
+            string+=shouldAddPlus(this.items[index-1],item,)
             if (item instanceof MathGroup && !item.singular()) {
                 string += `(${item.toString(customFormatter)})`;
             }  else {
@@ -828,7 +842,6 @@ function implicitMultiplicationMap(tokens: Array<BasicMathJaxToken|Paren>) {
         //the only befor tokens are opaning parentheses certain operator types and variables 
 
         if(parenState(token,true)){
-            console.log('parenStateOpan')
             return true;
         }
         else if(isVar(token)||checkImplicitMultiplication(token)){

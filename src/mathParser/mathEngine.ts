@@ -173,6 +173,9 @@ export function parseOperator(operator: MathJaxOperator): boolean {
         case "Sine":
             operator.solution = new MathGroup([new Token(Math.sin(degreesToRadians(group1)))]);
             break;
+        case "Cosine":
+            operator.solution = new MathGroup([new Token(Math.sin(degreesToRadians(group1)))]);
+            break;
         case "SquareRoot":
             if (group1 < 0) {
                 throw new Error("Cannot calculate the square root of a negative number.");
@@ -257,17 +260,25 @@ function operationsOrder(tokens: any[]) {
     }
     return {start: begin,end: end,specificOperatorIndex: index}
 }
+/**
+ * we have constents - staf like g pi and so on for ex pi=3.14159265358979323846;
+ * we have variables - x y z and so on dees are in the math for ex 2x=6;
+ * we have vars - simple to variables but have a set solution for ex a=3 3+a=6;
+ */
+type unknowns =Set<string>;
 
 export class MathPraiser{
-    private input="";
+    private input: string;
     private mathGroup: MathGroup;
-    private variables: mathVariables;
-    solution: any;
+    private unknowns: unknowns;
+    private variables:  Map<string, MathGroup>
+    private solutions: Map<string, MathGroup>|MathGroup;//string is the name of the variable and MathGroup is the solution;
+    
     mathInfo=new MathInfo();
-    constructor(input?: string,mathGroup?: MathGroup,solution?: any,mathInfo?: MathInfo){
+    constructor(input?: string,mathGroup?: MathGroup,solution?: Map<string, MathGroup>,mathInfo?: MathInfo){
         if(input)this.input=input;
         if(mathGroup)this.mathGroup=mathGroup;
-        if(solution)this.solution=solution;
+        if(solution)this.solutions=solution;
         if(mathInfo)this.mathInfo=mathInfo;
     }
     setInput(input: string){
@@ -275,17 +286,30 @@ export class MathPraiser{
         this.processInput();
         const mathGroup=stringToMathGroup(this.input);
         if(!mathGroup)throw new Error("Invalid input");
+        this.solutions=new Map();
         this.mathGroup=mathGroup;
+        this.input=this.toStringLatex();
+        this.unknowns=this.getMathGroupVariables()
         console.log('this.mathGroup',this.mathGroup.clone().toString(),this.mathGroup);
     }
     getMathGroupVariables(){return this.mathGroup.getVariables();}
 
+    solveFor(variable: string){
+        if(!this.unknowns.has(variable)&&!this.variables.has(variable)){
+            console.warn(`Variable ${variable} not found in mathGroup`);
+            return null;
+        }
+        if(this.variables.has(variable))return this.variables.get(variable);
+        
+    }
+
     toStringLatex(){return this.mathGroup.toStringLatex()}
+
     addSolution(){
         this.input=this.mathGroup.toString()
         this.controller();
-        this.solution=this.mathGroup
-        this.addDebugInfo("solution",this.solution);
+        //this.solution=this.mathGroup
+        //this.addDebugInfo("solution",this.solution);
     }
     getMathGroup() { return this.mathGroup }
     
@@ -337,6 +361,8 @@ export class MathPraiser{
        // return this.tokens.reconstruct()
     }
 }
+
+
 
 function deepClone(items: any[]) {
     let clone: any[] = [];

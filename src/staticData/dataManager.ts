@@ -1,5 +1,5 @@
 import { regExp } from "src/tikzjax/tikzjax";
-import { MathJaxOperatorMetadata, mathJaxOperatorsMetadata, operatorsWithImplicitMultiplication,OperatorType, operatorNames, associativityFormatType, AssociativityValue } from "./mathParserStaticData";
+import { MathJaxOperatorMetadata, mathJaxOperatorsMetadata, operatorsWithImplicitMultiplication,OperatorType, operatorNames, associativityFormatType, AssociativityValue, PositionValue, Positions } from "./mathParserStaticData";
 import { BracketType } from "./encasings";
 import { brackets, LatexMetadata } from "./latexStaticData";
 
@@ -162,15 +162,14 @@ export function isOperatorWithAssociativity(value: string, sides: number[], abso
 }
 
 /**
- * Checks if a value matches any operator with the specified associativities.
- * @param {string} value - The value to check.
- * @param {Associativity[]} sides - The associativity sides to check (e.g., ['left', 'right']).
- * @returns {boolean} - True if the value matches any operator with the specified associativities.
+ * Retrieves values from a map based on the side (left or right) of the key.
+ * @param {Map<number, T>} map - The map to retrieve values from.
+ * @param {boolean} left - Whether to retrieve values with keys on the left (negative) side.
  */
-export function getValuesWithKeysBySide<T>(map: Map<number, T>, left: boolean): T[] {
+export function getValuesWithKeysBySide(map: Positions, left: boolean): PositionValue[] {
     return Array.from(map.entries())
-        .filter(([key]) => left ? key < 0 : key > 0)
-        .map(([, value]) => value);
+    .filter(([key]) => left ? key < 0 : key > 0)
+    .map(([, value]) => value);
 }
 
 

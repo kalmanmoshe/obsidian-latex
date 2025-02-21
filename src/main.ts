@@ -47,7 +47,6 @@ import { readAndParseSVG } from "./latexRender/svg2latex/temp";
  *     console.log(metadata);
  *   }
  * - Create a parser that makes LaTeX error messages more sensible.
- * - CodeBlock specific snippets.
  * - Create qna for better Searching finding and styling
  */
 

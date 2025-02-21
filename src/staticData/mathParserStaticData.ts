@@ -27,6 +27,7 @@ export const  keyboardAutoReplaceHebrewToEnglishTriggers =
     { key: "\u05E7", code: "KeyE", replacement: "e" },
     { key: "\u05E9", code: "KeyA", replacement: "a" },
     { key: "\u05EA", code: "KeyC", replacement: "c" },
+    { key: "ף", code: "Semicolon", replacement: ";" },
     { key: "/", code: "KeyQ", replacement: "q" },
     { key: "ת", code: "Comma", replacement: "," },
     { key: "'", code: "KeyW", replacement: "w" },
@@ -52,7 +53,17 @@ export const greekLetters = [
     'Sigma', 'Tau', 'Upsilon', 'Phi', 'Chi', 'Psi', 'Omega'
 ];
 
-
+const mathConstants = new Map<string, number>([
+    ['pi', Math.PI],
+    ['e', Math.E],
+    ['goldenRatio', (1 + Math.sqrt(5)) / 2],
+    ['sqrt2', Math.SQRT2],
+    ['sqrt1_2', Math.SQRT1_2],
+    ['ln2', Math.LN2],
+    ['ln10', Math.LN10],
+    ['log2e', Math.LOG2E],
+    ['log10e', Math.LOG10E],
+]);
 
   
 
@@ -115,6 +126,8 @@ type Associativity = Map<associativityFormatType,{
 }>;
 
 export type AssociativityValue = Associativity extends Map<any, infer V> ? V : never;
+export type Positions=AssociativityValue['positions'];
+export type PositionValue = Positions extends Map<any, infer V> ? V : never;
 
 
 type DeepPartial<T> = {
@@ -295,6 +308,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
             [associativityFormatType.MathJax,
                 {
                     string  : 'cdot',
+                    backslash: true,
                     positions: [[-1,{bracketType: BracketType.Parentheses,isBracketOptional: true}], [1,{bracketType: BracketType.Parentheses,isBracketOptional: true}]]
                 }
             ],
@@ -309,6 +323,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
             [associativityFormatType.MathJax,
                 {
                     string  : 'sin',
+                    backslash: true,
                     positions: [[1,{bracketType: BracketType.Parentheses }]]
                 }
             ],
@@ -322,6 +337,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
             [associativityFormatType.MathJax,
                 {
                     string  : 'cos',
+                    backslash: true,
                     positions: [[1,{bracketType: BracketType.Parentheses }]]
                 }
             ],
@@ -335,6 +351,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
             [associativityFormatType.MathJax,
                 {
                     string  : 'tan',
+                    backslash: true,
                     positions: [[1,{bracketType: BracketType.Parentheses }]]
                 }
             ],
@@ -385,6 +402,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
             [associativityFormatType.MathJax,
                 {
                     string  : 'frac',
+                    backslash: true,
                     positions: [[1,{bracketType: BracketType.CurlyBraces }],[2,{bracketType: BracketType.CurlyBraces }]]
                 }
             ],
@@ -399,6 +417,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
             [associativityFormatType.MathJax,
                 {
                     string  : 'sqrt',
+                    backslash: true,
                     positions: [[1,{bracketType: BracketType.CurlyBraces }]]
                 }
             ],

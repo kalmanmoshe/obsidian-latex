@@ -36,7 +36,8 @@ const runSnippetCursor = (view: EditorView, ctx: Context, key: string, range: Se
 	const updatedLine = line + key;
 	for (const snippet of settings.snippets) {
 		let effectiveLine = line;
-		if (!snippetShouldRunInMode(snippet.options, ctx.mode)) {
+		const isInCodeLeng=snippet.codeBlockLanguages?.contains(ctx.codeblockLanguage)??true;
+		if (!snippetShouldRunInMode(snippet.options,ctx.mode,isInCodeLeng)) {
 			continue;
 		}
 
@@ -87,7 +88,7 @@ const runSnippetCursor = (view: EditorView, ctx: Context, key: string, range: Se
 	return {success: false, shouldAutoEnlargeBrackets: false};
 }
 
-const snippetShouldRunInMode = (options: Options, mode: Mode) => {
+const snippetShouldRunInMode = (options: Options, mode: Mode,isInCodeLeng=false) => {
 	if (
 		options.mode.inlineMath && mode.inlineMath ||
 		options.mode.blockMath && mode.blockMath ||
@@ -102,11 +103,8 @@ const snippetShouldRunInMode = (options: Options, mode: Mode) => {
 		return true;
 	}
 
-	if (options.mode.text && mode.text ||
-		options.mode.code && mode.code
-	) {
-		return true;
-	}
+	if (options.mode.text && mode.text) {return true;}
+	if(options.mode.code && mode.code&&isInCodeLeng) {return true;}
 }
 
 const isOnWordBoundary = (state: EditorState, triggerPos: number, to: number, wordDelimiters: string) => {
