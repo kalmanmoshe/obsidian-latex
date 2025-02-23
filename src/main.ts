@@ -179,24 +179,46 @@ export default class Moshe extends Plugin {
     }
   }
 
-  async loadPreamble() {
-    let preamble = ''
+  async loadPreamble(): Promise<void> {
+    let preamble: string = '';
     try {
-      preamble=await this.app.vault.adapter.read(this.settings.preambleFileLocation);
-    }
-    catch (e) {
+      preamble = await this.app.vault.adapter.read(this.settings.preambleFileLocation);
+    } catch (e) {
       console.warn(`Failed to read preamble file: ${e}`);
     }
+  
     const MJ: any = MathJax;
-    if (MJ.tex2chtml === undefined) {
+  
+    // Define a custom preprocessor that wraps Hebrew text (Unicode range: \u0590-\u05FF)
+    const myCustomPreprocessor = (input: string): string => {
+      return input;
+      //return input.replace(/\\text\{([^}]*[\u0590-\u05FF][^}]*)\}/g, '\\Heb{$1}');
+    };
+  
+    // If MathJax.tex2chtml is already defined, override it to include the preprocessor.
+    if (MJ.tex2chtml !== undefined) {
+      // Save the original function if not already saved
+      if (!MJ._originalTex2chtml) {
+        MJ._originalTex2chtml = MJ.tex2chtml;
+      }
+      // Override tex2chtml so it runs the preprocessor first.
+      MJ.tex2chtml = (input: string, display: boolean) => {
+        const processedInput = myCustomPreprocessor(input);
+        return MJ._originalTex2chtml.call(MJ, processedInput, display);
+      };
+  
+      // Process the preamble through the new tex2chtml
+      MJ.tex2chtml(preamble);
+    } else {
+      // If tex2chtml isn't defined yet, hook into startup.ready.
       MJ.startup.ready = () => {
         MJ.startup.defaultReady();
-        MJ.tex2chtml(preamble);
+        const processedPreamble = myCustomPreprocessor(preamble);
+        MJ.tex2chtml(processedPreamble);
       };
-    } else {
-      MJ.tex2chtml(preamble);
     }
   }
+  
   
 
   async saveSettings(didFileLocationChange = false) {

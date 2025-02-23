@@ -58,7 +58,7 @@ export const runAutoFractionCursor = (view: EditorView, ctx: Context, range: Sel
 		// Also, allow spaces after greek letters
 		// By replacing spaces after greek letters with a dummy character (#)
 
-		const greek = "alpha|beta|gamma|Gamma|delta|Delta|epsilon|varepsilon|zeta|eta|theta|Theta|iota|kappa|lambda|Lambda|mu|nu|omicron|xi|Xi|pi|Pi|rho|sigma|Sigma|tau|upsilon|Upsilon|varphi|phi|Phi|chi|psi|Psi|omega|Omega|cdot|frac|binom|cos|sin|tan|arccos|arcsin|arctan|deg|sec";
+		const greek = "alpha|beta|gamma|Gamma|delta|Delta|epsilon|varepsilon|zeta|eta|theta|Theta|iota|kappa|lambda|Lambda|mu|nu|omicron|xi|Xi|pi|Pi|rho|sigma|Sigma|tau|upsilon|Upsilon|varphi|phi|Phi|chi|psi|Psi|omega|Omega|cdot|frac|binom|cos|sin|tan|arccos|arcsin|arctan|deg|sec|sphericalangle|triangle|degree";
 		const regex = new RegExp("(" + greek + ") ", "g");
 		string = string.replace(regex, "$1#");
 		string=string.slice(string.lastIndexOf(" ")+1);

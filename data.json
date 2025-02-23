@@ -217,21 +217,136 @@
       [
         "מתמטיקה/שי/משוואות טריגונומטריות.md"
       ]
+    ],
+    [
+      "e61649f8f380d57280b129d3cb7f7cc3",
+      [
+        "moshe/latex/tikz/Coordinates.md"
+      ]
+    ],
+    [
+      "326c329a1801cb6cf90d2d0c651d86fa",
+      [
+        "moshe/latex/tikz/Coordinates.md"
+      ]
+    ],
+    [
+      "6e5db8ee8602c9f4e33c0e6207480fd2",
+      [
+        "moshe/latex/tikz/Coordinates.md"
+      ]
+    ],
+    [
+      "d9c57ba2bcc17dd647a332740c8ee560",
+      [
+        "moshe/latex/tikz/Coordinates.md"
+      ]
+    ],
+    [
+      "b7d52e068276bbd84bc146a372eef61d",
+      [
+        "moshe/latex/tikz/Coordinates.md"
+      ]
+    ],
+    [
+      "12912deefcd4656abe54953829ac795e",
+      [
+        "moshe/latex/tikz/Coordinates.md"
+      ]
+    ],
+    [
+      "a071fc460ba36bb286d2c9a68362dd5d",
+      [
+        "moshe/latex/tikz/Coordinates.md"
+      ]
+    ],
+    [
+      "cc26ba9e5bac5a6c5d84d8c7e8dde4b2",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "d04c22849a079f1572aa9679e8c68b31",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "0cba46310849b0f636c401b2bbaa713e",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "7f5cc4021afb0f543b594b6a47697f80",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "e3a9a9bb44af0e5178e7853c618a9c3f",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "90bc5d702597d705af42088d7af62fce",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "878971bddd0242faee752acca3f8a8f8",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "ed12f61c9c8f6774f0310b7474b36cdc",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "b6f711be0f4a5adc0570ebff253b2f6d",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "583d6386c1b0f48e37facdf1cee3aeb0",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "ddc126376cc3b5ff3abb41501f42753a",
+      [
+        "מתמטיקה/הדרכה/הסתברות.md"
+      ]
+    ],
+    [
+      "7090d4039a303ff50609b1975d4634e2",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "1eebf99d51cbec3b5f7cf20a544ad3b9",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
     ]
   ],
   "packageCache": [
     {
       "26/tikzlibrarypgfplots.surfshading.code.tex": 1,
       "26/tikzlibraryarrows.meta.code.tex": 1,
+      "26/numprint.cfg": 1,
       "26/main.aux": 1,
       "33/cmr12.vf": 1,
-      "33/cmmi7.vf": 1,
-      "33/cmr10.vf": 1,
-      "33/cmsy10.vf": 1,
-      "33/cmmi12.vf": 1,
-      "33/cmmi10.vf": 1,
-      "33/cmr7.vf": 1,
-      "33/cmr5.vf": 1
+      "33/cmmi12.vf": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -413,7 +528,76 @@
       "3/cmr17": "/tex/cmr17.tfm",
       "32/cmr5.pfb": "/tex/cmr5.pfb",
       "32/cmsy7.pfb": "/tex/cmsy7.pfb",
-      "32/cmmi8.pfb": "/tex/cmmi8.pfb"
+      "32/cmmi8.pfb": "/tex/cmmi8.pfb",
+      "3/tcrm1000": "/tex/tcrm1000.tfm",
+      "44/cm-super-ts1.enc": "/tex/cm-super-ts1.enc",
+      "32/sfrm1000.pfb": "/tex/sfrm1000.pfb",
+      "3/tcrm1200": "/tex/tcrm1200.tfm",
+      "26/tkz-euclide.sty": "/tex/tkz-euclide.sty",
+      "26/tkz-base.sty": "/tex/tkz-base.sty",
+      "26/tikzlibraryarrows.code.tex": "/tex/tikzlibraryarrows.code.tex",
+      "26/pgflibraryarrows.code.tex": "/tex/pgflibraryarrows.code.tex",
+      "26/tikzlibrarybabel.code.tex": "/tex/tikzlibrarybabel.code.tex",
+      "26/tikzlibrarydecorations.text.code.tex": "/tex/tikzlibrarydecorations.text.code.tex",
+      "26/pgflibrarydecorations.text.code.tex": "/tex/pgflibrarydecorations.text.code.tex",
+      "26/tikzlibraryshapes.misc.code.tex": "/tex/tikzlibraryshapes.misc.code.tex",
+      "26/pgflibraryshapes.misc.code.tex": "/tex/pgflibraryshapes.misc.code.tex",
+      "26/tikzlibrarythrough.code.tex": "/tex/tikzlibrarythrough.code.tex",
+      "26/numprint.sty": "/tex/numprint.sty",
+      "26/array.sty": "/tex/array.sty",
+      "26/xfp.sty": "/tex/xfp.sty",
+      "26/expl3.sty": "/tex/expl3.sty",
+      "26/xparse.sty": "/tex/xparse.sty",
+      "26/fp.sty": "/tex/fp.sty",
+      "26/defpattern.sty": "/tex/defpattern.sty",
+      "26/fp-basic.sty": "/tex/fp-basic.sty",
+      "26/fp-addons.sty": "/tex/fp-addons.sty",
+      "26/fp-snap.sty": "/tex/fp-snap.sty",
+      "26/fp-exp.sty": "/tex/fp-exp.sty",
+      "26/fp-trigo.sty": "/tex/fp-trigo.sty",
+      "26/fp-pas.sty": "/tex/fp-pas.sty",
+      "26/fp-random.sty": "/tex/fp-random.sty",
+      "26/fp-eqn.sty": "/tex/fp-eqn.sty",
+      "26/fp-upn.sty": "/tex/fp-upn.sty",
+      "26/fp-eval.sty": "/tex/fp-eval.sty",
+      "26/tkz-base.cfg": "/tex/tkz-base.cfg",
+      "26/tkz-tools-modules": "/tex/tkz-tools-modules.tex",
+      "26/tkz-lib-marks": "/tex/tkz-lib-marks.tex",
+      "26/tkz-tools-base.tex": "/tex/tkz-tools-base.tex",
+      "26/tkz-tools-utilities.tex": "/tex/tkz-tools-utilities.tex",
+      "26/tkz-tools-math.tex": "/tex/tkz-tools-math.tex",
+      "26/tkz-tools-text.tex": "/tex/tkz-tools-text.tex",
+      "26/tkz-tools-BB.tex": "/tex/tkz-tools-BB.tex",
+      "26/tkz-tools-arith.tex": "/tex/tkz-tools-arith.tex",
+      "26/tkz-tools-print.tex": "/tex/tkz-tools-print.tex",
+      "26/tkz-tools-misc.tex": "/tex/tkz-tools-misc.tex",
+      "26/tkz-obj-axes.tex": "/tex/tkz-obj-axes.tex",
+      "26/tkz-obj-grids.tex": "/tex/tkz-obj-grids.tex",
+      "26/tkz-obj-marks.tex": "/tex/tkz-obj-marks.tex",
+      "26/tkz-obj-points.tex": "/tex/tkz-obj-points.tex",
+      "26/tkz-obj-rep.tex": "/tex/tkz-obj-rep.tex",
+      "26/tkz-tools-intersections": "/tex/tkz-tools-intersections.tex",
+      "26/tkz-tools-angles": "/tex/tkz-tools-angles.tex",
+      "26/tkz-obj-eu-angles.tex": "/tex/tkz-obj-eu-angles.tex",
+      "26/tkz-obj-eu-arcs.tex": "/tex/tkz-obj-eu-arcs.tex",
+      "26/tkz-obj-eu-compass.tex": "/tex/tkz-obj-eu-compass.tex",
+      "26/tkz-obj-eu-circles.tex": "/tex/tkz-obj-eu-circles.tex",
+      "26/tkz-obj-eu-draw-circles.tex": "/tex/tkz-obj-eu-draw-circles.tex",
+      "26/tkz-obj-eu-lines.tex": "/tex/tkz-obj-eu-lines.tex",
+      "26/tkz-obj-eu-draw-lines.tex": "/tex/tkz-obj-eu-draw-lines.tex",
+      "26/tkz-obj-eu-points.tex": "/tex/tkz-obj-eu-points.tex",
+      "26/tkz-obj-eu-points-by.tex": "/tex/tkz-obj-eu-points-by.tex",
+      "26/tkz-obj-eu-points-rnd.tex": "/tex/tkz-obj-eu-points-rnd.tex",
+      "26/tkz-obj-eu-points-with.tex": "/tex/tkz-obj-eu-points-with.tex",
+      "26/tkz-obj-eu-draw-polygons.tex": "/tex/tkz-obj-eu-draw-polygons.tex",
+      "26/tkz-obj-eu-polygons.tex": "/tex/tkz-obj-eu-polygons.tex",
+      "26/tkz-obj-eu-protractor.tex": "/tex/tkz-obj-eu-protractor.tex",
+      "26/tkz-obj-eu-sectors.tex": "/tex/tkz-obj-eu-sectors.tex",
+      "26/tkz-obj-eu-show.tex": "/tex/tkz-obj-eu-show.tex",
+      "26/tkz-obj-eu-triangles.tex": "/tex/tkz-obj-eu-triangles.tex",
+      "3/cmss10": "/tex/cmss10.tfm",
+      "3/cmbx10": "/tex/cmbx10.tfm",
+      "32/cmbx10.pfb": "/tex/cmbx10.pfb"
     },
     {},
     {}

@@ -427,25 +427,279 @@ export function getPreamble(app: App):string{
         //styContent = getStyFileContent(preamblePath);
     }
     styContent=styContent.split('\n').filter(line=>!line.match(/(int|frac)/)).join('\n')
-
-    const ang="\\tikzset{ang/.style 2 args={fill=black!50,opacity=0.5,text opacity=0.9,draw=orange,<->,angle eccentricity=#1,angle radius=#2cm,text=orange,font=\\large},ang/.default={1.6}{0.5}}"
-  
-    const mark="\\def\\mark#1#2#3{\\path [decoration={markings, mark=at position 0.5 with {\\foreach \\x in {#1} { \\draw[line width=1pt] (\\x,-3pt) -- (\\x,3pt); }}}, postaction=decorate] (#2) -- (#3);}"
-  
-    const arr="\\newcommand{\\arr}[8]{\\coordinate (2) at ($(#2)!#7!(#3)$);\\coordinate (1) at ($(2)!#5mm!90:(#3)$);\\coordinate (3) at ($(2)!#5mm+#4cm!#8:(#3)$);\\draw [line width=1pt,<-] (1)--(3)node [pos=#6] {\\large #1};}" 
-    const lene="\\def\\cor#1#2#3#4#5{\\coordinate (#1) at($(#2)!#3!#4:(#5)$);}\\def\\dr#1#2{\\draw [line width=#1,]#2;}\\newcommand{\\len}[6]{\\cor{1}{#2}{#3}{90}{#4}\\cor{3}{#4}{#3}{-90}{#2}\\node (2) at ($(1)!0.5!(3)$) [rotate=#6]{\\large #1};\\dr{#5pt,|<-}{(1)--(2)}\\dr{#5pt,->|}{(2)--(3)}}"
-    const spring="\\newcommand{\\spring}[4]{\\tikzmath{coordinate \\start, \\done;\\start = (#1);\\done = (#2);}\\draw[thick] ($(\\start) + (-1.5,0)$) --++(3,0);\\draw (\\start) --+ (0,-0.25cm);\\draw ($(\\start) + (\\donex+0cm,\\doney+0.25cm)$)--+(0,-0.25);\\draw[decoration={aspect=0.3, segment length=3, amplitude=2mm,coil,},decorate] (\\startx,\\starty-0.25cm) --($(\\start) + (\\donex,\\doney+0.25cm)$)node[midway,right=0.25cm,black]{#4};\\node[fill=yellow!60,draw,text=black,anchor= north] at ($(\\start) + (\\donex,\\doney)$){#3};}"
-    
-    const tree="\\newcommand{\\lenu}[3]{\\tikzset{level distance=20mm,level #1/.style={sibling distance=#2mm, nodes={fill=red!#3,circle,inner sep=1pt,draw=none,text=black,}}}}"
-    
-    const table="\\tikzset{ table/.style={matrix of nodes,row sep=-\\pgflinewidth,column sep=-\\pgflinewidth,nodes={rectangle,draw=black,align=center},minimum height=1.5em,text depth=0.5ex,text height=2ex,nodes in empty cells,every even row/.style={nodes={fill=gray!60,text=black,}},column 1/.style={nodes={text width=5em,font=\\bfseries}},row 1/.style={nodes={font=\\bfseries}}}}"
-    const coor="\\def\\coor#1#2#3#4{\\coordinate [label={[#4]:\\Large #3}] (#2) at ($(#1)$);}"
-    const mass=`\\def\\mass#1#2{\\node[fill=yellow!60,draw,text=black,anchor= north] at (#1){#2};}`
-    const massSet="\\tikzset{ mass/.style={fill=yellow!60,draw,text=black}}"
-    const dvector="\\newcommand{\\dvector}[2]{\\coordinate (temp1) at ($(0,0 -| #1)$);\\coordinate (temp2) at ($(0,0 |- #1)$);\\draw [line width=0.7pt,#2] (#1)--(temp1)(#1)--(temp2);}"
-    
-    const picAng="\\newcommand{\\ang}[5]{\\coordinate (ang1) at (#1); \\coordinate (ang2) at (#2); \\coordinate (ang3) at (#3); \\pgfmathanglebetweenpoints{\\pgfpointanchor{ang3}{center}}{\\pgfpointanchor{ang2}{center}}\\let\\angCB\\pgfmathresult\\pgfmathanglebetweenpoints{\\pgfpointanchor{ang2}{center}}{\\pgfpointanchor{ang1}{center}}\\let\\angAB\\pgfmathresult\\pgfmathparse{\\angCB - \\angAB}\\ifdim\\pgfmathresult pt<0pt\\pgfmathparse{\\pgfmathresult + 360}\\fi\\ifdim\\pgfmathresult pt>180pt\\pgfmathparse{360 - \\pgfmathresult}\\fi\\let\\angB\\pgfmathresult\\pgfmathsetmacro{\\angleCheck}{abs(\\angB - 90)}\\ifthenelse{\\lengthtest{\\angleCheck pt < 0.1pt}}{\\pic [ang#5,\"{${#4}\$}\",]{right angle=ang1--ang2--ang3};}{\\pic [ang#5,\"{${#4}\$}\",]{angle=ang1--ang2--ang3};}}"
-    const preamble="\\usepackage{pgfplots,ifthen}\\usetikzlibrary{arrows.meta,angles,quotes,positioning, calc, intersections,decorations.markings,math,spy,matrix,patterns,snakes,decorations.pathreplacing,decorations.pathmorphing,patterns,shadows,shapes.symbols}"
-    
-    return '\\documentclass{standalone}'+preamble+styContent+ang+mark+arr+lene+spring+tree+table+coor+dvector+picAng+massSet+"\\pgfplotsset{compat=1.16}\\begin{document}\\begin{tikzpicture}"
+    return '\\documentclass{standalone}'+myPreable+styContent+"\\pgfplotsset{compat=1.16}\\begin{document}\\begin{tikzpicture}"
 }
+
+
+const myPreable=String.raw`
+
+\usepackage{pgfplots,ifthen}
+\usepackage{tkz-base}
+\usepackage{tkz-euclide}
+
+\usetikzlibrary{
+    arrows.meta,
+    angles,
+    quotes,positioning,
+    calc,
+    intersections,decorations.markings,math,spy,
+    matrix,patterns,snakes,decorations.pathreplacing,
+    decorations.pathmorphing,patterns,shadows,shapes.symbols
+}
+
+\newcommand{\anglebetweenpoints}[3][]{%
+  \pgfmathanglebetweenpoints{\pgfpointanchor{#2}{center}}{\pgfpointanchor{#3}{center}}%
+  \ifx#1\empty
+    % If no variable is provided, simply typeset or ignore the result.
+  \else
+    \edef#1{\pgfmathresult}%
+  \fi
+}
+
+\tikzset{
+    ang/.style 2 args={
+        fill=black!50,opacity=0.5,text opacity=0.9,draw=orange,<->,angle eccentricity=#1,angle radius=#2cm,text=orange,font=\large
+    },
+    ang/.default={1.6}{0.5}
+}
+
+\newcommand{\ang}[5]{
+    \coordinate (ang1) at (#1);
+    \coordinate (ang2) at (#2);
+    \coordinate (ang3) at (#3);
+    \pgfmathanglebetweenpoints{
+        \pgfpointanchor{ang3}{center}}
+        {\pgfpointanchor{ang2}{center}
+    }
+    \let\angCB\pgfmathresult
+    
+    \pgfmathanglebetweenpoints{
+        \pgfpointanchor{ang2}{center}}{\pgfpointanchor{ang1}{center}
+    }
+    \let\angAB\pgfmathresult
+    
+    \pgfmathparse{\angCB - \angAB}
+    \ifdim \pgfmathresult pt<0pt
+        \pgfmathparse{\pgfmathresult + 360}
+    \fi
+    \ifdim\pgfmathresult pt>180pt
+        \pgfmathparse{360 - \pgfmathresult}
+    \fi
+    \let\angB\pgfmathresult
+    \pgfmathsetmacro{\angleCheck}{abs(\angB - 90)}
+    \ifthenelse{\lengthtest{\angleCheck pt < 0.1pt}}
+    {
+        \pic [ang#5,"{${"${#4}$"}}",]{right angle=ang1--ang2--ang3};
+        %\pic [ang#5,"{\${#4}$}",]{right angle=ang1--ang2--ang3};
+    }
+    {
+        \pic [ang#5,"{${"${#4}$"}}",]{angle=ang1--ang2--ang3};
+        %\pic [ang#5,"{\${#4}$}",]{angle=ang1--ang2--ang3};
+    }
+}
+
+
+\def\mark#1#2#3{
+    \path [
+        decoration={
+            markings, mark=at position 0.5 with {
+                \foreach \x in {#1} {
+                    \draw[line width=1pt] (\x,-3pt) -- (\x,3pt); 
+                    }
+                }
+            },
+        postaction=decoratef
+    ](#2) -- (#3);
+}
+
+\newcommand{\arr}[8]{
+    \coordinate (2) at ($(#2)!#7!(#3)$);
+    \coordinate (1) at ($(2)!#5mm!90:(#3)$);
+    \coordinate (3) at ($(2)!#5mm+#4cm!#8:(#3)$);
+    \draw [line width=1pt,<-] (1)--(3)node [pos=#6] {\large #1};
+}
+
+
+\newcommand{\len}[6]{
+    \coordinate (1) at($(#2)!#3!90:(#4)$);
+    \coordinate (3) at($(#4)!#3!-90:(#2)$);
+    \node (2) at ($(1)!0.5!(3)$) [rotate=#6]{\large #1};
+    \draw [line width=#5pt,|<-](1)--(2);
+    \draw [line width=#5pt,->|](2)--(3);
+}
+
+\newcommand{\spring}[4]{
+    \tikzmath{
+        coordinate \start, \done;
+        \start = (#1);\done = (#2);
+    }
+    \draw[thick] ($(\start) + (-1.5,0)$) --++(3,0);
+    \draw (\start) --+ (0,-0.25cm);
+    \draw ($(\start) + (\donex+0cm,\doney+0.25cm)$)--+(0,-0.25);
+    \draw[decoration={
+        aspect=0.3, segment length=3, amplitude=2mm,coil,
+    },decorate] (\startx,\starty-0.25cm) --($(\start) + (\donex,\doney+0.25cm)$)node[midway,right=0.25cm,black]{#4};
+    \node[fill=yellow!60,draw,text=black,anchor= north] at ($(\start) + (\donex,\doney)$){#3};
+}
+
+\newcommand{\lenu}[3]{
+    \tikzset{
+        level distance=20mm,level #1/.style={
+            sibling distance=#2mm, nodes={
+                fill=red!#3,circle,inner sep=1pt,draw=none,text=black,
+            }
+        }
+    }
+}
+
+\tikzset{ 
+    table/.style={
+        matrix of nodes,row sep=-\pgflinewidth,column sep=-\pgflinewidth,nodes={
+            rectangle,draw=black,align=center
+        },minimum height=1.5em,text depth=0.5ex,text height=2ex,nodes in empty cells,every even row/.style={
+            nodes={
+                fill=gray!60,text=black,
+            }
+        },column 1/.style={
+            nodes={
+                text width=5em,font=\bfseries
+            }
+        },row 1/.style={
+            nodes={
+                font=\bfseries
+            }
+        }
+    }
+}
+
+\def\coor#1#2#3#4{
+    \coordinate [label={[#4]:\Large #3}] (#2) at ($(#1)$);
+}
+
+\tikzset{ 
+    mass/.style={
+        fill=yellow!60,draw,text=black
+    }
+}
+
+\newcommand{\dvector}[2]{
+    \coordinate (temp1) at ($(0,0 -| #1)$);
+    \coordinate (temp2) at ($(0,0 |- #1)$);
+    \draw [line width=0.7pt,#2] (#1)--(temp1)(#1)--(temp2);
+}
+
+
+\newcommand\getxy[3]{
+    \path (#1); 
+    \pgfpointanchor{#1}{center}\pgfgetlastxy{#2}{#3}
+}
+
+\NewDocumentCommand{\drawincircle}{ O{} O{} m m m }{
+    \getxy{#3}{\Ax}{\Ay}
+    \getxy{#4}{\Bx}{\By}
+    \getxy{#5}{\Cx}{\Cy}
+
+    \pgfmathsetmacro{\ABlen}{sqrt((\Bx-\Ax)^2+(\By-\Ay)^2)}
+    \pgfmathsetmacro{\AClen}{sqrt((\Cx-\Ax)^2+(\Cy-\Ay)^2)}
+    \pgfmathsetmacro{\slopeA}{((\By-\Ay)/\ABlen+(\Cy-\Ay)/\AClen)/((\Bx-\Ax)/\ABlen+(\Cx-\Ax)/\AClen)}
+
+    \pgfmathsetmacro{\BClen}{sqrt((\Cx-\Bx)^2+(\Cy-\By)^2)}%
+    \pgfmathsetmacro{\slopeB}{((\Ay-\By)/\ABlen+(\Cy-\By)/\BClen)/((\Ax-\Bx)/\ABlen+(\Cx-\Bx)/\BClen)}%
+
+    \pgfmathsetmacro{\incenterx}{(\By-\Ay+\slopeA*\Ax-\slopeB*\Bx)/(\slopeA-\slopeB)}
+    \pgfmathsetmacro{\incentery}{\Ay+\slopeA*(\incenterx-\Ax)}
+    \coordinate (Incenter) at (\incenterx pt,\incentery pt);
+
+    \IfNoValueTF{#1}{}{
+        \coordinate (#1) at (Incenter);
+    }
+
+    \pgfmathsetmacro{\Acoeff}{\Cy-\By}
+    \pgfmathsetmacro{\Bcoeff}{\Bx-\Cx}
+    \pgfmathsetmacro{\Ccoeff}{\Cx*\By-\Bx*\Cy}
+    \pgfmathsetmacro{\radius}{abs(\Acoeff*\incenterx+\Bcoeff*\incentery+\Ccoeff)/sqrt((\Acoeff)^2+(\Bcoeff)^2)}
+
+    \IfNoValueTF{#2}{}{
+        \edef#2{\radius pt}
+    }
+
+
+}
+
+
+`
+
+const testSave=String.raw`
+\NewDocumentCommand{\drawincircle}{ O{} O{} m m m }{%
+  % Extract coordinates for vertices A, B, and C.
+  \getxy{#3}{\xA}{\yA}
+  \getxy{#4}{\xB}{\yB}
+  \getxy{#5}{\xC}{\yC}
+  
+  % ----- Angle bisector at vertex A -----
+  % Compute vector from A to B:
+  \pgfmathsetmacro{\AxB}{\xB-\xA}%
+  \pgfmathsetmacro{\AyB}{\yB-\yA}%
+  \pgfmathsetmacro{\lenAB}{sqrt((\AxB)^2+(\AyB)^2)}%
+  \pgfmathsetmacro{\uAx}{\AxB/\lenAB}%
+  \pgfmathsetmacro{\uAy}{\AyB/\lenAB}%
+  
+  % Compute vector from A to C:
+  \pgfmathsetmacro{\AxC}{\xC-\xA}%
+  \pgfmathsetmacro{\AyC}{\yC-\yA}%
+  \pgfmathsetmacro{\lenAC}{sqrt((\AxC)^2+(\AyC)^2)}%
+  \pgfmathsetmacro{\vAx}{\AxC/\lenAC}%
+  \pgfmathsetmacro{\vAy}{\AyC/\lenAC}%
+  
+  % Sum to get bisector direction at A:
+  \pgfmathsetmacro{\bisAx}{\uAx+\vAx}%
+  \pgfmathsetmacro{\bisAy}{\uAy+\vAy}%
+  % Its slope:
+  \pgfmathsetmacro{\slopeA}{\bisAy/\bisAx}%
+  
+  % ----- Angle bisector at vertex B -----
+  % Compute vector from B to A:
+  \pgfmathsetmacro{\BxA}{\xA-\xB}%
+  \pgfmathsetmacro{\ByA}{\yA-\yB}%
+  \pgfmathsetmacro{\lenBA}{sqrt((\BxA)^2+(\ByA)^2)}%
+  \pgfmathsetmacro{\uBx}{\BxA/\lenBA}%
+  \pgfmathsetmacro{\uBy}{\ByA/\lenBA}%
+  
+  % Compute vector from B to C:
+  \pgfmathsetmacro{\BxC}{\xC-\xB}%
+  \pgfmathsetmacro{\ByC}{\yC-\yB}%
+  \pgfmathsetmacro{\lenBC}{sqrt((\BxC)^2+(\ByC)^2)}%
+  \pgfmathsetmacro{\vBx}{\BxC/\lenBC}%
+  \pgfmathsetmacro{\vBy}{\ByC/\lenBC}%
+  
+  % Sum to get bisector direction at B:
+  \pgfmathsetmacro{\bisBx}{\uBx+\vBx}%
+  \pgfmathsetmacro{\bisBy}{\uBy+\vBy}%
+  % Its slope:
+  \pgfmathsetmacro{\slopeB}{\bisBy/\bisBx}%
+  
+  % ----- Find Incenter as intersection of the two bisectors -----
+  % Line at A: y = y_A + slopeA*(x - x_A)
+  % Line at B: y = y_B + slopeB*(x - x_B)
+  % Solve for x:
+  \pgfmathsetmacro{\incenterx}{(\yB-\yA+\slopeA*\xA-\slopeB*\xB)/(\slopeA-\slopeB)}%
+  \pgfmathsetmacro{\incentery}{\yA+\slopeA*(\incenterx-\xA)}%
+  \coordinate (Incenter) at (\incenterx pt,\incentery pt);%
+  
+  % ----- Optionally capture the incenter coordinate and radius -----
+  % If a name is provided as the first optional argument, assign the coordinate.
+  \IfNoValueTF{#1}{}{%
+    \coordinate (#1) at (\incenterx pt,\incentery pt);%
+  }%
+  % Compute incircle radius using the distance from Incenter to side BC.
+  % The line through B and C: A*x+B*y+C=0, with:
+  \pgfmathsetmacro{\Acoeff}{\yC-\yB}%
+  \pgfmathsetmacro{\Bcoeff}{\xB-\xC}%
+  \pgfmathsetmacro{\Ccoeff}{\xC*\yB-\xB*\yC}%
+  \pgfmathsetmacro{\radius}{abs(\Acoeff*\incenterx+\Bcoeff*\incentery+\Ccoeff)/sqrt((\Acoeff)^2+(\Bcoeff)^2)}
+  
+  \IfNoValueTF{#2}{}{
+    \edef#2{\radius pt}
+  }
+} 
+`
