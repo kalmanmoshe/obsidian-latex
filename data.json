@@ -327,13 +327,19 @@
       ]
     ],
     [
+      "1eebf99d51cbec3b5f7cf20a544ad3b9",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
       "7090d4039a303ff50609b1975d4634e2",
       [
         "מתמטיקה/שי/טריגו.md"
       ]
     ],
     [
-      "1eebf99d51cbec3b5f7cf20a544ad3b9",
+      "6569daa1410e5f944950aa96b29bc0ba",
       [
         "מתמטיקה/שי/טריגו.md"
       ]
@@ -345,8 +351,11 @@
       "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/numprint.cfg": 1,
       "26/main.aux": 1,
-      "33/cmr12.vf": 1,
-      "33/cmmi12.vf": 1
+      "33/cmmi12.vf": 1,
+      "33/cmr17.vf": 1,
+      "33/cmsy10.vf": 1,
+      "33/cmmi10.vf": 1,
+      "33/cmr10.vf": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -597,7 +606,9 @@
       "26/tkz-obj-eu-triangles.tex": "/tex/tkz-obj-eu-triangles.tex",
       "3/cmss10": "/tex/cmss10.tfm",
       "3/cmbx10": "/tex/cmbx10.tfm",
-      "32/cmbx10.pfb": "/tex/cmbx10.pfb"
+      "32/cmbx10.pfb": "/tex/cmbx10.pfb",
+      "26/tikzlibraryfit.code.tex": "/tex/tikzlibraryfit.code.tex",
+      "32/cmr17.pfb": "/tex/cmr17.pfb"
     },
     {},
     {}

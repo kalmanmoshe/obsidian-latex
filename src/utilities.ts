@@ -8,14 +8,8 @@ export interface Latex{
 export function getTikzSuggestions(): Array<Latex> {
 
 	const Latex=[
-		// Shapes
-		{replacement: `rectangle`,},
-     	{replacement: `parabola`},
 		// spy
 		{replacement: 'spy using outlines,'},
-		// Arrow
-		{replacement: '-{Stealth},'},
-		{replacement: '{Stealth}-,'},
 		// plots
 		{replacement: `samples=`},
 		// axis 
@@ -26,21 +20,7 @@ export function getTikzSuggestions(): Array<Latex> {
     	{replacement: `only marks`},
 		// line width
 		{replacement: `line width=1pt,`},
-		// line type
-		{replacement: `loosely dotted,`},
-		{replacement: `dotted,`},
-		{replacement: `densely dotted,`},
-		{replacement: `loosely dashed,`},
-		{replacement: `dashed,`},
-		{replacement: `densely dashed,`},
-		// positions
-		{replacement: `sloped`},
-		{replacement: `above`},
-		{replacement: `below`},
-		{replacement: `left`},
-		{replacement: `right`},
-		{replacement: `upper`},
-		{replacement: `lower`},
+		
 		// grid styles
 		{replacement: `none`},
 		{replacement: `major`},
@@ -54,13 +34,11 @@ export function getTikzSuggestions(): Array<Latex> {
 		{replacement: `cycle list name=color list,`},
 		//Rambled mess
 		{replacement: `draw`},
-		{replacement: `blue`},
-		{replacement: `red`},
 		{replacement: `tikzpicture`},
 		{replacement: `color`},
 		{replacement: `left color`},
 		{replacement: `right color`},
-		{replacement: `white`},
+		
 		{replacement: `scale`},
 		{replacement: `thick`},
 		{replacement: `cm`},
@@ -90,9 +68,7 @@ export function getTikzSuggestions(): Array<Latex> {
 		{replacement: `xticklabels={list of labels}`},
 		{replacement: `yticklabels={list of labels}`},
 		{replacement: `color=`},
-		{replacement: `thick`},
-		{replacement: `very thick`},
-		{replacement: `ultra thick`},
+		
 		{replacement: `fill=`},
 		{replacement: `area style`},
 		{replacement: `legend pos`},
@@ -141,45 +117,85 @@ export function getTikzSuggestions(): Array<Latex> {
 		{replacement: `amplitude`},
 		{replacement: `decorate`},
 		{replacement: `coil`},
-		{replacement: `latex-latex`},
-		{replacement: `ultra thin`},
-		{replacement: `very thin`},
-		{replacement: `thin`},
-		{replacement: `semithick`},
-		{replacement: `thick`},
-		{replacement: `very thick`},
-		{replacement: `ultra thick`},
-		{replacement: `tiny`},
-		{replacement: `scriptsize`},
-		{replacement: `small`},
-		{replacement: `normalsize`},
-		{replacement: `large`},
-		{replacement: `Large`},
-		{replacement: `LARGE`},
-		{replacement: `huge`},
-		{replacement: `Huge`},
-		{replacement: `at end`},
-		{replacement: `very near end`},
-		{replacement: `near end`},
-		{replacement: `midway`},
-		{replacement: `near start`},
-		{replacement: `very near start`},
-		{replacement: `at start`},
+		
 		{replacement: `minimum size=`},
 		{replacement: `draw`},
 		{replacement: `path name=`},
-		{replacement: `\\vec{$0}{$1}{$2}{}$3`},
-		{replacement: `\\mass{$0}{$1}{-|}{}`},
-		{replacement: `\\spring{$0}{$1}{}{}$3`},
-		{replacement: `\\len{$0}{$1}{6mm}{$2}{.2}{0}$3`},
-		{replacement: `\\\arr{$0}{$1}{$2}{1}{2}{1.2}{0.5}{90}$3`},
-		{replacement: `\\mark{$0}{$1}{$2}$3`},
-		{replacement: `smooth`},
-		{replacement: `trig format=rad,`},
 		
+		{replacement: `trig format=rad,`},
+		...colors,
+		...lineWidths,
+		...lineStyles,
+		...positions,
+		...onPathPositions,
+		...arrows,
+		...shapes,
+		...userCommands,
 	];
 
 	return Latex;
 }
 
 const tikzTemplates=[]
+
+
+const colors = [
+	{replacement: `blue`},
+	{replacement: `red`},
+	{replacement: `white`},
+]
+const lineWidths = [
+	{replacement: `ultra thin`},
+	{replacement: `very thin`},
+	{replacement: `thin`},
+	{replacement: `semithick`},
+	{replacement: `thick`},
+	{replacement: `very thick`},
+	{replacement: `ultra thick`},
+]
+const lineStyles = [
+	{replacement: `smooth`},
+	{replacement: `loosely dotted,`},
+	{replacement: `dotted,`},
+	{replacement: `densely dotted,`},
+	{replacement: `loosely dashed,`},
+	{replacement: `dashed,`},
+	{replacement: `densely dashed,`},
+]
+const positions = [
+	{replacement: `sloped`},
+	{replacement: `above`},
+	{replacement: `below`},
+	{replacement: `left`},
+	{replacement: `right`},
+	{replacement: `upper`},
+	{replacement: `lower`},
+]
+const onPathPositions = [
+	{replacement: `at end`},
+	{replacement: `very near end`},
+	{replacement: `near end`},
+	{replacement: `midway`},
+	{replacement: `near start`},
+	{replacement: `very near start`},
+	{replacement: `at start`},
+]
+
+const arrows = [
+	{replacement: '-{Stealth},'},
+	{replacement: '{Stealth}-,'},
+	{replacement: `latex-latex`},
+]
+const shapes = [
+	{replacement: `rectangle`,},
+	{replacement: `parabola`},
+]
+const userCommands = [
+	{replacement: `\\vec{$0}{$1}{$2}{}$3`},
+	{replacement: `\\mass{$0}{$1}{-|}{}`},
+	{replacement: `\\spring{$0}{$1}{}{}$3`},
+	{replacement: `\\len{$0}{$1}{6mm}{$2}{.2}{0}$3`},
+	{replacement: `\\\arr{$0}{$1}{$2}{1}{2}{1.2}{0.5}{90}$3`},
+	{replacement: `\\mark{$0}{$1}{$2}$3`},
+]
+

@@ -446,7 +446,10 @@ const myPreable=String.raw`
     matrix,patterns,snakes,decorations.pathreplacing,
     decorations.pathmorphing,patterns,shadows,shapes.symbols
 }
-
+\usetikzlibrary{fit}
+\newcommand{\shortestdist}[4]{
+    \coordinate (#4) at ($(#1)!(#3)!(#2)$);
+}
 \newcommand{\anglebetweenpoints}[3][]{%
   \pgfmathanglebetweenpoints{\pgfpointanchor{#2}{center}}{\pgfpointanchor{#3}{center}}%
   \ifx#1\empty

@@ -247,7 +247,7 @@ export class SwiftlatexRender {
 					});
 				}).catch(err => {
 					el.innerHTML = "";
-					SwiftlatexError.interpret(err);
+					SwiftLatexError.interpret(err);
 					const errorDiv = el.createEl('div', { text: `swiftlatexError`/*text: `${err}`*/, attr: { class: 'block-latex-error' } });
 					reject(err); 
 				});		
@@ -433,17 +433,143 @@ enum latexErrors{
 }
 
 
+interface PackageInfo {
+    name: string;
+    version?: string;
+}
 
-class SwiftlatexError {
-	version: number;
-	static interpret(error: string): SwiftlatexError {
-		let a=error.split("\n")
-		let version=a[0];
-		a=a.filter((line)=>!line.includes("(/tex/"))
+class SwiftLatexError {
+    versionInfo: string;
+    mainError: string;
+    warnings: string[];
+    usedPackages: PackageInfo[];
+    configurationFiles: string[];
 
-		console.error(a);
-		return new SwiftlatexError();
-	}
+    constructor(
+        versionInfo: string,
+        mainError: string,
+        warnings: string[],
+        usedPackages: PackageInfo[],
+        configurationFiles: string[]
+    ) {
+        this.versionInfo = versionInfo;
+        this.mainError = mainError;
+        this.warnings = warnings;
+        this.usedPackages = usedPackages;
+        this.configurationFiles = configurationFiles;
+    }
+
+    static interpret(error: string): SwiftLatexError {
+        // Split the error into individual lines
+        const lines = error.split("\n");
+
+        // Variables to hold our findings
+        let versionInfo = "";
+        const warnings: string[] = [];
+        const errorMessages: string[] = [];
+        const configFiles = new Set<string>();
+        const packages = new Map<string, PackageInfo>();
+
+        // Regular expression to detect file references with /tex/ and valid extensions
+        const fileRegex = /\(\/tex\/([^\s)]+)/g;
+        // Regex to detect date-version lines like: "2020/01/24 3.02c tkz-base.sty"
+        const dateVersionRegex = /^(\d{4}\/\d{2}\/\d{2})\s+([\S]+)\s+([^\s]+(?:\.(?:cls|sty|def|cfg)))\b/;
+        // Regex to detect quoted package version info like: "`Fixed Point Package', Version 0.8"
+        const quotedVersionRegex = /`([^']+)',\s*Version\s+([\d\.a-zA-Z]+)/;
+
+        // Process each line individually
+        for (let rawLine of lines) {
+            const line = rawLine.trim();
+            if (!line) continue; // Skip empty lines
+
+            // 1. Extract version information from LaTeX2e and L3 programming layer lines.
+            if (line.startsWith("LaTeX2e")) {
+                versionInfo = line;
+                console.log("Step: Detected LaTeX2e version:", line);
+            } else if (line.startsWith("L3 programming layer")) {
+                versionInfo += versionInfo ? " | " + line : line;
+            }
+
+            // 2. Record warnings (any line that contains "Warning:")
+            if (line.includes("Warning:")) {
+                warnings.push(line);
+            }
+
+            // 3. Look for configuration file messages.
+            if (line.includes("configuration file")) {
+                // Try to extract a file name between backticks.
+                let cfgMatch = line.match(/`([^`]+\.cfg)'/);
+                if (cfgMatch) {
+                    configFiles.add(cfgMatch[1]);
+                } else {
+                    // Alternative pattern if backticks are missing.
+                    let altMatch = line.match(/configuration file ([^\s)]+\.cfg)/);
+                    if (altMatch) {
+                        configFiles.add(altMatch[1]);
+                    }
+                }
+            }
+
+            // 4. Look for lines that provide date and version information for packages.
+            const dateVersionMatch = line.match(dateVersionRegex);
+            if (dateVersionMatch) {
+                const date = dateVersionMatch[1];
+                const ver = dateVersionMatch[2];
+                const pkgName = dateVersionMatch[3];
+                const versionDetail = `${ver} (${date})`;
+                if (packages.has(pkgName)) {
+                    packages.get(pkgName)!.version = versionDetail;
+                } else {
+                    packages.set(pkgName, { name: pkgName, version: versionDetail });
+                }
+            }
+
+            // 5. Look for package version info provided in quoted messages.
+            const quotedMatch = line.match(quotedVersionRegex);
+            if (quotedMatch) {
+                const pkgName = quotedMatch[1];
+                const ver = quotedMatch[2];
+                if (packages.has(pkgName)) {
+                    packages.get(pkgName)!.version = ver;
+                } else {
+                    packages.set(pkgName, { name: pkgName, version: ver });
+                }
+            }
+
+            // 6. Extract file references (those starting with "(/tex/") that have valid extensions.
+            let fileMatch;
+            while ((fileMatch = fileRegex.exec(line)) !== null) {
+                const fileName = fileMatch[1];
+                if (/\.(cls|sty|def|cfg)$/i.test(fileName)) {
+                    if (!packages.has(fileName)) {
+                        packages.set(fileName, { name: fileName });
+                    }
+                }
+            }
+
+            // 7. Record any error messages (lines starting with "!")
+            if (line.startsWith("!")) {
+                errorMessages.push(line);
+            }
+        }
+
+        // Determine the primary error: typically the first error message is the main error.
+        const mainError = errorMessages.length > 0 ? errorMessages[0] : "Unknown error";
+
+        // Convert our sets and maps into arrays.
+        const usedPackages = Array.from(packages.values());
+        const configurationFiles = Array.from(configFiles);
+
+        console.log("Final Parsed Summary:", {
+            versionInfo,
+            mainError,
+            warnings,
+            usedPackages,
+            configurationFiles
+        });
+
+        return new SwiftLatexError(versionInfo, mainError, warnings, usedPackages, configurationFiles);
+    }
 }
 
 
