@@ -1,5 +1,5 @@
 import { regExp } from "src/tikzjax/tikzjax";
-import { MathJaxOperatorMetadata, mathJaxOperatorsMetadata, operatorsWithImplicitMultiplication,OperatorType, operatorNames, associativityFormatType, AssociativityValue, PositionValue, Positions } from "./mathParserStaticData";
+import { MathJaxOperatorMetadata, mathJaxOperatorsMetadata, operatorsWithImplicitMultiplication,OperatorType, operatorNames, AssociativityFormatType, AssociativityValue, PositionValue, Positions } from "./mathParserStaticData";
 import { BracketType } from "./encasings";
 import { brackets, LatexMetadata } from "./latexStaticData";
 
@@ -175,10 +175,10 @@ export function getValuesWithKeysBySide(map: Positions, left: boolean): Position
 
 
 export const mahtjaxAssociativitymetadata = (metadata: MathJaxOperatorMetadata): AssociativityValue => {
-    return associativitymetadataByType(metadata, associativityFormatType.MathJax);
+    return associativitymetadataByType(metadata, AssociativityFormatType.MathJax);
 };
 
-export const associativitymetadataByType = (metadata: MathJaxOperatorMetadata,type: associativityFormatType): AssociativityValue => {
+export const associativitymetadataByType = (metadata: MathJaxOperatorMetadata,type: AssociativityFormatType): AssociativityValue => {
     const value = metadata.associativity.get(type);
     if (!value) {
         throw new Error("Associativity value not found");

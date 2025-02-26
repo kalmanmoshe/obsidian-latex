@@ -100,9 +100,9 @@ export const operatorsWithImplicitMultiplication = [
 ]
 
 
-export enum associativityFormatType{
-    Latex,
-    MathJax,
+export enum AssociativityFormatType{
+    Latex="Latex",
+    MathJax="MathJax",
 }
 
 export interface MathJaxOperatorMetadata {
@@ -113,7 +113,7 @@ export interface MathJaxOperatorMetadata {
     associativity: Associativity
 }
 
-type Associativity = Map<associativityFormatType,{
+type Associativity = Map<AssociativityFormatType,{
     string: string;
     backslash: boolean;
     numPositions: number;
@@ -139,13 +139,13 @@ export function createMathJaxOperatorMetadata(
 ): MathJaxOperatorMetadata {
     const references = overrides.references?.filter((ref): ref is string => ref !== undefined) || [];
     const associativity = createMathJaxAssociativityMetadataFromPartial(
-        (overrides.associativity as [associativityFormatType, Partial<AssociativityValue>][] ?? [])
+        (overrides.associativity as [AssociativityFormatType, Partial<AssociativityValue>][] ?? [])
     );
-    const associativityFormatTypeString = [...new Set([...associativity.entries()].map(([_, value]) => value.string))];
+    const AssociativityFormatTypeString = [...new Set([...associativity.entries()].map(([_, value]) => value.string))];
     return {
         type: overrides.type ?? OperatorType.Arithmetic,
         name: overrides.name ?? 'Unknown',
-        references: [...associativityFormatTypeString, ...references],
+        references: [...AssociativityFormatTypeString, ...references],
         priority: overrides.priority ?? 0,
         associativity
     };
@@ -154,19 +154,15 @@ export function createMathJaxOperatorMetadata(
 
 
 function createMathJaxAssociativityMetadataFromPartial(
-    overrides?: [associativityFormatType, Partial<AssociativityValue>][]
+    overrides?: [AssociativityFormatType, Partial<AssociativityValue>][]
 ): Associativity {
 
     const overridesMap=new Map(overrides)
-
-    const map = new Map<associativityFormatType, AssociativityValue>();
-
-    const formatTypes = Object.keys(associativityFormatType)
-    
-    for (const format of formatTypes) {
-        const key = associativityFormatType[format as keyof typeof associativityFormatType];
-        let value= overridesMap.get(key) || [...overridesMap.values()].find(v => v !== undefined);
-        map.set(key,createMathJaxAssociativityValue(value));
+    const map = new Map<AssociativityFormatType, AssociativityValue>();
+    const keys = Object.values(AssociativityFormatType) as AssociativityFormatType[];
+    for (const key of keys) {
+        let value = overridesMap.get(key) || [...overridesMap.values()].find(v => v !== undefined);
+        map.set(key, createMathJaxAssociativityValue(value));
     }
     return map;
 }
@@ -234,7 +230,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
         references: ['='],
         priority: 6,
         associativity: [
-            [associativityFormatType.MathJax,
+            [AssociativityFormatType.MathJax,
                 {
                     string  : '=',
                     positions: [[-1,{}], [1,{}]]
@@ -248,7 +244,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
         references: ['<'],
         priority: 6,
         associativity: [
-            [associativityFormatType.MathJax,
+            [AssociativityFormatType.MathJax,
                 {
                     string  : '<',
                     positions: [[-1,{}], [1,{}]]
@@ -262,7 +258,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
         references: ['>'],
         priority: 6,
         associativity: [
-            [associativityFormatType.MathJax,
+            [AssociativityFormatType.MathJax,
                 {
                     string  : '>',
                     positions: [[-1,{}], [1,{}]]
@@ -277,7 +273,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
         references: ['+'],
         priority: 4,
         associativity: [
-            [associativityFormatType.MathJax,
+            [AssociativityFormatType.MathJax,
                 {
                     string  : '+',
                     positions: [[-1,{}], [1,{}]]
@@ -291,7 +287,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
         references: ['-'],
         priority: 4,
         associativity: [
-            [associativityFormatType.MathJax,
+            [AssociativityFormatType.MathJax,
                 {
                     string  : '-',
                     positions: [[-1,{}], [1,{}]]
@@ -305,7 +301,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
         references: ['*'],
         priority: 3,
         associativity: [
-            [associativityFormatType.MathJax,
+            [AssociativityFormatType.MathJax,
                 {
                     string  : 'cdot',
                     backslash: true,
@@ -320,7 +316,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
         name: 'Sine',
         priority: 2,
         associativity: [
-            [associativityFormatType.MathJax,
+            [AssociativityFormatType.MathJax,
                 {
                     string  : 'sin',
                     backslash: true,
@@ -334,7 +330,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
         name: 'Cosine',
         priority: 2,
         associativity: [
-            [associativityFormatType.MathJax,
+            [AssociativityFormatType.MathJax,
                 {
                     string  : 'cos',
                     backslash: true,
@@ -348,7 +344,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
         name: 'Tangent',
         priority: 2,
         associativity: [
-            [associativityFormatType.MathJax,
+            [AssociativityFormatType.MathJax,
                 {
                     string  : 'tan',
                     backslash: true,
@@ -364,13 +360,13 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
         references: ['^'],
         priority: 1,
         associativity: [
-            [associativityFormatType.MathJax,
+            [AssociativityFormatType.MathJax,
                 {
                     string  : '^',
                     positions: [[-1,{ bracketType: BracketType.Parentheses,isBracketOptional: true }],[1,{ bracketType: BracketType.CurlyBraces}]]
                 }
             ],
-            [associativityFormatType.Latex,
+            [AssociativityFormatType.Latex,
                 {
                     string  : '^',
                     positions: [[-1,{ bracketType: BracketType.Parentheses,isBracketOptional: true }],[1,{ bracketType: BracketType.Parentheses,isBracketOptional: true }]]
@@ -384,7 +380,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
         references: ['e^', '\\exp'],
         priority: 1,
         associativity: [
-            [associativityFormatType.MathJax,
+            [AssociativityFormatType.MathJax,
                 {
                     string  : 'e^',
                     positions: [[1,{bracketType: BracketType.Parentheses }]]
@@ -399,7 +395,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
         name: 'Fraction',
         priority: 1,
         associativity: [
-            [associativityFormatType.MathJax,
+            [AssociativityFormatType.MathJax,
                 {
                     string  : 'frac',
                     backslash: true,
@@ -414,7 +410,7 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
         name: 'SquareRoot',
         priority: 1,
         associativity: [
-            [associativityFormatType.MathJax,
+            [AssociativityFormatType.MathJax,
                 {
                     string  : 'sqrt',
                     backslash: true,
@@ -429,3 +425,4 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
 export const mathJaxOperatorsMetadata: MathJaxOperatorMetadata[] = partialMathJaxOperatorsMetadata.map(
     (metadata) => createMathJaxOperatorMetadata(metadata)
 );
+console.log("mathJaxOperatorsMetadata",mathJaxOperatorsMetadata);

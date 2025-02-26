@@ -6,7 +6,7 @@ import { associativitymetadataByType, getAllMathJaxReferences, getMathJaxOperato
 
 import { parseOperator } from "./mathEngine";
 import { BasicMathJaxToken } from "src/mathParser/basicToken";
-import { associativityFormatType, PositionValue } from "src/staticData/mathParserStaticData";
+import { AssociativityFormatType, PositionValue } from "src/staticData/mathParserStaticData";
 
 function groupBracketType(group: MathGroup,pos:PositionValue={ bracketType: BracketType.Parentheses, isBracketOptional: true },){
     if(!pos.isBracketOptional)return pos.bracketType
@@ -172,18 +172,18 @@ export class MathJaxOperator {
     }
     getOccurrenceGroup(): { occurrencesCount: number; occurrencOf: MathGroup[] }|null  { return null; }  
     isOccurrenceGroupMatch(testItem: MathJaxOperator | Token): boolean {return false;}
-    toString(formatType: associativityFormatType=associativityFormatType.MathJax,customFormatter?: (check: any,string: string) => any){
+    toString(formatType: AssociativityFormatType=AssociativityFormatType.MathJax,customFormatter?: (check: any,string: string) => any){
         const metadata = searchMathJaxOperators(this.operator);
         if (!metadata) throw new Error(`No metadata found for operator: ${this.operator}`);
         const associativity = associativitymetadataByType(metadata, formatType);
 
         let index=0,string = '';
-        //in processAssociativityPositions the index is always seeps to be 0 for som resin
+        //in processAssociativityPositions the index is always seems to be 0 for some reason
         ({string,index}=processAssociativityPositions(associativity.positions,string,this.groups,index,true));
-        string += associativity.string;
+        string += (associativity.backslash?'\\':'')+associativity.string;
         ({string,index}=processAssociativityPositions(associativity.positions,string,this.groups,index));
 
-        if (customFormatter) 
+        if (customFormatter)
             return customFormatter(this,string)
         return string.trim();
     }
@@ -295,7 +295,7 @@ export class MultiplicationOperator extends MathJaxOperator {
     
     
 
-    toString(formatType:associativityFormatType=associativityFormatType.MathJax,customFormatter?: (check: any,string: string) => any){ 
+    toString(formatType:AssociativityFormatType=AssociativityFormatType.MathJax,customFormatter?: (check: any,string: string) => any){ 
         const operator = '\\cdot ';
         let string = '';
         const toAddCdot=(thisGroup: MathGroup,nextGroup?:MathGroup)=>{
@@ -640,7 +640,7 @@ export class MathGroup {
             if (item instanceof MathGroup && !item.singular()) {
                 string += `(${item.toString(customFormatter)})`;
             }
-            else if(item instanceof MathJaxOperator){string += item.toString(associativityFormatType.Latex,customFormatter);}
+            else if(item instanceof MathJaxOperator){string += item.toString(AssociativityFormatType.Latex,customFormatter);}
             else {
                 string += item.toString(customFormatter);
             }

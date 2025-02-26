@@ -20,11 +20,10 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
       let lineContainer: HTMLDivElement = document.createElement("div");
       lineContainer.classList.add("math-line-container", (index-skippedIndexes) % 2 === 0 ? "math-row-even" : "math-row-odd");
   
-      const processMath = new ProcessMath(expression,userVariables, this.app,lineContainer);
+      const processMath = new ProcessMath(this.app,lineContainer,expression,userVariables);
       processMath.initialize();
       
       if(processMath.mode!=="variable"){
-        lineContainer = processMath.container as HTMLDivElement;
         mainContainer.appendChild(lineContainer);
       }
       else{skippedIndexes++;}
@@ -35,19 +34,16 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
     mathInput: any;
     userVariables: { variable: string; value: string }[] = [];
     mode = "math";
-    result: any;
-    container: HTMLElement;
-    iconsDiv: HTMLElement;
-    app: App;
+    private input: string;
+    private result: string;
+    private container: HTMLElement;
+    private app: App;
   
-    constructor(mathInput: string,userVariables: any, app: App, container: HTMLElement) {
-      this.mathInput = mathInput;
-      this.userVariables=userVariables;
+    constructor(app: App,container: HTMLElement,mathInput: string,userVariables: any) {
       this.app = app;
       this.container = container;
-      this.iconsDiv = Object.assign(document.createElement("div"), {
-        className: "math-icons",
-      });
+      this.mathInput = mathInput;
+      this.userVariables=userVariables;
     }
     addMathInputToPrase(mathInput: string){
       this.mathInput=mathInput;
@@ -58,6 +54,7 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
       this.setupContainer();
       this.handleVariables();
       this.calculateMath();
+      this.displayInputAndResult();
     }
   
     private setupContainer() {
@@ -66,13 +63,12 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
         div.classList.add(className);
         this.container.appendChild(div);
       });
-      this.container.appendChild(this.iconsDiv);
+      this.container.appendChild(Object.assign(document.createElement("div"), {
+        className: "math-icons",
+      }));
     }
   
     private calculateMath() {
-      const inputDiv = this.container.querySelector(".math-input") as HTMLElement;
-      const resultDiv = this.container.querySelector(".math-result") as HTMLElement;
-      let solution: string='';
       try {
         switch (this.mode) {
           case "binom":
@@ -89,43 +85,41 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
           case "vec":
             // eslint-disable-next-line no-case-declarations
             //this.result=new VecProcessor(this.mathInput[1],this.mathInput[2],this.mathInput[3]);
-            this.addInfoModal(new tikzGraph(this.app, this.result.graph));
-            this.addDebugModel(new DebugModal(this.app, this.result.vecInfo.debugInfo));
+            //this.addInfoModal(new tikzGraph(this.app, this.result.graph));
+            //this.addDebugModel(new DebugModal(this.app, this.result.vecInfo.debugInfo));
             //this.result=this.result.result
             break;
           case "variable":
             break;
           default:
-            this.result = new MathPraiser();
-            this.result.setInput(this.mathInput);
-            const mathGroupVariables: Set<string> = this.result.getMathGroupVariables();
+            const mathParser = new MathPraiser();
+            mathParser.setInput(this.mathInput);
+            const mathGroupVariables: Set<string> = mathParser.getMathGroupVariables();
             //if(mathGroupVariables.size===0)
-            const a = this.result.evaluate()
+            mathParser.evaluate()
             console.log("this.result", this.result, mathGroupVariables);
-            solution = this.result.toStringLatex();
-            console.log("solution", solution);
-            this.addInfoModal(new InfoModal(this.app, this.result.mathInfo));
-            this.addDebugModel(new DebugModal(this.app, this.result.mathInfo.debugInfo));
-            this.mathInput=this.result.input;
+            this.result = mathParser.getSolutions().toString();
+            console.log("solution", this.result);
+            this.input=mathParser.getInput();
+            this.addInfoModal(new InfoModal(this.app, mathParser.mathInfo));
+            this.addDebugModel(new DebugModal(this.app, mathParser.mathInfo.debugInfo));
             break;
         }
-       this.addInputAndResultDiv(inputDiv, resultDiv, typeof this.mathInput==="string"?this.mathInput:this.mathInput[0], solution);
       } catch (err) {
-        this.displayError(inputDiv, resultDiv, err);
+        this.displayError(err);
         console.error("The initial praising failed",err);
       }
     }
-  
-    private addInputAndResultDiv(inputDiv: HTMLElement, resultDiv: HTMLElement, input: string, result: string) {
-      inputDiv.appendChild(renderMath(input,true))
-      //MarkdownRenderer.renderMarkdown(`\${${input}}$`, inputDiv, "", new Component());
-      //const resultOutput = /(true|false)/.test(result) ? result : `\${${result}}$`;
-      console.log("result",result,roundBySettings(result))
-      resultDiv.appendChild(renderMath(result,true))
-      //MarkdownRenderer.renderMarkdown(resultOutput, resultDiv, "", new Component());
+    private displayInputAndResult() {
+      const inputDiv = this.container.querySelector(".math-input") as HTMLElement;
+      const resultDiv = this.container.querySelector(".math-result") as HTMLElement;
+      inputDiv.appendChild(renderMath(this.input,true))
+      resultDiv.appendChild(renderMath(this.result,true))
     }
   
-    private displayError(inputDiv: HTMLElement, resultDiv: HTMLElement, err: Error) {
+    private displayError(err: Error) {
+      const inputDiv = this.container.querySelector(".math-input") as HTMLElement;
+      const resultDiv = this.container.querySelector(".math-result") as HTMLElement;
       MarkdownRenderer.renderMarkdown(this.mathInput, inputDiv, "", new Component());
       resultDiv.innerHTML = `<span class="error-text">${err.message}</span>`;
       this.container.classList.add("math-error-line");
@@ -146,7 +140,8 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
         textContent: "🛈",
       });
       icon.onclick = () => modal.open();
-      this.iconsDiv.appendChild(icon);
+      const iconsDiv = this.container.querySelector(".math-icons") as HTMLElement;
+      iconsDiv.appendChild(icon);
     }
   
     private addDebugModel(modal: any) {
@@ -155,7 +150,8 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
         textContent: "🐞",
       });
       icon.onclick = () => modal.open();
-      this.iconsDiv.appendChild(icon);
+      const iconsDiv = this.container.querySelector(".math-icons") as HTMLElement;
+      iconsDiv.appendChild(icon);
     }
   
     private handleVariables() {

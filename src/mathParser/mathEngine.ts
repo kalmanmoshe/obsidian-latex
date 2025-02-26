@@ -174,7 +174,10 @@ export function parseOperator(operator: MathJaxOperator): boolean {
             operator.solution = new MathGroup([new Token(Math.sin(degreesToRadians(group1)))]);
             break;
         case "Cosine":
-            operator.solution = new MathGroup([new Token(Math.sin(degreesToRadians(group1)))]);
+            operator.solution = new MathGroup([new Token(Math.cos(degreesToRadians(group1)))]);
+            break;
+        case "Tangent":
+            operator.solution = new MathGroup([new Token(Math.tan(degreesToRadians(group1)))]);
             break;
         case "SquareRoot":
             if (group1 < 0) {
@@ -282,8 +285,12 @@ export class MathPraiser{
         if(mathInfo)this.mathInfo=mathInfo;
     }
     setSoluation(solution: MathGroup) {
-
+        
     }
+    getSolutions(){
+        return this.solutions
+    }
+    getInput(){return this.input}
     setInput(input: string){
         this.input=input;
         this.processInput();
@@ -291,9 +298,9 @@ export class MathPraiser{
         if(!mathGroup)throw new Error("Invalid input");
         this.solutions=new Map();
         this.mathGroup=mathGroup;
-        this.input=this.toStringLatex();
+        this.input=this.toStringMathjax();
         this.unknowns=this.getMathGroupVariables()
-        console.log('this.mathGroup',this.mathGroup.clone().toString(),this.mathGroup);
+        console.log('this.mathGroup',this.input,this.mathGroup);
     }
     getMathGroupVariables(): Set<string>{return this.mathGroup.getVariables();}
 
@@ -304,7 +311,7 @@ export class MathPraiser{
         }
         if(this.variables.has(variable))return this.variables.get(variable);
     }
-
+    toStringMathjax(){return this.mathGroup.toString()}
     toStringLatex(){return this.mathGroup.toStringLatex()}
 
     addSolution(){
@@ -324,12 +331,9 @@ export class MathPraiser{
         const operatorIndex=tokens.getItems().findIndex(
             t => t instanceof MathJaxOperator && t.isOperable
         );
-        if (operatorIndex<0) return tokens;
+        if (operatorIndex<0) {return tokens};
         const operator = tokens.getItems()[operatorIndex] as MathJaxOperator
-    
-        operator.groups.forEach(group => {
-            this.parse(group);
-        });
+        operator.groups.forEach(group => {this.parse(group);});
         operator.parseMathjaxOperator()
         if (!operator.solution) {
             operator.isOperable = false;
@@ -337,6 +341,7 @@ export class MathPraiser{
         }
         this.mathInfo.addMathSnapshot(this.mathGroup.clone())
         tokens.replaceItemCell(operator.solution, operatorIndex); 
+        tokens.combiningLikeTerms(); 
         return tokens
     }
     
