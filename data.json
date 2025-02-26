@@ -327,19 +327,7 @@
       ]
     ],
     [
-      "1eebf99d51cbec3b5f7cf20a544ad3b9",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
-      "7090d4039a303ff50609b1975d4634e2",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
-      "6569daa1410e5f944950aa96b29bc0ba",
+      "e3b386f73c0b90915548a28e94ce8b4d",
       [
         "מתמטיקה/שי/טריגו.md"
       ]
@@ -351,11 +339,11 @@
       "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/numprint.cfg": 1,
       "26/main.aux": 1,
-      "33/cmmi12.vf": 1,
-      "33/cmr17.vf": 1,
-      "33/cmsy10.vf": 1,
+      "33/cmr12.vf": 1,
       "33/cmmi10.vf": 1,
-      "33/cmr10.vf": 1
+      "33/cmr17.vf": 1,
+      "33/cmmi12.vf": 1,
+      "33/cmsy10.vf": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -528,21 +516,12 @@
       "32/cmmi7.pfb": "/tex/cmmi7.pfb",
       "32/cmsy10.pfb": "/tex/cmsy10.pfb",
       "32/cmsy8.pfb": "/tex/cmsy8.pfb",
-      "26/cmbx10.pfb": "/tex/cmbx10.pfb",
-      "26/cmbx10.tfm": "/tex/cmbx10.tfm",
       "26/cmr17.tfm": "/tex/cmr17.tfm",
       "26/cmr5.pfb": "/tex/cmr5.pfb",
-      "26/cmsy7.pfb": "/tex/cmsy7.pfb",
       "32/cmr8.pfb": "/tex/cmr8.pfb",
       "3/cmr17": "/tex/cmr17.tfm",
       "32/cmr5.pfb": "/tex/cmr5.pfb",
-      "32/cmsy7.pfb": "/tex/cmsy7.pfb",
       "32/cmmi8.pfb": "/tex/cmmi8.pfb",
-      "3/tcrm1000": "/tex/tcrm1000.tfm",
-      "44/cm-super-ts1.enc": "/tex/cm-super-ts1.enc",
-      "32/sfrm1000.pfb": "/tex/sfrm1000.pfb",
-      "3/tcrm1200": "/tex/tcrm1200.tfm",
-      "26/tkz-euclide.sty": "/tex/tkz-euclide.sty",
       "26/tkz-base.sty": "/tex/tkz-base.sty",
       "26/tikzlibraryarrows.code.tex": "/tex/tikzlibraryarrows.code.tex",
       "26/pgflibraryarrows.code.tex": "/tex/pgflibraryarrows.code.tex",
@@ -585,6 +564,7 @@
       "26/tkz-obj-marks.tex": "/tex/tkz-obj-marks.tex",
       "26/tkz-obj-points.tex": "/tex/tkz-obj-points.tex",
       "26/tkz-obj-rep.tex": "/tex/tkz-obj-rep.tex",
+      "26/tkz-euclide.sty": "/tex/tkz-euclide.sty",
       "26/tkz-tools-intersections": "/tex/tkz-tools-intersections.tex",
       "26/tkz-tools-angles": "/tex/tkz-tools-angles.tex",
       "26/tkz-obj-eu-angles.tex": "/tex/tkz-obj-eu-angles.tex",
@@ -604,9 +584,6 @@
       "26/tkz-obj-eu-sectors.tex": "/tex/tkz-obj-eu-sectors.tex",
       "26/tkz-obj-eu-show.tex": "/tex/tkz-obj-eu-show.tex",
       "26/tkz-obj-eu-triangles.tex": "/tex/tkz-obj-eu-triangles.tex",
-      "3/cmss10": "/tex/cmss10.tfm",
-      "3/cmbx10": "/tex/cmbx10.tfm",
-      "32/cmbx10.pfb": "/tex/cmbx10.pfb",
       "26/tikzlibraryfit.code.tex": "/tex/tikzlibraryfit.code.tex",
       "32/cmr17.pfb": "/tex/cmr17.pfb"
     },

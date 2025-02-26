@@ -83,7 +83,7 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
             break;
           case "cos":
             // eslint-disable-next-line no-case-declarations
-            const [ , sideA, sideB, sideC ] = this.mathInput.map(Number);
+            const [, sideA, sideB, sideC] = this.mathInput.map(Number)
             //this.result=findAngleByCosineRule(sideA, sideB, sideC)
             break;
           case "vec":
@@ -98,8 +98,9 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
           default:
             this.result = new MathPraiser();
             this.result.setInput(this.mathInput);
-            const mathGroupVariables: Set<Token> = this.result.getMathGroupVariables();
-            const a=this.result.evaluate()
+            const mathGroupVariables: Set<string> = this.result.getMathGroupVariables();
+            //if(mathGroupVariables.size===0)
+            const a = this.result.evaluate()
             console.log("this.result", this.result, mathGroupVariables);
             solution = this.result.toStringLatex();
             console.log("solution", solution);

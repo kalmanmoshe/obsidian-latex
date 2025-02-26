@@ -272,14 +272,17 @@ export class MathPraiser{
     private mathGroup: MathGroup;
     private unknowns: unknowns;
     private variables:  Map<string, MathGroup>
-    private solutions: Map<string, MathGroup>|MathGroup;//string is the name of the variable and MathGroup is the solution;
+    private solutions: Map<string, MathGroup> | MathGroup;//string is the name of the variable and MathGroup is the solution;
     
-    mathInfo=new MathInfo();
+    mathInfo = new MathInfo();
     constructor(input?: string,mathGroup?: MathGroup,solution?: Map<string, MathGroup>,mathInfo?: MathInfo){
         if(input)this.input=input;
         if(mathGroup)this.mathGroup=mathGroup;
         if(solution)this.solutions=solution;
         if(mathInfo)this.mathInfo=mathInfo;
+    }
+    setSoluation(solution: MathGroup) {
+
     }
     setInput(input: string){
         this.input=input;
@@ -292,7 +295,7 @@ export class MathPraiser{
         this.unknowns=this.getMathGroupVariables()
         console.log('this.mathGroup',this.mathGroup.clone().toString(),this.mathGroup);
     }
-    getMathGroupVariables(){return this.mathGroup.getVariables();}
+    getMathGroupVariables(): Set<string>{return this.mathGroup.getVariables();}
 
     solveFor(variable: string){
         if(!this.unknowns.has(variable)&&!this.variables.has(variable)){
@@ -300,7 +303,6 @@ export class MathPraiser{
             return null;
         }
         if(this.variables.has(variable))return this.variables.get(variable);
-        
     }
 
     toStringLatex(){return this.mathGroup.toStringLatex()}
@@ -313,16 +315,16 @@ export class MathPraiser{
     }
     getMathGroup() { return this.mathGroup }
     
-    evaluate(){
-        return this.parse(this.mathGroup)
+    evaluate() {
+        this.solutions = this.parse(this.mathGroup.clone())
     }
 
-    parse(tokens: MathGroup): void {
-        console.log('tokens',tokens.toString())
+    parse(tokens: MathGroup): MathGroup {
+        //console.log('tokens',tokens.toString())
         const operatorIndex=tokens.getItems().findIndex(
             t => t instanceof MathJaxOperator && t.isOperable
         );
-        if (operatorIndex<0) return;
+        if (operatorIndex<0) return tokens;
         const operator = tokens.getItems()[operatorIndex] as MathJaxOperator
     
         operator.groups.forEach(group => {
@@ -331,10 +333,11 @@ export class MathPraiser{
         operator.parseMathjaxOperator()
         if (!operator.solution) {
             operator.isOperable = false;
-            return;
+            return tokens;
         }
         this.mathInfo.addMathSnapshot(this.mathGroup.clone())
-        tokens.replaceItemCell(operator.solution,operatorIndex); 
+        tokens.replaceItemCell(operator.solution, operatorIndex); 
+        return tokens
     }
     
     controller(): any{

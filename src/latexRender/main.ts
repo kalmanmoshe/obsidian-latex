@@ -571,6 +571,12 @@ class SwiftLatexError {
         return new SwiftLatexError(versionInfo, mainError, warnings, usedPackages, configurationFiles);
     }
 }
+class swiftlatexErrorLine{
+	text: string;
+	file: string;
+	warning: string;
+	versionInfo: string;
+}
 
 
 
