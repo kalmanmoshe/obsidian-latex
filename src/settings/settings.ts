@@ -1,43 +1,23 @@
-import { Snippet } from "../snippets/snippets";
-import { Environment } from "../snippets/environment";
 
 export type StringMap = { [key: string]: string };
 
-interface LatexSuiteBasicSettings {
+interface MosheMathBasicSettings {
     invertColorsInDarkMode: boolean;
-    numberFormatting: string
-    background: string;
-    evenRowBackground: string;
-    oddRowBackground: string;
-    infoModalBackground: string;
-    fontSize: string;
-    rowPadding: string;
-    iconSize: string;
-    sessionHistory: { input: string, result: string }[]; 
-	snippetsEnabled: boolean;
-	snippetsTrigger: "Tab" | " "
-	suppressSnippetTriggerOnIME: boolean;
-	removeSnippetWhitespace: boolean;
-	autoDelete$: boolean;
-
-	loadPreambleFromFile: boolean;
-	loadSnippetsFromFile: boolean;
-	snippetsFileLocation: string;
+    numberFormatting: number;
 	preambleFileLocation: string;
 	
-	concealEnabled: boolean;
-	concealRevealTimeout: number;
-	colorPairedBracketsEnabled: boolean;
-	highlightCursorBracketsEnabled: boolean;
-	mathPreviewEnabled: boolean;
-	mathPreviewPositionIsAbove: boolean;
-	matrixShortcutsEnabled: boolean;
-	taboutEnabled: boolean;
-	autoEnlargeBrackets: boolean;
-	wordDelimiters: string;
 	package_url: string,
 	timeout: number,
 	cache: Array<[string, Set<string>]>;
+	/**
+	 * There are four catches:
+	 * 1. texlive404_cache - Not found files
+	 * 2. texlive200_cache
+	 * 3. pk404_cache - Not found files
+	 * 4. pk200_cache - idk
+	 * 
+	 * currently only dealing with texlive200_cache
+	 */
 	packageCache: Array<StringMap>;
 }
 
@@ -45,81 +25,30 @@ interface LatexSuiteBasicSettings {
  * Settings that require further processing (e.g. conversion to an array) before being used.
  */
 
-interface LatexSuiteRawSettings {
-	autofractionExcludedEnvs: string;
-	matrixShortcutsEnvNames: string;
-	autoEnlargeBracketsTriggers: string;
-	forceMathLanguages: string;
-	forceTranslateLanguages: string;
-	suggestorLanguages: string;
+interface MosheMathRawSettings {
 }
 
-interface LatexSuiteParsedSettings {
-	autofractionExcludedEnvs: Environment[];
-	matrixShortcutsEnvNames: string[];
-	autoEnlargeBracketsTriggers: string[];
-	forceMathLanguages: string[];
-	forceTranslateLanguages: string[];
-	suggestorLanguages: string[];
+
+interface MosheMathParsedSettings {
 }
 
-export type LatexSuitePluginSettings = {snippets: string} & LatexSuiteBasicSettings & LatexSuiteRawSettings;
-export type LatexSuiteCMSettings = {snippets: Snippet[]} & LatexSuiteBasicSettings & LatexSuiteParsedSettings;
+export type MosheMathPluginSettings = MosheMathBasicSettings & MosheMathRawSettings;
+export type MosheMathettings = MosheMathBasicSettings & MosheMathParsedSettings;
 
-export const DEFAULT_SETTINGS: LatexSuitePluginSettings = {
-	snippets: '[]',
-
-	// Basic settings
-	snippetsEnabled: true,
-	snippetsTrigger: "Tab",
-	suppressSnippetTriggerOnIME: true,
-	removeSnippetWhitespace: true,
-	autoDelete$: true,
-	loadPreambleFromFile: true,
-	loadSnippetsFromFile: true,
+export const DEFAULT_SETTINGS: MosheMathPluginSettings = {
+	
 	preambleFileLocation: "",
-	snippetsFileLocation: "",
-	concealEnabled: false,
-	concealRevealTimeout: 0,
-	colorPairedBracketsEnabled: true,
-	highlightCursorBracketsEnabled: true,
-	mathPreviewEnabled: true,
-	mathPreviewPositionIsAbove: true,
-	matrixShortcutsEnabled: true,
-	taboutEnabled: true,
-	autoEnlargeBrackets: true,
-	wordDelimiters: "., +-\\n\t:;!?\\/{}[]()=~$",
-
     // stile settings
-    invertColorsInDarkMode: false,
-    numberFormatting: ".000",
-    background: "#44475A",
-    evenRowBackground: "#f9f9f9",
-    oddRowBackground: "#747688",
-    infoModalBackground: "#002B36",
-    fontSize: "0.85em",
-    rowPadding: "5px 10px",
-    iconSize: "14px",
-    sessionHistory: [],
+    invertColorsInDarkMode: true,
+    numberFormatting: 1000,
 
-	// Raw settings
-	autofractionExcludedEnvs:
-	`[
-		["^{", "}"],
-		["\\\\pu{", "}"]
-	]`,
-	matrixShortcutsEnvNames: "pmatrix, cases, align, gather, bmatrix, Bmatrix, vmatrix, Vmatrix, array, matrix",
-	autoEnlargeBracketsTriggers: "sum, int, frac, prod, bigcup, bigcap",
-	forceMathLanguages: "math",
-	forceTranslateLanguages: 'tikz',
-	suggestorLanguages: 'tikz',
 	package_url: `https://texlive2.swiftlatex.com/`,
 	timeout: 10000,
 	cache: [],
 	packageCache: [{},{},{},{}],
 }
 
-export function processLatexSuiteSettings(snippets: Snippet[], settings: LatexSuitePluginSettings):LatexSuiteCMSettings {
+export function processMosheMathSettings(settings: MosheMathPluginSettings):MosheMathettings {
 
 	function strToArray(str: string) {
 		return str.replace(/\s/g,"").split(",");
@@ -143,15 +72,6 @@ export function processLatexSuiteSettings(snippets: Snippet[], settings: LatexSu
 
 	return {
 		...settings,
-
-		// Override raw settings with parsed settings
-		snippets: snippets,
-		autofractionExcludedEnvs: getAutofractionExcludedEnvs(settings.autofractionExcludedEnvs),
-		matrixShortcutsEnvNames: strToArray(settings.matrixShortcutsEnvNames),
-		autoEnlargeBracketsTriggers: strToArray(settings.autoEnlargeBracketsTriggers),
-		forceMathLanguages: strToArray(settings.forceMathLanguages),
-		forceTranslateLanguages: strToArray(settings.forceTranslateLanguages),
-		suggestorLanguages: strToArray(settings.suggestorLanguages),
 	}
 }
 

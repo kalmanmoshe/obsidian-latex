@@ -1,6 +1,19 @@
-import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment } from './typs/ast-types';
+import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node } from './typs/ast-types';
 
-let parse: any, deleteComments: any,toString:any,createMatchers:any,parsePgfkeys:any,pgfkeysArgToObject:any;
+/**
+ * Parse the string into an AST.
+ */
+export let parse: (str: string)=> any;
+/**
+ * Parse str into an AST. Parsing starts in math mode and a list of nodes is returned (instead of a "root" node).
+ */
+export let parseMath: any;
+export let deleteComments: any;
+export let toString: any;
+export let createMatchers:any;
+export let parsePgfkeys:any;
+export let pgfkeysArgToObject:any;
+
 
 interface utilMacros{
     LATEX_NEWCOMMAND: Set<string>;
@@ -15,6 +28,7 @@ import('@unified-latex/unified-latex-util-comments').then(module => {
 });
 import('@unified-latex/unified-latex-util-parse').then(module => {
 	parse = module.parse;
+    parseMath=module.parseMath
 });
 
 import('@unified-latex/unified-latex-util-pgfkeys').then(module => {
@@ -29,7 +43,14 @@ import('@unified-latex/unified-latex-util-pgfkeys').then(module => {
  * - Auto load packages
  */
 
-function migrate(ast: any) {
+export function migrate(ast: any):Ast {
+    if (Array.isArray(ast)) {
+        const nodes = ast.map(migrate);
+        if (nodes.some(node => Array.isArray(node))) {
+            throw new Error("Array of nodes must not contain arrays of nodes");
+        }
+        return nodes as Node[];
+    }
     switch (ast.type) {
         case "root":
             return new Root(ast.content?.map(migrate), ast._renderInfo, ast.position);
@@ -62,14 +83,16 @@ function migrate(ast: any) {
     }
 }
 
-export class LatexabstractSyntaxTree{
-    
+export class LatexAbstractSyntaxTree{
     packages: Array<string>;
     libraries: Array<string>;
     ast: any;
     myAst: Root;
     prase(latex: string){
         this.ast = parse(latex);
+    }
+    parseMath(latex: string){
+        this.ast=parseMath(latex)
     }
     toString(){
         return toString(this.ast);
@@ -102,6 +125,8 @@ export class LatexabstractSyntaxTree{
     usdEnvironments(){}   
 }
 
+
+
 function cleanUpTikzSet(ast: any) {
     
 }
@@ -115,6 +140,11 @@ function cleanUpDefs(ast:any) {
         }
         cleanUpDef(ast, index);
     });
+    if(ast.content&&Array.isArray(ast.content))
+        ast.content.forEach((el: any) => {
+            if(el.content&&Array.isArray(el.content))
+                cleanUpDefs(el);
+        });
 }
 
 function cleanUpDef(ast: any,index:number) {
@@ -155,12 +185,33 @@ function parsePlaceholders(ast: any, startIndex: number) {
 
 class Def{
     name: string;
-    content: string;
+    content: any[];
     params: number;
-    constructor(name: string,content: string,params: number){
+    constructor(name: string,content: any[],params: number){
         this.name=name;
         this.content=content;
         this.params=params;
+    }
+    toString() {
+        let paramsStr = "";
+        for (let i = 1; i <= this.params + 1; i++) {
+            paramsStr += "#" + i;
+        }
+        const string = `\\def\\${this.name}${paramsStr}{${this.content.map(el => el.toString()).join("")}}`;
+        return string;
+    }
+    
+}
+
+class Path{
+
+}
+class Draw extends Path{
+    content: any[];
+    args: any[];
+    constructor(content: any[]){
+        super();
+        this.content=content;
     }
 }
 

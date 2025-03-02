@@ -1,75 +1,36 @@
 {
-  "snippets": "[]",
-  "snippetsEnabled": true,
-  "snippetsTrigger": "Tab",
-  "suppressSnippetTriggerOnIME": true,
-  "removeSnippetWhitespace": true,
-  "autoDelete$": true,
-  "loadPreambleFromFile": true,
-  "loadSnippetsFromFile": true,
   "preambleFileLocation": "obsidian/data/Files/preamble.sty",
-  "snippetsFileLocation": "obsidian/data/Snippets",
-  "concealEnabled": false,
-  "concealRevealTimeout": 0,
-  "colorPairedBracketsEnabled": true,
-  "highlightCursorBracketsEnabled": true,
-  "mathPreviewEnabled": true,
-  "mathPreviewPositionIsAbove": true,
-  "matrixShortcutsEnabled": true,
-  "taboutEnabled": true,
-  "autoEnlargeBrackets": true,
-  "wordDelimiters": "., +-\\n\t:;!?\\/{}[]()=~$",
   "invertColorsInDarkMode": true,
   "numberFormatting": ".000",
-  "background": "#44475A",
-  "evenRowBackground": "#f9f9f9",
-  "oddRowBackground": "#747688",
-  "infoModalBackground": "#002B36",
-  "fontSize": "0.85em",
-  "rowPadding": "5px 10px",
-  "iconSize": "14px",
-  "sessionHistory": [],
-  "autofractionExcludedEnvs": "[\n\t\t[\"^{\", \"}\"],\n\t\t[\"\\\\pu{\", \"}\"]\n\t]",
-  "matrixShortcutsEnvNames": "pmatrix, cases, align, gather, bmatrix, Bmatrix, vmatrix, Vmatrix, array, matrix",
-  "autoEnlargeBracketsTriggers": "sum, int, frac, prod, bigcup, bigcap",
-  "forceMathLanguages": "math",
-  "forceTranslateLanguages": "tikz",
-  "suggestorLanguages": "tikz",
   "package_url": "https://texlive2.swiftlatex.com/",
   "timeout": 10000,
   "cache": [
     [
-      "1c9b78aa62fbabb7a37cbe2d5e9ea780",
+      "1eebf99d51cbec3b5f7cf20a544ad3b9",
       [
-        "מתמטיקה/שי/פונקציות.md"
-      ]
-    ],
-    [
-      "62bd1ce8b468afa2a84ef303ac4b2a07",
-      [
-        "פיזיקה/יחיאל/כח.md"
-      ]
-    ],
-    [
-      "f15382d06b4c3057bd0273b05b4305e1",
-      [
-        "פיזיקה/יחיאל/כח.md"
-      ]
-    ],
-    [
-      "d5d3ff654b098099a258aabd7c0f77d0",
-      [
-        "מתמטיקה/שי/פונקציות.md"
-      ]
-    ],
-    [
-      "30ae824acaf0f89090c57eb1bb6bf842",
-      [
-        "obsidian/Templates/5-tikz/1-tikz.md"
+        "מתמטיקה/שי/טריגו.md"
       ]
     ],
     [
       "39136ddab4517c3bd8d977d7f2c47a29",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "a90e4b054d366627a319d64247b0faef",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "ad853c83c3a33763e5e3a34a0b7b536b",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "40b7b759538572e2859af76ed701a263",
       [
         "פיזיקה/יחיאל/שיעורי בית.md"
       ]
@@ -81,267 +42,81 @@
       ]
     ],
     [
-      "5ba0cba98858ba574fff7ef41c0f5ee5",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "93ad8d34b4619eedd8138240f01ffc52",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "66e076048949a1123268f68bbd1fd6ae",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "b92727c221c6a4c3dd6fc6049aa64b65",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "7739d9af9706e377fdb1032c3242fa1c",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "7484b27be5ae9701e9011a8341947a4a",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "8b45f6471ae74d45c7082e477b47ef96",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "20e3764199497743ec068fd4662b3c3a",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "c8a076fa9ecd7c581be696c84fd243b2",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "f5c23a7fcc5d8ac9417d550a86b30c7c",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "6021e6e7052369d20f4cf38d822398db",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "9f1c2c7da69b0c8d5e881f45da2db08d",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "e668b6b5dca44ee9d9ecaa6dd4608beb",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "9418793536713bc9b9b7cebdddfb57c8",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "265be77e176059dc5f90f83707804b83",
-      [
-        "moshe/latex/tikz/Sizing and positioning.md"
-      ]
-    ],
-    [
-      "b5d88bf143b5c98d33fe3f672b97fc9f",
-      [
-        "moshe/latex/tikz/Sizing and positioning.md"
-      ]
-    ],
-    [
-      "f160f13a1031c95f349371fc1e02630a",
-      [
-        "moshe/latex/tikz/Sizing and positioning.md"
-      ]
-    ],
-    [
-      "54f5629baac3aa9e2e3d7fd914735eba",
-      [
-        "sent notes/מבחן 2 בפיזיקה 2025 - בליסטיקה, תנועה מעגלית ומתקף ותנע.md"
-      ]
-    ],
-    [
-      "c1c42172ada45288475c68ea709fb5d7",
-      [
-        "מתמטיקה/הדרכה/טריגונומטריה.md"
-      ]
-    ],
-    [
-      "6ef143f117bc7622425f5df506e47d1d",
-      [
-        "מתמטיקה/הדרכה/טריגונומטריה.md"
-      ]
-    ],
-    [
-      "8271413464dd479ac799444da74a282b",
-      [
-        "מתמטיקה/שי/משוואות טריגונומטריות.md"
-      ]
-    ],
-    [
-      "da00622a7013f3761dde8f1fd617545d",
-      [
-        "מתמטיקה/שי/משוואות טריגונומטריות.md"
-      ]
-    ],
-    [
-      "cb3f8e301f9ba9a3edd9bdf99a377c84",
-      [
-        "מתמטיקה/שי/משוואות טריגונומטריות.md"
-      ]
-    ],
-    [
-      "e61649f8f380d57280b129d3cb7f7cc3",
-      [
-        "moshe/latex/tikz/Coordinates.md"
-      ]
-    ],
-    [
-      "326c329a1801cb6cf90d2d0c651d86fa",
-      [
-        "moshe/latex/tikz/Coordinates.md"
-      ]
-    ],
-    [
-      "6e5db8ee8602c9f4e33c0e6207480fd2",
-      [
-        "moshe/latex/tikz/Coordinates.md"
-      ]
-    ],
-    [
-      "d9c57ba2bcc17dd647a332740c8ee560",
-      [
-        "moshe/latex/tikz/Coordinates.md"
-      ]
-    ],
-    [
-      "b7d52e068276bbd84bc146a372eef61d",
-      [
-        "moshe/latex/tikz/Coordinates.md"
-      ]
-    ],
-    [
-      "12912deefcd4656abe54953829ac795e",
-      [
-        "moshe/latex/tikz/Coordinates.md"
-      ]
-    ],
-    [
-      "a071fc460ba36bb286d2c9a68362dd5d",
-      [
-        "moshe/latex/tikz/Coordinates.md"
-      ]
-    ],
-    [
-      "cc26ba9e5bac5a6c5d84d8c7e8dde4b2",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "d04c22849a079f1572aa9679e8c68b31",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "0cba46310849b0f636c401b2bbaa713e",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "7f5cc4021afb0f543b594b6a47697f80",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "e3a9a9bb44af0e5178e7853c618a9c3f",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "90bc5d702597d705af42088d7af62fce",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "878971bddd0242faee752acca3f8a8f8",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "ed12f61c9c8f6774f0310b7474b36cdc",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "b6f711be0f4a5adc0570ebff253b2f6d",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "583d6386c1b0f48e37facdf1cee3aeb0",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "ddc126376cc3b5ff3abb41501f42753a",
-      [
-        "מתמטיקה/הדרכה/הסתברות.md"
-      ]
-    ],
-    [
-      "1eebf99d51cbec3b5f7cf20a544ad3b9",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
       "7090d4039a303ff50609b1975d4634e2",
       [
         "מתמטיקה/שי/טריגו.md"
       ]
     ],
     [
+      "9bafa6d85bfee2ba821b0d426a264dcd",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "071067e431642e78ceeae172e2775df2",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "0ff99a86a80a6e87bb81040434b521a9",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "3b8675f21d2823cfa51d2444d74e5539",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "16e4110dcd77b7df7a373580ac5fe626",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "8634b6908e03cec0cdfd76332753437b",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "8a7f1e3598959c22809fbf316ddc92f4",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "1d462716303709afaa40bef07b5c8037",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
       "6569daa1410e5f944950aa96b29bc0ba",
       [
         "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "e3b386f73c0b90915548a28e94ce8b4d",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "8b37e6176343329869019853c7c7e066",
+      [
+        "Untitled 2.md"
+      ]
+    ],
+    [
+      "9381c43481a15f94dcde72061c804dff",
+      [
+        "Untitled 2.md"
       ]
     ]
   ],
@@ -351,13 +126,18 @@
       "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/numprint.cfg": 1,
       "26/main.aux": 1,
-      "33/cmmi12.vf": 1,
-      "33/cmr17.vf": 1,
-      "33/cmsy10.vf": 1,
       "33/cmmi10.vf": 1,
       "33/cmr10.vf": 1
     },
     {
+      "32/cmmi10.pfb": "/tex/cmmi10.pfb",
+      "32/cmr7.pfb": "/tex/cmr7.pfb",
+      "32/cmsy8.pfb": "/tex/cmsy8.pfb",
+      "3/cmr17": "/tex/cmr17.tfm",
+      "32/cmmi7.pfb": "/tex/cmmi7.pfb",
+      "32/cmsy10.pfb": "/tex/cmsy10.pfb",
+      "32/cmr12.pfb": "/tex/cmr12.pfb",
+      "32/cmr8.pfb": "/tex/cmr8.pfb",
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
       "26/standalone.cls": "/tex/standalone.cls",
       "26/shellesc.sty": "/tex/shellesc.sty",
@@ -483,79 +263,37 @@
       "26/tikzlibraryplotmarks.code.tex": "/tex/tikzlibraryplotmarks.code.tex",
       "26/pgflibraryplotmarks.code.tex": "/tex/pgflibraryplotmarks.code.tex",
       "26/ifthen.sty": "/tex/ifthen.sty",
-      "26/pgflibraryarrows.meta.code.tex": "/tex/pgflibraryarrows.meta.code.tex",
+      "26/tkz-base.sty": "/tex/tkz-base.sty",
       "26/tikzlibraryangles.code.tex": "/tex/tikzlibraryangles.code.tex",
-      "26/tikzlibraryquotes.code.tex": "/tex/tikzlibraryquotes.code.tex",
-      "26/tikzlibrarypositioning.code.tex": "/tex/tikzlibrarypositioning.code.tex",
+      "26/tikzlibraryarrows.code.tex": "/tex/tikzlibraryarrows.code.tex",
+      "26/pgflibraryarrows.code.tex": "/tex/pgflibraryarrows.code.tex",
+      "26/pgflibraryarrows.meta.code.tex": "/tex/pgflibraryarrows.meta.code.tex",
+      "26/tikzlibrarybabel.code.tex": "/tex/tikzlibrarybabel.code.tex",
       "26/tikzlibrarycalc.code.tex": "/tex/tikzlibrarycalc.code.tex",
-      "26/tikzlibraryintersections.code.tex": "/tex/tikzlibraryintersections.code.tex",
-      "26/pgflibraryintersections.code.tex": "/tex/pgflibraryintersections.code.tex",
       "26/tikzlibrarydecorations.markings.code.tex": "/tex/tikzlibrarydecorations.markings.code.tex",
       "26/pgflibrarydecorations.markings.code.tex": "/tex/pgflibrarydecorations.markings.code.tex",
-      "26/tikzlibrarymath.code.tex": "/tex/tikzlibrarymath.code.tex",
-      "26/tikzlibraryfpu.code.tex": "/tex/tikzlibraryfpu.code.tex",
-      "26/tikzlibraryspy.code.tex": "/tex/tikzlibraryspy.code.tex",
-      "26/tikzlibrarymatrix.code.tex": "/tex/tikzlibrarymatrix.code.tex",
-      "26/tikzlibrarypatterns.code.tex": "/tex/tikzlibrarypatterns.code.tex",
-      "26/pgflibrarypatterns.code.tex": "/tex/pgflibrarypatterns.code.tex",
-      "26/tikzlibrarysnakes.code.tex": "/tex/tikzlibrarysnakes.code.tex",
       "26/tikzlibrarydecorations.shapes.code.tex": "/tex/tikzlibrarydecorations.shapes.code.tex",
       "26/pgflibrarydecorations.shapes.code.tex": "/tex/pgflibrarydecorations.shapes.code.tex",
+      "26/tikzlibrarydecorations.text.code.tex": "/tex/tikzlibrarydecorations.text.code.tex",
+      "26/pgflibrarydecorations.text.code.tex": "/tex/pgflibrarydecorations.text.code.tex",
+      "26/tikzlibraryintersections.code.tex": "/tex/tikzlibraryintersections.code.tex",
+      "26/pgflibraryintersections.code.tex": "/tex/pgflibraryintersections.code.tex",
+      "26/tikzlibrarypatterns.code.tex": "/tex/tikzlibrarypatterns.code.tex",
+      "26/pgflibrarypatterns.code.tex": "/tex/pgflibrarypatterns.code.tex",
+      "26/tikzlibrarypositioning.code.tex": "/tex/tikzlibrarypositioning.code.tex",
+      "26/tikzlibraryquotes.code.tex": "/tex/tikzlibraryquotes.code.tex",
       "26/tikzlibraryshadows.code.tex": "/tex/tikzlibraryshadows.code.tex",
       "26/tikzlibraryfadings.code.tex": "/tex/tikzlibraryfadings.code.tex",
       "26/pgflibraryfadings.code.tex": "/tex/pgflibraryfadings.code.tex",
-      "26/tikzlibraryshapes.symbols.code.tex": "/tex/tikzlibraryshapes.symbols.code.tex",
-      "26/pgflibraryshapes.symbols.code.tex": "/tex/pgflibraryshapes.symbols.code.tex",
-      "26/l3backend-pdfmode.def": "/tex/l3backend-pdfmode.def",
-      "26/supp-pdf.mkii": "/tex/supp-pdf.mkii",
-      "3/cmr12": "/tex/cmr12.tfm",
-      "3/cmr8": "/tex/cmr8.tfm",
-      "3/cmr6": "/tex/cmr6.tfm",
-      "3/cmmi12": "/tex/cmmi12.tfm",
-      "3/cmmi8": "/tex/cmmi8.tfm",
-      "3/cmmi6": "/tex/cmmi6.tfm",
-      "3/cmsy10": "/tex/cmsy10.tfm",
-      "3/cmsy8": "/tex/cmsy8.tfm",
-      "3/cmsy6": "/tex/cmsy6.tfm",
-      "3/cmbx12": "/tex/cmbx12.tfm",
-      "11/pdftex.map": "/tex/pdftex.map",
-      "32/cmbx12.pfb": "/tex/cmbx12.pfb",
-      "32/cmmi10.pfb": "/tex/cmmi10.pfb",
-      "32/cmmi12.pfb": "/tex/cmmi12.pfb",
-      "32/cmr10.pfb": "/tex/cmr10.pfb",
-      "32/cmr12.pfb": "/tex/cmr12.pfb",
-      "32/cmr7.pfb": "/tex/cmr7.pfb",
-      "32/cmmi7.pfb": "/tex/cmmi7.pfb",
-      "32/cmsy10.pfb": "/tex/cmsy10.pfb",
-      "32/cmsy8.pfb": "/tex/cmsy8.pfb",
-      "26/cmbx10.pfb": "/tex/cmbx10.pfb",
-      "26/cmbx10.tfm": "/tex/cmbx10.tfm",
-      "26/cmr17.tfm": "/tex/cmr17.tfm",
-      "26/cmr5.pfb": "/tex/cmr5.pfb",
-      "26/cmsy7.pfb": "/tex/cmsy7.pfb",
-      "32/cmr8.pfb": "/tex/cmr8.pfb",
-      "3/cmr17": "/tex/cmr17.tfm",
-      "32/cmr5.pfb": "/tex/cmr5.pfb",
-      "32/cmsy7.pfb": "/tex/cmsy7.pfb",
-      "32/cmmi8.pfb": "/tex/cmmi8.pfb",
-      "3/tcrm1000": "/tex/tcrm1000.tfm",
-      "44/cm-super-ts1.enc": "/tex/cm-super-ts1.enc",
-      "32/sfrm1000.pfb": "/tex/sfrm1000.pfb",
-      "3/tcrm1200": "/tex/tcrm1200.tfm",
-      "26/tkz-euclide.sty": "/tex/tkz-euclide.sty",
-      "26/tkz-base.sty": "/tex/tkz-base.sty",
-      "26/tikzlibraryarrows.code.tex": "/tex/tikzlibraryarrows.code.tex",
-      "26/pgflibraryarrows.code.tex": "/tex/pgflibraryarrows.code.tex",
-      "26/tikzlibrarybabel.code.tex": "/tex/tikzlibrarybabel.code.tex",
-      "26/tikzlibrarydecorations.text.code.tex": "/tex/tikzlibrarydecorations.text.code.tex",
-      "26/pgflibrarydecorations.text.code.tex": "/tex/pgflibrarydecorations.text.code.tex",
       "26/tikzlibraryshapes.misc.code.tex": "/tex/tikzlibraryshapes.misc.code.tex",
       "26/pgflibraryshapes.misc.code.tex": "/tex/pgflibraryshapes.misc.code.tex",
+      "26/tikzlibrarysnakes.code.tex": "/tex/tikzlibrarysnakes.code.tex",
       "26/tikzlibrarythrough.code.tex": "/tex/tikzlibrarythrough.code.tex",
       "26/numprint.sty": "/tex/numprint.sty",
       "26/array.sty": "/tex/array.sty",
       "26/xfp.sty": "/tex/xfp.sty",
       "26/expl3.sty": "/tex/expl3.sty",
+      "26/l3backend-pdfmode.def": "/tex/l3backend-pdfmode.def",
       "26/xparse.sty": "/tex/xparse.sty",
       "26/fp.sty": "/tex/fp.sty",
       "26/defpattern.sty": "/tex/defpattern.sty",
@@ -585,6 +323,7 @@
       "26/tkz-obj-marks.tex": "/tex/tkz-obj-marks.tex",
       "26/tkz-obj-points.tex": "/tex/tkz-obj-points.tex",
       "26/tkz-obj-rep.tex": "/tex/tkz-obj-rep.tex",
+      "26/tkz-euclide.sty": "/tex/tkz-euclide.sty",
       "26/tkz-tools-intersections": "/tex/tkz-tools-intersections.tex",
       "26/tkz-tools-angles": "/tex/tkz-tools-angles.tex",
       "26/tkz-obj-eu-angles.tex": "/tex/tkz-obj-eu-angles.tex",
@@ -604,15 +343,67 @@
       "26/tkz-obj-eu-sectors.tex": "/tex/tkz-obj-eu-sectors.tex",
       "26/tkz-obj-eu-show.tex": "/tex/tkz-obj-eu-show.tex",
       "26/tkz-obj-eu-triangles.tex": "/tex/tkz-obj-eu-triangles.tex",
-      "3/cmss10": "/tex/cmss10.tfm",
-      "3/cmbx10": "/tex/cmbx10.tfm",
-      "32/cmbx10.pfb": "/tex/cmbx10.pfb",
+      "26/tikzlibrarymath.code.tex": "/tex/tikzlibrarymath.code.tex",
+      "26/tikzlibraryfpu.code.tex": "/tex/tikzlibraryfpu.code.tex",
+      "26/tikzlibraryspy.code.tex": "/tex/tikzlibraryspy.code.tex",
+      "26/tikzlibrarymatrix.code.tex": "/tex/tikzlibrarymatrix.code.tex",
+      "26/tikzlibraryshapes.symbols.code.tex": "/tex/tikzlibraryshapes.symbols.code.tex",
+      "26/pgflibraryshapes.symbols.code.tex": "/tex/pgflibraryshapes.symbols.code.tex",
       "26/tikzlibraryfit.code.tex": "/tex/tikzlibraryfit.code.tex",
-      "32/cmr17.pfb": "/tex/cmr17.pfb"
+      "26/supp-pdf.mkii": "/tex/supp-pdf.mkii",
+      "11/pdftex.map": "/tex/pdftex.map",
+      "3/cmr12": "/tex/cmr12.tfm",
+      "32/cmr10.pfb": "/tex/cmr10.pfb",
+      "3/cmmi12": "/tex/cmmi12.tfm",
+      "3/cmsy10": "/tex/cmsy10.tfm",
+      "32/cmmi12.pfb": "/tex/cmmi12.pfb",
+      "3/cmr8": "/tex/cmr8.tfm",
+      "3/cmr6": "/tex/cmr6.tfm",
+      "3/cmmi8": "/tex/cmmi8.tfm",
+      "3/cmmi6": "/tex/cmmi6.tfm",
+      "3/cmsy8": "/tex/cmsy8.tfm",
+      "3/cmsy6": "/tex/cmsy6.tfm",
+      "32/cmmi8.pfb": "/tex/cmmi8.pfb",
+      "32/cmr17.pfb": "/tex/cmr17.pfb",
+      "3/cmbx12": "/tex/cmbx12.tfm",
+      "32/cmbx12.pfb": "/tex/cmbx12.pfb"
     },
     {},
     {}
   ],
+  "loadPreambleFromFile": true,
+  "snippets": "[]",
+  "snippetsEnabled": true,
+  "snippetsTrigger": "Tab",
+  "suppressSnippetTriggerOnIME": true,
+  "removeSnippetWhitespace": true,
+  "autoDelete$": true,
+  "loadSnippetsFromFile": true,
+  "snippetsFileLocation": "obsidian/data/Snippets",
+  "concealEnabled": false,
+  "concealRevealTimeout": 0,
+  "colorPairedBracketsEnabled": true,
+  "highlightCursorBracketsEnabled": true,
+  "mathPreviewEnabled": true,
+  "mathPreviewPositionIsAbove": true,
+  "matrixShortcutsEnabled": true,
+  "taboutEnabled": true,
+  "autoEnlargeBrackets": true,
+  "wordDelimiters": "., +-\\n\t:;!?\\/{}[]()=~$",
+  "background": "#44475A",
+  "evenRowBackground": "#f9f9f9",
+  "oddRowBackground": "#747688",
+  "infoModalBackground": "#002B36",
+  "fontSize": "0.85em",
+  "rowPadding": "5px 10px",
+  "iconSize": "14px",
+  "sessionHistory": [],
+  "autofractionExcludedEnvs": "[\n\t\t[\"^{\", \"}\"],\n\t\t[\"\\\\pu{\", \"}\"]\n\t]",
+  "matrixShortcutsEnvNames": "pmatrix, cases, align, gather, bmatrix, Bmatrix, vmatrix, Vmatrix, array, matrix",
+  "autoEnlargeBracketsTriggers": "sum, int, frac, prod, bigcup, bigcap",
+  "forceMathLanguages": "math",
+  "forceTranslateLanguages": "tikz",
+  "suggestorLanguages": "tikz",
   "snippetVariables": "{}",
   "loadSnippetVariablesFromFile": false,
   "snippetVariablesFileLocation": "",

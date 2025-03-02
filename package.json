@@ -39,7 +39,7 @@
 		"@types/async": "^3.2.24",
 		"@types/mathjax": "^0.0.40",
 		"@types/md5": "^2.3.5",
-		"@unified-latex/unified-latex": "^1.8.1",
+		"@unified-latex/unified-latex": "^1.8.2",
 		"@unified-latex/unified-latex-to-hast": "^1.8.1",
 		"@unified-latex/unified-latex-types": "^1.8.0",
 		"@unified-latex/unified-latex-util-comments": "^1.8.0",

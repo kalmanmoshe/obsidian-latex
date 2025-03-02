@@ -2,7 +2,7 @@
 
 import { processTikzString } from "./BasicMathJaxTokenGroup";
 import { arrToRegexString, Axis, Coordinate, Draw, Formatting, regExp, Token, toPoint } from "../tikzjax";
-import { findDeepestParenthesesScope, findModifiedParenIndex, findParenIndex, idParentheses, mapBrackets } from "src/utils/ParenUtensils";
+import { findDeepestParenthesesScope, findModifiedParenIndex, findParenIndex, idParentheses, mapBrackets } from "src/ParenUtensils";
 
 
 function labelFreeFormTextSeparation(label: any[]){

@@ -252,7 +252,7 @@ function transferCacheDataToHost() {
     self.postMessage({ result: "failed", cmd: "fetchcache",error: err });
   }
 }
-function setTexliveEndpoint(url) {
+function setTexliveEndpoint(url:string) {
   if (url) {
     if (!url.endsWith("/")) {
       url += "/";
@@ -332,6 +332,7 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
     return _allocate(intArrayFromString(savepath));
   }
   const remote_url = self.texlive_endpoint + "pdftex/" + cacheKey;
+  console.log("Start downloading texlive file " + remote_url);
   let xhr = new XMLHttpRequest();
   xhr.open("GET", remote_url, false);
   xhr.timeout = 15e4;

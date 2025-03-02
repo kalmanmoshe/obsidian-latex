@@ -1,7 +1,7 @@
 
 import { quad,calculateBinom,roundBySettings ,degreesToRadians,radiansToDegrees, calculateFactorial} from "./mathUtilities";
 
-import { findParenIndex, Paren,idParentheses, findDeepestParenthesesScope } from "../utils/ParenUtensils";
+import { findParenIndex, Paren,idParentheses, findDeepestParenthesesScope } from "../ParenUtensils";
 import { getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, mahtjaxAssociativitymetadata, searchMathJaxOperators } from "../staticData/dataManager";
 import { MathGroup, MathJaxOperator, Token, ensureAcceptableFormatForMathGroupItems, deepSearchWithPath, MathGroupItem, stringToBasicMathJaxTokens } from "./mathJaxTokens";
 import { BasicMathJaxToken } from "src/mathParser/basicToken";

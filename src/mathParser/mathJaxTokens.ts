@@ -1,7 +1,7 @@
 
 import { arrToRegexString, Axis, regExp } from "../tikzjax/tikzjax";
 import { BracketType } from "../staticData/encasings";
-import { findParenIndex, Paren,idParentheses, parenState,  } from "../utils/ParenUtensils";
+import { findParenIndex, Paren,idParentheses, parenState,  } from "../ParenUtensils";
 import { associativitymetadataByType, getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, mahtjaxAssociativitymetadata, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchSymbols } from "../staticData/dataManager";
 
 import { parseOperator } from "./mathEngine";

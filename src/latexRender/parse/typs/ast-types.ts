@@ -109,7 +109,8 @@ export class Macro extends BaseNode {
         if(args)this.args = args;
     }
     toString(): string {
-        return `\\${this.content}`+(this.args ? this.args.map(arg => arg.toString()).join("") : "")
+        const prefix=this.content!="^"?`\\${this.content}`:this.content
+        return prefix+(this.args ? this.args.map(arg => arg.toString()).join("") : "")
     }
 }
 
@@ -123,7 +124,7 @@ export class Environment extends ContentNode {
         if(args)this.args = args;
     }
     toString(): string {
-        return `\\begin{${this.env}}${this.content.map(node => node.toString()).join("")}\\end{${this.env}}`
+        return `\\begin{${this.env}}\n\t${this.content.map(node => node.toString()).join("")}\n\\end{${this.env}}`
     }
 }
 
@@ -196,9 +197,21 @@ export class Argument extends ContentNode {
         this.openMark = openMark;
         this.closeMark = closeMark;
     }
-    toString(): string {
-        return this.openMark + this.content.map(node => node.toString()).join("") + this.closeMark
+    toString(args: ToStringConfig={}): string {
+        let string=this.content.map(node => node.toString()).join("")
+        if(!args.removeOpenCloseMarks)
+            string=this.openMark+string+this.closeMark
+        return string
     }
+}
+export interface ToStringConfig{
+    removeWhitespace?: boolean;
+    removeComments?: boolean;
+    removeParbreaks?: boolean;
+    removeEmptyGroups?: boolean;
+    removeOpenCloseMarks?: boolean;
+    removeEmptyArguments?: boolean;
+    recursive?: boolean;
 }
 
 export type Node =

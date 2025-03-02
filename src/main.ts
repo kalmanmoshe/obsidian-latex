@@ -9,34 +9,15 @@
 import {Plugin,addIcon ,Notice,loadMathJax,} from "obsidian";
 
 
-import {LatexSuitePluginSettings, DEFAULT_SETTINGS, LatexSuiteCMSettings, processLatexSuiteSettings} from "./settings/settings";
-import { LatexSuiteSettingTab } from "./settings/settings_tab";
+import {MosheMathPluginSettings, DEFAULT_SETTINGS, processMosheMathSettings} from "./settings/settings";
+import { MosheMathSettingTab } from "./settings/settings_tab";
 
-import {Extension, Prec } from "@codemirror/state";
-
-
-import { onFileCreate, onFileChange, onFileDelete, getSnippetsFromFiles, getFileSets, } from "./settings/file_watch";
-import { ICONS } from "./settings/ui/icons";
 
 import { getEditorCommands } from "./obsidian/editor_commands";
-import {  parseSnippets } from "./snippets/parse";
-import { tabstopsStateField } from "./snippets/codemirror/tabstops_state_field";
-import { snippetQueueStateField } from "./snippets/codemirror/snippet_queue_state_field";
-import { snippetInvertedEffects } from "./snippets/codemirror/history";
-
-import { EditorView, tooltips, } from "@codemirror/view";
-import { rtlForcePlugin } from "./editor_extensions/editorDecorations";
-
-import { getLatexSuiteConfigExtension } from "./snippets/codemirror/config";
-import { snippetExtensions } from "./snippets/codemirror/extensions";
-import { colorPairedBracketsPlugin, highlightCursorBracketsPlugin } from "./editor_extensions/highlight_brackets";
-import { mkConcealPlugin } from "./editor_extensions/conceal";
-import { cursorTooltipBaseTheme, cursorTooltipField,  } from "./editor_extensions/math_tooltip";
-import { onKeydown,onTransaction } from "./inputMonitors";
 import { SwiftlatexRender } from "./latexRender/main";
 import { processMathBlock } from "./mathParser/iNeedToFindABetorPlace";
-import { Suggestor } from "./suggestor";
 import { readAndParseSVG } from "./latexRender/svg2latex/temp";
+import { MathJaxAbstractSyntaxTree } from "./latexRender/parse/mathJaxAbstractSyntaxTree";
 
 /**
  * Assignments:
@@ -49,38 +30,50 @@ import { readAndParseSVG } from "./latexRender/svg2latex/temp";
  * - Create a parser that makes LaTeX error messages more sensible.
  * - Create qna for better Searching finding and styling
  */
+interface MosheMathTypingApi {
+  context: any;
+}
 
-
+export let staticMosheMathTypingApi: null|MosheMathTypingApi= null;
+export let staticMoshe: null|Moshe= null;
 
 export default class Moshe extends Plugin {
-  settings: LatexSuitePluginSettings;
-	CMSettings: LatexSuiteCMSettings;
+  settings: MosheMathPluginSettings;
   swiftlatexRender: SwiftlatexRender
-  editorExtensions: Extension[]=[];
 
   async onload() {
     console.log("Loading Moshe math plugin")
     //readAndParseSVG().then((res: any)=>console.log(res))
     await this.loadSettings();
-    await loadMathJax();
     await this.loadPreamble();
-		this.loadIcons();
-		this.addSettingTab(new LatexSuiteSettingTab(this.app, this));
-		this.watchFiles();
+		this.addSettingTab(new MosheMathSettingTab(this.app, this));
     this.addEditorCommands();
-    this.registerEditorSuggest(new Suggestor(this));
     this.app.workspace.onLayoutReady(() => {
       //if(1===2*3)
       this.loadSwiftLatexRender().then(() => {
         this.addSyntaxHighlighting();
         this.setCodeblocks();
       })
+      this.updateApiHooks();
     });
-    
   }
-  async onunload() {
-    this.removeSyntaxHighlighting();
-    this.swiftlatexRender.onunload();
+
+
+  private updateApiHooks(){
+    try{
+      //@ts-ignore
+      const plugins = this.app.plugins
+      const observerId = observeSet(plugins.enabledPlugins, (added, removed,) => {
+        if (added.length && plugins.enabledPlugins.has("moshe-math-typing")) {
+          staticMosheMathTypingApi = plugins.plugins["moshe-math-typing"].getAPI();
+          clearInterval(observerId);
+        }
+      });
+    }catch(e){
+      console.error(e);
+      new Notice("Could not find moshe-math-typing plugin. Please install and/or activate it");
+    }
+      staticMoshe=this;
   }
   
 
@@ -91,8 +84,7 @@ export default class Moshe extends Plugin {
   }
   private async loadSwiftLatexRender(){
     this.swiftlatexRender=new SwiftlatexRender()
-    await this.swiftlatexRender.onload(this)
-    while (this.editorExtensions.length) this.editorExtensions.pop();
+    await this.swiftlatexRender.onload(this);
   }
 
   private addSyntaxHighlighting(){
@@ -101,98 +93,33 @@ export default class Moshe extends Plugin {
     //@ts-ignore
     window.CodeMirror.modeInfo.push({name: "Tikz", mime: "text/x-latex", mode: "stex"});
   }
+
   private removeSyntaxHighlighting(){
     //@ts-ignore
     window.CodeMirror.modeInfo = window.CodeMirror.modeInfo.filter(el => el.name != "Tikz");
   }
 
-  private setEditorExtensions() {
-		while (this.editorExtensions.length) this.editorExtensions.pop();
-		
-		this.editorExtensions.push([
-			getLatexSuiteConfigExtension(this.CMSettings),
-			Prec.highest(EditorView.domEventHandlers({ "keydown": onKeydown })),
-      Prec.lowest([colorPairedBracketsPlugin.extension, rtlForcePlugin.extension,]),
-      //On transaction causes a lot of a lot of problems and significant.and significantly slows down the computer The more processes are in it
-      EditorView.updateListener.of(onTransaction),
-			snippetExtensions,
-
-			highlightCursorBracketsPlugin.extension,
-			cursorTooltipField.extension,
-			cursorTooltipBaseTheme,
-
-      tabstopsStateField.extension,
-			snippetQueueStateField.extension,
-			snippetInvertedEffects,
-			tooltips({ position: "absolute" }),
-		]);
-
-		if (this.CMSettings.concealEnabled) {
-			const timeout = this.CMSettings.concealRevealTimeout;
-			this.editorExtensions.push(mkConcealPlugin(timeout).extension);
-		}
-
-		this.registerEditorExtension(this.editorExtensions.flat());
-	}
-
   private addEditorCommands() {
-		for (const command of getEditorCommands(this)) {
+    const editorCommands=getEditorCommands(this).filter((command)=>command!==undefined);
+		for (const command of editorCommands) {
 			this.addCommand(command);
 		}
 	}
-  
-
-  private async getSettingsSnippets() {
-    try {
-			return await parseSnippets(this.settings.snippets);
-		} catch (e) {
-			new Notice(`Failed to load snippets from settings: ${e}`);
-      console.error(`Failed to load snippets from settings: ${e}`);
-			return [];
-		}
-	}
-
-
-  private loadIcons() {
-    for (const [iconId, svgContent] of Object.entries(ICONS)) {
-      addIcon(iconId, svgContent);
-    }
-  }
-  getApp() { return this.app }
-  
-  private async loadSettings() {
-    let data = await this.loadData();
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
-
-
-    if (this.settings.loadSnippetsFromFile) {
-      const tempSnippets = await this.getSettingsSnippets();
-
-      this.CMSettings = processLatexSuiteSettings(tempSnippets, this.settings);
-      // Use onLayoutReady so that we don't try to read the snippets file too early
-      this.app.workspace.onLayoutReady(() => {
-        this.processSettings();
-      });
-    }
-    else {
-      await this.processSettings();
-    }
-  }
-
-  async loadPreamble(): Promise<void> {
-    let preamble: string = '';
+  private async loadPreamble(): Promise<void> {
+    let preamble: string = "";
     try {
       preamble = await this.app.vault.adapter.read(this.settings.preambleFileLocation);
     } catch (e) {
       console.warn(`Failed to read preamble file: ${e}`);
     }
-  
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const MJ: any = MathJax;
   
-    // Define a custom preprocessor that wraps Hebrew text (Unicode range: \u0590-\u05FF)
     const myCustomPreprocessor = (input: string): string => {
-      return input;
-      //return input.replace(/\\text\{([^}]*[\u0590-\u05FF][^}]*)\}/g, '\\Heb{$1}');
+      const ast= new MathJaxAbstractSyntaxTree();
+      ast.prase(input);
+      ast.reverseRtl();
+      return ast.toString();
     };
   
     // If MathJax.tex2chtml is already defined, override it to include the preprocessor.
@@ -219,64 +146,53 @@ export default class Moshe extends Plugin {
     }
   }
   
-  
+  private async loadSettings() {
+    let data = await this.loadData();
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+  }
 
   async saveSettings(didFileLocationChange = false) {
 		await this.saveData(this.settings);
-		this.processSettings(didFileLocationChange);
 	}
-
-  async saveSettingsWithoutProcessing(){await this.saveData(this.settings);}
-
-  async processSettings(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
-		this.CMSettings = processLatexSuiteSettings(await this.getSnippets(becauseFileLocationUpdated, becauseFileUpdated), this.settings);
-    this.setEditorExtensions();
-		this.app.workspace.updateOptions();
-	}
-  
-  private async getSnippets(becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean) {
-		// Get files in snippet/variable folders.
-		// If either is set to be loaded from settings the set will just be empty.
-		const files = getFileSets(this);
+}
 
 
-		// This must be done in either case, because it also updates the set of snippet files
-		const snippets =
-			this.settings.loadSnippetsFromFile
-				? await getSnippetsFromFiles(this, files)
-				: await this.getSettingsSnippets();
-		this.showSnippetsLoadedNotice(snippets.length,  becauseFileLocationUpdated, becauseFileUpdated);
-		return snippets;
-	}
-  
-  private showSnippetsLoadedNotice(nSnippets: number, becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean) {
-		if (!(becauseFileLocationUpdated || becauseFileUpdated))
-			return;
+/**
+ * Observes a set for changes by polling at a specified interval.
+ * @param observedSet The set to observe.
+ * @param callback Called with arrays of added and removed items when a change is detected.
+ * @param interval Polling interval in milliseconds (default is 100ms).
+ * @returns The interval ID so you can clear it later if needed.
+ */
+function observeSet<T>(
+  observedSet: Set<T>,
+  callback: (added: T[], removed: T[]) => void,
+  interval: number = 1000
+): NodeJS.Timer {
+  let previousSnapshot = new Set(observedSet);
+  return setInterval(() => {
+    const added: T[] = [];
+    const removed: T[] = [];
 
-		const prefix = becauseFileLocationUpdated ? "Loaded " : "Successfully reloaded ";
-		const body = [];
-
-		if (this.settings.loadSnippetsFromFile)
-			body.push(`${nSnippets} snippets`);
-
-		const suffix = " from files.";
-		new Notice(prefix + body.join(" and ") + suffix, 5000);
-	}
-
-  private watchFiles() {
-    // Only begin watching files once the layout is ready.
-    this.app.workspace.onLayoutReady(() => {
-      // Set up a Chokidar watcher for .sty files
-      const vaultEvents = {
-        "modify": onFileChange,
-        "delete": onFileDelete,
-        "create": onFileCreate
-      };
-
-      for (const [eventName, callback] of Object.entries(vaultEvents)) {
-        // @ts-expect-error
-        this.registerEvent(this.app.vault.on(eventName, (file: TAbstractFile) => callback(this, file)));
+    // Check for new items (added)
+    observedSet.forEach(item => {
+      if (!previousSnapshot.has(item)) {
+        added.push(item);
       }
     });
-  }
+
+    // Check for missing items (removed)
+    previousSnapshot.forEach(item => {
+      if (!observedSet.has(item)) {
+        removed.push(item);
+      }
+    });
+
+    if (added.length || removed.length) {
+      // Report the changes
+      callback(added, removed);
+      // Update the snapshot
+      previousSnapshot = new Set(observedSet);
+    }
+  }, interval);
 }

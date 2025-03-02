@@ -2,7 +2,7 @@ import { App, MarkdownView, Scope, WorkspaceWindow } from "obsidian";
 import { cartesianToPolar, findIntersectionPoint, findSlope, polarToCartesian, toNumber } from "src/mathParser/mathUtilities.js";
 import { DebugModal } from "src/desplyModals.js";
 import { FormatTikzjax } from "./interpret/tokenizeTikzjax.js";
-import { mapBrackets } from "src/utils/ParenUtensils.js";
+import { mapBrackets } from "src/ParenUtensils.js";
 import { BasicTikzToken } from "src/mathParser/basicToken.js";
 import {Config,optimize} from 'svgo';
 import { Md5 } from 'ts-md5';

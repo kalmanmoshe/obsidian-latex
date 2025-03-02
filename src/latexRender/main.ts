@@ -1,5 +1,5 @@
 
-import { FileSystemAdapter, MarkdownPostProcessorContext, TFile, MarkdownPreviewRenderer } from 'obsidian';
+import { FileSystemAdapter, MarkdownPostProcessorContext, TFile, MarkdownPreviewRenderer, Modal, App } from 'obsidian';
 import { Md5 } from 'ts-md5';
 import * as fs from 'fs';
 import * as temp from 'temp';
@@ -11,7 +11,7 @@ import Moshe from '../main';
 import { StringMap } from 'src/settings/settings.js';
 import { getPreamble } from 'src/tikzjax/interpret/tokenizeTikzjax';
 import async from 'async';
-import { LatexabstractSyntaxTree } from './parse/parse';
+import { LatexAbstractSyntaxTree } from './parse/parse';
 const PdfToCairo = require("./pdftocairo.js")
 const waitFor = async (condFunc: () => boolean) => {
 	return new Promise<void>((resolve) => {
@@ -47,6 +47,9 @@ export class SwiftlatexRender {
 		await this.loadPackageCache();
 		this.pdfEngine.setTexliveEndpoint(this.plugin.settings.package_url);
 		this.configQueue();
+		this.plugin.addRibbonIcon("dice", "Moshe Math", () => {
+			new svgDisplayModule(this.plugin.app, this.cacheFolderPath,this.cache).open();
+		  })
 	}
 	configQueue() {
 		const WAIT_TIME_MS = 4 * 1000; // Replace X with your desired seconds
@@ -54,14 +57,19 @@ export class SwiftlatexRender {
 		this.queue = async.queue((task, done) => {
 			task.source=getPreamble(this.plugin.app)+task.source+"\n\\end{tikzpicture}\\end{document}"
 
-			const ast = new LatexabstractSyntaxTree();
+			const ast = new LatexAbstractSyntaxTree();
 			try {
 				ast.prase(task.source);
 				ast.a();
-				console.log("source", ast.ast,ast.myAst);
+				ast.cleanUpDefs()
+				const myAst = ast.myAst;
+				//console.log("source", ast.ast,ast.myAst,myAst.toString());
+				const a= String.raw`{\begin{aligned}&OD=OC=R     \\&    \sphericalangle BOC=2a\text{זוויתכזית שווה לכפליים הזווית ההיקפית הנשענת על אותה קשת}{  \hra  }\sphericalangle DOC=a     \\&    \triangle DOC=0.5\cdot R\cdot R\cdot \sin a=\ans{0.5R^{2}\sin(a)}\end{aligned}}`
+				const ast2=new LatexAbstractSyntaxTree();
+				ast2.parseMath(a)
+				//console.log(a,ast2)
 				ast.deleteComments();
 				task.source = ast.toString();
-				console.log(ast.cleanUpDefs());
 			} catch (e) {
 				console.error("Error parsing latex", e);
 				ast.prase(task.source);
@@ -80,6 +88,7 @@ export class SwiftlatexRender {
 				setTimeout(() => {done(err);updateCountdown();}, WAIT_TIME_MS);
 			});
 		}, 1); // Concurrency is set to 1, so tasks run one at a time
+
 		const updateCountdown = () => {
 			//@ts-ignore
 			let taskNode = this.queue._tasks.head;
@@ -158,6 +167,7 @@ export class SwiftlatexRender {
 				delete this.plugin.settings.packageCache[1][key];
 			}
 		}
+		this.plugin.saveSettings()
 
 		// write cache data to the VFS, except don't write the texlive404_cache because this will cause problems when switching between texlive sources
 		this.pdfEngine.writeCacheData(
@@ -221,6 +231,8 @@ export class SwiftlatexRender {
 		});
 	}
 	universalCodeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+			el.classList.remove("block-language-tikz");
+			el.classList.add("block-language-latexsvg");
 		const md5Hash = this.hashLatexSource(source);
 		// PDF file has already been cached
 		// Could have a case where pdfCache has the key but the cached file has been deleted
@@ -234,6 +246,7 @@ export class SwiftlatexRender {
 			const blockId = `${ctx.sourcePath.replace(/[^\wא-ת]/g, '_')}_${ctx.getSectionInfo(el)?.lineStart}`;
 			this.queue.remove(node => node.data.blockId === blockId);
 			el.appendChild(createWaitingCountdown(this.queue.length()));
+			
 			this.queue.push({ source, el,md5Hash, sourcePath: ctx.sourcePath, blockId });
 		}
 	}
@@ -248,7 +261,7 @@ export class SwiftlatexRender {
 				}).catch(err => {
 					el.innerHTML = "";
 					SwiftLatexError.interpret(err);
-					const errorDiv = el.createEl('div', { text: `swiftlatexError`/*text: `${err}`*/, attr: { class: 'block-latex-error' } });
+					el.createEl('div', { text: `swiftlatexError`/*text: `${err}`*/, attr: { class: 'block-latex-error' } });
 					reject(err); 
 				});		
 			this.addFileToCache(md5Hash, sourcePath);
@@ -337,13 +350,12 @@ export class SwiftlatexRender {
 	}
 
 	private async saveCache() {
-		const temp = new Map();
+		let temp = new Map();
 		for (const [k, v] of this.cache) {
 			temp.set(k, [...v])
 		}
 		this.plugin.settings.cache = [...temp];
 		await this.plugin.saveSettings();
-
 	}
 
 	private addFileToCache(hash: string, file_path: string) {
@@ -351,6 +363,7 @@ export class SwiftlatexRender {
 			this.cache.set(hash, new Set());
 		}
 		this.cache.get(hash)!.add(file_path);
+		this.saveCache();
 	}
 
 	private async cleanUpCache() {
@@ -362,6 +375,7 @@ export class SwiftlatexRender {
 		}
 		for (const file_path of file_paths) {
 			const file = this.plugin.app.vault.getAbstractFileByPath(file_path);
+			if(file==null) this.removeFileFromCache(file_path);
 			if (file instanceof TFile) {
 				await this.removeUnusedCachesForFile(file);
 			}
@@ -389,6 +403,7 @@ export class SwiftlatexRender {
 		if (fs.existsSync(filePath)) {
 			fs.rmSync(filePath);
 		}
+		this.saveCache();
 	}
 
 	private removeFileFromCache(file_path: string) {
@@ -398,6 +413,7 @@ export class SwiftlatexRender {
 				this.removePDFFromCache(hash);
 			}
 		}
+		this.saveCache();
 	}
 
 	private getLatexHashesFromCacheForFile(file: TFile) {
@@ -417,13 +433,71 @@ export class SwiftlatexRender {
 		if (sections != undefined) {
 			const lines = (await this.plugin.app.vault.read(file)).split('\n');
 			for (const section of sections) {
-				if (section.type != "code" && lines[section.position.start.line].match("``` *latex") == null) continue;
+				if (section.type != "code" && lines[section.position.start.line].match("``` *(latex|tikz)") == null) continue;
 				let source = lines.slice(section.position.start.line + 1, section.position.end.line).join("\n");
 				const hash = this.hashLatexSource(source);
 				hashes.push(hash);
 			}
 		}
 		return hashes;
+	}
+	/**
+	 * Remove all cached SVG files from the file system and update the settings.
+	 */
+	public removeAllCachedSvgs(): void {
+		if (fs.existsSync(this.cacheFolderPath)) {
+			const files = fs.readdirSync(this.cacheFolderPath);
+			// Loop through each file and remove if it has a .svg extension
+			for (const file of files) {
+				if (file.endsWith('.svg')) {
+					const fullPath = path.join(this.cacheFolderPath, file);
+					try {
+						fs.rmSync(fullPath);
+						console.log(`Removed cached SVG: ${fullPath}`);
+					} catch (err) {
+						console.error(`Failed to remove SVG file ${fullPath}:`, err);
+					}
+				}
+			}
+		}
+
+		for (const [hash, fileSet] of this.cache.entries()) {
+			if(this.cache.delete(hash))
+				console.log(`Removed cache entry for ${hash}`);
+		}
+		this.saveCache();
+	}
+	
+	/**
+	 * Remove all cached package files from the file system and update the settings.
+	 */
+	public removeAllCachedPackages(): void {
+		// Remove all files in the package cache folder
+		if (fs.existsSync(this.packageCacheFolderPath)) {
+			const packageFiles = fs.readdirSync(this.packageCacheFolderPath);
+			for (const file of packageFiles) {
+				const fullPath = path.join(this.packageCacheFolderPath, file);
+				try {
+					fs.rmSync(fullPath);
+					console.log(`Removed cached package file: ${fullPath}`);
+				} catch (err) {
+					console.error(`Failed to remove package file ${fullPath}:`, err);
+				}
+			}
+		}
+
+		// Clear the package cache settings.
+		// In your code, packageCache[1] holds the mapping for package files.
+		if (this.plugin.settings.packageCache && Array.isArray(this.plugin.settings.packageCache)) {
+			this.plugin.settings.packageCache[1] = {};
+			// If needed, clear additional indices as well:
+			// this.plugin.settings.packageCache[2] = {};
+			// this.plugin.settings.packageCache[3] = {};
+		}
+
+		this.plugin.saveSettings().then(() => {
+			console.log("Package cache settings updated.");
+		});
 	}
 }
 
@@ -570,13 +644,74 @@ class SwiftLatexError {
 
         return new SwiftLatexError(versionInfo, mainError, warnings, usedPackages, configurationFiles);
     }
+	
 }
+
 class swiftlatexErrorLine{
 	text: string;
 	file: string;
 	warning: string;
 	versionInfo: string;
 }
+
+
+class svgDisplayModule extends Modal {
+	cacheFolderPath: string;
+	cache: Map<string, Set<string>>;
+
+	constructor(app: App, cacheFolderPath: string, cache: Map<string, Set<string>>) {
+		super(app);
+		this.cacheFolderPath = cacheFolderPath;
+		this.cache = cache;
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		contentEl.createEl("h2", { text: "Cached SVGs", cls: "info-modal-title" });
+		const svgContainer = contentEl.createDiv({ cls: "info-modal-main-container" });
+
+		// Iterate through each cached SVG entry
+		for (const [hash, fileSet] of this.cache.entries()) {
+			// Create a container for each SVG entry
+			const entryContainer = svgContainer.createDiv({ cls: "svg-entry" });
+
+			// Display the hash for identification
+			entryContainer.createEl("h3", { text: `SVG Hash: ${hash}` });
+
+			// Check if there is a conflict (i.e. the same hash appears in multiple files)
+			if (fileSet.size > 1) {
+				entryContainer.createEl("p", { text: "Conflict detected: SVG found in multiple files:" });
+				const fileList = entryContainer.createEl("ul");
+				fileSet.forEach(fileName => {
+					fileList.createEl("li", { text: fileName });
+				});
+			} else {
+				// Only one file in which the SVG is referenced
+				const [fileName] = Array.from(fileSet);
+				entryContainer.createEl("p", { text: `Found in file: ${fileName}` });
+			}
+
+			// Construct the SVG file path from the hash
+			const svgPath = path.join(this.cacheFolderPath, `${hash}.svg`);
+
+			// Check if the SVG file exists
+			if (fs.existsSync(svgPath)) {
+				try {
+					// Read and display the SVG content
+					const svg = fs.readFileSync(svgPath, 'utf8');
+					const svgEl = entryContainer.createDiv({ cls: "svg-display" });
+					svgEl.innerHTML = svg;
+				} catch (err) {
+					entryContainer.createEl("p", { text: "Error reading SVG file." });
+				}
+			} else {
+				// Inform the user that the SVG file is not found in the cache folder
+				entryContainer.createEl("p", { text: "SVG file not found in cache." });
+			}
+		}
+	}
+}
+
 
 
 

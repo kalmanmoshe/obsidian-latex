@@ -1,6 +1,6 @@
 import { getAllTikzReferences, searchTikzComponents } from "src/staticData/dataManager";
 import { arrToRegexString } from "../tikzjax";
-import { findDeepestParenthesesScope, idParentheses, Paren } from "src/utils/ParenUtensils";
+import { findDeepestParenthesesScope, idParentheses, Paren } from "src/ParenUtensils";
 import { BasicTikzToken } from "src/mathParser/basicToken";
 import { Encasing } from "src/staticData/encasings";
 
