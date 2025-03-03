@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "inlineSourceMap": true,
+    "inlineSources": true,
+    "module": "NodeNext",
+    "target": "ES6",    
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "noImplicitAny": true,
+    "importHelpers": true,
+    "checkJs": false,
+    "isolatedModules": true,
+    "strictNullChecks": true,
+    "allowSyntheticDefaultImports": true,
+    "downlevelIteration": true,       // Enables iteration over `RegExpMatchArray`
+    "lib": [
+      "esnext",                       // Latest JavaScript features
+      "dom",
+      "webworker"
+    ],
+    "outDir": "./dist", 
+    "rootDir": "./"
+  },
+  "include": [
+    "**/*.ts"
+, "src/latexRender/PdfTeXEngine.ts", "src/latexRender/swiftlatexpdftex.worker.js"  ],
+  "exclude": [
+    "node_modules",
+    "dist" 
+  ]
+}

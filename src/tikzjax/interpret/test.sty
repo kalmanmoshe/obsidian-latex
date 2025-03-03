@@ -1,0 +1,76 @@
+\newcommand\getxy[3]{\path (#1); \pgfpointanchor{#1}{center}\pgfgetlastxy{#2}{#3}}
+\newcommand\lengthbetweenpoints[3]{\path (#1); \pgfpointanchor{#1}{center}\pgfgetlastxy{#2}{#3}}
+
+
+\NewDocumentCommand{\drawincircle}{ O{} O{} m m m }{%
+  % Extract coordinates for vertices A, B, and C.
+  \getxy{#3}{\xA}{\yA}
+  \getxy{#4}{\xB}{\yB}
+  \getxy{#5}{\xC}{\yC}
+  
+  % ----- Angle bisector at vertex A -----
+  % Compute vector from A to B:
+  \pgfmathsetmacro{\AxB}{\xB-\xA}%
+  \pgfmathsetmacro{\AyB}{\yB-\yA}%
+  \pgfmathsetmacro{\lenAB}{sqrt((\AxB)^2+(\AyB)^2)}%
+  \pgfmathsetmacro{\uAx}{\AxB/\lenAB}%
+  \pgfmathsetmacro{\uAy}{\AyB/\lenAB}%
+  
+  % Compute vector from A to C:
+  \pgfmathsetmacro{\AxC}{\xC-\xA}%
+  \pgfmathsetmacro{\AyC}{\yC-\yA}%
+  \pgfmathsetmacro{\lenAC}{sqrt((\AxC)^2+(\AyC)^2)}%
+  \pgfmathsetmacro{\vAx}{\AxC/\lenAC}%
+  \pgfmathsetmacro{\vAy}{\AyC/\lenAC}%
+  
+  % Sum to get bisector direction at A:
+  \pgfmathsetmacro{\bisAx}{\uAx+\vAx}%
+  \pgfmathsetmacro{\bisAy}{\uAy+\vAy}%
+  % Its slope:
+  \pgfmathsetmacro{\slopeA}{\bisAy/\bisAx}%
+  
+  % ----- Angle bisector at vertex B -----
+  % Compute vector from B to A:
+  \pgfmathsetmacro{\BxA}{\xA-\xB}%
+  \pgfmathsetmacro{\ByA}{\yA-\yB}%
+  \pgfmathsetmacro{\lenBA}{sqrt((\BxA)^2+(\ByA)^2)}%
+  \pgfmathsetmacro{\uBx}{\BxA/\lenBA}%
+  \pgfmathsetmacro{\uBy}{\ByA/\lenBA}%
+  
+  % Compute vector from B to C:
+  \pgfmathsetmacro{\BxC}{\xC-\xB}%
+  \pgfmathsetmacro{\ByC}{\yC-\yB}%
+  \pgfmathsetmacro{\lenBC}{sqrt((\BxC)^2+(\ByC)^2)}%
+  \pgfmathsetmacro{\vBx}{\BxC/\lenBC}%
+  \pgfmathsetmacro{\vBy}{\ByC/\lenBC}%
+  
+  % Sum to get bisector direction at B:
+  \pgfmathsetmacro{\bisBx}{\uBx+\vBx}%
+  \pgfmathsetmacro{\bisBy}{\uBy+\vBy}%
+  % Its slope:
+  \pgfmathsetmacro{\slopeB}{\bisBy/\bisBx}%
+  
+  % ----- Find Incenter as intersection of the two bisectors -----
+  % Line at A: y = y_A + slopeA*(x - x_A)
+  % Line at B: y = y_B + slopeB*(x - x_B)
+  % Solve for x:
+  \pgfmathsetmacro{\incenterx}{(\yB-\yA+\slopeA*\xA-\slopeB*\xB)/(\slopeA-\slopeB)}%
+  \pgfmathsetmacro{\incentery}{\yA+\slopeA*(\incenterx-\xA)}%
+  \coordinate (Incenter) at (\incenterx pt,\incentery pt);%
+  
+  % ----- Optionally capture the incenter coordinate and radius -----
+  % If a name is provided as the first optional argument, assign the coordinate.
+  \IfNoValueTF{#1}{}{%
+    \coordinate (#1) at (\incenterx pt,\incentery pt);%
+  }%
+  % Compute incircle radius using the distance from Incenter to side BC.
+  % The line through B and C: A*x+B*y+C=0, with:
+  \pgfmathsetmacro{\Acoeff}{\yC-\yB}%
+  \pgfmathsetmacro{\Bcoeff}{\xB-\xC}%
+  \pgfmathsetmacro{\Ccoeff}{\xC*\yB-\xB*\yC}%
+  \pgfmathsetmacro{\radius}{abs(\Acoeff*\incenterx+\Bcoeff*\incentery+\Ccoeff)/sqrt((\Acoeff)^2+(\Bcoeff)^2)}
+  
+  \IfNoValueTF{#2}{}{
+    \edef#2{\radius pt}
+  }
+}

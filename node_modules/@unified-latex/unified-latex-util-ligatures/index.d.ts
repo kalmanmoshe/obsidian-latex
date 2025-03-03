@@ -1,0 +1,27 @@
+import * as Ast from '@unified-latex/unified-latex-types';
+
+export declare function createMatchers(): {
+    isMacro: (node: any) => node is Ast.Macro;
+    isWhitespace: (node: any) => node is Ast.Whitespace;
+    isRecognized: (nodes: Ast.Node[], whitespaceAllowed?: boolean) => Ast.String | null;
+    isSplitable: (node: Ast.Node) => boolean;
+    split: (node: Ast.String) => {
+        type: string;
+        content: string;
+    }[];
+};
+
+/**
+ * Turn all ligatures into their unicode equivalent. For example,
+ * `---` -> an em-dash and `\^o` to `ô`. This only applies in non-math mode,
+ * since programs like katex will process math ligatures.
+ */
+export declare function expandUnicodeLigatures(tree: Ast.Ast): void;
+
+/**
+ * Parse for recognized ligatures like `---` and `\:o`, etc. These are
+ * replaced with string nodes with the appropriate unicode character subbed in.
+ */
+export declare function parseLigatures(ast: Ast.Node[]): Ast.Node[];
+
+export { }

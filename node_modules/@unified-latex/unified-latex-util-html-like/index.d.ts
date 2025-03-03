@@ -1,0 +1,39 @@
+import * as Ast from '@unified-latex/unified-latex-types';
+
+/**
+ * Extract the contents/attributes/tag from an html-like macro.
+ */
+export declare function extractFromHtmlLike(macro: Ast.Macro): {
+    tag: string;
+    attributes: Record<string, string | number | boolean | object>;
+    content: Ast.Node[];
+};
+
+/**
+ * Make an html-like node storing `content`. The node is a macro and `content` as well
+ * as any attributes can be extracted or further processed. Collisions are avoided with existing
+ * macros because all macros are prefixed with `html-tag:` or `html-attribute:`, which contain
+ * special characters that normal macros cannot have.
+ */
+export declare function htmlLike({ tag, content, attributes, }: {
+    tag: string;
+    content?: Ast.Node | Ast.Node[];
+    attributes?: object;
+}): Ast.Macro;
+
+/**
+ * Determine whether the node is an html-like macro.
+ */
+export declare function isHtmlLike(node: any): node is Ast.Macro;
+
+/**
+ * Determine whether the node is an html-like macro for an attribute.
+ */
+export declare function isHtmlLikeAttribute(node: any): node is Ast.Macro;
+
+/**
+ * Determine whether the node is an html-like macro for a tag.
+ */
+export declare function isHtmlLikeTag(node: any): node is Ast.Macro;
+
+export { }
