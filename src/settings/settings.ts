@@ -2,12 +2,18 @@
 export type StringMap = { [key: string]: string };
 
 interface MosheMathBasicSettings {
+	preambleEnabled: boolean;
+	corePreambleFileLocation: string;
+	mathjaxPreambleFileLocation: string;
+	explicitPreambleEnabled: boolean;
+	explicitPreambleFromCodeBlocks: boolean;
+	explicitPreambleFileLocation: string;
+
+
     invertColorsInDarkMode: boolean;
     numberFormatting: number;
-	preambleFileLocation: string;
 	
 	package_url: string,
-	timeout: number,
 	cache: Array<[string, Set<string>]>;
 	/**
 	 * There are four catches:
@@ -36,14 +42,17 @@ export type MosheMathPluginSettings = MosheMathBasicSettings & MosheMathRawSetti
 export type MosheMathettings = MosheMathBasicSettings & MosheMathParsedSettings;
 
 export const DEFAULT_SETTINGS: MosheMathPluginSettings = {
-	
-	preambleFileLocation: "",
+	preambleEnabled: false,
+	corePreambleFileLocation: "",
+	mathjaxPreambleFileLocation: "",
+	explicitPreambleEnabled: false,
+	explicitPreambleFromCodeBlocks: false,
+	explicitPreambleFileLocation: "",
     // stile settings
     invertColorsInDarkMode: true,
     numberFormatting: 1000,
 
 	package_url: `https://texlive2.swiftlatex.com/`,
-	timeout: 10000,
 	cache: [],
 	packageCache: [{},{},{},{}],
 }

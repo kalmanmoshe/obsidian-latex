@@ -1,9 +1,9 @@
 import {migrate,parseMath} from "./parse"
-import { Whitespace,Parbreak, Macro, Argument, Ast,Node } from './typs/ast-types';
+import { Whitespace,Parbreak, Macro, Argument, Ast,Node, ToStringConfig } from './typs/ast-types';
 
 export class MathJaxAbstractSyntaxTree{
     ast: Node[];
-    prase(latex: string){
+    parse(latex: string){
         const ast = migrate(parseMath(latex));
         if(ast instanceof Array){
             this.ast=ast;
@@ -15,22 +15,59 @@ export class MathJaxAbstractSyntaxTree{
     reverseRtl() {
         const args = findTextMacros(this.ast);
         for (const arg of args) {
-            const text = arg.toString({ removeOpenCloseMarks: true });
-            let tokens = text.match(/([א-ת]+|\s+|[^א-ת\s]+)/g)as string[]|null;
-            if (!tokens) continue;
-            tokens = mergeHebrewTokens(tokens);
-            arg.content = parseMath(
-            tokens
-                .map((t) => /[א-ת]/.test(t) ? [...t].reverse().join('') : t)
-                .join('')
-            );
+          const text = arg.toString({ removeOpenCloseMarks: true });
+          let tokens = text.match(/([א-ת]+|\s+|[^א-ת\s]+)/g)as string[]|null;
+          if (!tokens) continue;
+          tokens = mergeHebrewTokens(tokens);
+          const newNodeArr = migrate(parseMath(
+          tokens
+              .map((t) => /[א-ת]/.test(t) ? [...t].reverse().join('') : t)
+              .join('')
+          ));
+          if (newNodeArr instanceof Array) {
+            arg.content = newNodeArr;
+          }
+          else{
+            throw new Error("Root not found it is not in Array, got: "+newNodeArr);
+          }
         }
     }
     
-    toString(){
-        return this.ast.map(node => node.toString()).join("");
-    }
+  toString(args: ToStringConfig={}): string {
+    return this.ast.map(node => node.toString(args)).join("");
+  }
 }
+
+// Define Instance (replace with your actual type if available)
+type Instance = Ast;
+
+function removeInstanceFromAst(ast: Ast, instance: Instance): void {
+  if (Array.isArray(ast)) {
+    for (let i = ast.length - 1; i >= 0; i--) {
+      ast[i] === instance ? ast.splice(i, 1) : removeInstanceFromAst(ast[i], instance);
+    }
+  }
+  if (ast && typeof ast === "object") {
+    for (const key of ["content", "args"]) {
+      if (!(key in ast)) {continue;}
+      let node = ast[(key as keyof typeof ast)];
+      if(!node)continue;
+
+      if (Array.isArray(node)) {
+        for (let i = node.length - 1; i >= 0; i--) {
+          if (node[i] === instance) {
+            node.splice(i, 1);
+          } else {
+            removeInstanceFromAst(node[i], instance);
+          }
+        }
+      }
+    }
+  }
+}
+
+
+
 function mergeHebrewTokens(tokens: string[]): string[] {
     const isHeb = (s: string) => /^[\u05D0-\u05EA]+$/.test(s);
     const res: string[] = [];

@@ -93,7 +93,7 @@ export class Comment extends BaseNode {
         if(leadingWhitespace)this.leadingWhitespace = leadingWhitespace;
     }
     toString(): string {
-        return `%${this.content}`
+        return `%${this.content}\n`
     }
 }
 
@@ -123,7 +123,8 @@ export class Environment extends ContentNode {
         this.env = env;
         if(args)this.args = args;
     }
-    toString(): string {
+    toString(args: ToStringConfig={}): string {
+        if(args.inline) return `\\begin{${this.env}}\t${this.content.map(node => node.toString()).join("")}\\end{${this.env}}`
         return `\\begin{${this.env}}\n\t${this.content.map(node => node.toString()).join("")}\n\\end{${this.env}}`
     }
 }
@@ -137,7 +138,7 @@ export class VerbatimEnvironment extends BaseNode {
         this.env = env;
         this.content = content;
     }
-    toString(): string {
+    toString(args: ToStringConfig={}): string {
         return `\\begin{${this.env}}${this.content}\\end{${this.env}}`
     }
 }
@@ -147,7 +148,7 @@ export class DisplayMath extends ContentNode {
     constructor(content: Node[], renderInfo?: typeof BaseNode.prototype._renderInfo, position?: typeof BaseNode.prototype.position) {
         super("displaymath", content, renderInfo, position);
     }
-    toString(): string {
+    toString(args: ToStringConfig={}): string {
         return `${this.content.map(node => node.toString()).join("")}`
     }
 }
@@ -157,7 +158,7 @@ export class Group extends ContentNode {
     constructor(content: Node[], renderInfo?: typeof BaseNode.prototype._renderInfo, position?: typeof BaseNode.prototype.position) {
         super("group", content, renderInfo, position);
     }
-    toString(): string {
+    toString(args: ToStringConfig={}): string {
         return `{${this.content.map(node => node.toString()).join("")}}`
     }
 }
@@ -167,7 +168,7 @@ export class InlineMath extends ContentNode {
     constructor(content: Node[], renderInfo?: typeof BaseNode.prototype._renderInfo, position?: typeof BaseNode.prototype.position) {
         super("inlinemath", content, renderInfo, position);
     }
-    toString(): string {
+    toString(args: ToStringConfig={}): string {
         return `${this.content.map(node => node.toString()).join("")}`
     }
 }
@@ -204,6 +205,7 @@ export class Argument extends ContentNode {
         return string
     }
 }
+
 export interface ToStringConfig{
     removeWhitespace?: boolean;
     removeComments?: boolean;
@@ -212,6 +214,7 @@ export interface ToStringConfig{
     removeOpenCloseMarks?: boolean;
     removeEmptyArguments?: boolean;
     recursive?: boolean;
+    inline?: boolean;
 }
 
 export type Node =

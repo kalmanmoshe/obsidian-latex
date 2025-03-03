@@ -17,7 +17,8 @@
     "downlevelIteration": true,       // Enables iteration over `RegExpMatchArray`
     "lib": [
       "esnext",                       // Latest JavaScript features
-      "dom"
+      "dom",
+      "webworker"
     ],
     "outDir": "./dist", 
     "rootDir": "./"

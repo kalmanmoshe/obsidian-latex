@@ -1,7 +1,9 @@
 
 import { EditorView, ViewUpdate } from "@codemirror/view";
-import { App,Notice, PluginSettingTab, Setting,  setIcon, ToggleComponent} from "obsidian";
-import MosheMathPlugin from "../main";
+import { App,Notice, PluginSettingTab, Setting,  setIcon, ToggleComponent, debounce} from "obsidian";
+import MosheMathPlugin, {staticMosheMathTypingApi} from "../main";
+import { DEFAULT_SETTINGS } from "./settings";
+
 
 interface Appearance{
 	name?: string,
@@ -34,10 +36,15 @@ export class MosheMathSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
+		if(staticMosheMathTypingApi===null){
+			new Notice("Could not find moshe-math-typing plugin. Please install and/or activate it");
+			return;
+		}
 		const { containerEl } = this;
 		containerEl.empty();
 		this.displayGraphSettings();
-		this.mathBlockSettings();
+		this.displayPreambleSettings();
+		this.displayMathBlockSettings();
 	}
 	
 	private displayGraphSettings(){
@@ -65,7 +72,53 @@ export class MosheMathSettingTab extends PluginSettingTab {
 		)
 
 	}
-	private mathBlockSettings(){
+	private displayPreambleSettings(){
+		const containerEl = this.containerEl;
+		this.addHeading(containerEl, "Preamble", "pencil");
+		staticMosheMathTypingApi!.addToggleSetting(
+			containerEl,this.plugin,
+			(value: boolean)=>{this.plugin.settings.preambleEnabled=value,this.plugin.saveSettings()},
+			{
+				name: "Enabled",
+				description: "Whether to load a preamble file for mathjax.",
+				defValue: this.plugin.settings.preambleEnabled
+			}
+		)
+
+		const preambleFileLoc = createSetting(
+			containerEl, 
+			{
+			name: "Preamble file location",
+			description: "The file to load the preamble from."
+			}
+		)
+		let inputEl: HTMLInputElement | undefined; // Define with a possible undefined type
+
+		preambleFileLoc.addSearch((component) => {
+			component
+				.setPlaceholder(DEFAULT_SETTINGS.preambleFileLocation)
+				.setValue(this.plugin.settings.preambleFileLocation)
+				.onChange(
+					debounce(async (value) => {
+						this.plugin.settings.preambleFileLocation = value;
+						await this.plugin.saveSettings(true);
+					}, 500, true)
+				);
+
+			// Ensure inputEl is assigned
+			inputEl = component.inputEl as HTMLInputElement;
+			inputEl.addClass("moshe-typing-location-input-el");
+		});
+    
+		// Ensure inputEl is defined before passing to FileSuggest
+		if (inputEl) {
+			this.snippetsFileLocEl = preambleFileLoc.settingEl;
+			new staticMosheMathTypingApi!.fileSuggest(this.app, inputEl);
+		} else {
+			console.error("Input element is undefined.");
+		}
+	}
+	private displayMathBlockSettings(){
 		const containerEl = this.containerEl;
 		this.addHeading(containerEl, "Math blocks", "math");
 		this.addDropdownSetting(

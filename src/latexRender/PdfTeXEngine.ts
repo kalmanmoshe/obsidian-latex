@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 //@ts-ignore
-import Worker from "./swiftlatexpdftex.worker";
+import Worker from "./swiftlatexpdftex/mainSwiftlatex.worker";
 export enum EngineStatus {
     Init,
     Ready,
@@ -48,15 +48,14 @@ export class PdfTeXEngine {
 
         await new Promise<void>((resolve, reject) => {
         this.latexWorker = new Worker(Worker);
-        //console.log("Engine loaded", this.latexWorker);
         this.latexWorker!.onmessage = (ev:MessageEvent<any>) => {
             const data = ev.data;
             if (data.result === "ok") {
-            this.latexWorkerStatus = EngineStatus.Ready;
-            resolve();
+                this.latexWorkerStatus = EngineStatus.Ready;
+                resolve();
             } else {
-            this.latexWorkerStatus = EngineStatus.Error;
-            reject();
+                this.latexWorkerStatus = EngineStatus.Error;
+                reject();
             }
         };
         });
@@ -71,33 +70,33 @@ export class PdfTeXEngine {
     getEngineStatus(): EngineStatus {return this.latexWorkerStatus;}
 
     private checkEngineStatus(): void {
-    if (!this.isReady()) {
-        throw new Error("Engine is still spinning or not ready yet!");
-    }
+        if (!this.isReady()) {
+            throw new Error("Engine is still spinning or not ready yet!");
+        }
     }
 
     async compileLaTeX(): Promise<CompileResult> {
-    this.checkEngineStatus();
-    this.latexWorkerStatus = EngineStatus.Busy;
-    const startCompileTime = performance.now();
+        this.checkEngineStatus();
+        this.latexWorkerStatus = EngineStatus.Busy;
+        const startCompileTime = performance.now();
 
-    const result = await new Promise<CompileResult>((resolve) => {
-        this.latexWorker!.onmessage = (ev:MessageEvent<any>) => {
-        const data = ev.data;
-        if (data.cmd !== "compile") return;
+        const result = await new Promise<CompileResult>((resolve) => {
+            this.latexWorker!.onmessage = (ev:MessageEvent<any>) => {
+            const data = ev.data;
+            if (data.cmd !== "compile") return;
 
-        this.latexWorkerStatus = EngineStatus.Ready;
-        console.log(`Engine compilation finished in ${performance.now() - startCompileTime} ms`);
+            this.latexWorkerStatus = EngineStatus.Ready;
+            console.log(`Engine compilation finished in ${performance.now() - startCompileTime} ms`);
+            //console.log("data.myLog",data);
+            const compileResult = new CompileResult(data.pdf?Buffer.from(new Uint8Array(data.pdf)):undefined, data.status, data.log);
+            resolve(compileResult);
+            };
 
-        const compileResult = new CompileResult(data.pdf?Buffer.from(new Uint8Array(data.pdf)):undefined, data.status, data.log);
-        resolve(compileResult);
-        };
+            this.latexWorker!.postMessage({ cmd: "compilelatex" });
+        });
 
-        this.latexWorker!.postMessage({ cmd: "compilelatex" });
-    });
-
-    this.latexWorker!.onmessage = () => {};
-    return result;
+        this.latexWorker!.onmessage = () => {};
+        return result;
     }
 
     async compileFormat(): Promise<void> {
@@ -201,7 +200,12 @@ export class PdfTeXEngine {
         this.checkEngineStatus();
         this.latexWorker?.postMessage({ cmd: "setmainfile", url: filename });
     }
-
+    /**
+     * Writes a file to the in-memory filesystem managed by the LaTeX worker.
+     * 
+     * @param filename - The name (or URL path) of the file to be written.
+     * @param srcCode - The source code or content to write into the file.
+     */
     writeMemFSFile(filename: string, srcCode: string): void {
         this.checkEngineStatus();
         this.latexWorker?.postMessage({ cmd: "writefile", url: filename, src: srcCode });

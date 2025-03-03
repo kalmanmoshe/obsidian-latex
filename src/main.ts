@@ -14,10 +14,11 @@ import { MosheMathSettingTab } from "./settings/settings_tab";
 
 
 import { getEditorCommands } from "./obsidian/editor_commands";
-import { SwiftlatexRender } from "./latexRender/main";
+import { SwiftlatexRender, waitFor } from "./latexRender/main";
 import { processMathBlock } from "./mathParser/iNeedToFindABetorPlace";
 import { readAndParseSVG } from "./latexRender/svg2latex/temp";
 import { MathJaxAbstractSyntaxTree } from "./latexRender/parse/mathJaxAbstractSyntaxTree";
+import { getFileSets, getPreambleFromFiles } from "./file_watch";
 
 /**
  * Assignments:
@@ -30,8 +31,19 @@ import { MathJaxAbstractSyntaxTree } from "./latexRender/parse/mathJaxAbstractSy
  * - Create a parser that makes LaTeX error messages more sensible.
  * - Create qna for better Searching finding and styling
  */
+
+/**
+ * - `\include{}` → Creates `.aux` files and includes the content, which **does** affect compile time.
+- `\input{}` → Directly injects the content **without** creating separate `.aux` files, still affecting compile time.
+- External files via `\externaldocument{}` (for `xr` or `xr-hyper`) → Adds lookup time for cross-references.
+ */
+/**
+ * With Corpriambola whatever is loaded is loaded if explicit. I have to make sure that.only the files is specified are loaded To the engine.
+ */
 interface MosheMathTypingApi {
   context: any;
+  fileSuggest: any;
+  addToggleSetting: any;
 }
 
 export let staticMosheMathTypingApi: null|MosheMathTypingApi= null;
@@ -45,7 +57,7 @@ export default class Moshe extends Plugin {
     console.log("Loading Moshe math plugin")
     //readAndParseSVG().then((res: any)=>console.log(res))
     await this.loadSettings();
-    await this.loadPreamble();
+    await this.loadMathJax();
 		this.addSettingTab(new MosheMathSettingTab(this.app, this));
     this.addEditorCommands();
     this.app.workspace.onLayoutReady(() => {
@@ -63,12 +75,18 @@ export default class Moshe extends Plugin {
     try{
       //@ts-ignore
       const plugins = this.app.plugins
-      const observerId = observeSet(plugins.enabledPlugins, (added, removed,) => {
-        if (added.length && plugins.enabledPlugins.has("moshe-math-typing")) {
-          staticMosheMathTypingApi = plugins.plugins["moshe-math-typing"].getAPI();
-          clearInterval(observerId);
-        }
-      });
+      if(plugins.enabledPlugins.has("moshe-math-typing")){
+        staticMosheMathTypingApi = plugins.plugins["moshe-math-typing"].getAPI();
+      }
+      else{
+        const observerId = observeSet(plugins.enabledPlugins, (added, removed,) => {
+          if (added.length && plugins.enabledPlugins.has("moshe-math-typing")) {
+            staticMosheMathTypingApi = plugins.plugins["moshe-math-typing"].getAPI();
+            console.log("updateApiHooks staticMosheMathTypingApi",staticMosheMathTypingApi)
+            clearInterval(observerId);
+          }
+        });
+      }
     }catch(e){
       console.error(e);
       new Notice("Could not find moshe-math-typing plugin. Please install and/or activate it");
@@ -87,12 +105,21 @@ export default class Moshe extends Plugin {
     await this.swiftlatexRender.onload(this);
   }
 
-  private addSyntaxHighlighting(){
-    //@ts-ignore
-    window.CodeMirror.modeInfo.push({name: "latexsvg", mime: "text/x-latex", mode: "stex"});
-    //@ts-ignore
-    window.CodeMirror.modeInfo.push({name: "Tikz", mime: "text/x-latex", mode: "stex"});
-  }
+  private addSyntaxHighlighting() {
+    if (!window.CodeMirror) return; 
+
+    // @ts-ignore
+    const codeMirrorCodeBlocksSyntaxHighlighting = window.CodeMirror.modeInfo;
+
+    if (!codeMirrorCodeBlocksSyntaxHighlighting.some((el: any) => el.name === "latexsvg")) {
+        codeMirrorCodeBlocksSyntaxHighlighting.push({ name: "latexsvg", mime: "text/x-latex", mode: "stex" });
+    }
+
+    if (!codeMirrorCodeBlocksSyntaxHighlighting.some((el: any) => el.name === "Tikz")) {
+        codeMirrorCodeBlocksSyntaxHighlighting.push({ name: "Tikz", mime: "text/x-latex", mode: "stex" });
+    }
+}
+
 
   private removeSyntaxHighlighting(){
     //@ts-ignore
@@ -105,55 +132,88 @@ export default class Moshe extends Plugin {
 			this.addCommand(command);
 		}
 	}
-  private async loadPreamble(): Promise<void> {
-    let preamble: string = "";
-    try {
-      preamble = await this.app.vault.adapter.read(this.settings.preambleFileLocation);
-    } catch (e) {
-      console.warn(`Failed to read preamble file: ${e}`);
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async loadMathJax(): Promise<void> {
     const MJ: any = MathJax;
-  
-    const myCustomPreprocessor = (input: string): string => {
-      const ast= new MathJaxAbstractSyntaxTree();
-      ast.prase(input);
-      ast.reverseRtl();
-      return ast.toString();
-    };
-  
-    // If MathJax.tex2chtml is already defined, override it to include the preprocessor.
-    if (MJ.tex2chtml !== undefined) {
-      // Save the original function if not already saved
+    // Get the preamble content if enabled; otherwise use an empty string.
+    const preamble: string = this.settings.preambleEnabled 
+      ? await this.getPreamble() 
+      : "";
+    if (typeof MJ.tex2chtml !== "undefined") {
       if (!MJ._originalTex2chtml) {
         MJ._originalTex2chtml = MJ.tex2chtml;
       }
-      // Override tex2chtml so it runs the preprocessor first.
-      MJ.tex2chtml = (input: string, display: boolean) => {
-        const processedInput = myCustomPreprocessor(input);
-        return MJ._originalTex2chtml.call(MJ, processedInput, display);
-      };
   
-      // Process the preamble through the new tex2chtml
-      MJ.tex2chtml(preamble);
+      MJ.tex2chtml = (input: string, options: { display: boolean }): any => {
+        const processedInput = this.processMathJax(input);
+        return MJ._originalTex2chtml.call(MJ, processedInput, options);
+      };
+      MJ.tex2chtml(preamble, { display: false });
     } else {
-      // If tex2chtml isn't defined yet, hook into startup.ready.
       MJ.startup.ready = () => {
         MJ.startup.defaultReady();
-        const processedPreamble = myCustomPreprocessor(preamble);
-        MJ.tex2chtml(processedPreamble);
+        const processedPreamble = this.processMathJax(preamble);
+        MJ.tex2chtml(processedPreamble, { display: false });
       };
     }
+  }
+  
+  private async getPreamble(): Promise<string> {
+    const mathjaxPreambleFiles = getFileSets(this).mathjaxPreambleFiles;
+    const preambles = await getPreambleFromFiles(this, mathjaxPreambleFiles);
+    return preambles.map((preamble) => preamble.content).join("\n");
+  }
+
+  
+  private processMathJax(input: string): string {
+    const ast = new MathJaxAbstractSyntaxTree();
+    ast.parse(input);
+    ast.reverseRtl();
+    return ast.toString();
   }
   
   private async loadSettings() {
     let data = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+    await this.saveData(this.settings);
+    this.settings.corePreambleFileLocation = "obsidian/data/Files/coorPreamble.sty"
+
+    if(this.settings.preambleEnabled)
+      this.app.workspace.onLayoutReady(() => {
+        this.processLatexPreambles();
+      });
   }
 
   async saveSettings(didFileLocationChange = false) {
+    await this.loadData();
 		await this.saveData(this.settings);
+    this.processLatexPreambles(didFileLocationChange);
 	}
+
+  async processLatexPreambles(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
+    const preambles = await this.getPreambleFiles(becauseFileLocationUpdated, becauseFileUpdated)
+    // Wait for the swiftlatexRender to be ready before setting the preambles.
+    await waitFor(() => typeof this.swiftlatexRender !== "undefined" && this.swiftlatexRender.pdfEngine.isReady());
+    this.swiftlatexRender.setCoorPreambles(preambles.corePreambleFiles);
+    //this.swiftlatexRender.setExplicitPreamble(preambles.explicitPreamble);
+  }
+  
+  async getPreambleFiles(becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean){
+    const files = getFileSets(this);
+    const corePreambleFiles = await getPreambleFromFiles(this,files.corePreambleFiles);
+    const explicitPreambleFiles = await getPreambleFromFiles(this,files.explicitPreambleFiles);
+    this.showPreambleLoadedNotice(corePreambleFiles.length, explicitPreambleFiles.length,  becauseFileLocationUpdated, becauseFileUpdated);
+    return {corePreambleFiles, explicitPreambleFiles};
+  }
+
+  showPreambleLoadedNotice(nCoorPreambleFiles: number,nExplicitPreambleFiles: number,becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean){
+    if (!(becauseFileLocationUpdated || becauseFileUpdated))return;
+    const prefix = becauseFileLocationUpdated ? "Loaded " : "Successfully reloaded ";
+    const body = [];
+    body.push(`${nCoorPreambleFiles} coor preamble fils`);
+    body.push(`${nExplicitPreambleFiles} explicit preamble files`);
+		const suffix = ".";
+		new Notice(prefix + body.join(" and ") + suffix, 5000);
+  }
 }
 
 

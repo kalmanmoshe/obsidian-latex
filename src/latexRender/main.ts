@@ -12,8 +12,9 @@ import { StringMap } from 'src/settings/settings.js';
 import { getPreamble } from 'src/tikzjax/interpret/tokenizeTikzjax';
 import async from 'async';
 import { LatexAbstractSyntaxTree } from './parse/parse';
+import { PreambleFile } from 'src/file_watch';
 const PdfToCairo = require("./pdftocairo.js")
-const waitFor = async (condFunc: () => boolean) => {
+export const waitFor = async (condFunc: () => boolean) => {
 	return new Promise<void>((resolve) => {
 		if (condFunc()) {
 		resolve();
@@ -37,6 +38,7 @@ export class SwiftlatexRender {
 	pdfEngine: PdfTeXEngine;
 	cache: Map<string, Set<string>>;
 	queue: async.QueueObject<Task>;
+	coorPreambleFiles: PreambleFile[];
 	async onload(plugin: Moshe) {
 		this.plugin = plugin;
 		this.validateCatchDirectory();
@@ -56,23 +58,19 @@ export class SwiftlatexRender {
 		
 		this.queue = async.queue((task, done) => {
 			task.source=getPreamble(this.plugin.app)+task.source+"\n\\end{tikzpicture}\\end{document}"
-
+			
 			const ast = new LatexAbstractSyntaxTree();
 			try {
-				ast.prase(task.source);
+				ast.parse(task.source);
 				ast.a();
 				ast.cleanUpDefs()
 				const myAst = ast.myAst;
-				//console.log("source", ast.ast,ast.myAst,myAst.toString());
-				const a= String.raw`{\begin{aligned}&OD=OC=R     \\&    \sphericalangle BOC=2a\text{זוויתכזית שווה לכפליים הזווית ההיקפית הנשענת על אותה קשת}{  \hra  }\sphericalangle DOC=a     \\&    \triangle DOC=0.5\cdot R\cdot R\cdot \sin a=\ans{0.5R^{2}\sin(a)}\end{aligned}}`
-				const ast2=new LatexAbstractSyntaxTree();
-				ast2.parseMath(a)
 				//console.log(a,ast2)
 				ast.deleteComments();
 				task.source = ast.toString();
 			} catch (e) {
 				console.error("Error parsing latex", e);
-				ast.prase(task.source);
+				ast.parse(task.source);
 				ast.deleteComments();
 				task.source = ast.toString();
 			}
@@ -133,7 +131,16 @@ export class SwiftlatexRender {
 			this.cache = new Map();
 		}
 	}
-
+	setCoorPreambles(preambleFiles: PreambleFile[]){
+		this.coorPreambleFiles=preambleFiles;
+		console.log("preambleFiles",preambleFiles)
+		preambleFiles.forEach(file => {
+			this.pdfEngine.writeMemFSFile("coorPreamble.tex", file.content);
+		});
+	}
+	private updateExplicitPreambleFilesInWorker(){
+		if(!this.plugin.settings.explicitPreambleEnabled)throw new Error("Explicit preamble is not enabled");
+	}
 	private async loadCache() {
 		this.cache = new Map(this.plugin.settings.cache);
 		// For some reason `this.cache` at this point is actually `Map<string, Array<string>>`
@@ -231,8 +238,8 @@ export class SwiftlatexRender {
 		});
 	}
 	universalCodeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
-			el.classList.remove("block-language-tikz");
-			el.classList.add("block-language-latexsvg");
+		el.classList.remove("block-language-tikz");
+		el.classList.add("block-language-latexsvg");
 		const md5Hash = this.hashLatexSource(source);
 		// PDF file has already been cached
 		// Could have a case where pdfCache has the key but the cached file has been deleted
@@ -253,7 +260,7 @@ export class SwiftlatexRender {
 	private async renderLatexToElement(source: string, el: HTMLElement,md5Hash:string, sourcePath: string,) {
 		return new Promise<void>((resolve, reject) => {
 			const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${catchFileFormat}`);
-			this.renderLatexToPDF(source, md5Hash).then((result: CompileResult) => {
+			this.renderLatexToPDF(source).then((result: CompileResult) => {
 					el.innerHTML = ""
 					this.translatePDF(result.pdf, el).then(() => {
 						fs.writeFileSync(dataPath,el.innerHTML);
@@ -295,9 +302,9 @@ export class SwiftlatexRender {
 		  }
 		}
 		return svg;
-	  }
+	}
 
-	private renderLatexToPDF(source: string, md5Hash: string): Promise<CompileResult> {
+	private renderLatexToPDF(source: string): Promise<CompileResult> {
 		return new Promise(async (resolve, reject) => {
 			temp.mkdir("obsidian-swiftlatex-renderer", async (err: any, dirPath: any) => {
 				
@@ -308,7 +315,6 @@ export class SwiftlatexRender {
 					return;
 				}
 				if (err) reject(err);
-
 				this.pdfEngine.writeMemFSFile("main.tex", source);
 				this.pdfEngine.setEngineMainFile("main.tex");
 				this.pdfEngine.compileLaTeX().then((result: CompileResult) => {
@@ -559,7 +565,6 @@ class SwiftLatexError {
             // 1. Extract version information from LaTeX2e and L3 programming layer lines.
             if (line.startsWith("LaTeX2e")) {
                 versionInfo = line;
-                console.log("Step: Detected LaTeX2e version:", line);
             } else if (line.startsWith("L3 programming layer")) {
                 versionInfo += versionInfo ? " | " + line : line;
             }
@@ -639,7 +644,8 @@ class SwiftLatexError {
             mainError,
             warnings,
             usedPackages,
-            configurationFiles
+            configurationFiles,
+			fullLog: lines
         });
 
         return new SwiftLatexError(versionInfo, mainError, warnings, usedPackages, configurationFiles);

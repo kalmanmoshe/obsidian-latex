@@ -1,9 +1,13 @@
 {
-  "preambleFileLocation": "obsidian/data/Files/preamble.sty",
+  "preambleEnabled": true,
+  "corePreambleFileLocation": "obsidian/data/Files/coorPreamble.sty",
+  "mathjaxPreambleFileLocation": "",
+  "explicitPreambleEnabled": false,
+  "explicitPreambleFromCodeBlocks": false,
+  "explicitPreambleFileLocation": "",
   "invertColorsInDarkMode": true,
-  "numberFormatting": ".000",
+  "numberFormatting": 1000,
   "package_url": "https://texlive2.swiftlatex.com/",
-  "timeout": 10000,
   "cache": [
     [
       "1eebf99d51cbec3b5f7cf20a544ad3b9",
@@ -102,12 +106,6 @@
       ]
     ],
     [
-      "e3b386f73c0b90915548a28e94ce8b4d",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
       "8b37e6176343329869019853c7c7e066",
       [
         "Untitled 2.md"
@@ -118,16 +116,19 @@
       [
         "Untitled 2.md"
       ]
+    ],
+    [
+      "3673a1db6d55dfb37cc29dd1d319a582",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
     ]
   ],
   "packageCache": [
     {
       "26/tikzlibrarypgfplots.surfshading.code.tex": 1,
       "26/tikzlibraryarrows.meta.code.tex": 1,
-      "26/numprint.cfg": 1,
-      "26/main.aux": 1,
-      "33/cmmi10.vf": 1,
-      "33/cmr10.vf": 1
+      "26/numprint.cfg": 1
     },
     {
       "32/cmmi10.pfb": "/tex/cmmi10.pfb",
@@ -371,42 +372,6 @@
     {},
     {}
   ],
-  "loadPreambleFromFile": true,
-  "snippets": "[]",
-  "snippetsEnabled": true,
-  "snippetsTrigger": "Tab",
-  "suppressSnippetTriggerOnIME": true,
-  "removeSnippetWhitespace": true,
-  "autoDelete$": true,
-  "loadSnippetsFromFile": true,
-  "snippetsFileLocation": "obsidian/data/Snippets",
-  "concealEnabled": false,
-  "concealRevealTimeout": 0,
-  "colorPairedBracketsEnabled": true,
-  "highlightCursorBracketsEnabled": true,
-  "mathPreviewEnabled": true,
-  "mathPreviewPositionIsAbove": true,
-  "matrixShortcutsEnabled": true,
-  "taboutEnabled": true,
-  "autoEnlargeBrackets": true,
-  "wordDelimiters": "., +-\\n\t:;!?\\/{}[]()=~$",
-  "background": "#44475A",
-  "evenRowBackground": "#f9f9f9",
-  "oddRowBackground": "#747688",
-  "infoModalBackground": "#002B36",
-  "fontSize": "0.85em",
-  "rowPadding": "5px 10px",
-  "iconSize": "14px",
-  "sessionHistory": [],
-  "autofractionExcludedEnvs": "[\n\t\t[\"^{\", \"}\"],\n\t\t[\"\\\\pu{\", \"}\"]\n\t]",
-  "matrixShortcutsEnvNames": "pmatrix, cases, align, gather, bmatrix, Bmatrix, vmatrix, Vmatrix, array, matrix",
-  "autoEnlargeBracketsTriggers": "sum, int, frac, prod, bigcup, bigcap",
-  "forceMathLanguages": "math",
-  "forceTranslateLanguages": "tikz",
-  "suggestorLanguages": "tikz",
-  "snippetVariables": "{}",
-  "loadSnippetVariablesFromFile": false,
-  "snippetVariablesFileLocation": "",
-  "onlyRenderInReadingMode": false,
-  "enableCache": true
+  "explicitPreambleDirectory": "",
+  "preambleFileLocation": "obsidian/data/Files/preamble.sty"
 }

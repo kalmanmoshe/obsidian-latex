@@ -88,7 +88,7 @@ export class LatexAbstractSyntaxTree{
     libraries: Array<string>;
     ast: any;
     myAst: Root;
-    prase(latex: string){
+    parse(latex: string){
         this.ast = parse(latex);
     }
     parseMath(latex: string){
