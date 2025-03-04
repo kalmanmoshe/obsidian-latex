@@ -31,7 +31,6 @@ var Module:any = typeof Module !== "undefined" ? Module :
 export default Module;
 
 
-
 const TEXCACHEROOT = "/tex";
 const WORKROOT = "/work";
 self.memlog = "";
@@ -252,8 +251,55 @@ function writeTexFileRoutine(filename, content) {
   }
 }
 
+function findWorkDirectory(node: any): any | undefined {
+  // Base case: if the current node is the "work" directory, return it.
+  if (node.name === 'work') {
+    return node;
+  }
+  // Ensure the node has a 'contents' property to traverse.
+  if (node.contents && typeof node.contents === 'object') {
+    for (const key in node.contents) {
+      if (Object.prototype.hasOwnProperty.call(node.contents, key)) {
+        const child = node.contents[key];
+        // Recursively search in the child node.
+        const result = findWorkDirectory(child);
+        if (result) {
+          return result;
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+function transferWorkFilesToHost() {
+  let dir = findWorkDirectory(FS.root);
+  if (!dir) {
+    postMessage({ result: "failed", cmd: "fetchworkfiles" });
+    return; 
+  }
   
-function transferTexFileToHost(filename) {
+  const files = [];
+  //Yeah, There is a problem with you, I can't seem to sound good.
+  for (const key in dir.contents) {
+    console.log("key", key,dir.content[key],Object.prototype.hasOwnProperty.call(dir.contents, key));
+    if (Object.prototype.hasOwnProperty.call(dir.contents, key)) {
+      try {
+        const fileData = FS.readFile(WORKROOT + "/" + key, {
+          encoding: "binary",
+        });
+        files.push(fileData);
+      } catch (error) {
+        console.error(`Error reading file "${key}":`, error);
+      }
+    }
+  }
+  console.log("dir", dir,);
+  postMessage({ result: "ok", cmd: "fetchworkfiles", files: files });
+}
+
+  
+function transferTexFileToHost(filename: string) {
   try {
     let content = FS.readFile(TEXCACHEROOT + "/" + filename, {
       encoding: "binary",
@@ -317,9 +363,16 @@ self["onmessage"] = function (ev) {
       break;
     case "flushcache":
       cleanDir(WORKROOT);
+      cleanDir(TEXCACHEROOT);
+      break;
+    case "flushworkdir":
+      cleanDir(WORKROOT);
       break;
     case "fetchfile":
       transferTexFileToHost(data["filename"]);
+      break;
+    case "fetchWorkFiles":
+      transferWorkFilesToHost();
       break;
     case "fetchcache":
       transferCacheDataToHost();
@@ -370,7 +423,7 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
   try {
     xhr.send();
   } catch (err) {
-    console.log("TexLive Download Failed " + remote_url);
+    console.warn("TexLive Download Failed " + remote_url, err);
     return 0;
   }
   if (xhr.status === 200) {
@@ -381,7 +434,7 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
     texlive200_cache[cacheKey] = savepath;
     return _allocate(intArrayFromString(savepath));
   } else if (xhr.status === 301) {
-    //console.log("TexLive File not exists " + remote_url);
+    console.warn("TexLive File not exists " + remote_url);
     texlive404_cache[cacheKey] = 1;
     return 0;
   }

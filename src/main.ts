@@ -6,7 +6,7 @@
 //git pull --all#Pull all branches
 //git push --all#Push all branches
 
-import {Plugin,addIcon ,Notice,loadMathJax,} from "obsidian";
+import {Plugin,addIcon ,Notice,loadMathJax, htmlToMarkdown,} from "obsidian";
 
 
 import {MosheMathPluginSettings, DEFAULT_SETTINGS, processMosheMathSettings} from "./settings/settings";
@@ -110,11 +110,9 @@ export default class Moshe extends Plugin {
 
     // @ts-ignore
     const codeMirrorCodeBlocksSyntaxHighlighting = window.CodeMirror.modeInfo;
-
     if (!codeMirrorCodeBlocksSyntaxHighlighting.some((el: any) => el.name === "latexsvg")) {
         codeMirrorCodeBlocksSyntaxHighlighting.push({ name: "latexsvg", mime: "text/x-latex", mode: "stex" });
     }
-
     if (!codeMirrorCodeBlocksSyntaxHighlighting.some((el: any) => el.name === "Tikz")) {
         codeMirrorCodeBlocksSyntaxHighlighting.push({ name: "Tikz", mime: "text/x-latex", mode: "stex" });
     }
@@ -158,7 +156,9 @@ export default class Moshe extends Plugin {
   }
   
   private async getPreamble(): Promise<string> {
+    this.settings.mathjaxPreambleFileLocation = "obsidian/data/Files/preamble.sty"
     const mathjaxPreambleFiles = getFileSets(this).mathjaxPreambleFiles;
+
     const preambles = await getPreambleFromFiles(this, mathjaxPreambleFiles);
     return preambles.map((preamble) => preamble.content).join("\n");
   }
@@ -175,7 +175,7 @@ export default class Moshe extends Plugin {
     let data = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
     await this.saveData(this.settings);
-    this.settings.corePreambleFileLocation = "obsidian/data/Files/coorPreamble.sty"
+    //this.settings.corePreambleFileLocation = "obsidian/data/Files/coorPreamble.sty"
 
     if(this.settings.preambleEnabled)
       this.app.workspace.onLayoutReady(() => {
@@ -186,10 +186,12 @@ export default class Moshe extends Plugin {
   async saveSettings(didFileLocationChange = false) {
     await this.loadData();
 		await this.saveData(this.settings);
-    this.processLatexPreambles(didFileLocationChange);
+    if(didFileLocationChange)
+      this.processLatexPreambles(didFileLocationChange);
 	}
 
   async processLatexPreambles(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
+
     const preambles = await this.getPreambleFiles(becauseFileLocationUpdated, becauseFileUpdated)
     // Wait for the swiftlatexRender to be ready before setting the preambles.
     await waitFor(() => typeof this.swiftlatexRender !== "undefined" && this.swiftlatexRender.pdfEngine.isReady());

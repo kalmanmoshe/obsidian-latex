@@ -22,19 +22,21 @@ export class CompileResult {
 }
 
 enum latexWorkerCommands {
-  Compilelatex = "compilelatex",
-  grace = "grace",
-  settexliveurl = "settexliveurl",
-  flushcache = "flushcache",
-  mkdir = "mkdir",
-  compileformat = "compileformat",
-  fetchcache = "fetchcache",
-  writecache = "writecache",
-  fetchFSRoot = "fetchFSRoot",
-  fetchfile = "fetchfile",
-  writetexfile = "writetexfile",
-  setmainfile = "setmainfile",
-  writefile = "writefile",
+    Compilelatex = "compilelatex",
+    Grace = "grace",
+    Settexliveurl = "settexliveurl",
+    Flushcache = "flushcache",
+    Mkdir = "mkdir",
+    Compileformat = "compileformat",
+    Fetchcache = "fetchcache",
+    writecache = "writecache",
+    Fetchfile = "fetchfile",
+    fetchWorkFiles = "fetchWorkFiles",
+    Writetexfile = "writetexfile",
+    Setmainfile = "setmainfile",
+    Writefile = "writefile",
+    Flushhcatche = "flushcache",
+    FlushWorkDirectory="flushworkdir",
 }
 
 export class PdfTeXEngine {
@@ -82,14 +84,14 @@ export class PdfTeXEngine {
 
         const result = await new Promise<CompileResult>((resolve) => {
             this.latexWorker!.onmessage = (ev:MessageEvent<any>) => {
-            const data = ev.data;
-            if (data.cmd !== "compile") return;
+                const data = ev.data;
+                if (data.cmd !== "compile") return;
 
-            this.latexWorkerStatus = EngineStatus.Ready;
-            console.log(`Engine compilation finished in ${performance.now() - startCompileTime} ms`);
-            //console.log("data.myLog",data);
-            const compileResult = new CompileResult(data.pdf?Buffer.from(new Uint8Array(data.pdf)):undefined, data.status, data.log);
-            resolve(compileResult);
+                this.latexWorkerStatus = EngineStatus.Ready;
+                console.log(`Engine compilation finished in ${performance.now() - startCompileTime} ms`);
+                //console.log("data.myLog",data);
+                const compileResult = new CompileResult(data.pdf?Buffer.from(new Uint8Array(data.pdf)):undefined, data.status, data.log);
+                resolve(compileResult);
             };
 
             this.latexWorker!.postMessage({ cmd: "compilelatex" });
@@ -149,6 +151,26 @@ export class PdfTeXEngine {
         this.latexWorker?.postMessage({ cmd: latexWorkerCommands.writecache, texlive404_cache, texlive200_cache, pk404_cache, pk200_cache });
     }
 
+    async fetchWorkFiles() {
+        this.latexWorker!.postMessage({ cmd: latexWorkerCommands.fetchWorkFiles });
+      
+        return new Promise<void>((resolve, reject) => {
+          this.latexWorker!.onmessage = (event: MessageEvent) => {
+
+            if (event.data.cmd === latexWorkerCommands.fetchWorkFiles) {
+              this.latexWorker!.onmessage = null;
+                console.log("event.data",event.data);
+              if (event.data.result === "ok") {
+                resolve();
+              } else {
+                reject(new Error("Failed to fetch work files"));
+              }
+            }
+          };
+        });
+      }
+      
+
     async fetchTexFiles(filenames: string[], hostDir: string): Promise<void> {
         this.latexWorker!.postMessage({ cmd: "fetchcache" });
         this.latexWorker!.onmessage = (ev:MessageEvent<any>) => {
@@ -159,7 +181,7 @@ export class PdfTeXEngine {
                 console.error("Failed to fetch cache data");
               }
             }
-          };
+        };
 
         const resolves = new Map<string, () => void>();
         if(this.latexWorker===undefined)throw new Error("Worker is not loaded");
@@ -174,8 +196,7 @@ export class PdfTeXEngine {
             if (data.result === "ok") {
             resolves.get(data.filename)?.();
             } else {
-            
-            console.error(`Failed to fetch ${data.filename} from memfs`);
+                console.error(`Failed to fetch ${data.filename} from memfs`);
             }
         };
 
@@ -217,9 +238,13 @@ export class PdfTeXEngine {
         this.latexWorker?.postMessage({ cmd: "mkdir", url: folder });
     }
 
+    cleanWorkirectory(): void {
+        this.checkEngineStatus();
+        this.latexWorker?.postMessage({ cmd: latexWorkerCommands.FlushWorkDirectory });
+    }
     flushCache(): void {
         this.checkEngineStatus();
-        this.latexWorker?.postMessage({ cmd: "flushcache" });
+        this.latexWorker?.postMessage({ cmd: latexWorkerCommands.Flushcache });
     }
 
     setTexliveEndpoint(url: string): void {
