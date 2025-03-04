@@ -152,11 +152,11 @@ export class PdfTeXEngine {
     }
 
     async fetchWorkFiles() {
+        console.log("fetchWorkFiles posting message");
         this.latexWorker!.postMessage({ cmd: latexWorkerCommands.fetchWorkFiles });
-      
         return new Promise<void>((resolve, reject) => {
           this.latexWorker!.onmessage = (event: MessageEvent) => {
-
+            console.log("fetchWorkFiles onmessage",event.data);
             if (event.data.cmd === latexWorkerCommands.fetchWorkFiles) {
               this.latexWorker!.onmessage = null;
                 console.log("event.data",event.data);

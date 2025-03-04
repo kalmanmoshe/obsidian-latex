@@ -6,7 +6,7 @@
 //git pull --all#Pull all branches
 //git push --all#Push all branches
 
-import {Plugin,addIcon ,Notice,loadMathJax, htmlToMarkdown,} from "obsidian";
+import {Plugin,addIcon ,Notice,loadMathJax, htmlToMarkdown, FileSystemAdapter,} from "obsidian";
 
 
 import {MosheMathPluginSettings, DEFAULT_SETTINGS, processMosheMathSettings} from "./settings/settings";
@@ -216,6 +216,13 @@ export default class Moshe extends Plugin {
 		const suffix = ".";
 		new Notice(prefix + body.join(" and ") + suffix, 5000);
   }
+  getVaultPath() {
+      if (this.app.vault.adapter instanceof FileSystemAdapter) {
+        return this.app.vault.adapter.getBasePath();
+      } else {
+        throw new Error("Moshe: Could not get vault path.");
+      }
+    }
 }
 
 

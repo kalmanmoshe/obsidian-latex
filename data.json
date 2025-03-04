@@ -112,12 +112,6 @@
       ]
     ],
     [
-      "9381c43481a15f94dcde72061c804dff",
-      [
-        "Untitled 2.md"
-      ]
-    ],
-    [
       "cc26ba9e5bac5a6c5d84d8c7e8dde4b2",
       [
         "moshe/latex/tikz/Commands.md"
@@ -334,9 +328,15 @@
       ]
     ],
     [
-      "d26fa1ad7703040a125411b77224258b",
+      "5a41346190b1458283dc9b5624ae583c",
       [
         "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "9ee12da742a8303e7e1a29da788b68eb",
+      [
+        "Untitled 2.md"
       ]
     ]
   ],
@@ -346,14 +346,7 @@
       "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/numprint.cfg": 1,
       "26/main.aux": 1,
-      "33/cmr12.vf": 1,
-      "33/cmmi12.vf": 1,
-      "33/cmsy10.vf": 1,
-      "33/cmr17.vf": 1,
-      "33/cmr8.vf": 1,
-      "33/cmmi8.vf": 1,
-      "33/cmsy8.vf": 1,
-      "33/cmr10.vf": 1
+      "33/cmmi10.vf": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -603,11 +596,14 @@
       "32/cmmi8.pfb": "/tex/cmmi8.pfb",
       "32/cmr8.pfb": "/tex/cmr8.pfb",
       "32/cmsy8.pfb": "/tex/cmsy8.pfb",
-      "32/cmr10.pfb": "/tex/cmr10.pfb"
+      "32/cmr10.pfb": "/tex/cmr10.pfb",
+      "26/cmr5.pfb": "/tex/cmr5.pfb",
+      "32/cmmi10.pfb": "/tex/cmmi10.pfb"
     },
     {},
     {}
   ],
-  "explicitPreambleDirectory": "",
-  "preambleFileLocation": "obsidian/data/Files/preamble.sty"
+  "preambleFileLocation": "obsidian/data/Files/preamble.sty",
+  "timeout": 10000,
+  "explicitPreambleDirectory": ""
 }
