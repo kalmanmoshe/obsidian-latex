@@ -69,9 +69,46 @@
 }
 
 
+.moshe-swift-latex-error-container {
+  background: #ffe6e6;
+  color: #a94442;
+  border-left: 5px solid #d9534f;
+  padding: 12px 16px;
+  margin: 10px auto; /* Centers the element */
+  font-family: "Courier New", Courier, monospace;
+  border-radius: 6px;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  position: relative;
+  width: 80%; /* Makes it take most of the available width */
+  max-width: 600px; /* Prevents it from becoming too wide on larger screens */
+}
 
 
+.moshe-swift-latex-error-content {
+  display: flex;
+  flex-direction: column;
+}
 
+.moshe-swift-latex-error-title {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.moshe-swift-latex-error-cause {
+  font-size: 13px;
+  color: #8b3c3a;
+  margin-top: 4px;
+}
+
+.moshe-swift-latex-error-line{
+  font-size: 12px;
+  font-weight: bold;
+  color: #721c24;
+  margin-top: 6px;
+}
 
 
 

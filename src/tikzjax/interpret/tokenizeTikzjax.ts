@@ -427,7 +427,7 @@ export function getPreamble(app: App):string{
         //styContent = getStyFileContent(preamblePath);
     }
     styContent=styContent.split('\n').filter(line=>!line.match(/(int|frac)/)).join('\n')
-    return '\\documentclass{standalone}'+"\\input{coorPreamble.tex}"+myPreable+styContent+"\\pgfplotsset{compat=1.16}\\begin{document}\\begin{tikzpicture}"
+    return '\\documentclass{standalone}'+""+myPreable+styContent+"\\pgfplotsset{compat=1.16}\\begin{document}\\begin{tikzpicture}"
 }
 
 

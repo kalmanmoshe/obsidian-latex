@@ -52,6 +52,7 @@ const filePathMatch=(plugin: Moshe, file: TFile)=>{
 
 const shouldRefreshFile = (match: { enabled: any; isFile: any; isInFolder: any; }) =>
 	match.enabled && (match.isFile || match.isInFolder);
+
 export const onFileChange = async (plugin: Moshe, file: TAbstractFile) => {
 	if (!(file instanceof TFile)) return;
 	const fileMatches = Object.values(filePathMatch(plugin, file));
@@ -62,6 +63,7 @@ export const onFileChange = async (plugin: Moshe, file: TAbstractFile) => {
 
 const isFolderMonitored = (match: { enabled: boolean; isInFolder: boolean }) =>
 	match.enabled && match.isInFolder;
+
 export const onFileCreate = (plugin: Moshe, file: TAbstractFile) => {
 	if (!(file instanceof TFile)) return;
 	const monitoredFolders = Object.values(filePathMatch(plugin, file));
@@ -73,7 +75,6 @@ export const onFileCreate = (plugin: Moshe, file: TAbstractFile) => {
 
 export const onFileDelete = (plugin: Moshe, file: TAbstractFile) => {
 	if (!(file instanceof TFile)) return;
-	console.log("file deleted",plugin.settings);
 	const match = (file: TFile) =>{
 		const {
 			preambleEnabled,

@@ -13,6 +13,7 @@ import { getPreamble } from 'src/tikzjax/interpret/tokenizeTikzjax';
 import async from 'async';
 import { LatexAbstractSyntaxTree } from './parse/parse';
 import { PreambleFile } from 'src/file_watch';
+import LatexParser, { errorDiv } from './swiftlatexpdftex/log';
 const PdfToCairo = require("./pdftocairo.js")
 export const waitFor = async (condFunc: () => boolean) => {
 	return new Promise<void>((resolve) => {
@@ -133,7 +134,6 @@ export class SwiftlatexRender {
 	}
 	setCoorPreambles(preambleFiles: PreambleFile[]){
 		this.coorPreambleFiles=preambleFiles;
-		console.log("preambleFiles",preambleFiles)
 		preambleFiles.forEach(file => {
 			this.pdfEngine.writeMemFSFile("coorPreamble.tex", file.content);
 		});
@@ -185,7 +185,7 @@ export class SwiftlatexRender {
 	);
 	}
 	onunload() {
-		this.pdfEngine.flushCache();
+		this.pdfEngine.cleanWorkirectory();
 		this.pdfEngine.closeWorker();
 		this.cleanUpCache();
 	}
@@ -198,28 +198,7 @@ export class SwiftlatexRender {
 		//i need to also remove all comments
 		return Md5.hashStr(source.replace(/\s/g, ''))
 	}
-
-	private async pdfToHtml(pdfData: Buffer<ArrayBufferLike>) {
-		const {width, height} = await this.getPdfDimensions(pdfData);
-		const ratio = width / height;
-		const pdfblob = new Blob([pdfData], { type: 'application/pdf' });
-		const objectURL = URL.createObjectURL(pdfblob);
-		return  {
-			attr: {
-			data: `${objectURL}#view=FitH&toolbar=0`,
-			type: 'application/pdf',
-			class: 'block-lanuage-latex',
-			style: `width:100%; aspect-ratio:${ratio}`
-			}
-		};
-	}
 	
-	private async getPdfDimensions(pdf: any): Promise<{width: number, height: number}> {
-		const pdfDoc = await PDFDocument.load(pdf);
-		const firstPage = pdfDoc.getPages()[0];
-		const {width, height} = firstPage.getSize();
-		return {width, height};
-	}
 	private pdfToSVG(pdfData: any) {
 		return PdfToCairo().then((pdftocairo: any) => {
 			pdftocairo.FS.writeFile('input.pdf', pdfData);
@@ -267,15 +246,20 @@ export class SwiftlatexRender {
 					});
 				}).catch(err => {
 					el.innerHTML = "";
-					SwiftLatexError.interpret(err);
-					el.createEl('div', { text: `swiftlatexError`/*text: `${err}`*/, attr: { class: 'block-latex-error' } });
+					const log=LatexParser.parse(err)
+					console.error("LaTeX Error:", log);
+					const { message, content, line } = log.errors[0];
+					el.appendChild(errorDiv(message, content, line));
 					reject(err); 
 				});		
 			this.addFileToCache(md5Hash, sourcePath);
 			resolve();
-		}).then(() => { 
-			//this.pdfEngine.flushCache();
+		}).then(() => {
+			this.pdfEngine.cleanWorkirectory();
 			setTimeout(() => this.cleanUpCache(), 1000);
+			this.pdfEngine.fetchWorkFiles().then((r) => {
+				console.log("this.pdfEngine.fetchWorkFiles()",r);
+			});
 		});
 
 	}
@@ -285,7 +269,7 @@ export class SwiftlatexRender {
 			if (outputSVG)
 				this.pdfToSVG(pdfData).then((svg: string) => { el.innerHTML = svg; resolve();});
 			else
-				this.pdfToHtml(pdfData).then((htmlData) => {el.createEl("object", htmlData);resolve();});
+				pdfToHtml(pdfData).then((htmlData) => {el.createEl("object", htmlData);resolve();});
 		});
 	}
 	private colorSVGinDarkMode(svg: string) {
@@ -339,20 +323,12 @@ export class SwiftlatexRender {
 	 */
 	fetchPackageCacheData(): void {
 		this.pdfEngine.fetchCacheData().then((r: StringMap[]) => {
-			const newFileNames = this.getNewPackageFileNames(this.plugin.settings.packageCache[1], r[1]);
+			const newFileNames = getNewPackageFileNames(this.plugin.settings.packageCache[1], r[1]);
 			this.pdfEngine.fetchTexFiles(newFileNames, this.packageCacheFolderPath);
 			this.plugin.settings.packageCache = r;
-			this.plugin.saveSettings().then();
-		});
-	}
 
-	private getNewPackageFileNames(oldCacheData: StringMap, newCacheData: StringMap): string[] 
-	{
-		// based on the old and new package files in package cache data,
-		// return the new package files
-		let newKeys = Object.keys(newCacheData).filter(key => !(key in oldCacheData));
-		let newPackageFiles = newKeys.map(key => path.basename(newCacheData[key]));		
-		return newPackageFiles;
+		});
+		this.plugin.saveSettings().then();
 	}
 
 	private async saveCache() {
@@ -508,157 +484,86 @@ export class SwiftlatexRender {
 }
 
 
+
+async function pdfToHtml(pdfData: Buffer<ArrayBufferLike>) {
+	const {width, height} = await this.getPdfDimensions(pdfData);
+	const ratio = width / height;
+	const pdfblob = new Blob([pdfData], { type: 'application/pdf' });
+	const objectURL = URL.createObjectURL(pdfblob);
+	return  {
+		attr: {
+		data: `${objectURL}#view=FitH&toolbar=0`,
+		type: 'application/pdf',
+		class: 'block-lanuage-latex',
+		style: `width:100%; aspect-ratio:${ratio}`
+		}
+	};
+}
+
+async function  getPdfDimensions(pdf: any): Promise<{width: number, height: number}> {
+	const pdfDoc = await PDFDocument.load(pdf);
+	const firstPage = pdfDoc.getPages()[0];
+	const {width, height} = firstPage.getSize();
+	return {width, height};
+}
+
+
+
+function getNewPackageFileNames(oldCacheData: StringMap, newCacheData: StringMap): string[] 
+{
+	// based on the old and new package files in package cache data,
+	// return the new package files
+	let newKeys = Object.keys(newCacheData).filter(key => !(key in oldCacheData));
+	let newPackageFiles = newKeys.map(key => path.basename(newCacheData[key]));		
+	return newPackageFiles;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 enum latexErrors{
 	undefinedControlSequence="LaTeX does not recognize a command in your document"
 }
 
 
-interface PackageInfo {
-    name: string;
-    version?: string;
-}
-
-class SwiftLatexError {
-    versionInfo: string;
-    mainError: string;
-    warnings: string[];
-    usedPackages: PackageInfo[];
-    configurationFiles: string[];
-
-    constructor(
-        versionInfo: string,
-        mainError: string,
-        warnings: string[],
-        usedPackages: PackageInfo[],
-        configurationFiles: string[]
-    ) {
-        this.versionInfo = versionInfo;
-        this.mainError = mainError;
-        this.warnings = warnings;
-        this.usedPackages = usedPackages;
-        this.configurationFiles = configurationFiles;
-    }
-
-    static interpret(error: string): SwiftLatexError {
-        // Split the error into individual lines
-        const lines = error.split("\n");
-
-        // Variables to hold our findings
-        let versionInfo = "";
-        const warnings: string[] = [];
-        const errorMessages: string[] = [];
-        const configFiles = new Set<string>();
-        const packages = new Map<string, PackageInfo>();
-
-        // Regular expression to detect file references with /tex/ and valid extensions
-        const fileRegex = /\(\/tex\/([^\s)]+)/g;
-        // Regex to detect date-version lines like: "2020/01/24 3.02c tkz-base.sty"
-        const dateVersionRegex = /^(\d{4}\/\d{2}\/\d{2})\s+([\S]+)\s+([^\s]+(?:\.(?:cls|sty|def|cfg)))\b/;
-        // Regex to detect quoted package version info like: "`Fixed Point Package', Version 0.8"
-        const quotedVersionRegex = /`([^']+)',\s*Version\s+([\d\.a-zA-Z]+)/;
-
-        // Process each line individually
-        for (let rawLine of lines) {
-            const line = rawLine.trim();
-            if (!line) continue; // Skip empty lines
-
-            // 1. Extract version information from LaTeX2e and L3 programming layer lines.
-            if (line.startsWith("LaTeX2e")) {
-                versionInfo = line;
-            } else if (line.startsWith("L3 programming layer")) {
-                versionInfo += versionInfo ? " | " + line : line;
-            }
-
-            // 2. Record warnings (any line that contains "Warning:")
-            if (line.includes("Warning:")) {
-                warnings.push(line);
-            }
-
-            // 3. Look for configuration file messages.
-            if (line.includes("configuration file")) {
-                // Try to extract a file name between backticks.
-                let cfgMatch = line.match(/`([^`]+\.cfg)'/);
-                if (cfgMatch) {
-                    configFiles.add(cfgMatch[1]);
-                } else {
-                    // Alternative pattern if backticks are missing.
-                    let altMatch = line.match(/configuration file ([^\s)]+\.cfg)/);
-                    if (altMatch) {
-                        configFiles.add(altMatch[1]);
-                    }
-                }
-            }
-
-            // 4. Look for lines that provide date and version information for packages.
-            const dateVersionMatch = line.match(dateVersionRegex);
-            if (dateVersionMatch) {
-                const date = dateVersionMatch[1];
-                const ver = dateVersionMatch[2];
-                const pkgName = dateVersionMatch[3];
-                const versionDetail = `${ver} (${date})`;
-                if (packages.has(pkgName)) {
-                    packages.get(pkgName)!.version = versionDetail;
-                } else {
-                    packages.set(pkgName, { name: pkgName, version: versionDetail });
-                }
-            }
-
-            // 5. Look for package version info provided in quoted messages.
-            const quotedMatch = line.match(quotedVersionRegex);
-            if (quotedMatch) {
-                const pkgName = quotedMatch[1];
-                const ver = quotedMatch[2];
-                if (packages.has(pkgName)) {
-                    packages.get(pkgName)!.version = ver;
-                } else {
-                    packages.set(pkgName, { name: pkgName, version: ver });
-                }
-            }
-
-            // 6. Extract file references (those starting with "(/tex/") that have valid extensions.
-            let fileMatch;
-            while ((fileMatch = fileRegex.exec(line)) !== null) {
-                const fileName = fileMatch[1];
-                if (/\.(cls|sty|def|cfg)$/i.test(fileName)) {
-                    if (!packages.has(fileName)) {
-                        packages.set(fileName, { name: fileName });
-                    }
-                }
-            }
-
-            // 7. Record any error messages (lines starting with "!")
-            if (line.startsWith("!")) {
-                errorMessages.push(line);
-            }
-        }
-
-        // Determine the primary error: typically the first error message is the main error.
-        const mainError = errorMessages.length > 0 ? errorMessages[0] : "Unknown error";
-
-        // Convert our sets and maps into arrays.
-        const usedPackages = Array.from(packages.values());
-        const configurationFiles = Array.from(configFiles);
-
-        console.log("Final Parsed Summary:", {
-            versionInfo,
-            mainError,
-            warnings,
-            usedPackages,
-            configurationFiles,
-			fullLog: lines
-        });
-
-        return new SwiftLatexError(versionInfo, mainError, warnings, usedPackages, configurationFiles);
-    }
-	
-}
-
-class swiftlatexErrorLine{
-	text: string;
-	file: string;
-	warning: string;
-	versionInfo: string;
-}
 
 
 class svgDisplayModule extends Modal {

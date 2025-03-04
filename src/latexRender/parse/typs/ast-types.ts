@@ -109,7 +109,7 @@ export class Macro extends BaseNode {
         if(args)this.args = args;
     }
     toString(): string {
-        const prefix=this.content!="^"?`\\${this.content}`:this.content
+        const prefix=this.content!="^"&&this.content!="_"?`\\${this.content}`:this.content
         return prefix+(this.args ? this.args.map(arg => arg.toString()).join("") : "")
     }
 }

@@ -1,7 +1,7 @@
 {
   "preambleEnabled": true,
   "corePreambleFileLocation": "obsidian/data/Files/coorPreamble.sty",
-  "mathjaxPreambleFileLocation": "",
+  "mathjaxPreambleFileLocation": "obsidian/data/Files/preamble.sty",
   "explicitPreambleEnabled": false,
   "explicitPreambleFromCodeBlocks": false,
   "explicitPreambleFileLocation": "",
@@ -118,7 +118,223 @@
       ]
     ],
     [
-      "3673a1db6d55dfb37cc29dd1d319a582",
+      "cc26ba9e5bac5a6c5d84d8c7e8dde4b2",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "d04c22849a079f1572aa9679e8c68b31",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "0cba46310849b0f636c401b2bbaa713e",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "7f5cc4021afb0f543b594b6a47697f80",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "e3a9a9bb44af0e5178e7853c618a9c3f",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "90bc5d702597d705af42088d7af62fce",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "878971bddd0242faee752acca3f8a8f8",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "ed12f61c9c8f6774f0310b7474b36cdc",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "b6f711be0f4a5adc0570ebff253b2f6d",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "583d6386c1b0f48e37facdf1cee3aeb0",
+      [
+        "moshe/latex/tikz/Commands.md"
+      ]
+    ],
+    [
+      "e61649f8f380d57280b129d3cb7f7cc3",
+      [
+        "moshe/latex/tikz/Coordinates.md"
+      ]
+    ],
+    [
+      "326c329a1801cb6cf90d2d0c651d86fa",
+      [
+        "moshe/latex/tikz/Coordinates.md"
+      ]
+    ],
+    [
+      "6e5db8ee8602c9f4e33c0e6207480fd2",
+      [
+        "moshe/latex/tikz/Coordinates.md"
+      ]
+    ],
+    [
+      "d9c57ba2bcc17dd647a332740c8ee560",
+      [
+        "moshe/latex/tikz/Coordinates.md"
+      ]
+    ],
+    [
+      "b7d52e068276bbd84bc146a372eef61d",
+      [
+        "moshe/latex/tikz/Coordinates.md"
+      ]
+    ],
+    [
+      "12912deefcd4656abe54953829ac795e",
+      [
+        "moshe/latex/tikz/Coordinates.md"
+      ]
+    ],
+    [
+      "a071fc460ba36bb286d2c9a68362dd5d",
+      [
+        "moshe/latex/tikz/Coordinates.md"
+      ]
+    ],
+    [
+      "265be77e176059dc5f90f83707804b83",
+      [
+        "moshe/latex/tikz/Sizing and positioning.md"
+      ]
+    ],
+    [
+      "b5d88bf143b5c98d33fe3f672b97fc9f",
+      [
+        "moshe/latex/tikz/Sizing and positioning.md"
+      ]
+    ],
+    [
+      "f160f13a1031c95f349371fc1e02630a",
+      [
+        "moshe/latex/tikz/Sizing and positioning.md"
+      ]
+    ],
+    [
+      "5ba0cba98858ba574fff7ef41c0f5ee5",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "93ad8d34b4619eedd8138240f01ffc52",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "66e076048949a1123268f68bbd1fd6ae",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "b92727c221c6a4c3dd6fc6049aa64b65",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "7739d9af9706e377fdb1032c3242fa1c",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "7484b27be5ae9701e9011a8341947a4a",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "20e3764199497743ec068fd4662b3c3a",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "8b45f6471ae74d45c7082e477b47ef96",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "c8a076fa9ecd7c581be696c84fd243b2",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "f5c23a7fcc5d8ac9417d550a86b30c7c",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "6021e6e7052369d20f4cf38d822398db",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "9f1c2c7da69b0c8d5e881f45da2db08d",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "e668b6b5dca44ee9d9ecaa6dd4608beb",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "9418793536713bc9b9b7cebdddfb57c8",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "03b414e38259b38c2de501572342fbe7",
+      [
+        "moshe/latex/tikz/tikz math.md"
+      ]
+    ],
+    [
+      "4685e4b24d4d48ca855b679e4a979f00",
+      [
+        "moshe/latex/tikz/tikz math.md"
+      ]
+    ],
+    [
+      "d26fa1ad7703040a125411b77224258b",
       [
         "מתמטיקה/שי/טריגו.md"
       ]
@@ -128,17 +344,18 @@
     {
       "26/tikzlibrarypgfplots.surfshading.code.tex": 1,
       "26/tikzlibraryarrows.meta.code.tex": 1,
-      "26/numprint.cfg": 1
+      "26/numprint.cfg": 1,
+      "26/main.aux": 1,
+      "33/cmr12.vf": 1,
+      "33/cmmi12.vf": 1,
+      "33/cmsy10.vf": 1,
+      "33/cmr17.vf": 1,
+      "33/cmr8.vf": 1,
+      "33/cmmi8.vf": 1,
+      "33/cmsy8.vf": 1,
+      "33/cmr10.vf": 1
     },
     {
-      "32/cmmi10.pfb": "/tex/cmmi10.pfb",
-      "32/cmr7.pfb": "/tex/cmr7.pfb",
-      "32/cmsy8.pfb": "/tex/cmsy8.pfb",
-      "3/cmr17": "/tex/cmr17.tfm",
-      "32/cmmi7.pfb": "/tex/cmmi7.pfb",
-      "32/cmsy10.pfb": "/tex/cmsy10.pfb",
-      "32/cmr12.pfb": "/tex/cmr12.pfb",
-      "32/cmr8.pfb": "/tex/cmr8.pfb",
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
       "26/standalone.cls": "/tex/standalone.cls",
       "26/shellesc.sty": "/tex/shellesc.sty",
@@ -352,12 +569,31 @@
       "26/pgflibraryshapes.symbols.code.tex": "/tex/pgflibraryshapes.symbols.code.tex",
       "26/tikzlibraryfit.code.tex": "/tex/tikzlibraryfit.code.tex",
       "26/supp-pdf.mkii": "/tex/supp-pdf.mkii",
-      "11/pdftex.map": "/tex/pdftex.map",
+      "3/cmr17": "/tex/cmr17.tfm",
       "3/cmr12": "/tex/cmr12.tfm",
-      "32/cmr10.pfb": "/tex/cmr10.pfb",
       "3/cmmi12": "/tex/cmmi12.tfm",
       "3/cmsy10": "/tex/cmsy10.tfm",
+      "11/pdftex.map": "/tex/pdftex.map",
       "32/cmmi12.pfb": "/tex/cmmi12.pfb",
+      "32/cmr17.pfb": "/tex/cmr17.pfb",
+      "32/cmsy10.pfb": "/tex/cmsy10.pfb",
+      "26/cmbx12.pfb": "/tex/cmbx12.pfb",
+      "26/cmbx12.tfm": "/tex/cmbx12.tfm",
+      "26/cmmi10.pfb": "/tex/cmmi10.pfb",
+      "26/cmmi6.tfm": "/tex/cmmi6.tfm",
+      "26/cmmi7.pfb": "/tex/cmmi7.pfb",
+      "26/cmmi8.pfb": "/tex/cmmi8.pfb",
+      "26/cmmi8.tfm": "/tex/cmmi8.tfm",
+      "26/cmr10.pfb": "/tex/cmr10.pfb",
+      "26/cmr12.pfb": "/tex/cmr12.pfb",
+      "26/cmr6.tfm": "/tex/cmr6.tfm",
+      "26/cmr7.pfb": "/tex/cmr7.pfb",
+      "26/cmr8.pfb": "/tex/cmr8.pfb",
+      "26/cmr8.tfm": "/tex/cmr8.tfm",
+      "26/cmsy6.tfm": "/tex/cmsy6.tfm",
+      "26/cmsy8.pfb": "/tex/cmsy8.pfb",
+      "26/cmsy8.tfm": "/tex/cmsy8.tfm",
+      "32/cmr12.pfb": "/tex/cmr12.pfb",
       "3/cmr8": "/tex/cmr8.tfm",
       "3/cmr6": "/tex/cmr6.tfm",
       "3/cmmi8": "/tex/cmmi8.tfm",
@@ -365,9 +601,9 @@
       "3/cmsy8": "/tex/cmsy8.tfm",
       "3/cmsy6": "/tex/cmsy6.tfm",
       "32/cmmi8.pfb": "/tex/cmmi8.pfb",
-      "32/cmr17.pfb": "/tex/cmr17.pfb",
-      "3/cmbx12": "/tex/cmbx12.tfm",
-      "32/cmbx12.pfb": "/tex/cmbx12.pfb"
+      "32/cmr8.pfb": "/tex/cmr8.pfb",
+      "32/cmsy8.pfb": "/tex/cmsy8.pfb",
+      "32/cmr10.pfb": "/tex/cmr10.pfb"
     },
     {},
     {}
