@@ -32,6 +32,8 @@ export const waitFor = async (condFunc: () => boolean) => {
 type Task = { source: string, el: HTMLElement,md5Hash:string, sourcePath: string , blockId: string};
 const catchFileFormat="svg"
 
+
+
 export class SwiftlatexRender {
 	plugin: Moshe;
 	cacheFolderPath: string;
@@ -76,47 +78,20 @@ export class SwiftlatexRender {
 				task.source = ast.toString();
 			}
 
-			this.renderLatexToElement(task.source, task.el,task.md5Hash, task.sourcePath)
-			.then(() => {
+			this.renderLatexToElement(task.source, task.el,task.md5Hash, task.sourcePath).then(() => {
 				// Wait X seconds before marking the task as done
-				setTimeout(() =>{done();updateCountdown();}, WAIT_TIME_MS);
+				setTimeout(() =>{done();updateCountdown(this.queue);}, WAIT_TIME_MS);
 			})
 			.catch((err) => {
 				console.error('Error processing task:', err);
 				// Optionally, delay even on errors:
-				setTimeout(() => {done(err);updateCountdown();}, WAIT_TIME_MS);
+				setTimeout(() => {done(err);updateCountdown(this.queue);}, WAIT_TIME_MS);
 			});
 		}, 1); // Concurrency is set to 1, so tasks run one at a time
-
-		const updateCountdown = () => {
-			//@ts-ignore
-			let taskNode = this.queue._tasks.head;
-			let index = 0;
-			while (taskNode) {
-				const task = taskNode.data;
-				const countdown = task.el.querySelector(".moshe-latex-render-countdown");
-				if (countdown) 
-					countdown.textContent = index.toString();
-				else 
-					console.warn(`Countdown not found for task ${index}`);
-				taskNode = taskNode.next;
-				index++;
-			}
-		};
-	}
-	  
-	
-
-	private getVaultPath() {
-		if (this.plugin.app.vault.adapter instanceof FileSystemAdapter) {
-			return this.plugin.app.vault.adapter.getBasePath();
-		} else {
-			throw new Error("SwiftLaTeX: Could not get vault path.");
-		}
 	}
 	
 	private validateCatchDirectory(){
-		const cacheFolderParentPath = path.join(this.getVaultPath(), this.plugin.app.vault.configDir, "swiftlatex-render-cache");
+		const cacheFolderParentPath = path.join(this.plugin.getVaultPath(), this.plugin.app.vault.configDir, "swiftlatex-render-cache");
 		this.packageCacheFolderPath = path.join(cacheFolderParentPath, "package-cache");
 		this.cacheFolderPath = path.join(cacheFolderParentPath, "pdf-cache");
 
@@ -193,33 +168,11 @@ export class SwiftlatexRender {
 		this.pdfEngine.flushCache();
 		fs.rmdirSync(this.cacheFolderPath, { recursive: true });
 	}
-
-	private hashLatexSource(source: string) {
-		//i need to also remove all comments
-		return Md5.hashStr(source.replace(/\s/g, ''))
-	}
 	
-	private pdfToSVG(pdfData: any) {
-		return PdfToCairo().then((pdftocairo: any) => {
-			pdftocairo.FS.writeFile('input.pdf', pdfData);
-			pdftocairo._convertPdfToSvg();
-			let svg = pdftocairo.FS.readFile('input.svg', {encoding:'utf8'});
-			const id = Md5.hashStr(svg.trim()).toString();
-			const randomString = Math.random().toString(36).substring(2, 10);
-			const uniqueId = id.concat(randomString);
-			const svgoConfig:Config =  {
-				plugins: ['sortAttrs', { name: 'prefixIds', params: { prefix: uniqueId } }]
-			};
-			svg = optimize(svg, svgoConfig).data; 
-			svg = this.colorSVGinDarkMode(svg);
-
-			return svg;
-		});
-	}
 	universalCodeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
 		el.classList.remove("block-language-tikz");
 		el.classList.add("block-language-latexsvg");
-		const md5Hash = this.hashLatexSource(source);
+		const md5Hash = hashLatexSource(source);
 		// PDF file has already been cached
 		// Could have a case where pdfCache has the key but the cached file has been deleted
 		const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${catchFileFormat}`);
@@ -232,7 +185,6 @@ export class SwiftlatexRender {
 			const blockId = `${ctx.sourcePath.replace(/[^\wא-ת]/g, '_')}_${ctx.getSectionInfo(el)?.lineStart}`;
 			this.queue.remove(node => node.data.blockId === blockId);
 			el.appendChild(createWaitingCountdown(this.queue.length()));
-			
 			this.queue.push({ source, el,md5Hash, sourcePath: ctx.sourcePath, blockId });
 		}
 	}
@@ -255,37 +207,23 @@ export class SwiftlatexRender {
 			this.addFileToCache(md5Hash, sourcePath);
 			resolve();
 		}).then(() => {
+				waitFor(() => this.pdfEngine.isReady()).then(() => {
+					this.pdfEngine.fetchWorkFiles().then((r) => {
+					console.log("this.pdfEngine.fetchWorkFiles()",r);
+				});
+			});
 			this.pdfEngine.cleanWorkirectory();
 			setTimeout(() => this.cleanUpCache(), 1000);
-			this.pdfEngine.fetchWorkFiles().then((r) => {
-				console.log("this.pdfEngine.fetchWorkFiles()",r);
-			});
 		});
-
 	}
 
 	private async translatePDF(pdfData: Buffer<ArrayBufferLike>, el: HTMLElement, outputSVG = true): Promise<void> {
 		return new Promise<void>((resolve) => { 
 			if (outputSVG)
-				this.pdfToSVG(pdfData).then((svg: string) => { el.innerHTML = svg; resolve();});
+				pdfToSVG(pdfData,this.plugin.settings).then((svg: string) => { el.innerHTML = svg; resolve();});
 			else
 				pdfToHtml(pdfData).then((htmlData) => {el.createEl("object", htmlData);resolve();});
 		});
-	}
-	private colorSVGinDarkMode(svg: string) {
-		// Replace the color "black" with currentColor (the current text color)
-		// so that diagram axes, etc are visible in dark mode
-		// and replace "white" with the background color
-		if (this.plugin.settings.invertColorsInDarkMode) {
-		  if (document.body.classList.contains('theme-dark')) {
-			svg = svg.replace(/rgb\(0%, 0%, 0%\)/g, "currentColor")
-					 .replace(/rgb\(100%, 100%, 100%\)/g, "var(--background-primary)");
-		  } else {
-			svg = svg.replace(/rgb\(100%, 100%, 100%\)/g, "currentColor")
-					 .replace(/rgb\(0%, 0%, 0%\)/g, "var(--background-primary)");
-		  }
-		}
-		return svg;
 	}
 
 	private renderLatexToPDF(source: string): Promise<CompileResult> {
@@ -417,7 +355,7 @@ export class SwiftlatexRender {
 			for (const section of sections) {
 				if (section.type != "code" && lines[section.position.start.line].match("``` *(latex|tikz)") == null) continue;
 				let source = lines.slice(section.position.start.line + 1, section.position.end.line).join("\n");
-				const hash = this.hashLatexSource(source);
+				const hash = hashLatexSource(source);
 				hashes.push(hash);
 			}
 		}
@@ -467,16 +405,7 @@ export class SwiftlatexRender {
 				}
 			}
 		}
-
-		// Clear the package cache settings.
-		// In your code, packageCache[1] holds the mapping for package files.
-		if (this.plugin.settings.packageCache && Array.isArray(this.plugin.settings.packageCache)) {
-			this.plugin.settings.packageCache[1] = {};
-			// If needed, clear additional indices as well:
-			// this.plugin.settings.packageCache[2] = {};
-			// this.plugin.settings.packageCache[3] = {};
-		}
-
+		this.plugin.settings.packageCache=[{}, {}, {}, {}];
 		this.plugin.saveSettings().then(() => {
 			console.log("Package cache settings updated.");
 		});
@@ -485,8 +414,65 @@ export class SwiftlatexRender {
 
 
 
+const updateCountdown = (queue: async.QueueObject<Task>) => {
+	//@ts-ignore
+	let taskNode = queue._tasks.head;
+	let index = 0;
+	while (taskNode) {
+		const task = taskNode.data;
+		const countdown = task.el.querySelector(".moshe-latex-render-countdown");
+		if (countdown) 
+			countdown.textContent = index.toString();
+		else 
+			console.warn(`Countdown not found for task ${index}`);
+		taskNode = taskNode.next;
+		index++;
+	}
+};
+function pdfToSVG(pdfData: any,config: {invertColorsInDarkMode?:boolean}) {
+	const hashSVG = (svg: any) => {
+		const id = Md5.hashStr(svg.trim()).toString();
+		const randomString = Math.random().toString(36).substring(2, 10);
+		return id.concat(randomString);
+	};
+	return PdfToCairo().then((pdftocairo: any) => {
+		pdftocairo.FS.writeFile('input.pdf', pdfData);
+		pdftocairo._convertPdfToSvg();
+		let svg = pdftocairo.FS.readFile('input.svg', {encoding:'utf8'});
+		const svgoConfig:Config =  {
+			plugins: ['sortAttrs', { name: 'prefixIds', params: { prefix: hashSVG(svg) } }]
+		};
+		svg = optimize(svg, svgoConfig).data; 
+		if (config.invertColorsInDarkMode) {
+			svg = colorSVGinDarkMode(svg);
+		}
+		return svg;
+	});
+}
+
+
+
+function hashLatexSource(source: string) {
+	return Md5.hashStr(source.replace(/\s/g, ''))
+}
+function colorSVGinDarkMode(svg: string) {
+	// Replace the color "black" with currentColor (the current text color)
+	// so that diagram axes, etc are visible in dark mode
+	// and replace "white" with the background color
+	if (document.body.classList.contains('theme-dark')) {
+	svg = svg.replace(/rgb\(0%, 0%, 0%\)/g, "currentColor")
+				.replace(/rgb\(100%, 100%, 100%\)/g, "var(--background-primary)");
+	} else {
+	svg = svg.replace(/rgb\(100%, 100%, 100%\)/g, "currentColor")
+				.replace(/rgb\(0%, 0%, 0%\)/g, "var(--background-primary)");
+	}
+	
+	return svg;
+}
+	
+
 async function pdfToHtml(pdfData: Buffer<ArrayBufferLike>) {
-	const {width, height} = await this.getPdfDimensions(pdfData);
+	const {width, height} = await getPdfDimensions(pdfData);
 	const ratio = width / height;
 	const pdfblob = new Blob([pdfData], { type: 'application/pdf' });
 	const objectURL = URL.createObjectURL(pdfblob);

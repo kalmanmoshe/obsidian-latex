@@ -223,7 +223,7 @@ function compileFormatRoutine() {
     });
   }
 }
-function mkdirRoutine(dirname) {
+function mkdirRoutine(dirname: string) {
   try {
     FS.mkdir(WORKROOT + "/" + dirname);
     self.postMessage({ result: "ok", cmd: "mkdir" });
@@ -232,7 +232,7 @@ function mkdirRoutine(dirname) {
     self.postMessage({ result: "failed", cmd: "mkdir" });
   }
 }
-function writeFileRoutine(filename, content) {
+function writeFileRoutine(filename:string, content:string) {
   try {
     FS.writeFile(WORKROOT + "/" + filename, content);
     self.postMessage({ result: "ok", cmd: "writefile" });
@@ -274,6 +274,8 @@ function findWorkDirectory(node: any): any | undefined {
 
 function transferWorkFilesToHost() {
   let dir = findWorkDirectory(FS.root);
+  console.log("dir", typeof dir.contents, dir.contents, Object.getPrototypeOf(dir.contents));
+  console.log(Reflect.ownKeys(dir.contents),FS.readdir(WORKROOT),);
   if (!dir) {
     postMessage({ result: "failed", cmd: "fetchworkfiles" });
     return; 
@@ -294,7 +296,8 @@ function transferWorkFilesToHost() {
       }
     }
   }
-  console.log("dir", dir,);
+
+  console.log("files", files,);
   postMessage({ result: "ok", cmd: "fetchworkfiles", files: files });
 }
 
@@ -2505,7 +2508,7 @@ var FS = {
     FS.close(stream);
     return ret;
   },
-  writeFile(path, data, opts = {}) {
+  writeFile(path: string, data: string | Uint8Array<any>, opts = {}) {
     opts.flags = opts.flags || 577;
     var stream = FS.open(path, opts.flags, opts.mode);
     if (typeof data == "string") {
