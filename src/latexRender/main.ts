@@ -186,6 +186,7 @@ export class SwiftlatexRender {
 			this.queue.remove(node => node.data.blockId === blockId);
 			el.appendChild(createWaitingCountdown(this.queue.length()));
 			this.queue.push({ source, el,md5Hash, sourcePath: ctx.sourcePath, blockId });
+			console.log(this.queue)
 		}
 	}
 	private async renderLatexToElement(source: string, el: HTMLElement,md5Hash:string, sourcePath: string,) {
