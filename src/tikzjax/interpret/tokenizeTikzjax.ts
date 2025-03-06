@@ -436,8 +436,10 @@ const myPreable=String.raw`
 \usepackage{pgfplots,ifthen}
 \usepackage{tkz-base}
 \usepackage{tkz-euclide}
-
+\usepgfmodule{oo}
 \usetikzlibrary{
+    positioning,
+    through,
     arrows.meta,
     angles,
     quotes,positioning,
@@ -594,7 +596,9 @@ const myPreable=String.raw`
 
 \newcommand\getxy[3]{
     \path (#1); 
-    \pgfpointanchor{#1}{center}\pgfgetlastxy{#2}{#3}
+    \pgfpointanchor{#1}{center}\pgfgetlastxy{\Xcoord}{\Ycoord}
+    \pgfmathsetmacro{#2}{\Xcoord}
+    \pgfmathsetmacro{#3}{\Ycoord}
 }
 
 \NewDocumentCommand{\drawincircle}{ O{} O{} m m m }{
@@ -625,8 +629,6 @@ const myPreable=String.raw`
     \IfNoValueTF{#2}{}{
         \edef#2{\radius pt}
     }
-
-
 }
 
 
