@@ -316,43 +316,7 @@
       ]
     ],
     [
-      "5310eaf07eda98d05c6ce3b7de161f8a",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
-      "a131e1d4196065868f88e8c89d55a55f",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
-      "3d628b1f8b4a6cf854efbdc4056b0367",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
-      "6569daa1410e5f944950aa96b29bc0ba",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
-      "1eebf99d51cbec3b5f7cf20a544ad3b9",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
-      "7090d4039a303ff50609b1975d4634e2",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
-      "06ade2af3585e1b658ea9e4b54e491cd",
+      "895acaaf1fa9e246ecc55684980ff234",
       [
         "מתמטיקה/שי/טריגו.md"
       ]
@@ -366,7 +330,8 @@
       "26/main.aux": 1,
       "33/cmr10.vf": 1,
       "33/cmmi10.vf": 1,
-      "33/cmr17.vf": 1
+      "33/cmr17.vf": 1,
+      "33/cmsy10.vf": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -620,7 +585,8 @@
       "32/cmmi10.pfb": "/tex/cmmi10.pfb",
       "26/pgfmoduleoo.code.tex": "/tex/pgfmoduleoo.code.tex",
       "32/cmmi7.pfb": "/tex/cmmi7.pfb",
-      "32/cmr7.pfb": "/tex/cmr7.pfb"
+      "32/cmr7.pfb": "/tex/cmr7.pfb",
+      "3/tcrm1000": "/tex/tcrm1000.tfm"
     },
     {},
     {}

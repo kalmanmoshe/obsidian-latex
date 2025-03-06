@@ -596,9 +596,7 @@ const myPreable=String.raw`
 
 \newcommand\getxy[3]{
     \path (#1); 
-    \pgfpointanchor{#1}{center}\pgfgetlastxy{\Xcoord}{\Ycoord}
-    \pgfmathsetmacro{#2}{\Xcoord}
-    \pgfmathsetmacro{#3}{\Ycoord}
+    \pgfpointanchor{#1}{center}\pgfgetlastxy{#2}{#3}
 }
 
 \NewDocumentCommand{\drawincircle}{ O{} O{} m m m }{
