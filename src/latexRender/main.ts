@@ -80,12 +80,12 @@ export class SwiftlatexRender {
 
 			this.renderLatexToElement(task.source, task.el,task.md5Hash, task.sourcePath).then(() => {
 				// Wait X seconds before marking the task as done
-				setTimeout(() =>{done();updateCountdown(this.queue);}, WAIT_TIME_MS);
+				setTimeout(() =>{updateCountdown(this.queue);done();}, WAIT_TIME_MS);
 			})
 			.catch((err) => {
 				console.error('Error processing task:', err);
 				// Optionally, delay even on errors:
-				setTimeout(() => {done(err);updateCountdown(this.queue);}, WAIT_TIME_MS);
+				setTimeout(() => {updateCountdown(this.queue);done(err);}, WAIT_TIME_MS);
 			});
 		}, 1); // Concurrency is set to 1, so tasks run one at a time
 	}
@@ -199,7 +199,7 @@ export class SwiftlatexRender {
 				}).catch(err => {
 					el.innerHTML = "";
 					const log=LatexParser.parse(err)
-					console.error("LaTeX Error:", log);
+					console.error("LaTeX Error:", log, err);
 					const { message, content, line } = log.errors[0];
 					el.appendChild(errorDiv(message, content, line));
 					reject(err); 

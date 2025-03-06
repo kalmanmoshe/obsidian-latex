@@ -10,12 +10,6 @@
   "package_url": "https://texlive2.swiftlatex.com/",
   "cache": [
     [
-      "1eebf99d51cbec3b5f7cf20a544ad3b9",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
       "39136ddab4517c3bd8d977d7f2c47a29",
       [
         "פיזיקה/יחיאל/שיעורי בית.md"
@@ -43,12 +37,6 @@
       "c46d3d5095d6f5fdb074c380a61e272c",
       [
         "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "7090d4039a303ff50609b1975d4634e2",
-      [
-        "מתמטיקה/שי/טריגו.md"
       ]
     ],
     [
@@ -97,12 +85,6 @@
       "1d462716303709afaa40bef07b5c8037",
       [
         "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "6569daa1410e5f944950aa96b29bc0ba",
-      [
-        "מתמטיקה/שי/טריגו.md"
       ]
     ],
     [
@@ -328,15 +310,51 @@
       ]
     ],
     [
-      "5a41346190b1458283dc9b5624ae583c",
+      "9ee12da742a8303e7e1a29da788b68eb",
+      [
+        "Untitled 2.md"
+      ]
+    ],
+    [
+      "5310eaf07eda98d05c6ce3b7de161f8a",
       [
         "מתמטיקה/שי/טריגו.md"
       ]
     ],
     [
-      "9ee12da742a8303e7e1a29da788b68eb",
+      "a131e1d4196065868f88e8c89d55a55f",
       [
-        "Untitled 2.md"
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "3d628b1f8b4a6cf854efbdc4056b0367",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "6569daa1410e5f944950aa96b29bc0ba",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "1eebf99d51cbec3b5f7cf20a544ad3b9",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "7090d4039a303ff50609b1975d4634e2",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "06ade2af3585e1b658ea9e4b54e491cd",
+      [
+        "מתמטיקה/שי/טריגו.md"
       ]
     ]
   ],
@@ -346,7 +364,9 @@
       "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/numprint.cfg": 1,
       "26/main.aux": 1,
-      "33/cmmi10.vf": 1
+      "33/cmr10.vf": 1,
+      "33/cmmi10.vf": 1,
+      "33/cmr17.vf": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -597,8 +617,10 @@
       "32/cmr8.pfb": "/tex/cmr8.pfb",
       "32/cmsy8.pfb": "/tex/cmsy8.pfb",
       "32/cmr10.pfb": "/tex/cmr10.pfb",
-      "26/cmr5.pfb": "/tex/cmr5.pfb",
-      "32/cmmi10.pfb": "/tex/cmmi10.pfb"
+      "32/cmmi10.pfb": "/tex/cmmi10.pfb",
+      "26/pgfmoduleoo.code.tex": "/tex/pgfmoduleoo.code.tex",
+      "32/cmmi7.pfb": "/tex/cmmi7.pfb",
+      "32/cmr7.pfb": "/tex/cmr7.pfb"
     },
     {},
     {}
