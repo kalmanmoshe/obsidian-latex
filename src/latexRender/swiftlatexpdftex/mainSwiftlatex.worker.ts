@@ -274,8 +274,7 @@ function findWorkDirectory(node: any): any | undefined {
 
 function transferWorkFilesToHost() {
   let dir = findWorkDirectory(FS.root);
-  console.log("dir", typeof dir.contents, dir.contents, Object.getPrototypeOf(dir.contents));
-  console.log(Reflect.ownKeys(dir.contents),FS.readdir(WORKROOT),);
+  console.log("dir", typeof dir.contents, dir);
   if (!dir) {
     postMessage({ result: "failed", cmd: "fetchworkfiles" });
     return; 
