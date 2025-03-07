@@ -108,7 +108,8 @@ export class SwiftlatexRender {
 		}
 	}
 	setCoorPreambles(preambleFiles: PreambleFile[]){
-		this.coorPreambleFiles=preambleFiles;
+		this.coorPreambleFiles = preambleFiles;
+		console.log("preambleFiles", preambleFiles);
 		preambleFiles.forEach(file => {
 			this.pdfEngine.writeMemFSFile("coorPreamble.tex", file.content);
 		});
@@ -185,10 +186,7 @@ export class SwiftlatexRender {
 			const blockId = `${ctx.sourcePath.replace(/[^\wא-ת]/g, '_')}_${ctx.getSectionInfo(el)?.lineStart}`;
 			this.queue.remove(node => node.data.blockId === blockId);
 			el.appendChild(createWaitingCountdown(this.queue.length()));
-			this.queue.push({ source, el,md5Hash, sourcePath: ctx.sourcePath, blockId }).then(() => {
-				console.log(this.queue);
-			})
-			
+			this.queue.push({ source, el, md5Hash, sourcePath: ctx.sourcePath, blockId });
 		}
 	}
 	private async renderLatexToElement(source: string, el: HTMLElement,md5Hash:string, sourcePath: string,) {

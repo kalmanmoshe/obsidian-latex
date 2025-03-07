@@ -61,7 +61,7 @@ export default class Moshe extends Plugin {
 		this.addSettingTab(new MosheMathSettingTab(this.app, this));
     this.addEditorCommands();
     this.app.workspace.onLayoutReady(() => {
-      //if(1===2*3)
+      
       this.loadSwiftLatexRender().then(() => {
         this.addSyntaxHighlighting();
         this.setCodeblocks();
@@ -175,13 +175,14 @@ export default class Moshe extends Plugin {
     let data = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
     await this.saveData(this.settings);
-    //this.settings.corePreambleFileLocation = "obsidian/data/Files/coorPreamble.sty"
+    // this.settings.corePreambleFileLocation = "obsidian/data/Files/coorPreamble.sty";
 
-    if(this.settings.preambleEnabled)
-      this.app.workspace.onLayoutReady(() => {
-        this.processLatexPreambles();
-      });
-  }
+    if (this.settings.preambleEnabled) {
+        this.app.workspace.onLayoutReady(async () => {
+            await this.processLatexPreambles();
+        });
+    }
+``}
 
   async saveSettings(didFileLocationChange = false) {
     await this.loadData();

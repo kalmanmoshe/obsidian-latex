@@ -25,18 +25,16 @@ enum latexWorkerCommands {
     Compilelatex = "compilelatex",
     Grace = "grace",
     Settexliveurl = "settexliveurl",
-    Flushcache = "flushcache",
     Mkdir = "mkdir",
     Compileformat = "compileformat",
-    Fetchcache = "fetchcache",
     writecache = "writecache",
     Fetchfile = "fetchfile",
     fetchWorkFiles = "fetchWorkFiles",
     Writetexfile = "writetexfile",
     Setmainfile = "setmainfile",
     Writefile = "writefile",
-    Flushhcatche = "flushcache",
-    FlushWorkDirectory="flushworkdir",
+    Flushcatche = "flushcache",
+    FlushWorkDirectory="flushworkcache",
 }
 
 export class PdfTeXEngine {
@@ -211,7 +209,9 @@ export class PdfTeXEngine {
         await Promise.all(promises);
             this.latexWorker!.onmessage = () => {};
     }
-
+    /**
+     * 
+     */
     writeTexFSFile(filename: string, srcCode: Buffer<ArrayBufferLike>): void {
         this.checkEngineStatus();
         this.latexWorker?.postMessage({ cmd: "writetexfile", url: filename, src: srcCode });
@@ -244,7 +244,7 @@ export class PdfTeXEngine {
     }
     flushCache(): void {
         this.checkEngineStatus();
-        this.latexWorker?.postMessage({ cmd: latexWorkerCommands.Flushcache });
+        this.latexWorker?.postMessage({ cmd: latexWorkerCommands.Flushcatche });
     }
 
     setTexliveEndpoint(url: string): void {
