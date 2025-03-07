@@ -310,15 +310,15 @@
       ]
     ],
     [
-      "9ee12da742a8303e7e1a29da788b68eb",
-      [
-        "Untitled 2.md"
-      ]
-    ],
-    [
       "289c7e011b477c09fed0fc17fea98ddb",
       [
         "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "fdea8090181dc8a170a91ada771b996c",
+      [
+        "Untitled 2.md"
       ]
     ]
   ],
@@ -327,7 +327,10 @@
       "26/tikzlibrarypgfplots.surfshading.code.tex": 1,
       "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/numprint.cfg": 1,
-      "26/main.aux": 1
+      "26/main.aux": 1,
+      "33/cmsy10.vf": 1,
+      "33/cmr10.vf": 1,
+      "33/cmmi10.vf": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -579,9 +582,10 @@
       "32/cmsy8.pfb": "/tex/cmsy8.pfb",
       "32/cmr10.pfb": "/tex/cmr10.pfb",
       "32/cmmi10.pfb": "/tex/cmmi10.pfb",
-      "26/pgfmoduleoo.code.tex": "/tex/pgfmoduleoo.code.tex",
       "32/cmmi7.pfb": "/tex/cmmi7.pfb",
-      "32/cmr7.pfb": "/tex/cmr7.pfb"
+      "32/cmr7.pfb": "/tex/cmr7.pfb",
+      "26/cmr5.pfb": "/tex/cmr5.pfb",
+      "26/pgfmoduleoo.code.tex": "/tex/pgfmoduleoo.code.tex"
     },
     {},
     {}

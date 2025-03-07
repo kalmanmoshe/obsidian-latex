@@ -31,6 +31,7 @@ var Module:any = typeof Module !== "undefined" ? Module :
 export default Module;
 
 
+
 const TEXCACHEROOT = "/tex";
 const WORKROOT = "/work";
 self.memlog = "";
@@ -223,7 +224,7 @@ function compileFormatRoutine() {
     });
   }
 }
-function mkdirRoutine(dirname: string) {
+function mkdirRoutine(dirname) {
   try {
     FS.mkdir(WORKROOT + "/" + dirname);
     self.postMessage({ result: "ok", cmd: "mkdir" });
@@ -232,7 +233,8 @@ function mkdirRoutine(dirname: string) {
     self.postMessage({ result: "failed", cmd: "mkdir" });
   }
 }
-function writeFileRoutine(filename:string, content:string) {
+function writeFileRoutine(filename:string, content: string) {
+  console.log(filename)
   try {
     FS.writeFile(WORKROOT + "/" + filename, content);
     self.postMessage({ result: "ok", cmd: "writefile" });
@@ -241,12 +243,12 @@ function writeFileRoutine(filename:string, content:string) {
     self.postMessage({ result: "failed", cmd: "writefile" });
   }
 }
-function writeTexFileRoutine(filename, content) {
+function writeTexFileRoutine(filename: string, content: string) {
   try {
     FS.writeFile(TEXCACHEROOT + "/" + filename, content);
     self.postMessage({ result: "ok", cmd: "writetexfile" });
   } catch (err) {
-    console.error("Unable to write mem file");
+    console.error("Unable to write mem file " + filename);
     self.postMessage({ result: "failed", cmd: "writetexfile" });
   }
 }
@@ -274,22 +276,21 @@ function findWorkDirectory(node: any): any | undefined {
 
 function transferWorkFilesToHost() {
   let dir = findWorkDirectory(FS.root);
-  console.log("dir", typeof dir.contents, dir);
+  console.log("dir", typeof dir.contents, dir.contents);
   if (!dir) {
     postMessage({ result: "failed", cmd: "fetchworkfiles" });
     return; 
   }
   
-  const files = [];
+  const files:{name: string,data: Uint8Array}[] = [];
   //Yeah, There is a problem with you, I can't seem to sound good.
   for (const key in dir.contents) {
-    console.log("key", key,dir.content[key],Object.prototype.hasOwnProperty.call(dir.contents, key));
     if (Object.prototype.hasOwnProperty.call(dir.contents, key)) {
       try {
         const fileData = FS.readFile(WORKROOT + "/" + key, {
           encoding: "binary",
         });
-        files.push(fileData);
+        files.push({name: key, data: new Uint8Array()});
       } catch (error) {
         console.error(`Error reading file "${key}":`, error);
       }
@@ -299,7 +300,6 @@ function transferWorkFilesToHost() {
   console.log("files", files,);
   postMessage({ result: "ok", cmd: "fetchworkfiles", files: files });
 }
-
   
 function transferTexFileToHost(filename: string) {
   try {
@@ -363,22 +363,23 @@ self["onmessage"] = function (ev) {
       console.error("Gracefully Close");
       self.close();
       break;
-    case "flushcache":
-      cleanDir(WORKROOT);
-      cleanDir(TEXCACHEROOT);
-      break;
-    case "flushworkdir":
-      cleanDir(WORKROOT);
+    case "flusheworkcache":
+      //cleanDir(WORKROOT);
       break;
     case "fetchfile":
       transferTexFileToHost(data["filename"]);
       break;
-    case "fetchWorkFiles":
-      transferWorkFilesToHost();
+    case "flushCache":
+      cleanDir(TEXCACHEROOT);
+      cleanDir(WORKROOT);
+    case "flushworkcache":
+      cleanDir(WORKROOT);
       break;
     case "fetchcache":
       transferCacheDataToHost();
       break;
+    case "fetchWorkFiles":
+      transferWorkFilesToHost();
     case "writetexfile":
       writeTexFileRoutine(data["url"], data["src"]);
       break;
@@ -425,7 +426,7 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
   try {
     xhr.send();
   } catch (err) {
-    console.warn("TexLive Download Failed " + remote_url, err);
+    console.log("TexLive Download Failed " + remote_url);
     return 0;
   }
   if (xhr.status === 200) {
@@ -436,7 +437,7 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
     texlive200_cache[cacheKey] = savepath;
     return _allocate(intArrayFromString(savepath));
   } else if (xhr.status === 301) {
-    console.warn("TexLive File not exists " + remote_url);
+    //console.log("TexLive File not exists " + remote_url);
     texlive404_cache[cacheKey] = 1;
     return 0;
   }
@@ -2507,7 +2508,7 @@ var FS = {
     FS.close(stream);
     return ret;
   },
-  writeFile(path: string, data: string | Uint8Array<any>, opts = {}) {
+  writeFile(path, data, opts = {}) {
     opts.flags = opts.flags || 577;
     var stream = FS.open(path, opts.flags, opts.mode);
     if (typeof data == "string") {
