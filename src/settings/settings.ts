@@ -2,13 +2,13 @@
 export type StringMap = { [key: string]: string };
 
 interface MosheMathBasicSettings {
-	preambleEnabled: boolean;
-	corePreambleFileLocation: string;
+	mathjaxPreamblePreambleEnabled: boolean;
 	mathjaxPreambleFileLocation: string;
-	explicitPreambleEnabled: boolean;
-	explicitPreambleFromCodeBlocks: boolean;
-	explicitPreambleFileLocation: string;
-
+	pdfTexEnginevirtualFileSystemFilesEnabled: boolean;
+	autoloadedVirtualFileSystemFiles: string[];
+	virtualFilesFromCodeBlocks: boolean;
+	virtualFilesFileLocation: string;
+	
 
     invertColorsInDarkMode: boolean;
     numberFormatting: number;
@@ -25,6 +25,7 @@ interface MosheMathBasicSettings {
 	 * currently only dealing with texlive200_cache
 	 */
 	packageCache: Array<StringMap>;
+	pdfEngineCooldown: number;
 }
 
 /**
@@ -42,19 +43,20 @@ export type MosheMathPluginSettings = MosheMathBasicSettings & MosheMathRawSetti
 export type MosheMathettings = MosheMathBasicSettings & MosheMathParsedSettings;
 
 export const DEFAULT_SETTINGS: MosheMathPluginSettings = {
-	preambleEnabled: false,
-	corePreambleFileLocation: "",
+	mathjaxPreamblePreambleEnabled: false,
 	mathjaxPreambleFileLocation: "",
-	explicitPreambleEnabled: false,
-	explicitPreambleFromCodeBlocks: false,
-	explicitPreambleFileLocation: "",
+	pdfTexEnginevirtualFileSystemFilesEnabled: false,
+	autoloadedVirtualFileSystemFiles: [],
+	virtualFilesFromCodeBlocks: false,
+	virtualFilesFileLocation: "",
     // stile settings
     invertColorsInDarkMode: true,
-    numberFormatting: 1000,
+    numberFormatting: 3000,
 
 	package_url: `https://texlive2.swiftlatex.com/`,
 	cache: [],
 	packageCache: [{},{},{},{}],
+	pdfEngineCooldown: 1000,
 }
 
 export function processMosheMathSettings(settings: MosheMathPluginSettings):MosheMathettings {

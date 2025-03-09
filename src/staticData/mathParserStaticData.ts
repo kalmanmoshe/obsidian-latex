@@ -1,49 +1,5 @@
 
 import { BracketType } from './encasings';
-export const  keyboardAutoReplaceHebrewToEnglishTriggers =
-[
-    { key: "\u05D0", code: "KeyT", replacement: "t" },
-    { key: "\u05D1", code: "KeyC", replacement: "c" },
-    { key: "\u05D2", code: "KeyD", replacement: "d" },
-    { key: "\u05D3", code: "KeyS", replacement: "s" },
-    { key: "\u05D4", code: "KeyV", replacement: "v" },
-    { key: "\u05D5", code: "KeyU", replacement: "u" },
-    { key: "\u05D6", code: "KeyZ", replacement: "z" },
-    { key: "\u05D7", code: "KeyJ", replacement: "j" },
-    { key: "\u05D8", code: "KeyY", replacement: "y" },
-    { key: "ך", code: "KeyL", replacement: "l" },
-    { key: "\u05D9", code: "KeyH", replacement: "h" },
-    { key: "\u05DB", code: "KeyF", replacement: "f" },
-    { key: "\u05DC", code: "KeyK", replacement: "k" },
-    { key: "\u05DE", code: "KeyN", replacement: "n" },
-    { key: "\u05DD", code: "KeyO", replacement: "o" },
-    { key: "\u05E0", code: "KeyB", replacement: "b" },
-    { key: "\u05DF", code: "KeyI", replacement: "i" },
-    { key: "\u05E1", code: "KeyX", replacement: "x" },
-    { key: "\u05E2", code: "KeyG", replacement: "g" },
-    { key: "\u05E4", code: "KeyP", replacement: "p" },
-    { key: "\u05E6", code: "KeyM", replacement: "m" },
-    { key: "\u05E8", code: "KeyR", replacement: "r" },
-    { key: "\u05E7", code: "KeyE", replacement: "e" },
-    { key: "\u05E9", code: "KeyA", replacement: "a" },
-    { key: "\u05EA", code: "KeyC", replacement: "c" },
-    { key: "ף", code: "Semicolon", replacement: ";" },
-    { key: "/", code: "KeyQ", replacement: "q" },
-    { key: "ת", code: "Comma", replacement: "," },
-    { key: "'", code: "KeyW", replacement: "w" },
-    { key: "\u05E5", code: "Period", replacement: "." },
-    { key: ".", code: "Slash", replacement: "/" },
-    { key: "]", code: "BracketLeft", replacement: "[" },
-    { key: "[", code: "BracketRight", replacement: "]" },
-    { key: "}", code: "BracketLeft", replacement: "{" },
-    { key: "{", code: "BracketRight", replacement: "}" },
-    { key: ")", code: "Digit9", replacement: "(" },
-    { key: "(", code: "Digit0", replacement: ")" },
-    { key: ">", code: "Comma", replacement: "<" },
-    { key: "<", code: "Period", replacement: ">" }
-];
-
-
 
 
 
@@ -425,4 +381,3 @@ const partialMathJaxOperatorsMetadata: DeepPartial<MathJaxOperatorMetadata>[]=[
 export const mathJaxOperatorsMetadata: MathJaxOperatorMetadata[] = partialMathJaxOperatorsMetadata.map(
     (metadata) => createMathJaxOperatorMetadata(metadata)
 );
-console.log("mathJaxOperatorsMetadata",mathJaxOperatorsMetadata);
