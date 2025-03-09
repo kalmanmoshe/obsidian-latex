@@ -1,20 +1,18 @@
 
-import { FileSystemAdapter, MarkdownPostProcessorContext, TFile, MarkdownPreviewRenderer, Modal, App } from 'obsidian';
+import { FileSystemAdapter, MarkdownPostProcessorContext, TFile, MarkdownPreviewRenderer, Modal, App, Menu, SectionCache } from 'obsidian';
 import { Md5 } from 'ts-md5';
 import * as fs from 'fs';
 import * as temp from 'temp';
 import * as path from 'path';
 import {CompileResult, PdfTeXEngine} from './PdfTeXEngine';
-import {PDFDocument} from 'pdf-lib';
-import {Config,optimize} from 'svgo';
 import Moshe from '../main';
 import { StringMap } from 'src/settings/settings.js';
-import { getPreamble } from 'src/tikzjax/interpret/tokenizeTikzjax';
 import async from 'async';
 import { LatexAbstractSyntaxTree } from './parse/parse';
-import { PreambleFile } from 'src/file_watch';
-import LatexParser, { errorDiv } from './swiftlatexpdftex/log';
-const PdfToCairo = require("./pdftocairo.js")
+import { VirtualFile } from 'src/obsidian/file_watch';
+import LatexParser, { errorDiv } from './log';
+import { pdfToHtml, pdfToSVG } from './pdfToHtml';
+
 export const waitFor = async (condFunc: () => boolean) => {
 	return new Promise<void>((resolve) => {
 		if (condFunc()) {
@@ -28,11 +26,32 @@ export const waitFor = async (condFunc: () => boolean) => {
 		}
 	});
 };
+/**
+ * Pauses without blocking external code execution until a given condition returns true, or until a timeout occurs.
+ */
+async function nonBlockingWaitUntil(condition: () => boolean, timeoutMs = 10000, checkInterval = 500): Promise<void> {
+    const startTime = performance.now();
+    const maxWaitTime = startTime + timeoutMs;
 
-type Task = { source: string, el: HTMLElement,md5Hash:string, sourcePath: string , blockId: string};
-const catchFileFormat="svg"
+    while (!condition()) {
+        if (performance.now() >= maxWaitTime) {
+            throw new Error("Timeout waiting for condition.");
+        }
+        // Yield control to allow external code execution.
+        await new Promise(resolve => setTimeout(resolve, checkInterval));
+    }
+}
 
 
+type Task = { source: string, el: HTMLElement,md5Hash:string, sourcePath: string , blockId: string,process: boolean};
+const cacheFileFormat="svg"
+
+enum VirtualFileSystemFilesStatus{
+	undefined,
+	outdated,
+	uptodate,
+	error,
+}
 
 export class SwiftlatexRender {
 	plugin: Moshe;
@@ -41,7 +60,10 @@ export class SwiftlatexRender {
 	pdfEngine: PdfTeXEngine;
 	cache: Map<string, Set<string>>;
 	queue: async.QueueObject<Task>;
-	coorPreambleFiles: PreambleFile[];
+	private virtualFileSystemFiles: VirtualFile[]
+	private coorVirtualFiles: Set<string> = new Set();
+	private virtualFileSystemFilesStatus: VirtualFileSystemFilesStatus=VirtualFileSystemFilesStatus.undefined;
+	private virtualFileSystemEnabled: boolean
 	async onload(plugin: Moshe) {
 		this.plugin = plugin;
 		this.validateCatchDirectory();
@@ -50,25 +72,43 @@ export class SwiftlatexRender {
 		this.pdfEngine = new PdfTeXEngine();
 		await this.pdfEngine.loadEngine();
 		await this.loadPackageCache();
-		this.pdfEngine.setTexliveEndpoint(this.plugin.settings.package_url);
+		await this.pdfEngine.setTexliveEndpoint(this.plugin.settings.package_url);
 		this.configQueue();
 		this.plugin.addRibbonIcon("dice", "Moshe Math", () => {
 			new svgDisplayModule(this.plugin.app, this.cacheFolderPath,this.cache).open();
-		  })
+		})
+	}
+	async setVirtualFileSystemEnabled(enabled: boolean){
+		this.virtualFileSystemEnabled=enabled
+		if(!enabled){
+			this.virtualFileSystemFiles=[];
+			this.virtualFileSystemFilesStatus=VirtualFileSystemFilesStatus.undefined;
+			this.coorVirtualFiles=new Set();
+			await this.pdfEngine.flushWorkCache()
+		}
+	}
+	setCoorVirtualFiles(files: Set<string>){
+		if(this.virtualFileSystemEnabled)
+			this.coorVirtualFiles=files;
 	}
 	configQueue() {
-		const WAIT_TIME_MS = 4 * 1000; // Replace X with your desired seconds
-		
-		this.queue = async.queue((task, done) => {
-			task.source=getPreamble(this.plugin.app)+task.source+"\n\\end{tikzpicture}\\end{document}"
+		const processTask=(task: Task):void=> {
+			
+			let coorPreambles=""
+
+			this.coorVirtualFiles.forEach(name => {
+				coorPreambles+=`\\input{${name}}`
+			});
+
+			task.source="\\documentclass{standalone}"+coorPreambles+"\\pgfplotsset{compat=1.16}\\begin{document}\\begin{tikzpicture}"+task.source+"\n\\end{tikzpicture}\\end{document}"
 			
 			const ast = new LatexAbstractSyntaxTree();
 			try {
 				ast.parse(task.source);
 				ast.a();
-				ast.cleanUpDefs()
+				ast.cleanUp()
 				const myAst = ast.myAst;
-				//console.log(a,ast2)
+				console.log("myAst",myAst)
 				ast.deleteComments();
 				task.source = ast.toString();
 			} catch (e) {
@@ -77,15 +117,18 @@ export class SwiftlatexRender {
 				ast.deleteComments();
 				task.source = ast.toString();
 			}
-
+		}
+		this.queue = async.queue((task, done) => {
+			if(task.process)processTask(task)
+				
 			this.renderLatexToElement(task.source, task.el,task.md5Hash, task.sourcePath).then(() => {
 				// Wait X seconds before marking the task as done
-				setTimeout(() =>{updateCountdown(this.queue);done();}, WAIT_TIME_MS);
+				setTimeout(() =>{updateQueueCountdown(this.queue);done();}, this.plugin.settings.pdfEngineCooldown);
 			})
 			.catch((err) => {
-				console.error('Error processing task:', err);
+				console.error("Error processing task:",[ err.split("\n")]);
 				// Optionally, delay even on errors:
-				setTimeout(() => {updateCountdown(this.queue);done(err);}, WAIT_TIME_MS);
+				setTimeout(() => {updateQueueCountdown(this.queue);done(err);}, this.plugin.settings.pdfEngineCooldown);
 			});
 		}, 1); // Concurrency is set to 1, so tasks run one at a time
 	}
@@ -107,16 +150,34 @@ export class SwiftlatexRender {
 			this.cache = new Map();
 		}
 	}
-	setCoorPreambles(preambleFiles: PreambleFile[]){
-		this.coorPreambleFiles = preambleFiles;
-		console.log("preambleFiles", preambleFiles);
-		preambleFiles.forEach(file => {
-			this.pdfEngine.writeMemFSFile("coorPreamble.tex", file.content);
-		});
+	setVirtualFileSystemFiles(files: VirtualFile[]){
+		if(!this.virtualFileSystemEnabled) throw new Error("Virtual file system is not enabled");
+		this.virtualFileSystemFiles=files;
+		this.virtualFileSystemFilesStatus=VirtualFileSystemFilesStatus.outdated;
 	}
-	private updateExplicitPreambleFilesInWorker(){
-		if(!this.plugin.settings.explicitPreambleEnabled)throw new Error("Explicit preamble is not enabled");
+
+	private async loadVirtualFileSystemFiles() {
+		if(this.virtualFileSystemEnabled===false||this.virtualFileSystemFilesStatus === VirtualFileSystemFilesStatus.uptodate)return;
+		if (this.virtualFileSystemFilesStatus === VirtualFileSystemFilesStatus.undefined){
+			await nonBlockingWaitUntil(() => 
+				this.virtualFileSystemFilesStatus === VirtualFileSystemFilesStatus.outdated
+			);
+		}
+		try {
+			await this.pdfEngine.flushWorkCache();
+			for (const file of this.virtualFileSystemFiles) {
+				await this.pdfEngine.writeMemFSFile(file.name, file.content);
+			}
+			this.virtualFileSystemFilesStatus = VirtualFileSystemFilesStatus.uptodate;
+		} catch (err) {
+			console.error("Error loading virtual filesystem files:", err);
+			this.virtualFileSystemFilesStatus = VirtualFileSystemFilesStatus.error;
+			throw err;
+		}
 	}
+	
+
+
 	private async loadCache() {
 		this.cache = new Map(this.plugin.settings.cache);
 		// For some reason `this.cache` at this point is actually `Map<string, Array<string>>`
@@ -143,40 +204,44 @@ export class SwiftlatexRender {
 			//const read_success = false;
 			try {
 				const srccode = fs.readFileSync(path.join(this.packageCacheFolderPath, filename));
-				this.pdfEngine.writeTexFSFile(filename, srccode);
+				await this.pdfEngine.writeTexFSFile(filename, srccode);
 			} catch (e) {
 				// when unable to read file, remove this from the cache
 				console.warn(`Unable to read file ${filename} from package cache`,e)
 				delete this.plugin.settings.packageCache[1][key];
 			}
 		}
-		this.plugin.saveSettings()
+		await this.plugin.saveSettings()
 
 		// write cache data to the VFS, except don't write the texlive404_cache because this will cause problems when switching between texlive sources
-		this.pdfEngine.writeCacheData(
+		await this.pdfEngine.writeCacheData(
 			{},
 			this.plugin.settings.packageCache[1],
 			this.plugin.settings.packageCache[2],
 			this.plugin.settings.packageCache[3]
 	);
 	}
-	onunload() {
-		this.pdfEngine.cleanWorkirectory();
+	async onunload() {
+		await this.pdfEngine.flushWorkCache();
 		this.pdfEngine.closeWorker();
-		this.cleanUpCache();
+		await this.cleanUpCache();
 	}
-	private unloadCache() {
-		this.pdfEngine.flushCache();
+	private async unloadCache() {
+		await this.pdfEngine.flushCache();
 		fs.rmdirSync(this.cacheFolderPath, { recursive: true });
 	}
 	
 	universalCodeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+		const isLangTikz = el.classList.contains("block-language-tikz");
 		el.classList.remove("block-language-tikz");
+		el.classList.remove("block-language-latex");
 		el.classList.add("block-language-latexsvg");
 		const md5Hash = hashLatexSource(source);
+		addMenu(el,this.plugin)
+		
 		// PDF file has already been cached
 		// Could have a case where pdfCache has the key but the cached file has been deleted
-		const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${catchFileFormat}`);
+		const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${cacheFileFormat}`);
 		if (this.cache.has(md5Hash) && fs.existsSync(dataPath)) {
 			const data = fs.readFileSync(dataPath, 'utf8');
 			el.innerHTML = data
@@ -186,42 +251,39 @@ export class SwiftlatexRender {
 			const blockId = `${ctx.sourcePath.replace(/[^\wא-ת]/g, '_')}_${ctx.getSectionInfo(el)?.lineStart}`;
 			this.queue.remove(node => node.data.blockId === blockId);
 			el.appendChild(createWaitingCountdown(this.queue.length()));
-			this.queue.push({ source, el, md5Hash, sourcePath: ctx.sourcePath, blockId });
+			this.queue.push({ source, el, md5Hash, sourcePath: ctx.sourcePath, blockId, process:isLangTikz });
 		}
 	}
-	private async renderLatexToElement(source: string, el: HTMLElement,md5Hash:string, sourcePath: string,) {
-		return new Promise<void>((resolve, reject) => {
-			const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${catchFileFormat}`);
-			this.renderLatexToPDF(source).then((result: CompileResult) => {
-					el.innerHTML = ""
-					this.translatePDF(result.pdf, el).then(() => {
-						fs.writeFileSync(dataPath,el.innerHTML);
-					});
-				}).catch(err => {
-					el.innerHTML = "";
-					const log=LatexParser.parse(err)
-					console.error("LaTeX Error:", log, err);
-					const { message, content, line } = log.errors[0];
-					el.appendChild(errorDiv(message, content, line));
-					reject(err); 
-				});		
+	private async renderLatexToElement(source: string, el: HTMLElement,md5Hash: string, sourcePath: string): Promise<void> {
+		try {
+			const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${cacheFileFormat}`);
+			const result = await this.renderLatexToPDF(source);
+			el.innerHTML = "";
+			await this.translatePDF(result.pdf, el,md5Hash);
+			await fs.promises.writeFile(dataPath, el.innerHTML, "utf8");
 			this.addFileToCache(md5Hash, sourcePath);
-			resolve();
-		}).then(() => {
-				waitFor(() => this.pdfEngine.isReady()).then(() => {
-					this.pdfEngine.fetchWorkFiles().then((r) => {
-					console.log("this.pdfEngine.fetchWorkFiles()",r);
-				});
-			});
-			this.pdfEngine.cleanWorkirectory();
-			setTimeout(() => this.cleanUpCache(), 1000);
-		});
+		} catch (err) {
+			el.innerHTML = "";
+			const log = LatexParser.parse(err);
+			console.error("LaTeX Error:", log, [err]);
+			const { message, content, line } = log.errors[0];
+			el.appendChild(errorDiv(message, content, line));
+			throw err;
+		} finally {
+			await waitFor(() => this.pdfEngine.isReady());
+			await this.cleanUpCache();
+		}
 	}
+	  
 
-	private async translatePDF(pdfData: Buffer<ArrayBufferLike>, el: HTMLElement, outputSVG = true): Promise<void> {
-		return new Promise<void>((resolve) => { 
+	private async translatePDF(pdfData: Buffer<ArrayBufferLike>, el: HTMLElement,hash: string, outputSVG = true): Promise<void> {
+		return new Promise<void>((resolve) => {
+			const config ={
+				invertColorsInDarkMode: this.plugin.settings.invertColorsInDarkMode,
+				sourceHash: hash
+			};
 			if (outputSVG)
-				pdfToSVG(pdfData,this.plugin.settings).then((svg: string) => { el.innerHTML = svg; resolve();});
+				pdfToSVG(pdfData,config).then((svg: string) => { el.innerHTML = svg; resolve();});
 			else
 				pdfToHtml(pdfData).then((htmlData) => {el.createEl("object", htmlData);resolve();});
 		});
@@ -238,15 +300,16 @@ export class SwiftlatexRender {
 					return;
 				}
 				if (err) reject(err);
-				this.pdfEngine.writeMemFSFile("main.tex", source);
-				this.pdfEngine.setEngineMainFile("main.tex");
-				this.pdfEngine.compileLaTeX().then((result: CompileResult) => {
+				await this.loadVirtualFileSystemFiles();
+				await this.pdfEngine.writeMemFSFile("main.tex", source);
+				await this.pdfEngine.setEngineMainFile("main.tex");
+				await this.pdfEngine.compileLaTeX().then(async (result: CompileResult) => {
 					if (result.status != 0) {
 						// manage latex errors
 						reject(result.log);
 					}
 					// update the list of package files in the cache
-					this.fetchPackageCacheData()
+					await this.fetchPackageCacheData()
 					resolve(result);
 				});
 			})
@@ -260,15 +323,22 @@ export class SwiftlatexRender {
 	 * 4. pk200_cache
 	 * currently only dealing with texlive200_cache
 	 */
-	fetchPackageCacheData(): void {
-		this.pdfEngine.fetchCacheData().then((r: StringMap[]) => {
-			const newFileNames = getNewPackageFileNames(this.plugin.settings.packageCache[1], r[1]);
-			this.pdfEngine.fetchTexFiles(newFileNames, this.packageCacheFolderPath);
-			this.plugin.settings.packageCache = r;
-
-		});
-		this.plugin.saveSettings().then();
+	async fetchPackageCacheData(): Promise<void> {
+		try {
+			const cacheData: StringMap[] = await this.pdfEngine.fetchCacheData();
+			const newFileNames = getNewPackageFileNames(
+				this.plugin.settings.packageCache[1],
+				cacheData[1]
+			);
+			await this.pdfEngine.fetchTexFiles(newFileNames, this.packageCacheFolderPath);
+			this.plugin.settings.packageCache = cacheData;
+			await this.plugin.saveSettings();
+	
+		} catch (err) {
+			console.error("Error fetching package cache data:", err);
+		}
 	}
+	
 
 	private async saveCache() {
 		let temp = new Map();
@@ -287,25 +357,36 @@ export class SwiftlatexRender {
 		this.saveCache();
 	}
 
-	private async cleanUpCache() {
-		const file_paths = new Set<string>();
+	/**
+	 * Remove all unused cachet svgs from the cache and file system.
+	*/
+	private async cleanUpCache(): Promise<void> {
+		const filePathsToRemove: string[] = [];
+	
+		// Collect file paths safely first
 		for (const fps of this.cache.values()) {
-			for (const fp of fps) {
-				file_paths.add(fp);
+			for (const filePath of fps) {
+				const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
+				if (!file) {
+					filePathsToRemove.push(filePath);
+				} else if (file instanceof TFile) {
+					try {
+						await this.removeUnusedCachesForFile(file);
+					} catch (err) {
+						console.error(`Error removing cache for file ${filePath}:`, err);
+					}
+				}
 			}
 		}
-		for (const file_path of file_paths) {
-			const file = this.plugin.app.vault.getAbstractFileByPath(file_path);
-			if(file==null) this.removeFileFromCache(file_path);
-			if (file instanceof TFile) {
-				await this.removeUnusedCachesForFile(file);
-			}
+		for (const filePath of filePathsToRemove) {
+			this.removeFileFromCache(filePath);
 		}
-		await this.saveCache();
+		await this.plugin.saveSettings();
 	}
+	
 
 	private async removeUnusedCachesForFile(file: TFile) {
-		const hashes_in_file = await this.getLatexHashesFromFile(file);
+		const hashes_in_file = await getLatexHashesFromFile(file,this.plugin.app);
 		const hashes_in_cache = this.getLatexHashesFromCacheForFile(file);
 		for (const hash of hashes_in_cache) {
 			if (!hashes_in_file.contains(hash)) {
@@ -320,7 +401,7 @@ export class SwiftlatexRender {
 	private removePDFFromCache(key: string) {
 		if(this.cache.has(key))
 			this.cache.delete(key);
-		const filePath=path.join(this.cacheFolderPath, `${key}.${catchFileFormat}`);
+		const filePath=path.join(this.cacheFolderPath, `${key}.${cacheFileFormat}`);
 		if (fs.existsSync(filePath)) {
 			fs.rmSync(filePath);
 		}
@@ -348,20 +429,6 @@ export class SwiftlatexRender {
 		return hashes;
 	}
 
-	private async getLatexHashesFromFile(file: TFile) {
-		const hashes: string[] = [];
-		const sections = this.plugin.app.metadataCache.getFileCache(file)?.sections
-		if (sections != undefined) {
-			const lines = (await this.plugin.app.vault.read(file)).split('\n');
-			for (const section of sections) {
-				if (section.type != "code" && lines[section.position.start.line].match("``` *(latex|tikz)") == null) continue;
-				let source = lines.slice(section.position.start.line + 1, section.position.end.line).join("\n");
-				const hash = hashLatexSource(source);
-				hashes.push(hash);
-			}
-		}
-		return hashes;
-	}
 	/**
 	 * Remove all cached SVG files from the file system and update the settings.
 	 */
@@ -414,8 +481,7 @@ export class SwiftlatexRender {
 }
 
 
-
-const updateCountdown = (queue: async.QueueObject<Task>) => {
+const updateQueueCountdown = (queue: async.QueueObject<Task>) => {
 	//@ts-ignore
 	let taskNode = queue._tasks.head;
 	let index = 0;
@@ -430,69 +496,89 @@ const updateCountdown = (queue: async.QueueObject<Task>) => {
 		index++;
 	}
 };
-function pdfToSVG(pdfData: any,config: {invertColorsInDarkMode?:boolean}) {
-	const hashSVG = (svg: any) => {
-		const id = Md5.hashStr(svg.trim()).toString();
-		const randomString = Math.random().toString(36).substring(2, 10);
-		return id.concat(randomString);
-	};
-	return PdfToCairo().then((pdftocairo: any) => {
-		pdftocairo.FS.writeFile('input.pdf', pdfData);
-		pdftocairo._convertPdfToSvg();
-		let svg = pdftocairo.FS.readFile('input.svg', {encoding:'utf8'});
-		const svgoConfig:Config =  {
-			plugins: ['sortAttrs', { name: 'prefixIds', params: { prefix: hashSVG(svg) } }]
-		};
-		svg = optimize(svg, svgoConfig).data; 
-		if (config.invertColorsInDarkMode) {
-			svg = colorSVGinDarkMode(svg);
+  
+
+async function getLatexHashesFromFile(file: TFile,app:App) {
+	const hashes: string[] = [];
+	const sections = app.metadataCache.getFileCache(file)?.sections
+	if (sections != undefined) {
+		const lines = (await app.vault.read(file)).split('\n');
+		for (const section of sections) {
+			if (section.type != "code" && lines[section.position.start.line].match("``` *(latex|tikz)") == null) continue;
+			let source = lines.slice(section.position.start.line + 1, section.position.end.line).join("\n");
+			const hash = hashLatexSource(source);
+			hashes.push(hash);
 		}
-		return svg;
-	});
+	}
+	return hashes;
 }
+
+async function getLatexSourceFromHash(hash: string, plugin: Moshe, file?: TFile): Promise<string> {
+	// Cache for file content to avoid multiple disk reads.
+	const fileContentCache = new Map<string, string>();
+  
+	// Helper function that reads a file and caches its content.
+	const readFile = async (file: TFile): Promise<string> => {
+	  if (!fileContentCache.has(file.path)) {
+		const content = await plugin.app.vault.read(file);
+		fileContentCache.set(file.path, content);
+	  }
+	  return fileContentCache.get(file.path)!;
+	};
+  
+	const findLatexSourceFromHashInFile = async (hash: string, file?: TFile): Promise<string | undefined> => {
+	  if (!file) return;
+	  const content = await readFile(file);
+	  const lines = content.split('\n');
+	  const fileCache = plugin.app.metadataCache.getFileCache(file);
+	  if (!fileCache?.sections) return;
+	  // Filter sections that are code blocks with latex or tikz language hints.
+	  const sections = fileCache.sections.filter((section: SectionCache) =>
+		section.type === "code" &&
+		lines[section.position.start.line].match(/``` *(latex|tikz)/)
+	  );
+	  for (const section of sections) {
+		// Extract section content.
+		const codeSection = lines.slice(section.position.start.line + 1, section.position.end.line).join("\n");
+		if (hashLatexSource(codeSection) === hash) {
+		  return codeSection;
+		}
+	  }
+	};
+  
+	// Check provided file first.
+	const fromProvidedFile = await findLatexSourceFromHashInFile(hash, file);
+	if (fromProvidedFile) return fromProvidedFile;
+  
+	// Use cache to narrow down file paths.
+	const cachedFilePaths = Array.from(plugin.settings.cache.find((entry: [string, Set<string>]) => entry[0] === hash)?.[1] || []);
+	for (const filePath of cachedFilePaths) {
+	  const fileFromCache = plugin.app.metadataCache.getFirstLinkpathDest(filePath, file ? file.path : "");
+	  if(!fileFromCache) continue;
+	  const source = await findLatexSourceFromHashInFile(hash, fileFromCache);
+	  if (source) return source;
+	}
+  
+	// If still not found, search all files in parallel.
+	const allFiles = plugin.app.vault.getFiles();
+	const checkPromises = allFiles.map(file => findLatexSourceFromHashInFile(hash, file));
+	const results = await Promise.all(checkPromises);
+	const found = results.find(source => source !== undefined);
+	if (found) return found;
+  
+	throw new Error("Latex source not found for hash: " + hash);
+}
+  
+
+
 
 
 
 function hashLatexSource(source: string) {
 	return Md5.hashStr(source.replace(/\s/g, ''))
 }
-function colorSVGinDarkMode(svg: string) {
-	// Replace the color "black" with currentColor (the current text color)
-	// so that diagram axes, etc are visible in dark mode
-	// and replace "white" with the background color
-	if (document.body.classList.contains('theme-dark')) {
-	svg = svg.replace(/rgb\(0%, 0%, 0%\)/g, "currentColor")
-				.replace(/rgb\(100%, 100%, 100%\)/g, "var(--background-primary)");
-	} else {
-	svg = svg.replace(/rgb\(100%, 100%, 100%\)/g, "currentColor")
-				.replace(/rgb\(0%, 0%, 0%\)/g, "var(--background-primary)");
-	}
-	
-	return svg;
-}
-	
 
-async function pdfToHtml(pdfData: Buffer<ArrayBufferLike>) {
-	const {width, height} = await getPdfDimensions(pdfData);
-	const ratio = width / height;
-	const pdfblob = new Blob([pdfData], { type: 'application/pdf' });
-	const objectURL = URL.createObjectURL(pdfblob);
-	return  {
-		attr: {
-		data: `${objectURL}#view=FitH&toolbar=0`,
-		type: 'application/pdf',
-		class: 'block-lanuage-latex',
-		style: `width:100%; aspect-ratio:${ratio}`
-		}
-	};
-}
-
-async function  getPdfDimensions(pdf: any): Promise<{width: number, height: number}> {
-	const pdfDoc = await PDFDocument.load(pdf);
-	const firstPage = pdfDoc.getPages()[0];
-	const {width, height} = firstPage.getSize();
-	return {width, height};
-}
+	
 
 
 
@@ -513,17 +599,31 @@ function getNewPackageFileNames(oldCacheData: StringMap, newCacheData: StringMap
 
 
 
+function addMenu(el: HTMLElement,plugin: Moshe) {
+	el.addEventListener("contextmenu", (event) => {
+		if(!event.target)return
+		const clickedElement = event.target as HTMLElement;
+		new SvgContextMenu(plugin,clickedElement).open()
+	});
+}
 
 
 
 
-
-
-
-
-
-
-
+class SvgContextMenu extends Menu {
+	plugin: Moshe;
+	triggeringElement: HTMLElement;
+	constructor(plugin: Moshe,trigeringElement: HTMLElement) {
+		super();
+    	this.plugin = plugin;
+		this.triggeringElement = trigeringElement;
+	}
+	async open() {
+		const id=this.triggeringElement.id;
+		if(!id)return;
+		const source=await getLatexSourceFromHash(id,this.plugin)
+	}
+}
 
 
 

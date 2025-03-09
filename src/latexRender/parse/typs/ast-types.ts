@@ -229,6 +229,7 @@ export type Node =
     | InlineMath
     | DisplayMath
     | Group
-    | Verb;
+    | Verb
+    | Def;
 
 export type Ast = Node | Argument | Node[];

@@ -50,12 +50,32 @@ export class MosheMathSettingTab extends PluginSettingTab {
 	private displayGraphSettings(){
 		const containerEl = this.containerEl;
 		this.addHeading(containerEl, "graph", "ballpen");
-		this.addToggleSetting(
-			containerEl,
-			"Invert dark colors in dark mode",
-			"Invert dark colors in diagrams (e.g. axes, arrows) when in dark mode, so that they are visible.",
-			this.plugin.settings.invertColorsInDarkMode
+		staticMosheMathTypingApi!.addToggleSetting(
+			containerEl,this.plugin,
+			(value: boolean)=>{this.plugin.settings.invertColorsInDarkMode=value,this.plugin.saveSettings()},
+			{
+				name: "Invert colors in dark mode",
+				description: "Invert colors in diagrams (e.g. axes, arrows) when in dark mode, so that they are visible.",
+				defValue: this.plugin.settings.invertColorsInDarkMode
+			}
 		);
+		const setting = createSetting(
+			containerEl, 
+			{
+			name: "PDF Engine Cooldown Time",
+			description: "The interval (in seconds) between PDF rendering jobs. A higher value decreases performance."
+			}
+		);
+		setting.addSlider(slider => {
+			slider.setLimits(0, 5, 1);
+			slider.setValue(this.plugin.settings.pdfEngineCooldown / 1000);
+			slider.setDynamicTooltip();
+			slider.onChange(value => {
+			  this.plugin.settings.pdfEngineCooldown = value * 1000;
+			  this.plugin.saveSettings();
+			});
+		});
+		
 		this.addButtonSetting(
 			containerEl,
 			() =>{
@@ -77,47 +97,132 @@ export class MosheMathSettingTab extends PluginSettingTab {
 		this.addHeading(containerEl, "Preamble", "pencil");
 		staticMosheMathTypingApi!.addToggleSetting(
 			containerEl,this.plugin,
-			(value: boolean)=>{this.plugin.settings.preambleEnabled=value,this.plugin.saveSettings()},
+			(value: boolean)=>{this.plugin.settings.mathjaxPreamblePreambleEnabled=value,this.plugin.saveSettings();},
 			{
-				name: "Enabled",
-				description: "Whether to load a preamble file for mathjax.",
-				defValue: this.plugin.settings.preambleEnabled
+				name: "Mathjax preamble enabled.",
+				description: "Whether to load mathjax preamble",
+				defValue: this.plugin.settings.mathjaxPreamblePreambleEnabled
 			}
 		)
-
-		const preambleFileLoc = createSetting(
+		const mathjaxPreambleFileLoc = createSetting(
 			containerEl, 
 			{
-			name: "Preamble file location",
-			description: "The file to load the preamble from."
+			name: "Mathjax preamble file location",
+			description: "the file/directory containing the preamble for MathJax requirs reload to take effect",
 			}
 		)
-		let inputEl: HTMLInputElement | undefined; // Define with a possible undefined type
-
-		preambleFileLoc.addSearch((component) => {
+		let inputEl1: HTMLInputElement | undefined; // Define with a possible undefined type
+		mathjaxPreambleFileLoc.addSearch((component) => {
 			component
-				.setPlaceholder(DEFAULT_SETTINGS.preambleFileLocation)
-				.setValue(this.plugin.settings.preambleFileLocation)
+				.setPlaceholder(DEFAULT_SETTINGS.mathjaxPreambleFileLocation)
+				.setValue(this.plugin.settings.mathjaxPreambleFileLocation)
 				.onChange(
 					debounce(async (value) => {
-						this.plugin.settings.preambleFileLocation = value;
+						this.plugin.settings.mathjaxPreambleFileLocation = value;
+						await this.plugin.saveSettings();
+					}, 500, true)
+				);
+
+			// Ensure inputEl is assigned
+			inputEl1 = component.inputEl as HTMLInputElement;
+			inputEl1.addClass("moshe-typing-location-input-el");
+		});
+    
+		// Ensure inputEl is defined before passing to FileSuggest
+		if (inputEl1) {
+			this.snippetsFileLocEl = mathjaxPreambleFileLoc.settingEl;
+			new staticMosheMathTypingApi!.fileSuggest(this.app, inputEl1);
+		} else {
+			console.error("Input element is undefined.");
+		}
+		
+		const virtualFilesDescription = document.createDocumentFragment();
+
+		const description = document.createElement("span");
+		description.textContent = 
+		"Allows the LaTeX engine to load external files into its virtual filesystem. " + 
+		"Enabling this lets you use commands such as \\include{} to reference external files. " + 
+		"When disabled, all LaTeX commands must rely solely on content provided directly in the code block.";
+
+		virtualFilesDescription.appendChild(description);
+
+		staticMosheMathTypingApi!.addToggleSetting(
+			containerEl,this.plugin,
+			(value: boolean)=>{this.plugin.settings.pdfTexEnginevirtualFileSystemFilesEnabled=value;},
+			{
+				name: "Enable virtual files",
+				description: virtualFilesDescription,
+				defValue: this.plugin.settings.pdfTexEnginevirtualFileSystemFilesEnabled,
+				passToSave: {didFileLocationChange: true}
+			}
+	);
+		const virtualFilesFileLoc = createSetting(
+			containerEl, 
+			{
+				name: "Virtual files file location",
+				description: "the file/directory containing the virtual files",
+			}
+		)
+		let inputEl2: HTMLInputElement | undefined; // Define with a possible undefined type
+		virtualFilesFileLoc.addSearch((component) => {
+			component
+				.setPlaceholder(DEFAULT_SETTINGS.virtualFilesFileLocation)
+				.setValue(this.plugin.settings.virtualFilesFileLocation)
+				.onChange(
+					debounce(async (value) => {
+						this.plugin.settings.virtualFilesFileLocation = value;
 						await this.plugin.saveSettings(true);
 					}, 500, true)
 				);
 
 			// Ensure inputEl is assigned
-			inputEl = component.inputEl as HTMLInputElement;
-			inputEl.addClass("moshe-typing-location-input-el");
+			inputEl2 = component.inputEl as HTMLInputElement;
+			inputEl2.addClass("moshe-typing-location-input-el");
 		});
     
 		// Ensure inputEl is defined before passing to FileSuggest
-		if (inputEl) {
-			this.snippetsFileLocEl = preambleFileLoc.settingEl;
-			new staticMosheMathTypingApi!.fileSuggest(this.app, inputEl);
+		if (inputEl2) {
+			this.snippetsFileLocEl = virtualFilesFileLoc.settingEl;
+			new staticMosheMathTypingApi!.fileSuggest(this.app, inputEl2);
 		} else {
 			console.error("Input element is undefined.");
 		}
+		const descriptionFragment = document.createDocumentFragment();
+		const descriptionDetails = document.createElement("span");
+		descriptionDetails.textContent = 
+			"When enabled, code blocks with a header specifying a name (e.g., 'name: someAwesomeCode') " +
+			"can be included directly in your LaTeX code using commands like \\include{}. " +
+			"The name provided in the header identifies the code block as a virtual file. " +
+			"If disabled, this functionality is unavailable. " +
+			"Note: the default file extension is '.tex', unless explicitly specified.";
+		descriptionFragment.appendChild(descriptionDetails);
+
+		staticMosheMathTypingApi!.addToggleSetting(
+			containerEl,this.plugin,
+			(value: boolean)=>{this.plugin.settings.virtualFilesFromCodeBlocks=value},
+			{
+				name: "Enable virtual files from code blocks",
+				description: descriptionFragment,
+				defValue: this.plugin.settings.virtualFilesFromCodeBlocks,
+				passToSave: {didFileLocationChange: true}
+			}
+		);
+
+		staticMosheMathTypingApi!.addTextSetting(
+			containerEl,this.plugin,
+			(value: string)=>{this.plugin.settings.autoloadedVirtualFileSystemFiles=strToArray(value);this.plugin.updateCoorVirtualFiles()},
+			{
+				name: "Autoloaded virtual files",
+				description: "Specify virtual files to automatically include in every LaTeX render, separated by commas. "+
+				"Files listed here must exist either as named code blocks (if code-block loading is enabled) " +
+				"or within the configured virtual files directory.",
+				defValue: this.plugin.settings.autoloadedVirtualFileSystemFiles.join(", "),
+				passToSave: {didFileLocationChange: true}
+			}
+		)
+
 	}
+
 	private displayMathBlockSettings(){
 		const containerEl = this.containerEl;
 		this.addHeading(containerEl, "Math blocks", "math");
@@ -165,19 +270,11 @@ export class MosheMathSettingTab extends PluginSettingTab {
 	});
 
   }
-  private addToggleSetting(containerEl: HTMLElement, name: string, description: string, settingKey: any) {
-    new Setting(containerEl)
-      .setName(name)
-      .setDesc(description)
-      .addToggle((toggle: ToggleComponent) => {
-        toggle.setValue(settingKey)
-        toggle.onChange(async (value) => {
-          settingKey = value;
-          await this.plugin.saveSettings();
-        });
-      });
-  }
 
+}
+
+function strToArray(str: string) {
+	return str.replace(/\s/g,"").split(",").filter((s)=>s.length>0);
 }
 
 function createSetting(containerEl: HTMLElement, basicAppearance:{name?: string, description?: string}) {

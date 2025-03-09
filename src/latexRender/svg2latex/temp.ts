@@ -1,5 +1,5 @@
 const fs = require('fs').promises;
-const { parse, stringify } = require('svgson');
+import { parse, stringify } from 'svgson';
 
 export async function readAndParseSVG() {
     try {

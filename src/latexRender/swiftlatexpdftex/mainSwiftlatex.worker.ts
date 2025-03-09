@@ -1,4 +1,5 @@
 ////@ts-nocheck
+import { intArrayFromString, lengthBytesUTF8, stringToUTF8Array, UTF8ArrayToString } from './encodingDecoding.';
 import { wasmBinaryFileImport } from './wasmBinaryStaticImport';
 import Fs from "fs";
 
@@ -148,6 +149,7 @@ export function compileLaTeXRoutine() {
         self.mainfile.substr(0, self.mainfile.length - 4) +
         ".pdf";
       pdfArrayBuffer = FS.readFile(pdfurl, { encoding: "binary" });
+      if(!pdfArrayBuffer)throw new Error("File not found");
     } catch (err) {
       console.error("Fetch content failed.");
       status = -253;
@@ -190,6 +192,7 @@ function compileFormatRoutine() {
     try {
       let pdfurl = WORKROOT + "/pdflatex.fmt";
       pdfArrayBuffer = FS.readFile(pdfurl, { encoding: "binary" });
+      if(!pdfArrayBuffer)throw new Error("File not found");
     } catch (err) {
       console.error("Fetch content failed.");
       status = -253;
@@ -224,7 +227,7 @@ function compileFormatRoutine() {
     });
   }
 }
-function mkdirRoutine(dirname) {
+function mkdirRoutine(dirname: string) {
   try {
     FS.mkdir(WORKROOT + "/" + dirname);
     self.postMessage({ result: "ok", cmd: "mkdir" });
@@ -234,12 +237,11 @@ function mkdirRoutine(dirname) {
   }
 }
 function writeFileRoutine(filename:string, content: string) {
-  console.log(filename)
   try {
     FS.writeFile(WORKROOT + "/" + filename, content);
     self.postMessage({ result: "ok", cmd: "writefile" });
   } catch (err) {
-    console.error("Unable to write mem file");
+    console.error("Unable to write mem work file "+filename);
     self.postMessage({ result: "failed", cmd: "writefile" });
   }
 }
@@ -248,8 +250,8 @@ function writeTexFileRoutine(filename: string, content: string) {
     FS.writeFile(TEXCACHEROOT + "/" + filename, content);
     self.postMessage({ result: "ok", cmd: "writetexfile" });
   } catch (err) {
-    console.error("Unable to write mem file " + filename);
-    self.postMessage({ result: "failed", cmd: "writetexfile" });
+    console.error("Unable to write mem tex file " + filename);
+    self.postMessage({ result: "failed", cmd: "writetexfile", error: err });
   }
 }
 
@@ -276,13 +278,12 @@ function findWorkDirectory(node: any): any | undefined {
 
 function transferWorkFilesToHost() {
   let dir = findWorkDirectory(FS.root);
-  console.log("dir", typeof dir.contents, dir.contents);
   if (!dir) {
-    postMessage({ result: "failed", cmd: "fetchworkfiles" });
+    self.postMessage({ result: "failed", cmd: "fetchWorkFiles" });
     return; 
   }
   
-  const files:{name: string,data: Uint8Array}[] = [];
+  const files:String[] = [];
   //Yeah, There is a problem with you, I can't seem to sound good.
   for (const key in dir.contents) {
     if (Object.prototype.hasOwnProperty.call(dir.contents, key)) {
@@ -290,15 +291,13 @@ function transferWorkFilesToHost() {
         const fileData = FS.readFile(WORKROOT + "/" + key, {
           encoding: "binary",
         });
-        files.push({name: key, data: new Uint8Array()});
+        files.push(key);
       } catch (error) {
         console.error(`Error reading file "${key}":`, error);
       }
     }
   }
-
-  console.log("files", files,);
-  postMessage({ result: "ok", cmd: "fetchworkfiles", files: files });
+  self.postMessage({ result: "ok", cmd: "fetchWorkFiles", files: files });
 }
   
 function transferTexFileToHost(filename: string) {
@@ -306,6 +305,7 @@ function transferTexFileToHost(filename: string) {
     let content = FS.readFile(TEXCACHEROOT + "/" + filename, {
       encoding: "binary",
     });
+    if(!content)throw new Error("File not found");
     self.postMessage(
       { result: "ok", cmd: "fetchfile", filename: filename, content: content },
       [content.buffer],
@@ -336,6 +336,7 @@ function setTexliveEndpoint(url:string) {
     }
     self.texlive_endpoint = url;
   }
+  self.postMessage({ result: "ok", cmd: "settexliveurl" });
 }
 self["onmessage"] = function (ev) {
   let data = ev["data"];
@@ -358,13 +359,11 @@ self["onmessage"] = function (ev) {
       break;
     case "setmainfile":
       self.mainfile = data["url"];
+      self.postMessage({ result: "ok", cmd: "setmainfile" });
       break;
     case "grace":
       console.error("Gracefully Close");
       self.close();
-      break;
-    case "flusheworkcache":
-      //cleanDir(WORKROOT);
       break;
     case "fetchfile":
       transferTexFileToHost(data["filename"]);
@@ -372,8 +371,10 @@ self["onmessage"] = function (ev) {
     case "flushCache":
       cleanDir(TEXCACHEROOT);
       cleanDir(WORKROOT);
+      self.postMessage({ result: "ok", cmd: "flushCache" });
     case "flushworkcache":
       cleanDir(WORKROOT);
+      self.postMessage({ result: "ok", cmd: "flushworkcache" });
       break;
     case "fetchcache":
       transferCacheDataToHost();
@@ -388,13 +389,15 @@ self["onmessage"] = function (ev) {
       texlive200_cache = data["texlive200_cache"];
       pk404_cache = data["pk404_cache"];
       pk200_cache = data["pk200_cache"];
+      self.postMessage({ result: "ok", cmd: "writecache" });
       break;
     default:
       console.error("Unknown command " + cmd);
+      self.postMessage({ result: "failed", cmd: cmd });
   }
 };
-let texlive404_cache = {};
-let texlive200_cache = {};
+let texlive404_cache:Record<string, number> = {};
+let texlive200_cache:Record<string, string> = {};
 
 /**
  * This will download all files needed for the project. The texlive404_cache will always have to be retried because we can't pass it along as the VFS will cause issues when switching between texlive sources.
@@ -443,8 +446,8 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
   }
   return 0;
 }
-let pk404_cache = {};
-let pk200_cache = {};
+let pk404_cache:Record<string, number> = {};
+let pk200_cache:Record<string, string> = {};
 function kpse_find_pk_impl(nameptr, dpi) {
   const reqname = UTF8ToString(nameptr);
   if (reqname.includes("/")) {
@@ -582,10 +585,17 @@ function tryParseAsDataURI(filename) {
 var wasmMemory;
 var ABORT = false;
 var EXITSTATUS;
-var HEAP8, HEAPU8, HEAP16, HEAPU16, HEAP32, HEAPU32, HEAPF32, HEAPF64;
+var HEAP8: Int8Array, 
+  HEAPU8:Uint8Array, 
+  HEAP16:Int16Array, 
+  HEAPU16:Uint16Array, 
+  HEAP32:Int32Array, 
+  HEAPU32:Uint32Array, 
+  HEAPF32:Float32Array, 
+  HEAPF64:Float64Array;
 function updateMemoryViews() {
   var b = wasmMemory.buffer;
-  Module["HEAP8"] = HEAP8 = new Int8Array(b);
+  Module.HEAP8 = HEAP8 = new Int8Array(b);
   Module["HEAP16"] = HEAP16 = new Int16Array(b);
   Module["HEAPU8"] = HEAPU8 = new Uint8Array(b);
   Module["HEAPU16"] = HEAPU16 = new Uint16Array(b);
@@ -752,43 +762,8 @@ var callRuntimeCallbacks = (callbacks) => {
   }
 };
 var noExitRuntime = Module["noExitRuntime"] || true;
-var UTF8Decoder =
-  typeof TextDecoder != "undefined" ? new TextDecoder("utf8") : undefined;
-var UTF8ArrayToString = (heapOrArray, idx:number, maxBytesToRead?: any) => {
-  var endIdx = idx + maxBytesToRead;
-  var endPtr = idx;
-  while (heapOrArray[endPtr] && !(endPtr >= endIdx)) ++endPtr;
-  if (endPtr - idx > 16 && heapOrArray.buffer && UTF8Decoder) {
-    return UTF8Decoder.decode(heapOrArray.subarray(idx, endPtr));
-  }
-  var str = "";
-  while (idx < endPtr) {
-    var u0 = heapOrArray[idx++];
-    if (!(u0 & 128)) {
-      str += String.fromCharCode(u0);
-      continue;
-    }
-    var u1 = heapOrArray[idx++] & 63;
-    if ((u0 & 224) == 192) {
-      str += String.fromCharCode(((u0 & 31) << 6) | u1);
-      continue;
-    }
-    var u2 = heapOrArray[idx++] & 63;
-    if ((u0 & 240) == 224) {
-      u0 = ((u0 & 15) << 12) | (u1 << 6) | u2;
-    } else {
-      u0 =
-        ((u0 & 7) << 18) | (u1 << 12) | (u2 << 6) | (heapOrArray[idx++] & 63);
-    }
-    if (u0 < 65536) {
-      str += String.fromCharCode(u0);
-    } else {
-      var ch = u0 - 65536;
-      str += String.fromCharCode(55296 | (ch >> 10), 56320 | (ch & 1023));
-    }
-  }
-  return str;
-};
+
+
 var UTF8ToString = (ptr, maxBytesToRead?: any) =>
   ptr ? UTF8ArrayToString(HEAPU8, ptr, maxBytesToRead) : "";
 var ___assert_fail = (condition, filename, line, func) => {
@@ -941,67 +916,8 @@ var PATH_FS = {
   },
 };
 var FS_stdin_getChar_buffer = [];
-interface LengthBytesUTF8 {
-  (str: string): number;
-}
 
-var lengthBytesUTF8: LengthBytesUTF8 = (str: string): number => {
-  var len: number = 0;
-  for (var i: number = 0; i < str.length; ++i) {
-    var c: number = str.charCodeAt(i);
-    if (c <= 127) {
-      len++;
-    } else if (c <= 2047) {
-      len += 2;
-    } else if (c >= 55296 && c <= 57343) {
-      len += 4;
-      ++i;
-    } else {
-      len += 3;
-    }
-  }
-  return len;
-};
-var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
-  if (!(maxBytesToWrite > 0)) return 0;
-  var startIdx = outIdx;
-  var endIdx = outIdx + maxBytesToWrite - 1;
-  for (var i = 0; i < str.length; ++i) {
-    var u = str.charCodeAt(i);
-    if (u >= 55296 && u <= 57343) {
-      var u1 = str.charCodeAt(++i);
-      u = (65536 + ((u & 1023) << 10)) | (u1 & 1023);
-    }
-    if (u <= 127) {
-      if (outIdx >= endIdx) break;
-      heap[outIdx++] = u;
-    } else if (u <= 2047) {
-      if (outIdx + 1 >= endIdx) break;
-      heap[outIdx++] = 192 | (u >> 6);
-      heap[outIdx++] = 128 | (u & 63);
-    } else if (u <= 65535) {
-      if (outIdx + 2 >= endIdx) break;
-      heap[outIdx++] = 224 | (u >> 12);
-      heap[outIdx++] = 128 | ((u >> 6) & 63);
-      heap[outIdx++] = 128 | (u & 63);
-    } else {
-      if (outIdx + 3 >= endIdx) break;
-      heap[outIdx++] = 240 | (u >> 18);
-      heap[outIdx++] = 128 | ((u >> 12) & 63);
-      heap[outIdx++] = 128 | ((u >> 6) & 63);
-      heap[outIdx++] = 128 | (u & 63);
-    }
-  }
-  heap[outIdx] = 0;
-  return outIdx - startIdx;
-};
-function intArrayFromString(stringy: string, dontAddNull:boolean=false, length:number=0):number[] {
-  var len:number = length > 0 ? length : lengthBytesUTF8(stringy) + 1;
-  var u8array: number[] = new Array(len);
-  var numBytesWritten = stringToUTF8Array(stringy, u8array, 0, u8array.length);
-  if (dontAddNull) u8array.length = numBytesWritten;
-  return u8array;
-}
+
 
 var FS_stdin_getChar = () => {
   if (!FS_stdin_getChar_buffer.length) {
@@ -1489,11 +1405,11 @@ var asyncLoad = (url, onload, onerror, noRunDep?: any) => {
   );
   if (dep) addRunDependency(dep);
 };
-var FS_createDataFile = (parent, name, fileData, canRead, canWrite, canOwn) => {
+var FS_createDataFile = (parent, name:string, fileData, canRead, canWrite, canOwn) => {
   FS.createDataFile(parent, name, fileData, canRead, canWrite, canOwn);
 };
 var preloadPlugins = Module["preloadPlugins"] || [];
-var FS_handledByPreloadPlugin = (byteArray, fullname, finish, onerror) => {
+var FS_handledByPreloadPlugin = (byteArray, fullname: string, finish, onerror) => {
   if (typeof Browser != "undefined") Browser.init();
   var handled = false;
   preloadPlugins.forEach((plugin) => {
@@ -1508,7 +1424,7 @@ var FS_handledByPreloadPlugin = (byteArray, fullname, finish, onerror) => {
 var FS_createPreloadedFile = (
   parent,
   name,
-  url,
+  url: string,
   canRead,
   canWrite,
   onload,
@@ -1566,6 +1482,8 @@ var FS_getMode = (canRead, canWrite) => {
   if (canWrite) mode |= 146;
   return mode;
 };
+
+
 var FS = {
   root: null,
   mounts: [],
@@ -1625,7 +1543,7 @@ var FS = {
     }
     return { path: current_path, node: current };
   },
-  getPath(node) {
+  getPath(node: FSNode) {
     var path;
     while (true) {
       if (FS.isRoot(node)) {
@@ -2705,7 +2623,7 @@ var FS = {
     var mode = FS_getMode(canRead, canWrite);
     return FS.create(path, mode);
   },
-  createDataFile(parent, name, data, canRead, canWrite, canOwn) {
+  createDataFile(parent: string|any, name, data, canRead, canWrite, canOwn) {
     var path = name;
     if (parent) {
       parent = typeof parent == "string" ? parent : FS.getPath(parent);
@@ -2962,6 +2880,11 @@ var FS = {
     return node;
   },
 };
+
+
+
+
+
 var SYSCALLS = {
   DEFAULT_POLLMASK: 5,
   calculateAt(dirfd, path, allowEmpty?: any) {
@@ -3932,51 +3855,75 @@ var cwrap = (ident:string, returnType:string, argTypes:string[], opts?: any) => 
   }
   return (...args) => ccall(ident, returnType, argTypes, args, opts);
 };
-var FSNode = function (parent, name, mode, rdev) {
-  if (!parent) {
-    parent = this;
+
+
+
+// Constants for mode operations
+const readMode = 292 | 73;
+const writeMode = 146;
+
+class FSNode {
+  parent: FSNode;
+  mount: any; // Replace 'any' with a more specific type if available
+  mounted: any;
+  id: number;
+  name: string;
+  mode: number;
+  node_ops: { [key: string]: any };
+  stream_ops: { [key: string]: any };
+  rdev: number;
+
+  constructor(parent: FSNode | undefined, name: string, mode: number, rdev: number) {
+    // If no parent is provided, default to this instance.
+    if (!parent) {
+      parent = this;
+    }
+    this.parent = parent;
+    this.mount = parent.mount;
+    this.mounted = null;
+    this.id = FS.nextInode++;
+    this.name = name;
+    this.mode = mode;
+    this.node_ops = {};
+    this.stream_ops = {};
+    this.rdev = rdev;
   }
-  this.parent = parent;
-  this.mount = parent.mount;
-  this.mounted = null;
-  this.id = FS.nextInode++;
-  this.name = name;
-  this.mode = mode;
-  this.node_ops = {};
-  this.stream_ops = {};
-  this.rdev = rdev;
-};
-var readMode = 292 | 73;
-var writeMode = 146;
-Object.defineProperties(FSNode.prototype, {
-  read: {
-    get: function () {
-      return (this.mode & readMode) === readMode;
-    },
-    set: function (val) {
-      val ? (this.mode |= readMode) : (this.mode &= ~readMode);
-    },
-  },
-  write: {
-    get: function () {
-      return (this.mode & writeMode) === writeMode;
-    },
-    set: function (val) {
-      val ? (this.mode |= writeMode) : (this.mode &= ~writeMode);
-    },
-  },
-  isFolder: {
-    get: function () {
-      return FS.isDir(this.mode);
-    },
-  },
-  isDevice: {
-    get: function () {
-      return FS.isChrdev(this.mode);
-    },
-  },
-});
+
+  get read(): boolean {
+    return (this.mode & readMode) === readMode;
+  }
+
+  set read(val: boolean) {
+    if (val) {
+      this.mode |= readMode;
+    } else {
+      this.mode &= ~readMode;
+    }
+  }
+
+  get write(): boolean {
+    return (this.mode & writeMode) === writeMode;
+  }
+
+  set write(val: boolean) {
+    if (val) {
+      this.mode |= writeMode;
+    } else {
+      this.mode &= ~writeMode;
+    }
+  }
+
+  get isFolder(): boolean {
+    return FS.isDir(this.mode);
+  }
+
+  get isDevice(): boolean {
+    return FS.isChrdev(this.mode);
+  }
+}
+
 FS.FSNode = FSNode;
+
 FS.createPreloadedFile = FS_createPreloadedFile;
 FS.staticInit();
 var wasmImports = {

@@ -1,4 +1,4 @@
-import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node } from './typs/ast-types';
+import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node, ContentNode } from './typs/ast-types';
 
 /**
  * Parse the string into an AST.
@@ -100,6 +100,9 @@ export class LatexAbstractSyntaxTree{
     deleteComments(){
         deleteComments(this.ast);
     }
+    usdExternalfiles(){
+
+    }
     a() {
         const a=migrate(this.ast)
         if (a instanceof Root) {
@@ -111,13 +114,11 @@ export class LatexAbstractSyntaxTree{
     }
     cleanUp(){
         this.removeAllWhitespace();
-        this.cleanUpDefs();
+        cleanUpDefs(this.myAst);
+        cleanUpInputs(this.myAst);
     }
     removeAllWhitespace(){
         
-    }
-    cleanUpDefs(){
-        cleanUpDefs(this.myAst);
     }
     usdPackages(){}
     usdLibraries(){}
@@ -125,40 +126,76 @@ export class LatexAbstractSyntaxTree{
     usdEnvironments(){}   
 }
 
-
+function cleanUpInputs(ast: Node){
+    const condition=(node: Node)=>node instanceof Macro && node.content==="input";
+    function action(ast: Node,index: number){
+        if(!contentInNodeAndArray(ast))return;
+        const node=ast.content[index];
+        
+        //ast.content.splice(index,2,);
+    }
+    cleanUpAst(ast,condition,action);
+}
+class Input{
+    name: string;
+    content: string;
+    constructor(content: string){
+        this.name="input";
+        this.content=content;
+    }
+    toString() {
+        return `\\input{${this.content}}`;
+    }
+}
 
 function cleanUpTikzSet(ast: any) {
     
 }
 
 
-function cleanUpDefs(ast:any) {
-    const defMap = ast.content.map((node: any, index: number) => node instanceof Macro && node.content === "def" ? index : null).filter((index: any) => index !== null).reverse();
-    defMap.forEach((index: number) => {
-        if (!(ast.content[index + 1] instanceof Macro)) {
-            throw new Error("Def must be followed by a macro, got: " + ast.content[index + 1]+" at index "+index);
-        }
-        cleanUpDef(ast, index);
-    });
-    if(ast.content&&Array.isArray(ast.content))
-        ast.content.forEach((el: any) => {
-            if(el.content&&Array.isArray(el.content))
-                cleanUpDefs(el);
-        });
-}
-
-function cleanUpDef(ast: any,index:number) {
-    const fondDef = ast.content[index] instanceof Macro && ast.content[index].content === "def";
-    if (!fondDef) {throw new Error("Def not found");}
-    const defCaller = ast.content[index + 1];
-    if (!(defCaller instanceof Macro)) { throw new Error("Def must be followed by a macro"); }
-    const params=parsePlaceholders(ast, index + 2);
-    const items = ast.content.slice(params.endIndex,params.endIndex+1); 
-    ast.content.splice(index, params.endIndex - index + 1, new Def(defCaller.content,items,params.placeholdersNum));
+function cleanUpDefs(ast:Node) {
+    const condition = (node: Node) => node instanceof Macro && node.content === "def";
+    function action(ast: Node,index:number) {
+        if(!contentInNodeAndArray(ast))return;
+        const fondDef = ast.content[index] instanceof Macro && ast.content[index].content === "def";
+        if (!fondDef) {throw new Error("Def not found");}
+        const defCaller = ast.content[index + 1];
+        if (!(defCaller instanceof Macro)) { throw new Error("Def must be followed by a macro"); }
+        const params=parsePlaceholders(ast, index + 2);
+        const items = ast.content.slice(params.endIndex,params.endIndex+1); 
+        ast.content.splice(index, params.endIndex - index + 1, new Def(defCaller.content,items,params.placeholdersNum));
+    }
+    cleanUpAst(ast, condition, action);
 }
 
 
-function parsePlaceholders(ast: any, startIndex: number) {
+function cleanUpAst(
+    ast: Node,
+    condition: (node: Node) => boolean,
+    action: (node: Node, index: number) => void
+) {
+    if (!contentInNodeAndArray(ast)) return;
+    const indices:number[] = ast.content
+        .map((node:Node, index:number) => (condition(node) ? index : -1))
+        .filter((index:number) => index !== -1)
+        .reverse();
+
+    indices.forEach(index => action(ast, index));
+    ast.content.forEach((child: Node) => cleanUpAst(child, condition, action));
+}
+
+
+
+
+function contentInNodeAndArray<T extends Node>(node: T): node is T & { content: Node[] } {
+    return "content" in node && Array.isArray(node.content);
+}
+
+
+
+
+
+function parsePlaceholders(ast: Node, startIndex: number) {
     let i = startIndex;
     const placeholders: number[] = [];
     
@@ -183,7 +220,7 @@ function parsePlaceholders(ast: any, startIndex: number) {
 
 
 
-class Def{
+export class Def{
     name: string;
     content: any[];
     params: number;

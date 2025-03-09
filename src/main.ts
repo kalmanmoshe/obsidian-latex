@@ -18,7 +18,7 @@ import { SwiftlatexRender, waitFor } from "./latexRender/main";
 import { processMathBlock } from "./mathParser/iNeedToFindABetorPlace";
 import { readAndParseSVG } from "./latexRender/svg2latex/temp";
 import { MathJaxAbstractSyntaxTree } from "./latexRender/parse/mathJaxAbstractSyntaxTree";
-import { getFileSets, getPreambleFromFiles } from "./file_watch";
+import { getFileSets, getPreambleFromFiles, onFileChange, onFileCreate, onFileDelete } from "./obsidian/file_watch";
 
 /**
  * Assignments:
@@ -28,7 +28,6 @@ import { getFileSets, getPreambleFromFiles } from "./file_watch";
  *     const metadata = this.plugin.app.metadataCache.getFileCache(file);
  *     console.log(metadata);
  *   }
- * - Create a parser that makes LaTeX error messages more sensible.
  * - Create qna for better Searching finding and styling
  */
 
@@ -44,6 +43,10 @@ interface MosheMathTypingApi {
   context: any;
   fileSuggest: any;
   addToggleSetting: any;
+  onSettingChange: any;
+  addButtonSetting: any;
+  addDropdownSetting:any;
+  addTextSetting:any;
 }
 
 export let staticMosheMathTypingApi: null|MosheMathTypingApi= null;
@@ -51,7 +54,7 @@ export let staticMoshe: null|Moshe= null;
 
 export default class Moshe extends Plugin {
   settings: MosheMathPluginSettings;
-  swiftlatexRender: SwiftlatexRender
+  swiftlatexRender: SwiftlatexRender=new SwiftlatexRender();
 
   async onload() {
     console.log("Loading Moshe math plugin")
@@ -68,6 +71,7 @@ export default class Moshe extends Plugin {
       })
       this.updateApiHooks();
     });
+    this.watchFiles()
   }
 
 
@@ -101,7 +105,6 @@ export default class Moshe extends Plugin {
 		this.registerMarkdownCodeBlockProcessor("latex", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
   }
   private async loadSwiftLatexRender(){
-    this.swiftlatexRender=new SwiftlatexRender()
     await this.swiftlatexRender.onload(this);
   }
 
@@ -133,8 +136,8 @@ export default class Moshe extends Plugin {
   private async loadMathJax(): Promise<void> {
     const MJ: any = MathJax;
     // Get the preamble content if enabled; otherwise use an empty string.
-    const preamble: string = this.settings.preambleEnabled 
-      ? await this.getPreamble() 
+    const preamble: string = this.settings.mathjaxPreamblePreambleEnabled
+      ? await this.getMathjaxPreamble() 
       : "";
     if (typeof MJ.tex2chtml !== "undefined") {
       if (!MJ._originalTex2chtml) {
@@ -145,6 +148,7 @@ export default class Moshe extends Plugin {
         const processedInput = this.processMathJax(input);
         return MJ._originalTex2chtml.call(MJ, processedInput, options);
       };
+      
       MJ.tex2chtml(preamble, { display: false });
     } else {
       MJ.startup.ready = () => {
@@ -155,15 +159,13 @@ export default class Moshe extends Plugin {
     }
   }
   
-  private async getPreamble(): Promise<string> {
-    this.settings.mathjaxPreambleFileLocation = "obsidian/data/Files/preamble.sty"
+  private async getMathjaxPreamble(): Promise<string> {
     const mathjaxPreambleFiles = getFileSets(this).mathjaxPreambleFiles;
 
     const preambles = await getPreambleFromFiles(this, mathjaxPreambleFiles);
     return preambles.map((preamble) => preamble.content).join("\n");
   }
 
-  
   private processMathJax(input: string): string {
     const ast = new MathJaxAbstractSyntaxTree();
     ast.parse(input);
@@ -175,44 +177,47 @@ export default class Moshe extends Plugin {
     let data = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
     await this.saveData(this.settings);
-    // this.settings.corePreambleFileLocation = "obsidian/data/Files/coorPreamble.sty";
-
-    if (this.settings.preambleEnabled) {
-        this.app.workspace.onLayoutReady(async () => {
-            await this.processLatexPreambles();
-        });
+    await this.swiftlatexRender.setVirtualFileSystemEnabled(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled);
+    if (this.settings.pdfTexEnginevirtualFileSystemFilesEnabled) {
+      this.app.workspace.onLayoutReady(async () => {
+          await this.processLatexPreambles();
+          this.updateCoorVirtualFiles();
+      });
     }
-``}
+  }
 
   async saveSettings(didFileLocationChange = false) {
     await this.loadData();
 		await this.saveData(this.settings);
-    if(didFileLocationChange)
-      this.processLatexPreambles(didFileLocationChange);
+    if(didFileLocationChange){
+      await this.swiftlatexRender.setVirtualFileSystemEnabled(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled);
+      if(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled){
+        await this.processLatexPreambles(didFileLocationChange);
+        this.updateCoorVirtualFiles();
+      }
+    }
 	}
-
   async processLatexPreambles(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
-
     const preambles = await this.getPreambleFiles(becauseFileLocationUpdated, becauseFileUpdated)
-    // Wait for the swiftlatexRender to be ready before setting the preambles.
-    await waitFor(() => typeof this.swiftlatexRender !== "undefined" && this.swiftlatexRender.pdfEngine.isReady());
-    this.swiftlatexRender.setCoorPreambles(preambles.corePreambleFiles);
-    //this.swiftlatexRender.setExplicitPreamble(preambles.explicitPreamble);
+    this.swiftlatexRender.setVirtualFileSystemFiles(preambles.explicitPreambleFiles);
+  }
+  updateCoorVirtualFiles(){
+    const coorFileSet=new Set<string>
+    this.settings.autoloadedVirtualFileSystemFiles.forEach(file => coorFileSet.add(file));
+    this.swiftlatexRender.setCoorVirtualFiles(coorFileSet);
   }
   
   async getPreambleFiles(becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean){
     const files = getFileSets(this);
-    const corePreambleFiles = await getPreambleFromFiles(this,files.corePreambleFiles);
     const explicitPreambleFiles = await getPreambleFromFiles(this,files.explicitPreambleFiles);
-    this.showPreambleLoadedNotice(corePreambleFiles.length, explicitPreambleFiles.length,  becauseFileLocationUpdated, becauseFileUpdated);
-    return {corePreambleFiles, explicitPreambleFiles};
+    this.showPreambleLoadedNotice(explicitPreambleFiles.length,  becauseFileLocationUpdated, becauseFileUpdated);
+    return {explicitPreambleFiles};
   }
 
-  showPreambleLoadedNotice(nCoorPreambleFiles: number,nExplicitPreambleFiles: number,becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean){
+  showPreambleLoadedNotice(nExplicitPreambleFiles: number,becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean){
     if (!(becauseFileLocationUpdated || becauseFileUpdated))return;
     const prefix = becauseFileLocationUpdated ? "Loaded " : "Successfully reloaded ";
     const body = [];
-    body.push(`${nCoorPreambleFiles} coor preamble fils`);
     body.push(`${nExplicitPreambleFiles} explicit preamble files`);
 		const suffix = ".";
 		new Notice(prefix + body.join(" and ") + suffix, 5000);
@@ -224,6 +229,23 @@ export default class Moshe extends Plugin {
         throw new Error("Moshe: Could not get vault path.");
       }
     }
+  
+  private watchFiles() {
+    // Only begin watching files once the layout is ready.
+    this.app.workspace.onLayoutReady(() => {
+      // Set up a Chokidar watcher for .sty files
+      const vaultEvents = {
+        "modify": onFileChange,
+        "delete": onFileDelete,
+        "create": onFileCreate
+      };
+
+      for (const [eventName, callback] of Object.entries(vaultEvents)) {
+        // @ts-expect-error
+        this.registerEvent(this.app.vault.on(eventName, (file: TAbstractFile) => callback(this, file)));
+      }
+    });
+  }
 }
 
 
