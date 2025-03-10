@@ -6,7 +6,7 @@
 //git pull --all#Pull all branches
 //git push --all#Push all branches
 
-import {Plugin,addIcon ,Notice,loadMathJax, htmlToMarkdown, FileSystemAdapter,} from "obsidian";
+import {Plugin,addIcon ,Notice,loadMathJax, htmlToMarkdown, FileSystemAdapter, ViewState, MarkdownView,} from "obsidian";
 
 
 import {MosheMathPluginSettings, DEFAULT_SETTINGS, processMosheMathSettings} from "./settings/settings";
@@ -60,17 +60,17 @@ export default class Moshe extends Plugin {
     console.log("Loading Moshe math plugin")
     //readAndParseSVG().then((res: any)=>console.log(res))
     await this.loadSettings();
-    await this.loadMathJax();
 		this.addSettingTab(new MosheMathSettingTab(this.app, this));
     this.addEditorCommands();
-    this.app.workspace.onLayoutReady(() => {
-      
-      this.loadSwiftLatexRender().then(() => {
-        this.addSyntaxHighlighting();
-        this.setCodeblocks();
-      })
-      this.updateApiHooks();
-    });
+    this.app.workspace.onLayoutReady(async () => await this.loadLayoutReadyDependencies());
+  }
+
+  private async loadLayoutReadyDependencies() {
+    await this.loadMathJax();
+    await this.loadSwiftLatexRender()
+    this.addSyntaxHighlighting();
+    this.setCodeblocks();
+    this.updateApiHooks();
     this.watchFiles()
   }
 
@@ -119,7 +119,7 @@ export default class Moshe extends Plugin {
     if (!codeMirrorCodeBlocksSyntaxHighlighting.some((el: any) => el.name === "Tikz")) {
         codeMirrorCodeBlocksSyntaxHighlighting.push({ name: "Tikz", mime: "text/x-latex", mode: "stex" });
     }
-}
+  }
 
 
   private removeSyntaxHighlighting(){
@@ -134,11 +134,13 @@ export default class Moshe extends Plugin {
 		}
 	}
   private async loadMathJax(): Promise<void> {
+    const preamble = this.settings.mathjaxPreamblePreambleEnabled ?
+      await this.getMathjaxPreamble() :
+      "";
+    
+    await loadMathJax();
+    //this isnt really needed all it dose is make it of type any so thar are no errors
     const MJ: any = MathJax;
-    // Get the preamble content if enabled; otherwise use an empty string.
-    const preamble: string = this.settings.mathjaxPreamblePreambleEnabled
-      ? await this.getMathjaxPreamble() 
-      : "";
     if (typeof MJ.tex2chtml !== "undefined") {
       if (!MJ._originalTex2chtml) {
         MJ._originalTex2chtml = MJ.tex2chtml;
@@ -148,20 +150,33 @@ export default class Moshe extends Plugin {
         const processedInput = this.processMathJax(input);
         return MJ._originalTex2chtml.call(MJ, processedInput, options);
       };
-      
+      console.log("MathJax loaded with custom preamble", preamble);
+      //by redoing the preamble, mathjax will add it to its catch and than be 
       MJ.tex2chtml(preamble, { display: false });
     } else {
       MJ.startup.ready = () => {
         MJ.startup.defaultReady();
-        const processedPreamble = this.processMathJax(preamble);
-        MJ.tex2chtml(processedPreamble, { display: false });
+        MJ.tex2chtml(preamble, { display: false });
       };
     }
+    this.refreshAllWindows();
+  }
+
+  private refreshAllWindows() {
+    this.app.workspace.iterateAllLeaves((leaf) => {
+      if (leaf.view instanceof MarkdownView) {
+          const editor = leaf.view.editor;
+        if (editor && editor.getValue().trim() !== "") {
+          const cursor = editor.getCursor();
+          editor.setValue(editor.getValue());
+          editor.setCursor(cursor);
+        }
+      }
+    });
   }
   
   private async getMathjaxPreamble(): Promise<string> {
     const mathjaxPreambleFiles = getFileSets(this).mathjaxPreambleFiles;
-
     const preambles = await getPreambleFromFiles(this, mathjaxPreambleFiles);
     return preambles.map((preamble) => preamble.content).join("\n");
   }

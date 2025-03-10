@@ -1,3 +1,5 @@
+
+
 class LogText {
     text: string;
     lines: string[];
@@ -79,7 +81,6 @@ class LatexParser {
     }
 
     private parse() {
-        
         while ((this.currentLine = this.log.nextLine()) !== false) {
             if (this.state === state.NORMAL) {
                 if (this.currentLineIsError()) {
@@ -198,3 +199,10 @@ export function errorDiv(title: string, cause: string, line: string) {
     });
     return container;
 }
+
+
+
+const knownErrors = [
+    { type: "", message: "", explanation: "", solution: "" },
+]
+

@@ -12,312 +12,6 @@
   "package_url": "https://texlive2.swiftlatex.com/",
   "cache": [
     [
-      "39136ddab4517c3bd8d977d7f2c47a29",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "a90e4b054d366627a319d64247b0faef",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "ad853c83c3a33763e5e3a34a0b7b536b",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "40b7b759538572e2859af76ed701a263",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "c46d3d5095d6f5fdb074c380a61e272c",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "9bafa6d85bfee2ba821b0d426a264dcd",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "071067e431642e78ceeae172e2775df2",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "0ff99a86a80a6e87bb81040434b521a9",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "3b8675f21d2823cfa51d2444d74e5539",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "16e4110dcd77b7df7a373580ac5fe626",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "8634b6908e03cec0cdfd76332753437b",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "8a7f1e3598959c22809fbf316ddc92f4",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "1d462716303709afaa40bef07b5c8037",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "8b37e6176343329869019853c7c7e066",
-      [
-        "Untitled 2.md"
-      ]
-    ],
-    [
-      "cc26ba9e5bac5a6c5d84d8c7e8dde4b2",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "d04c22849a079f1572aa9679e8c68b31",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "0cba46310849b0f636c401b2bbaa713e",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "7f5cc4021afb0f543b594b6a47697f80",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "e3a9a9bb44af0e5178e7853c618a9c3f",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "90bc5d702597d705af42088d7af62fce",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "878971bddd0242faee752acca3f8a8f8",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "ed12f61c9c8f6774f0310b7474b36cdc",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "b6f711be0f4a5adc0570ebff253b2f6d",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "583d6386c1b0f48e37facdf1cee3aeb0",
-      [
-        "moshe/latex/tikz/Commands.md"
-      ]
-    ],
-    [
-      "e61649f8f380d57280b129d3cb7f7cc3",
-      [
-        "moshe/latex/tikz/Coordinates.md"
-      ]
-    ],
-    [
-      "326c329a1801cb6cf90d2d0c651d86fa",
-      [
-        "moshe/latex/tikz/Coordinates.md"
-      ]
-    ],
-    [
-      "6e5db8ee8602c9f4e33c0e6207480fd2",
-      [
-        "moshe/latex/tikz/Coordinates.md"
-      ]
-    ],
-    [
-      "d9c57ba2bcc17dd647a332740c8ee560",
-      [
-        "moshe/latex/tikz/Coordinates.md"
-      ]
-    ],
-    [
-      "b7d52e068276bbd84bc146a372eef61d",
-      [
-        "moshe/latex/tikz/Coordinates.md"
-      ]
-    ],
-    [
-      "12912deefcd4656abe54953829ac795e",
-      [
-        "moshe/latex/tikz/Coordinates.md"
-      ]
-    ],
-    [
-      "a071fc460ba36bb286d2c9a68362dd5d",
-      [
-        "moshe/latex/tikz/Coordinates.md"
-      ]
-    ],
-    [
-      "265be77e176059dc5f90f83707804b83",
-      [
-        "moshe/latex/tikz/Sizing and positioning.md"
-      ]
-    ],
-    [
-      "b5d88bf143b5c98d33fe3f672b97fc9f",
-      [
-        "moshe/latex/tikz/Sizing and positioning.md"
-      ]
-    ],
-    [
-      "f160f13a1031c95f349371fc1e02630a",
-      [
-        "moshe/latex/tikz/Sizing and positioning.md"
-      ]
-    ],
-    [
-      "5ba0cba98858ba574fff7ef41c0f5ee5",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "93ad8d34b4619eedd8138240f01ffc52",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "66e076048949a1123268f68bbd1fd6ae",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "b92727c221c6a4c3dd6fc6049aa64b65",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "7739d9af9706e377fdb1032c3242fa1c",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "7484b27be5ae9701e9011a8341947a4a",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "20e3764199497743ec068fd4662b3c3a",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "8b45f6471ae74d45c7082e477b47ef96",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "c8a076fa9ecd7c581be696c84fd243b2",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "f5c23a7fcc5d8ac9417d550a86b30c7c",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "6021e6e7052369d20f4cf38d822398db",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "9f1c2c7da69b0c8d5e881f45da2db08d",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "e668b6b5dca44ee9d9ecaa6dd4608beb",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "9418793536713bc9b9b7cebdddfb57c8",
-      [
-        "moshe/latex/tikz/tikz.md"
-      ]
-    ],
-    [
-      "03b414e38259b38c2de501572342fbe7",
-      [
-        "moshe/latex/tikz/tikz math.md"
-      ]
-    ],
-    [
-      "4685e4b24d4d48ca855b679e4a979f00",
-      [
-        "moshe/latex/tikz/tikz math.md"
-      ]
-    ],
-    [
-      "1eebf99d51cbec3b5f7cf20a544ad3b9",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
       "3054b50cc48602c046ef1d8f9a635ec7",
       [
         "מתמטיקה/שי/טריגו.md"
@@ -336,19 +30,73 @@
       ]
     ],
     [
-      "97447e50b9b0ce65abe286351c02bcab",
+      "fc1cba521670e59bd9a7a01d986322c2",
       [
-        "Untitled 3.md"
+        "מתמטיקה/שי/פונקציות.md"
+      ]
+    ],
+    [
+      "d5d3ff654b098099a258aabd7c0f77d0",
+      [
+        "מתמטיקה/שי/פונקציות.md"
+      ]
+    ],
+    [
+      "8b37e6176343329869019853c7c7e066",
+      [
+        "Untitled 2.md"
+      ]
+    ],
+    [
+      "7090d4039a303ff50609b1975d4634e2",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "1eebf99d51cbec3b5f7cf20a544ad3b9",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "34f3551e898d900bab7958082fbfa3f5",
+      [
+        "מתמטיקה/שי/משוואות טריגונומטריות.md"
+      ]
+    ],
+    [
+      "da00622a7013f3761dde8f1fd617545d",
+      [
+        "מתמטיקה/שי/משוואות טריגונומטריות.md"
+      ]
+    ],
+    [
+      "8271413464dd479ac799444da74a282b",
+      [
+        "מתמטיקה/שי/משוואות טריגונומטריות.md"
       ]
     ],
     [
       "d41d8cd98f00b204e9800998ecf8427e",
       [
-        "Untitled 3.md"
+        "מתמטיקה/שי/סדרה הנדסית.md"
       ]
     ],
     [
-      "e42a951eae3ce6d07d3cd4a92125529f",
+      "7afb1bca5a93c044daa27a0ab8f5ec48",
+      [
+        "מתמטיקה/שי/סדרה הנדסית.md"
+      ]
+    ],
+    [
+      "a8e867abaae1383a76ae3fe5bae0b964",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "6569daa1410e5f944950aa96b29bc0ba",
       [
         "מתמטיקה/שי/טריגו.md"
       ]
@@ -360,10 +108,9 @@
       "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/numprint.cfg": 1,
       "26/main.aux": 1,
-      "33/cmr12.vf": 1,
       "33/cmmi12.vf": 1,
-      "33/cmmi10.vf": 1,
-      "26/csnameendcsname": 1
+      "33/cmr17.vf": 1,
+      "33/cmsy10.vf": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -394,7 +141,6 @@
       "26/cmsy8.tfm": "/tex/cmsy8.tfm",
       "26/color.cfg": "/tex/color.cfg",
       "26/defpattern.sty": "/tex/defpattern.sty",
-      "26/etoolbox.sty": "/tex/etoolbox.sty",
       "26/everyshi.sty": "/tex/everyshi.sty",
       "26/expl3.sty": "/tex/expl3.sty",
       "26/fp-addons.sty": "/tex/fp-addons.sty",
@@ -532,7 +278,6 @@
       "26/standalone.cfg": "/tex/standalone.cfg",
       "26/standalone.cls": "/tex/standalone.cls",
       "26/supp-pdf.mkii": "/tex/supp-pdf.mkii",
-      "26/tcrm1000.tfm": "/tex/tcrm1000.tfm",
       "26/tikz.code.tex": "/tex/tikz.code.tex",
       "26/tikz.sty": "/tex/tikz.sty",
       "26/tikzlibraryangles.code.tex": "/tex/tikzlibraryangles.code.tex",
@@ -614,7 +359,6 @@
       "26/tkz-tools-intersections": "/tex/tkz-tools-intersections.tex",
       "26/tkz-tools-angles": "/tex/tkz-tools-angles.tex",
       "3/cmr12": "/tex/cmr12.tfm",
-      "3/tcrm1000": "/tex/tcrm1000.tfm",
       "3/cmr17": "/tex/cmr17.tfm",
       "3/cmmi12": "/tex/cmmi12.tfm",
       "3/cmsy10": "/tex/cmsy10.tfm",
@@ -633,7 +377,13 @@
       "32/cmsy8.pfb": "/tex/cmsy8.pfb",
       "32/cmr17.pfb": "/tex/cmr17.pfb",
       "32/cmmi10.pfb": "/tex/cmmi10.pfb",
-      "32/cmr10.pfb": "/tex/cmr10.pfb"
+      "32/cmr10.pfb": "/tex/cmr10.pfb",
+      "26/cmr5.pfb": "/tex/cmr5.pfb",
+      "26/etoolbox.sty": "/tex/etoolbox.sty",
+      "32/cmr7.pfb": "/tex/cmr7.pfb",
+      "32/cmmi7.pfb": "/tex/cmmi7.pfb",
+      "32/cmr5.pfb": "/tex/cmr5.pfb",
+      "32/cmsy7.pfb": "/tex/cmsy7.pfb"
     },
     {},
     {}
