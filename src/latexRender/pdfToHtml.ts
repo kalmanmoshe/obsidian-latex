@@ -20,9 +20,11 @@ export async function pdfToSVG(pdfData: any, config: { invertColorsInDarkMode: b
     const svgoConfig: Config = {
         multipass: true,
         plugins: [
-            { name: 'removeMetadata',},
+            { name: 'removeMetadata' },
             { name: 'convertPathData', params: { floatPrecision: 3 } },
-            { name: 'cleanupNumericValues', params: { floatPrecision: 3 } }
+            { name: 'cleanupNumericValues', params: { floatPrecision: 3 } },
+            { name: 'sortAttrs' }, 
+            { name: 'prefixIds', params: { prefix: hashSVG(svg) } }
         ]
     };
 
