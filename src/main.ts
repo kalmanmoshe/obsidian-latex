@@ -133,7 +133,7 @@ export default class Moshe extends Plugin {
 			this.addCommand(command);
 		}
 	}
-  private async loadMathJax(): Promise<void> {
+  async loadMathJax(): Promise<void> {
     const preamble = this.settings.mathjaxPreamblePreambleEnabled ?
       await this.getMathjaxPreamble() :
       "";
@@ -150,7 +150,6 @@ export default class Moshe extends Plugin {
         const processedInput = this.processMathJax(input);
         return MJ._originalTex2chtml.call(MJ, processedInput, options);
       };
-      console.log("MathJax loaded with custom preamble", preamble);
       //by redoing the preamble, mathjax will add it to its catch and than be 
       MJ.tex2chtml(preamble, { display: false });
     } else {
@@ -213,8 +212,8 @@ export default class Moshe extends Plugin {
     }
 	}
   async processLatexPreambles(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
-    const preambles = await this.getPreambleFiles(becauseFileLocationUpdated, becauseFileUpdated)
-    this.swiftlatexRender.setVirtualFileSystemFiles(preambles.explicitPreambleFiles);
+      const preambles = await this.getPreambleFiles(becauseFileLocationUpdated, becauseFileUpdated)
+      this.swiftlatexRender.setVirtualFileSystemFiles(preambles.explicitPreambleFiles);
   }
   updateCoorVirtualFiles(){
     const coorFileSet=new Set<string>

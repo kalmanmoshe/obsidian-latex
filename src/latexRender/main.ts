@@ -1,5 +1,5 @@
 
-import { FileSystemAdapter, MarkdownPostProcessorContext, TFile, MarkdownPreviewRenderer, Modal, App, Menu, SectionCache } from 'obsidian';
+import { FileSystemAdapter, MarkdownPostProcessorContext, TFile, MarkdownPreviewRenderer, Modal, App, Menu, SectionCache, Notice, MarkdownView } from 'obsidian';
 import { Md5 } from 'ts-md5';
 import * as fs from 'fs';
 import * as temp from 'temp';
@@ -392,30 +392,30 @@ export class SwiftlatexRender {
 			if (!hashes_in_file.contains(hash)) {
 				this.cache.get(hash)?.delete(file.path);
 				if (this.cache.get(hash)?.size == 0) {
-					this.removePDFFromCache(hash);
+					await this.removePDFFromCache(hash);
 				}
 			}
 		}
 	}
 
-	private removePDFFromCache(key: string) {
+	async removePDFFromCache(key: string) {
 		if(this.cache.has(key))
 			this.cache.delete(key);
 		const filePath=path.join(this.cacheFolderPath, `${key}.${cacheFileFormat}`);
 		if (fs.existsSync(filePath)) {
 			fs.rmSync(filePath);
 		}
-		this.saveCache();
+		await this.saveCache();
 	}
 
-	private removeFileFromCache(file_path: string) {
+	private async removeFileFromCache(file_path: string) {
 		for (const hash of this.cache.keys()) {
 			this.cache.get(hash)?.delete(file_path);
 			if (this.cache.get(hash)?.size == 0) {
 				this.removePDFFromCache(hash);
 			}
 		}
-		this.saveCache();
+		await this.saveCache();
 	}
 
 	private getLatexHashesFromCacheForFile(file: TFile) {
@@ -603,7 +603,8 @@ function addMenu(el: HTMLElement,plugin: Moshe) {
 	el.addEventListener("contextmenu", (event) => {
 		if(!event.target)return
 		const clickedElement = event.target as HTMLElement;
-		new SvgContextMenu(plugin,clickedElement).open()
+		const menu = new SvgContextMenu(plugin,clickedElement);
+		menu.open(event)
 	});
 }
 
@@ -617,11 +618,76 @@ class SvgContextMenu extends Menu {
 		super();
     	this.plugin = plugin;
 		this.triggeringElement = trigeringElement;
+		this.addDisplayItems();
 	}
-	async open() {
+	private addDisplayItems(){
+		this.addItem((item) => {
+			item.setTitle("Copy SVG");
+			item.setIcon("copy");
+			item.onClick(async () => {
+				const svg = this.triggeringElement;
+				console.log("svg",svg)
+				if (svg) {
+					const svgString = new XMLSerializer().serializeToString(svg);
+					await navigator.clipboard.writeText(svgString);
+				}
+			});
+		});
+		this.addItem((item) => {
+			item.setTitle("properties");
+			item.setIcon("settings");
+			item.onClick(async () => {
+				console.log("properties")
+			});
+		});
+		this.addItem((item) => {
+			item.setTitle("remove & re-render");
+			item.setIcon("trash");
+			item.onClick(async () => {
+				const hash = this.triggeringElement.id;
+				if (!hash) throw new Error("No hash found for SVG element");
+				await this.plugin.swiftlatexRender.removePDFFromCache(hash);
+				if (this.triggeringElement.parentNode?.parentNode) {
+					this.triggeringElement.parentNode.parentNode.removeChild(this.triggeringElement.parentNode);
+				}
+
+				this.plugin.swiftlatexRender.universalCodeBlockProcessor(
+					await this.retrieveLatexSource(),
+					this.triggeringElement,
+				)
+				this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+					if (leaf.view instanceof MarkdownView) {
+						const editor = leaf.view.editor;
+						if (!editor) return;
+						const cursor = editor.getCursor();
+						console.log(editor.getValue())
+         			 	editor.setValue(editor.getValue());
+          				editor.setCursor(cursor);
+						console.log("editor",editor)
+					}
+				});
+				
+				
+				new Notice("SVG removed from cache. Re-rendering...");
+			});
+		});
+
+	}
+	private async retrieveLatexSource(): Promise<string> {
+		const hash = this.triggeringElement.id;
+		if (!hash) throw new Error("No hash found for SVG element");
+		const activeFile=this.plugin.app.workspace.getActiveFile();
+		if(!activeFile)throw new Error("No active file found");
+		return await getLatexSourceFromHash(hash, this.plugin, activeFile);
+	}
+	
+	async open(event: MouseEvent) {
+		console.log("open")
+		
 		const id=this.triggeringElement.id;
-		if(!id)return;
-		const source=await getLatexSourceFromHash(id,this.plugin)
+		//if(!id)return;
+		//const source=await getLatexSourceFromHash(id,this.plugin)
+		this.showAtPosition({ x: event.pageX, y: event.pageY });
 	}
 }
 
