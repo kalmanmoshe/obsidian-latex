@@ -84,6 +84,7 @@ export function migrate(ast: any):Ast {
 }
 
 export class LatexAbstractSyntaxTree{
+    documentClass: string;
     packages: Array<string>;
     libraries: Array<string>;
     ast: any;
@@ -131,7 +132,6 @@ function cleanUpInputs(ast: Node){
     function action(ast: Node,index: number){
         if(!contentInNodeAndArray(ast))return;
         const node=ast.content[index];
-        
         //ast.content.splice(index,2,);
     }
     cleanUpAst(ast,condition,action);
