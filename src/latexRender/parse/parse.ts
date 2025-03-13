@@ -65,7 +65,7 @@ export function migrate(ast: any):Ast {
         case "macro":
             return new Macro(ast.content,ast.escapeToken, ast.args?.map(migrate), ast._renderInfo, ast.position);
         case "environment":
-            return new Environment(ast.type,ast.env,ast.content?.map(migrate), ast._renderInfo, ast.position);
+            return new Environment(ast.type,ast.env,ast.content?.map(migrate),ast.args?.map(migrate), ast._renderInfo, ast.position);
         case "verbatimenvironment":
             return new VerbatimEnvironment(ast.env,ast.content?.map(migrate), ast._renderInfo, ast.position);
         case "displaymath":
@@ -122,26 +122,60 @@ export class LatexAbstractSyntaxTree{
         
     }
     usdPackages(){}
-    usdLibraries(){}
+    usdLibraries() { }
+    usdInputFiles() {
+        console.log(findUsdInputFiles(this.myAst))
+    }
     usdCommands(){}
     usdEnvironments(){}   
+}
+//a 
+
+//a Macro is in esins in emplmntsin of a newCommand
+
+class DefineMacro{
+    //type
+
+}
+
+
+function findUsdInputFiles(ast: Ast):Macro[] {
+    const inputMacros: Macro[] = [];
+    if (ast instanceof Macro && ast.content === "input")
+        inputMacros.push(ast)
+    if (Array.isArray(ast)) {
+        inputMacros.push(...ast.map(findUsdInputFiles).flat());
+    };
+    if ("content" in ast&&ast.content&&Array.isArray(ast.content)) {
+        inputMacros.push(...ast.content.map(findUsdInputFiles).flat())
+    }
+    if ("args" in ast && ast.args) {
+        console.log(ast,ast.args,typeof ast.args)
+        inputMacros.push(...ast.args.map(findUsdInputFiles).flat())
+    }
+    return inputMacros
 }
 
 function cleanUpInputs(ast: Node){
     const condition=(node: Node)=>node instanceof Macro && node.content==="input";
     function action(ast: Node,index: number){
         if(!contentInNodeAndArray(ast))return;
-        const node=ast.content[index];
-        //ast.content.splice(index,2,);
+        const node = ast.content[index].args;
+        if (!node.length || node.length > 1)
+            throw new Error("")
+        //const input=new Input(node)
+       // ast.content.splice(index,1,input);
     }
     cleanUpAst(ast,condition,action);
 }
+
+
 class Input{
     name: string;
     content: string;
     constructor(content: string){
         this.name="input";
-        this.content=content;
+        this.content = content;
     }
     toString() {
         return `\\input{${this.content}}`;
@@ -199,7 +233,7 @@ function parsePlaceholders(ast: Node, startIndex: number) {
     let i = startIndex;
     const placeholders: number[] = [];
     
-    while (i < ast.content.length &&ast.content[i] instanceof String &&ast.content[i].content === "#") {
+    while ("content" in ast&&i < ast.content.length &&ast.content[i] instanceof String &&ast.content[i].content === "#") {
       if (i + 1 >= ast.content.length) {throw new Error(`Expected parameter after marker at index ${i}.`);}
       const param = ast.content[i + 1];
       if (!(param instanceof String)) {throw new Error(`Invalid parameter at index ${i + 1}.`);}

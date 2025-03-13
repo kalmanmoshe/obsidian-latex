@@ -108,6 +108,7 @@ export class SwiftlatexRender {
 				ast.a();
 				ast.cleanUp()
 				const myAst = ast.myAst;
+				ast.usdInputFiles()
 				console.log("myAst",myAst)
 				ast.deleteComments();
 				task.source = ast.toString();
@@ -650,7 +651,8 @@ class SvgContextMenu extends Menu {
 				if (this.triggeringElement.parentNode?.parentNode) {
 					this.triggeringElement.parentNode.parentNode.removeChild(this.triggeringElement.parentNode);
 				}
-
+				const context = this.plugin.app.metadataCache
+				console.log(context)
 				this.plugin.swiftlatexRender.universalCodeBlockProcessor(
 					await this.retrieveLatexSource(),
 					this.triggeringElement,
