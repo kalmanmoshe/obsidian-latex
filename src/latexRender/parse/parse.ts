@@ -1,4 +1,5 @@
-import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node, ContentNode } from './typs/ast-types';
+import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node, ContentNode } from './typs/ast-types-post';
+import { migrateToClassStructure } from './typs/ast-types-pre';
 
 /**
  * Parse the string into an AST.
@@ -43,45 +44,6 @@ import('@unified-latex/unified-latex-util-pgfkeys').then(module => {
  * - Auto load packages
  */
 
-export function migrate(ast: any):Ast {
-    if (Array.isArray(ast)) {
-        const nodes = ast.map(migrate);
-        if (nodes.some(node => Array.isArray(node))) {
-            throw new Error("Array of nodes must not contain arrays of nodes");
-        }
-        return nodes as Node[];
-    }
-    switch (ast.type) {
-        case "root":
-            return new Root(ast.content?.map(migrate), ast._renderInfo, ast.position);
-        case "string":
-            return new String(ast.content, ast._renderInfo, ast.position);
-        case "whitespace":
-            return new Whitespace(ast._renderInfo, ast.position);
-        case "parbreak":
-            return new Parbreak(ast._renderInfo, ast.position);
-        case "comment":
-            return new Comment(ast.content, ast.sameline, ast.suffixParbreak, ast.leadingWhitespace, ast._renderInfo, ast.position);
-        case "macro":
-            return new Macro(ast.content,ast.escapeToken, ast.args?.map(migrate), ast._renderInfo, ast.position);
-        case "environment":
-            return new Environment(ast.type,ast.env,ast.content?.map(migrate),ast.args?.map(migrate), ast._renderInfo, ast.position);
-        case "verbatimenvironment":
-            return new VerbatimEnvironment(ast.env,ast.content?.map(migrate), ast._renderInfo, ast.position);
-        case "displaymath":
-            return new DisplayMath(ast.content?.map(migrate), ast._renderInfo, ast.position);
-        case "inlinemath":
-            return new InlineMath(ast.content?.map(migrate), ast._renderInfo, ast.position);
-        case "group":
-            return new Group(ast.content?.map(migrate), ast._renderInfo, ast.position);
-        case "argument":
-            return new Argument(ast.openMark,ast.closeMark,ast.content?.map(migrate), ast._renderInfo, ast.position);
-        case "verb":
-            return new Verb(ast.env,ast.escape, ast._renderInfo, ast.position);
-        default:
-            throw new Error(`Unknown node type: ${ast.type}`);
-    }
-}
 
 export class LatexAbstractSyntaxTree{
     documentClass: string;
@@ -105,7 +67,7 @@ export class LatexAbstractSyntaxTree{
 
     }
     a() {
-        const a=migrate(this.ast)
+        const a=migrateToClassStructure(this.ast)
         if (a instanceof Root) {
             this.myAst=a
         }
@@ -197,7 +159,7 @@ function cleanUpDefs(ast:Node) {
         if (!(defCaller instanceof Macro)) { throw new Error("Def must be followed by a macro"); }
         const params=parsePlaceholders(ast, index + 2);
         const items = ast.content.slice(params.endIndex,params.endIndex+1); 
-        ast.content.splice(index, params.endIndex - index + 1, new Def(defCaller.content,items,params.placeholdersNum));
+        //ast.content.splice(index, params.endIndex - index + 1, new Def(defCaller.content,items,params.placeholdersNum));
     }
     cleanUpAst(ast, condition, action);
 }

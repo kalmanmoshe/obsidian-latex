@@ -16,7 +16,7 @@ type Position={
         end: { offset: number; line: number; column: number };
     };
     
-class BaseNode {
+export class BaseNode {
     type: string;
     _renderInfo?: _renderInfo;
     position?: Position;
@@ -115,15 +115,12 @@ export class Macro extends BaseNode {
     }
 }
 type RenderInfo = typeof BaseNode.prototype._renderInfo;
+
 export class Environment extends ContentNode {
     type: "environment" | "mathenv";
     env: string;
     args?: Argument[];
     constructor(type: "environment" | "mathenv", env: string, content: Node[], args?: Argument[], renderInfo?: RenderInfo, position?: typeof BaseNode.prototype.position) {
-        if (!Array.isArray(args)) {
-            console.error(type,env,content,args,renderInfo,position)
-            throw new Error(`wtf`)
-        }
         super(type, content, renderInfo, position);
         this.env = env;
         if(args)this.args = args;
