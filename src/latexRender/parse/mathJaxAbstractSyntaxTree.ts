@@ -1,10 +1,11 @@
-import {migrate,parseMath} from "./parse"
-import { Whitespace,Parbreak, Macro, Argument, Ast,Node, ToStringConfig } from './typs/ast-types';
+import {parseMath} from "./parse"
+import {migrateToClassStructure} from "./typs/ast-types-pre"
+import { Whitespace,Parbreak, Macro, Argument, Ast,Node, ToStringConfig } from './typs/ast-types-post';
 
 export class MathJaxAbstractSyntaxTree{
     ast: Node[];
     parse(latex: string){
-        const ast = migrate(parseMath(latex));
+        const ast = migrateToClassStructure(parseMath(latex));
         if(ast instanceof Array){
             this.ast=ast;
         }
@@ -19,7 +20,7 @@ export class MathJaxAbstractSyntaxTree{
           let tokens = text.match(/([א-ת]+|\s+|[^א-ת\s]+)/g)as string[]|null;
           if (!tokens) continue;
           tokens = mergeHebrewTokens(tokens);
-          const newNodeArr = migrate(parseMath(
+          const newNodeArr = migrateToClassStructure(parseMath(
           tokens
               .map((t) => /[א-ת]/.test(t) ? [...t].reverse().join('') : t)
               .join('')
@@ -34,7 +35,11 @@ export class MathJaxAbstractSyntaxTree{
     }
     
   toString(args: ToStringConfig={}): string {
-    return this.ast.map(node => node.toString(args)).join("");
+    console.log("this.ast is going to be converted to string",this.ast)
+    return this.ast.map(node => {
+      console.log("node is going to be converted to string",node)
+      return node.toString(args)
+    }).join("");
   }
 }
 

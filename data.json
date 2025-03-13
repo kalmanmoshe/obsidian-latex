@@ -102,7 +102,7 @@
       ]
     ],
     [
-      "c4cb1035ff924f9d1249ca1ec9d2e62f",
+      "25fcf9898876f4db36e36c885ba1f3d5",
       [
         "Untitled 2.md"
       ]
@@ -381,12 +381,10 @@
       "32/cmr17.pfb": "/tex/cmr17.pfb",
       "32/cmmi10.pfb": "/tex/cmmi10.pfb",
       "32/cmr10.pfb": "/tex/cmr10.pfb",
-      "26/cmr5.pfb": "/tex/cmr5.pfb",
       "26/etoolbox.sty": "/tex/etoolbox.sty",
       "32/cmr7.pfb": "/tex/cmr7.pfb",
       "32/cmmi7.pfb": "/tex/cmmi7.pfb",
-      "32/cmr5.pfb": "/tex/cmr5.pfb",
-      "32/cmsy7.pfb": "/tex/cmsy7.pfb"
+      "26/tcrm1000.tfm": "/tex/tcrm1000.tfm"
     },
     {},
     {}
