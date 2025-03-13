@@ -1,3 +1,4 @@
+import { Def } from "../parse";
 import { EnvInfo, MacroInfo } from "./info-specs";
 
 export type GenericAst = GenericNode | GenericNode[];
@@ -113,12 +114,16 @@ export class Macro extends BaseNode {
         return prefix+(this.args ? this.args.map(arg => arg.toString()).join("") : "")
     }
 }
-
+type RenderInfo = typeof BaseNode.prototype._renderInfo;
 export class Environment extends ContentNode {
     type: "environment" | "mathenv";
     env: string;
     args?: Argument[];
-    constructor(type: "environment" | "mathenv", env: string, content: Node[], args?: Argument[], renderInfo?: typeof BaseNode.prototype._renderInfo, position?: typeof BaseNode.prototype.position) {
+    constructor(type: "environment" | "mathenv", env: string, content: Node[], args?: Argument[], renderInfo?: RenderInfo, position?: typeof BaseNode.prototype.position) {
+        if (!Array.isArray(args)) {
+            console.error(type,env,content,args,renderInfo,position)
+            throw new Error(`wtf`)
+        }
         super(type, content, renderInfo, position);
         this.env = env;
         if(args)this.args = args;
