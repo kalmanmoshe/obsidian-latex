@@ -109,7 +109,7 @@ export class SwiftlatexRender {
 				ast.cleanUp()
 				const myAst = ast.myAst;
 				ast.usdInputFiles()
-				console.log("myAst",myAst)
+				console.log("myAst",myAst,ast.usdInputFiles())
 				ast.deleteComments();
 				task.source = ast.toString();
 			} catch (e) {

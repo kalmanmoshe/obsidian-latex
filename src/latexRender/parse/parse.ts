@@ -46,19 +46,29 @@ import('@unified-latex/unified-latex-util-pgfkeys').then(module => {
 
 
 export class LatexAbstractSyntaxTree{
-    documentClass: string;
-    packages: Array<string>;
-    libraries: Array<string>;
-    ast: any;
-    myAst: Root;
+    documentClass: Macro = new Macro(
+        "documentclass", '\\', [new Argument("{", "}", [new String("standalone")])]
+    );
+    packages: Array<Macro>;
+    libraries: Array<Macro>;
+    globalPreamble: Array<Macro>;
+    document: Environment;
     parse(latex: string){
-        this.ast = parse(latex);
+        this.content = parse(latex);
     }
     parseMath(latex: string){
-        this.ast=parseMath(latex)
+        this.content=parseMath(latex)
     }
-    toString(){
-        return toString(this.ast);
+    toString() {
+        if (!this.documentClass) {
+            throw new Error("Document class not found");
+        }
+        let string = "";
+        string += this.documentClass.toString() + "\n";
+        string += this.packages.map(pkg => pkg.toString()).join("\n") + "\n";
+        string += this.libraries.map(lib => lib.toString()).join("\n") + "\n";
+        string += this.document.toString();
+        return string;
     }
     deleteComments(){
         deleteComments(this.ast);
@@ -86,7 +96,7 @@ export class LatexAbstractSyntaxTree{
     usdPackages(){}
     usdLibraries() { }
     usdInputFiles() {
-        console.log(findUsdInputFiles(this.myAst))
+        return findUsdInputFiles(this.myAst);
     }
     usdCommands(){}
     usdEnvironments(){}   

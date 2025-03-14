@@ -35,9 +35,7 @@ export class MathJaxAbstractSyntaxTree{
     }
     
   toString(args: ToStringConfig={}): string {
-    console.log("this.ast is going to be converted to string",this.ast)
     return this.ast.map(node => {
-      console.log("node is going to be converted to string",node)
       return node.toString(args)
     }).join("");
   }
