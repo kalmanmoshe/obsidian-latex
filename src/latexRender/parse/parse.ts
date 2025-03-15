@@ -1,3 +1,4 @@
+import { ErrorRuleId } from '../log-parser/HumanReadableLogsRules';
 import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node, ContentNode } from './typs/ast-types-post';
 import { migrateToClassStructure } from './typs/ast-types-pre';
 
@@ -44,51 +45,67 @@ import('@unified-latex/unified-latex-util-pgfkeys').then(module => {
  * - Auto load packages
  */
 
-
 export class LatexAbstractSyntaxTree{
     documentClass: Macro = new Macro(
-        "documentclass", '\\', [new Argument("{", "}", [new String("standalone")])]
+        "documentclass", '\\', [
+            new Argument(
+                "{", "}", [
+                    new String("standalone")
+                ]
+            )
+        ]
     );
-    packages: Array<Macro>;
-    libraries: Array<Macro>;
-    globalPreamble: Array<Macro>;
+    preamble: Array<Macro>;
     document: Environment;
-    parse(latex: string){
-        this.content = parse(latex);
+    content: Node[];
+    constructor(content:Node[], documentClass?: Macro, preamble?: Array<Macro>, document?: Environment) {
+        this.content = content;
+        if(documentClass&&preamble&&document){
+            this.documentClass = documentClass;
+            this.preamble = preamble;
+            this.document = document;
+        }
     }
-    parseMath(latex: string){
-        this.content=parseMath(latex)
+    static parse(latex: string){
+        const autoAst=parse(latex);
+        const classAst= migrateToClassStructure(autoAst);
+        if(!(classAst instanceof Root))throw new Error("Root not found");
+        //deleteComments(classAst);
+        return new LatexAbstractSyntaxTree(classAst.content);
+        /*
+        const autoAst=parse(latex);
+        const classAst= migrateToClassStructure(autoAst);
+        if(!(classAst instanceof Root))throw new Error("Root not found");
+        deleteComments(classAst);
+
+        const content=classAst.content;
+        const documentClass = content.shift();
+
+        if(!documentClass||!(documentClass instanceof Macro))throw createLatexErrorMessage(ErrorRuleId.MISSING_DOCUMENT_CLASS);
+
+        const docIndex=content.findIndex(node=>node instanceof Environment);
+        const document=content[docIndex] as Environment|undefined;
+        if(!document) throw new Error("Document not found");
+
+        if(document.env!=="document")throw new Error("Document environment not found");
+        const preamble=content.splice(0,docIndex);
+        if(!preamble.every(node=>node instanceof Macro))
+            throw new Error("Preamble contains non macro elements");
+        if(content.length)throw new Error("Content not empty after document environment");
+        return new LatexAbstractSyntaxTree(documentClass,preamble,document);*/
     }
     toString() {
+        return this.content.map(node => node.toString()).join("\n");
         if (!this.documentClass) {
             throw new Error("Document class not found");
         }
         let string = "";
         string += this.documentClass.toString() + "\n";
-        string += this.packages.map(pkg => pkg.toString()).join("\n") + "\n";
-        string += this.libraries.map(lib => lib.toString()).join("\n") + "\n";
         string += this.document.toString();
         return string;
     }
-    deleteComments(){
-        deleteComments(this.ast);
-    }
     usdExternalfiles(){
 
-    }
-    a() {
-        const a=migrateToClassStructure(this.ast)
-        if (a instanceof Root) {
-            this.myAst=a
-        }
-        else{
-            throw new Error("Root not found");
-        }
-    }
-    cleanUp(){
-        this.removeAllWhitespace();
-        cleanUpDefs(this.myAst);
-        cleanUpInputs(this.myAst);
     }
     removeAllWhitespace(){
         
@@ -96,7 +113,10 @@ export class LatexAbstractSyntaxTree{
     usdPackages(){}
     usdLibraries() { }
     usdInputFiles() {
-        return findUsdInputFiles(this.myAst);
+        return findUsdInputFiles(this.getFullAst());
+    }
+    getFullAst(): Node[]{
+        return [this.documentClass,...this.preamble,this.document];
     }
     usdCommands(){}
     usdEnvironments(){}   
@@ -265,3 +285,6 @@ class unit{
 
 
 
+const latexErrors = {
+
+}

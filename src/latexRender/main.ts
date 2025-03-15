@@ -10,9 +10,8 @@ import { StringMap } from 'src/settings/settings.js';
 import async from 'async';
 import { LatexAbstractSyntaxTree } from './parse/parse';
 import { VirtualFile } from 'src/obsidian/file_watch';
-import LatexParser, { errorDiv } from './log';
 import { pdfToHtml, pdfToSVG } from './pdfToHtml';
-
+import {createErrorDisplay} from './log-parser/HumanReadableLogs';
 export const waitFor = async (condFunc: () => boolean) => {
 	return new Promise<void>((resolve) => {
 		if (condFunc()) {
@@ -91,17 +90,34 @@ export class SwiftlatexRender {
 		if(this.virtualFileSystemEnabled)
 			this.coorVirtualFiles=files;
 	}
+	tidyLatexSource(tikzSource: string) {
+
+		// Remove non-breaking space characters, otherwise we get errors
+		const remove = "&nbsp;";
+		tikzSource = tikzSource.replaceAll(remove, "");
+
+
+		let lines = tikzSource.split("\n");
+
+		// Trim whitespace that is inserted when pasting in code, otherwise TikZJax complains
+		lines = lines.map(line => line.trim());
+
+		// Remove empty lines
+		lines = lines.filter(line => line);
+
+
+		return lines.join("\n");
+	}
 	configQueue() {
 		const processTask=(task: Task):void=> {
-			
 			let coorPreambles=""
-
 			this.coorVirtualFiles.forEach(name => {
 				coorPreambles+=`\\input{${name}}`
 			});
 
 			task.source="\\documentclass{standalone}"+coorPreambles+"\\pgfplotsset{compat=1.16}\\begin{document}\\begin{tikzpicture}"+task.source+"\n\\end{tikzpicture}\\end{document}"
-			
+			task.source=this.tidyLatexSource(task.source);
+			/*
 			const ast = new LatexAbstractSyntaxTree();
 			try {
 				ast.parse(task.source);
@@ -118,6 +134,7 @@ export class SwiftlatexRender {
 				ast.deleteComments();
 				task.source = ast.toString();
 			}
+			*/
 		}
 		this.queue = async.queue((task, done) => {
 			if(task.process)processTask(task)
@@ -265,10 +282,7 @@ export class SwiftlatexRender {
 			this.addFileToCache(md5Hash, sourcePath);
 		} catch (err) {
 			el.innerHTML = "";
-			const log = LatexParser.parse(err);
-			console.error("LaTeX Error:", log, [err]);
-			const { message, content, line } = log.errors[0];
-			el.appendChild(errorDiv(message, content, line));
+			el.appendChild(createErrorDisplay(err));
 			throw err;
 		} finally {
 			await waitFor(() => this.pdfEngine.isReady());
