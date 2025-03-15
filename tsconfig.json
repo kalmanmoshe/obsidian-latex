@@ -6,6 +6,9 @@
     "module": "NodeNext",
     "target": "ES6",    
     "allowJs": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "noImplicitAny": true,
@@ -25,7 +28,7 @@
   },
   "include": [
     "**/*.ts"
-, "src/latexRender/PdfTeXEngine.ts", "src/latexRender/swiftlatexpdftex.worker.js"  ],
+, "src/latexRender/PdfTeXEngine.ts", "src/latexRender/swiftlatexpdftex.worker.js", "src/latexRender/log-parser/HumanReadableLogsRules.tsx"  ],
   "exclude": [
     "node_modules",
     "dist" 
