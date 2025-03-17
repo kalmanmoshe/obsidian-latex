@@ -1,14 +1,17 @@
 import { ErrorRuleId } from '../log-parser/HumanReadableLogsRules';
 import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node, ContentNode } from './typs/ast-types-post';
 import { migrateToClassStructure } from './typs/ast-types-pre';
-
+import { VirtualFile } from 'src/obsidian/file_watch';
 /**
  * Parse the string into an AST.
  */
-export let parse: (str: string)=> any;
+
+export let parse: (str: string) => any;
+
 /**
  * Parse str into an AST. Parsing starts in math mode and a list of nodes is returned (instead of a "root" node).
  */
+
 export let parseMath: any;
 export let deleteComments: any;
 export let toString: any;
@@ -20,8 +23,9 @@ export let pgfkeysArgToObject:any;
 interface utilMacros{
     LATEX_NEWCOMMAND: Set<string>;
     XPARSE_NEWCOMMAND: Set<string>;
-
 }
+
+
 import('@unified-latex/unified-latex-util-to-string').then(module => {
 	toString = module.toString;
 });
@@ -43,35 +47,39 @@ import('@unified-latex/unified-latex-util-pgfkeys').then(module => {
  * Assignments:
  * - Auto load librarys
  * - Auto load packages
- */
+*/
 
-export class LatexAbstractSyntaxTree{
-    documentClass: Macro = new Macro(
-        "documentclass", '\\', [
-            new Argument(
-                "{", "}", [
-                    new String("standalone")
-                ]
-            )
-        ]
-    );
-    preamble: Array<Macro>;
+
+export class LatexDocument { 
+    preamble: Macro[];
     document: Environment;
-    content: Node[];
-    constructor(content:Node[], documentClass?: Macro, preamble?: Array<Macro>, document?: Environment) {
-        this.content = content;
-        if(documentClass&&preamble&&document){
-            this.documentClass = documentClass;
-            this.preamble = preamble;
-            this.document = document;
-        }
+    constructor(preamble: Macro[], document: Environment) {
+        this.preamble = preamble;
+        this.document = document;
     }
-    static parse(latex: string){
+}
+export class LatexAbstractSyntaxTree{
+    preamble?: Array<Macro>;
+    document?: Environment;
+    constructor(preamble: Array<Macro>,document: Environment){
+        this.preamble = preamble;
+        this.document = document;
+    }
+    static parse(latex: string,config: {knewnEnv: }={}){
         const autoAst=parse(latex);
         const classAst= migrateToClassStructure(autoAst);
-        if(!(classAst instanceof Root))throw new Error("Root not found");
-        //deleteComments(classAst);
-        return new LatexAbstractSyntaxTree(classAst.content);
+        if (!(classAst instanceof Root)) throw new Error("Root not found");
+        const content=classAst.content;
+        const docIndex=content.findIndex(node=>node instanceof Environment);
+        const document=content[docIndex] as Environment|undefined;
+        if(!document) throw new Error("Document not found");
+
+        if(document.env!=="document")throw new Error("Document environment not found");
+        const preamble=content.splice(0,docIndex);
+        if(!preamble.every(node=>node instanceof Macro))
+            throw new Error("Preamble contains non macro elements");
+        if(content.length!==0)throw new Error("Content not empty after document environment");
+        return new LatexAbstractSyntaxTree(preamble,document);
         /*
         const autoAst=parse(latex);
         const classAst= migrateToClassStructure(autoAst);
@@ -95,7 +103,7 @@ export class LatexAbstractSyntaxTree{
         return new LatexAbstractSyntaxTree(documentClass,preamble,document);*/
     }
     toString() {
-        return this.content.map(node => node.toString()).join("\n");
+        return this.getFullAst().map(node => node.toString()).join("\n");
         if (!this.documentClass) {
             throw new Error("Document class not found");
         }
@@ -104,19 +112,27 @@ export class LatexAbstractSyntaxTree{
         string += this.document.toString();
         return string;
     }
-    usdExternalfiles(){
-
+    addInputFileToPramble(File: VirtualFile, index: number){
+        const input=new Input(File.path);
+        this.preamble.splice(index,0,input);
     }
     removeAllWhitespace(){
         
     }
+    /**
+     * In latex empty lines can cause errors
+     * This methd remove all empty lines from the document.
+     */
+    removeemptyLines() { 
+
+    }
     usdPackages(){}
-    usdLibraries() { }
+    usdLibraries() {}
     usdInputFiles() {
         return findUsdInputFiles(this.getFullAst());
     }
     getFullAst(): Node[]{
-        return [this.documentClass,...this.preamble,this.document];
+        return [...this.preamble,this.document];
     }
     usdCommands(){}
     usdEnvironments(){}   

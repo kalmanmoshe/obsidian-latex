@@ -62,7 +62,7 @@ export class SwiftlatexRender {
 	private virtualFileSystemFiles: VirtualFile[]
 	private coorVirtualFiles: Set<string> = new Set();
 	private virtualFileSystemFilesStatus: VirtualFileSystemFilesStatus=VirtualFileSystemFilesStatus.undefined;
-	private virtualFileSystemEnabled: boolean
+	private virtualFileSystemEnabled: boolean;
 	async onload(plugin: Moshe) {
 		this.plugin = plugin;
 		this.validateCatchDirectory();
@@ -95,28 +95,25 @@ export class SwiftlatexRender {
 		// Remove non-breaking space characters, otherwise we get errors
 		const remove = "&nbsp;";
 		tikzSource = tikzSource.replaceAll(remove, "");
-
-
 		let lines = tikzSource.split("\n");
-
 		// Trim whitespace that is inserted when pasting in code, otherwise TikZJax complains
 		lines = lines.map(line => line.trim());
-
 		// Remove empty lines
 		lines = lines.filter(line => line);
-
-
 		return lines.join("\n");
 	}
 	configQueue() {
-		const processTask=(task: Task):void=> {
+		const processTask = (task: Task): void => {
+			const ast = new LatexAbstractSyntaxTree();
+			
 			let coorPreambles=""
 			this.coorVirtualFiles.forEach(name => {
 				coorPreambles+=`\\input{${name}}`
 			});
 
 			task.source="\\documentclass{standalone}"+coorPreambles+"\\pgfplotsset{compat=1.16}\\begin{document}\\begin{tikzpicture}"+task.source+"\n\\end{tikzpicture}\\end{document}"
-			task.source=this.tidyLatexSource(task.source);
+			task.source = this.tidyLatexSource(task.source);
+			
 			/*
 			const ast = new LatexAbstractSyntaxTree();
 			try {
