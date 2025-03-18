@@ -75,7 +75,7 @@ export class Whitespace extends BaseNode {
         let length = 1;
         if (this.position?.start.line&&this.position?.end.line)
             length = this.position?.end.column - this.position?.start.column;
-        return " ".repeat(Math.abs(length))
+        return " ".repeat(Math.abs(length));
     }
 }
 
@@ -85,7 +85,7 @@ export class Parbreak extends BaseNode {
         super("parbreak", renderInfo, position);
     }
     toString(): string {
-        return "\n"
+        return "\n";
     }
 }
 
@@ -103,7 +103,7 @@ export class Comment extends BaseNode {
         if(leadingWhitespace)this.leadingWhitespace = leadingWhitespace;
     }
     toString(): string {
-        return `%${this.content}\n`
+        return `%${this.content}\n`;
     }
 }
 
@@ -138,7 +138,7 @@ export class Environment extends ContentNode {
     }
     toString(args: ToStringConfig={}): string {
         if(args.inline) return `\\begin{${this.env}}\t${this.content.map(node => node.toString()).join("")}\\end{${this.env}}`
-        return `\\begin{${this.env}}\n\t${this.content.map(node => node.toString()).join("")}\n\\end{${this.env}}`
+        return `\\begin{${this.env}}\n\t${this.content.map(node => node.toString()).join("")}\n\\end{${this.env}}`;
     }
 }
 
