@@ -1,5 +1,5 @@
 
-import { FileSystemAdapter, MarkdownPostProcessorContext, TFile, MarkdownPreviewRenderer, Modal, App, Menu, SectionCache, Notice, MarkdownView } from 'obsidian';
+import { FileSystemAdapter, MarkdownPostProcessorContext, TFile, MarkdownPreviewRenderer, Modal, App, Menu, SectionCache, Notice, MarkdownView, MarkdownRenderer } from 'obsidian';
 import { Md5 } from 'ts-md5';
 import * as fs from 'fs';
 import * as temp from 'temp';
@@ -51,7 +51,9 @@ enum VirtualFileSystemFilesStatus{
 	uptodate,
 	error,
 }
-
+function createFilePath(file: VirtualFile): string {
+	return path.join(file.path, file.name);
+}
 export class SwiftlatexRender {
 	plugin: Moshe;
 	cacheFolderPath: string;
@@ -104,15 +106,26 @@ export class SwiftlatexRender {
 	}
 	configQueue() {
 		const processTask = (task: Task): void => {
-			const ast = new LatexAbstractSyntaxTree();
-			
+			try{
+				const ast = LatexAbstractSyntaxTree.parse(task.source);
+				ast.verifyEnvironmentWrap()
+				ast.verifyDocumentclass();
+				this.coorVirtualFiles.forEach((name) => {
+					ast.addInputFileToPramble(name);
+				});
+				task.source = ast.toString();
+				console.log("task.source",ast,task.source.split('\n'),)
+			}
+			catch(e){
+				console.error("Error processing task: "+e);
+				return;
+			}
 			let coorPreambles=""
-			this.coorVirtualFiles.forEach(name => {
+			this.coorVirtualFiles.forEach((name) => {
 				coorPreambles+=`\\input{${name}}`
 			});
-
-			task.source="\\documentclass{standalone}"+coorPreambles+"\\pgfplotsset{compat=1.16}\\begin{document}\\begin{tikzpicture}"+task.source+"\n\\end{tikzpicture}\\end{document}"
-			task.source = this.tidyLatexSource(task.source);
+			//task.source="\\documentclass{standalone}"+coorPreambles+"\\pgfplotsset{compat=1.16}\\begin{document}\\begin{tikzpicture}"+task.source+"\n\\end{tikzpicture}\\end{document}"
+			//task.source = this.tidyLatexSource(task.source);
 			
 			/*
 			const ast = new LatexAbstractSyntaxTree();
@@ -252,7 +265,7 @@ export class SwiftlatexRender {
 		el.classList.remove("block-language-latex");
 		el.classList.add("block-language-latexsvg");
 		const md5Hash = hashLatexSource(source);
-		addMenu(el,this.plugin)
+		addMenu(this.plugin,el,ctx.sourcePath)
 		
 		// PDF file has already been cached
 		// Could have a case where pdfCache has the key but the cached file has been deleted
@@ -284,10 +297,12 @@ export class SwiftlatexRender {
 		} finally {
 			await waitFor(() => this.pdfEngine.isReady());
 			await this.cleanUpCache();
+			await this.removeUntraceablePDFs();
+			await this.removeHashsWithNoCorrespondingPDF()
 		}
 	}
 	  
-
+	
 	private async translatePDF(pdfData: Buffer<ArrayBufferLike>, el: HTMLElement,hash: string, outputSVG = true): Promise<void> {
 		return new Promise<void>((resolve) => {
 			const config ={
@@ -370,23 +385,48 @@ export class SwiftlatexRender {
 	}
 
 	/**
+	 * Removes PDFS that don't have a reference to them in the catch, Aka will never be used as there will never be reached
+	 */
+	private async removeUntraceablePDFs(){
+		const cacheFolderfiles = fs.readdirSync(this.cacheFolderPath);
+		const cacheFiles = [...this.cache.keys()];
+		const filesToRemove = cacheFolderfiles.filter(file => !cacheFiles.includes(file.split(".")[0]));
+		for (const file of filesToRemove) {
+			await this.removePDFFromCache(file);
+		}
+	}
+	private async removeHashsWithNoCorrespondingPDF(){
+		const cacheFolderfiles = fs.readdirSync(this.cacheFolderPath).map(file => file.split(".")[0]);
+		const cacheFiles = [...this.cache.keys()];
+		const filesToRemove = cacheFiles.filter(file => !cacheFolderfiles.includes(file));
+		for (const file of filesToRemove) {
+			await this.removePDFFromCache(file);
+		}
+	}
+	/**
 	 * Remove all unused cachet svgs from the cache and file system.
 	*/
+	private getFilePathsFromCache(): string[] {
+		return [...new Set([...this.cache.values()].flatMap(set => [...set]))];
+	}
+	/**
+	 * Iterates over the filed paths in the catch
+	 * and removes the cache entries for the files that do not exist.
+	 * Also removes the ones that do not exist in the vault.
+	 */
 	private async cleanUpCache(): Promise<void> {
-		const filePathsToRemove: string[] = [];
 	
+		const filePathsToRemove: string[] = [];
 		// Collect file paths safely first
-		for (const fps of this.cache.values()) {
-			for (const filePath of fps) {
-				const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
-				if (!file) {
-					filePathsToRemove.push(filePath);
-				} else if (file instanceof TFile) {
-					try {
-						await this.removeUnusedCachesForFile(file);
-					} catch (err) {
-						console.error(`Error removing cache for file ${filePath}:`, err);
-					}
+		for (const filePath of this.getFilePathsFromCache()) {
+			const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
+			if (!file) {
+				filePathsToRemove.push(filePath);
+			} else if (file instanceof TFile) {
+				try {
+					await this.removeUnusedCachesForFile(file);
+				} catch (err) {
+					console.error(`Error removing cache for file ${filePath}:`, err);
 				}
 			}
 		}
@@ -589,7 +629,9 @@ async function getLatexSourceFromHash(hash: string, plugin: Moshe, file?: TFile)
 function hashLatexSource(source: string) {
 	return Md5.hashStr(source.replace(/\s/g, ''))
 }
-
+function getBlockId(path: string,lineStart: number): string {
+	return `${path.replace(/ /g, '_')}_${lineStart}`;
+};
 	
 
 
@@ -611,26 +653,69 @@ function getNewPackageFileNames(oldCacheData: StringMap, newCacheData: StringMap
 
 
 
-function addMenu(el: HTMLElement,plugin: Moshe) {
+function addMenu(plugin: Moshe,el: HTMLElement,filePath: string) {
 	el.addEventListener("contextmenu", (event) => {
 		if(!event.target)return
 		const clickedElement = event.target as HTMLElement;
-		const menu = new SvgContextMenu(plugin,clickedElement);
+		const menu = new SvgContextMenu(plugin,clickedElement,filePath);
 		menu.open(event)
 	});
 }
 
+function findMultiLineStartIndex(text: string, searchString: string) {
+    const textLines = text.split("\n"); // Split the full text into lines
+    const searchLines = searchString.split("\n"); // Split the search string into lines
+    const searchLength = searchLines.length;
 
+    for (let i = 0; i <= textLines.length - searchLength; i++) {
+        let match = true;
+        
+        for (let j = 0; j < searchLength; j++) {
+            if (textLines[i + j] !== searchLines[j]) {
+                match = false;
+                break;
+            }
+        }
 
+        if (match) {
+            return i; // Return the 0-based start line index
+        }
+    }
+    return -1; // Return -1 if not found
+}
+
+function getSectionCacheFromString(sectionsCache: SectionCache[],source: string,target: string){
+	const sourceIndex=findMultiLineStartIndex(source,target);
+	if(sourceIndex===-1)throw new Error("source not found in file");
+	if(sourceIndex===0)throw new Error("source index is 0 which is invalid (i don't know why this happens)");
+	const codeBlockStartLine=sourceIndex-1;
+	return sectionsCache.find((section)=>section.position.start.line===codeBlockStartLine);
+}
 
 class SvgContextMenu extends Menu {
 	plugin: Moshe;
-	triggeringElement: HTMLElement;
-	constructor(plugin: Moshe,trigeringElement: HTMLElement) {
+	triggeringElement: SVGElement;
+	sourcePath: string;
+	constructor(plugin: Moshe,trigeringElement: HTMLElement,sourcePath: string) {
 		super();
     	this.plugin = plugin;
-		this.triggeringElement = trigeringElement;
+		const el=this.insureIsSVG(trigeringElement);
+		if(!el)
+			console.error("No svg element found in the hierarchy")
+		else
+			this.triggeringElement = el;
+		this.sourcePath = sourcePath;
 		this.addDisplayItems();
+	}
+	private insureIsSVG(el: HTMLElement): SVGElement|null {
+		if (el instanceof SVGElement) {
+			return el;
+		}
+		for (const child of Array.from(el.children)) {
+			const svg = this.insureIsSVG(child as HTMLElement);
+			if (svg) return svg;
+		}
+		return null;
 	}
 	private addDisplayItems(){
 		this.addItem((item) => {
@@ -657,30 +742,43 @@ class SvgContextMenu extends Menu {
 			item.setIcon("trash");
 			item.onClick(async () => {
 				const hash = this.triggeringElement.id;
-				if (!hash) throw new Error("No hash found for SVG element");
+				if (hash===undefined) throw new Error("No hash found for SVG element got: "+hash);
 				await this.plugin.swiftlatexRender.removePDFFromCache(hash);
-				if (this.triggeringElement.parentNode?.parentNode) {
-					this.triggeringElement.parentNode.parentNode.removeChild(this.triggeringElement.parentNode);
-				}
-				const context = this.plugin.app.metadataCache
-				console.log(context)
-				this.plugin.swiftlatexRender.universalCodeBlockProcessor(
-					await this.retrieveLatexSource(),
-					this.triggeringElement,
-				)
-				this.plugin.app.workspace.iterateAllLeaves((leaf) => {
-					if (leaf.view instanceof MarkdownView) {
-						const editor = leaf.view.editor;
-						if (!editor) return;
-						const cursor = editor.getCursor();
-						console.log(editor.getValue())
-         			 	editor.setValue(editor.getValue());
-          				editor.setCursor(cursor);
-						console.log("editor",editor)
-					}
-				});
+				const parentEl=this.triggeringElement.parentNode;
+				if(!parentEl)throw new Error("No parent element found for SVG element");
+				if(!(parentEl instanceof HTMLElement))throw new Error("Parent element is not an HTMLElement");
+				parentEl.removeChild(this.triggeringElement);
+
 				
+				const file = this.plugin.app.vault.getAbstractFileByPath(this.sourcePath);
+				if (!file) throw new Error("File not found");
+				if(!(file instanceof TFile))throw new Error("File is not a TFile");
+
+				const metadata = this.plugin.app.metadataCache.getFileCache(file);
+				if (!metadata) throw new Error("No metadata found for file");
+				const sections=metadata.sections;
+				if(!sections)throw new Error("No sections found in metadata");
+
+
+				const source = await getLatexSourceFromHash(hash,this.plugin,file);
+				const md5Hash = hashLatexSource(source);
+				addMenu(this.plugin,parentEl,this.sourcePath)
+				const queue=this.plugin.swiftlatexRender.queue;
+				const fileText = await this.plugin.app.vault.read(file);
+				const sectionCache=getSectionCacheFromString(sections,fileText,source);
+				if(!sectionCache)throw new Error("Section cache not found");
+				const blockId = getBlockId(this.sourcePath,sectionCache.position.start.line);
+				queue.remove(node => node.data.blockId === blockId);
+				parentEl.appendChild(createWaitingCountdown(queue.length()));
 				
+				this.plugin.swiftlatexRender.queue.push({
+					source,
+					el: parentEl,
+					md5Hash: hash,
+					sourcePath: this.sourcePath,
+					blockId,
+					process: true
+				})
 				new Notice("SVG removed from cache. Re-rendering...");
 			});
 		});
