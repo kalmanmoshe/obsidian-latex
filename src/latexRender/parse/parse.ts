@@ -1,7 +1,8 @@
 import { ErrorRuleId } from '../log-parser/HumanReadableLogsRules';
-import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node, ContentNode } from './typs/ast-types-post';
+import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node, ContentNode, BaseNode } from './typs/ast-types-post';
 import { migrateToClassStructure } from './typs/ast-types-pre';
 import { VirtualFile } from 'src/obsidian/file_watch';
+import { MacroInfo } from './typs/info-specs';
 /**
  * Parse the string into an AST.
  */
@@ -48,73 +49,103 @@ import('@unified-latex/unified-latex-util-pgfkeys').then(module => {
  * - Auto load librarys
  * - Auto load packages
 */
-
-
-export class LatexDocument { 
-    preamble: Macro[];
-    document: Environment;
-    constructor(preamble: Macro[], document: Environment) {
-        this.preamble = preamble;
-        this.document = document;
+const macrosNotToescapeRegex = /(_|\^)/;
+function insureRenderInfoexists(node: Node){
+    if(!node._renderInfo)node._renderInfo={};
+}
+export function assignRenderInfoToNode(ast: Ast): void{
+    if (Array.isArray(ast)) ast.forEach(assignRenderInfoToNode);
+    if (ast instanceof ContentNode){
+        ast.content.forEach(assignRenderInfoToNode);
+        switch (ast.type) {
+            case "root":
+                break;
+            case "environment":
+                ast = ast as Environment;
+                ast.args?.forEach(assignRenderInfoToNode);
+                break;
+            case "mathenv":
+                break;
+            case "inlinemath":
+                break;
+            case "displaymath":
+                break;
+            case "group":
+                break;
+            case "argument":
+                break;
+            default:
+                throw new Error(`Unknown node type: ${ast["type"]}`);
+        }
+    }
+    else if (ast instanceof BaseNode){
+        switch (ast.type) {
+            case "macro":
+                if(!ast.isMacro()) return;
+                ast.args?.forEach(assignRenderInfoToNode);
+                if (!macrosNotToescapeRegex.test(ast.content)){
+                    insureRenderInfoexists(ast);
+                    ast._renderInfo!.escapeToken = "\\";
+                }
+                break;
+        }
     }
 }
+
 export class LatexAbstractSyntaxTree{
-    preamble?: Array<Macro>;
-    document?: Environment;
-    constructor(preamble: Array<Macro>,document: Environment){
-        this.preamble = preamble;
-        this.document = document;
+    content: Node[];
+    constructor(content: Node[]){
+        this.content=content;
     }
-    static parse(latex: string,config: {knewnEnv: }={}){
+    static parse(latex: string){
         const autoAst=parse(latex);
+        console.log("autoAst",autoAst);
         const classAst= migrateToClassStructure(autoAst);
         if (!(classAst instanceof Root)) throw new Error("Root not found");
-        const content=classAst.content;
-        const docIndex=content.findIndex(node=>node instanceof Environment);
-        const document=content[docIndex] as Environment|undefined;
-        if(!document) throw new Error("Document not found");
-
-        if(document.env!=="document")throw new Error("Document environment not found");
-        const preamble=content.splice(0,docIndex);
-        if(!preamble.every(node=>node instanceof Macro))
-            throw new Error("Preamble contains non macro elements");
-        if(content.length!==0)throw new Error("Content not empty after document environment");
-        return new LatexAbstractSyntaxTree(preamble,document);
-        /*
-        const autoAst=parse(latex);
-        const classAst= migrateToClassStructure(autoAst);
-        if(!(classAst instanceof Root))throw new Error("Root not found");
-        deleteComments(classAst);
-
-        const content=classAst.content;
-        const documentClass = content.shift();
-
-        if(!documentClass||!(documentClass instanceof Macro))throw createLatexErrorMessage(ErrorRuleId.MISSING_DOCUMENT_CLASS);
-
-        const docIndex=content.findIndex(node=>node instanceof Environment);
-        const document=content[docIndex] as Environment|undefined;
-        if(!document) throw new Error("Document not found");
-
-        if(document.env!=="document")throw new Error("Document environment not found");
-        const preamble=content.splice(0,docIndex);
-        if(!preamble.every(node=>node instanceof Macro))
-            throw new Error("Preamble contains non macro elements");
-        if(content.length)throw new Error("Content not empty after document environment");
-        return new LatexAbstractSyntaxTree(documentClass,preamble,document);*/
+        const content=classAst.content
+        return new LatexAbstractSyntaxTree(content);
+    }
+    verifydocstructure(){
+        
+    }
+    verifyEnvironmentWrap(){
+        const envs=this.content.filter(node=>node instanceof Environment);
+        if(envs.length===0){
+            const doc=new Environment(
+                "environment",
+                "document",
+                [
+                    new Environment("environment","tikzpicture",this.content)
+                ],
+            );
+            this.content=[doc];
+            return;
+        }
+    }
+    verifyDocumentclass(){
+        const documentclass=this.content.find(node=>node instanceof Macro&&node.content==="documentclass");
+        if(!documentclass){
+            this.content.unshift(new Macro("documentclass",undefined,[
+                new Argument("{","}",[new String("standalone")])
+            ],autoMacroInfo));
+        }
     }
     toString() {
-        return this.getFullAst().map(node => node.toString()).join("\n");
-        if (!this.documentClass) {
-            throw new Error("Document class not found");
-        }
-        let string = "";
-        string += this.documentClass.toString() + "\n";
-        string += this.document.toString();
-        return string;
+        assignRenderInfoToNode(this.content);
+        return this.content.map(node => node.toString()).join("");
     }
-    addInputFileToPramble(File: VirtualFile, index: number){
-        const input=new Input(File.path);
-        this.preamble.splice(index,0,input);
+    addInputFileToPramble(filePath: string, index?: number){
+        const input=new Macro("input",undefined,[new Argument("{","}",[new String(filePath)])],autoMacroInfo);
+        if(index){
+            this.content.splice(index,0,input);
+            return;
+        }
+        const startIndex=this.content.findIndex(node=>!(node.isMacro()&&(node.content==="documentclass"||node.content==="input")));
+        if(startIndex===-1){
+            this.content.push(input);
+            return;
+        }
+        this.content.splice(startIndex,0,input);
     }
     removeAllWhitespace(){
         
@@ -123,16 +154,13 @@ export class LatexAbstractSyntaxTree{
      * In latex empty lines can cause errors
      * This methd remove all empty lines from the document.
      */
-    removeemptyLines() { 
+    removeEmptyLines() { 
 
     }
     usdPackages(){}
     usdLibraries() {}
     usdInputFiles() {
-        return findUsdInputFiles(this.getFullAst());
-    }
-    getFullAst(): Node[]{
-        return [...this.preamble,this.document];
+        return findUsdInputFiles(this.content);
     }
     usdCommands(){}
     usdEnvironments(){}   
@@ -189,7 +217,12 @@ class Input{
         return `\\input{${this.content}}`;
     }
 }
-
+const autoMacroInfo: MacroInfo={
+    renderInfo:{
+        breakAfter: true,
+    },
+    escapeToken: "\\",
+}
 function cleanUpTikzSet(ast: any) {
     
 }
@@ -261,7 +294,7 @@ function parsePlaceholders(ast: Node, startIndex: number) {
 
 
 
-
+/*
 export class Def{
     name: string;
     content: any[];
@@ -280,7 +313,7 @@ export class Def{
         return string;
     }
     
-}
+}*/
 
 class Path{
 

@@ -75,7 +75,7 @@ export class Whitespace extends BaseNode {
         let length = 1;
         if (this.position?.start.line&&this.position?.end.line)
             length = this.position?.end.column - this.position?.start.column;
-        return " ".repeat(length)
+        return " ".repeat(Math.abs(length))
     }
 }
 
@@ -112,16 +112,18 @@ export class Macro extends BaseNode {
     content: string;
     escapeToken?: string;
     args?: Argument[];
-    constructor(content: string, escapeToken?: string, args?: Argument[], renderInfo?: _renderInfo, position?: typeof BaseNode.prototype.position) {
+    _renderInfo?: MacroInfo;
+    constructor(content: string, escapeToken?: string, args?: Argument[], renderInfo?: MacroInfo, position?: typeof BaseNode.prototype.position) {
         super("macro", renderInfo, position);
         this.content = content;
         if(escapeToken)this.escapeToken = escapeToken;
         if(args)this.args = args;
     }
     toString(): string {
-        const prefix=this.content!="^"&&this.content!="_"?`\\${this.content}`:this.content
-        return prefix+(this.args ? this.args.map(arg => arg.toString()).join("") : "")
+        const prefix=this._renderInfo?.escapeToken||"";
+        return prefix+this.content+(this.args ? this.args.map(arg => arg.toString()).join("") : "")+(this._renderInfo?.renderInfo?.breakAfter?"\n":"")
     }
+    
 }
 type RenderInfo = _renderInfo;
 
@@ -241,6 +243,6 @@ export type Node =
     | DisplayMath
     | Group
     | Verb
-    | Def;
+    //| Def;
 
 export type Ast = Node | Argument | Node[];
