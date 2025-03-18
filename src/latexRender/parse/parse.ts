@@ -92,6 +92,7 @@ export function assignRenderInfoToNode(ast: Ast): void{
     }
 }
 
+
 export class LatexAbstractSyntaxTree{
     content: Node[];
     constructor(content: Node[]){
@@ -120,6 +121,19 @@ export class LatexAbstractSyntaxTree{
             );
             this.content=[doc];
             return;
+        }
+        else if(envs.every((env)=>env.env!=="document")){
+            const envIndexs = this.content.map((node, index) => node instanceof Environment ? index : -1).filter(index => index !== -1);
+            if (envIndexs.every((idx, index) => !envIndexs[index + 1] || idx === envIndexs[index + 1] - 1)) {
+                const envContent = this.content.splice(envIndexs[0], envIndexs[envIndexs.length - 1] - envIndexs[0] + 1);
+                const doc = new Environment(
+                    "environment",
+                    "document",
+                    envContent,
+                );
+                this.content.splice(envIndexs[0], 0, doc);
+                return;
+            }
         }
     }
     verifyDocumentclass(){
@@ -194,11 +208,11 @@ function findUsdInputFiles(ast: Ast):Macro[] {
 
 function cleanUpInputs(ast: Node){
     const condition=(node: Node)=>node instanceof Macro && node.content==="input";
-    function action(ast: Node,index: number){
+    function action(ast: Node, index: number){
         if(!contentInNodeAndArray(ast))return;
         const node = ast.content[index].args;
         if (!node.length || node.length > 1)
-            throw new Error("")
+            throw new Error("");
         //const input=new Input(node)
        // ast.content.splice(index,1,input);
     }
