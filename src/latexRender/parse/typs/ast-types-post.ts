@@ -113,7 +113,7 @@ export class Macro extends BaseNode {
     escapeToken?: string;
     args?: Argument[];
     _renderInfo?: MacroInfo;
-    constructor(content: string, escapeToken?: string, args?: Argument[], renderInfo?: MacroInfo, position?: typeof BaseNode.prototype.position) {
+    constructor(content: string, escapeToken?: string, args?: Argument[], renderInfo?: MacroInfo, position?: Position) {
         super("macro", renderInfo, position);
         this.content = content;
         if(escapeToken)this.escapeToken = escapeToken;

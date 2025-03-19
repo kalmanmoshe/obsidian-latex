@@ -109,6 +109,9 @@ export class LatexAbstractSyntaxTree{
     verifydocstructure(){
         
     }
+    parseArguments(){
+        
+    }
     verifyEnvironmentWrap(){
         const envs=this.content.filter(node=>node instanceof Environment);
         if(envs.length===0){
@@ -122,15 +125,32 @@ export class LatexAbstractSyntaxTree{
             this.content=[doc];
             return;
         }
+        //if no doc
         else if(envs.every((env)=>env.env!=="document")){
-            const envIndexs = this.content.map((node, index) => node instanceof Environment ? index : -1).filter(index => index !== -1);
+            let envIndexs = this.content.map((node, index) => node instanceof Environment ? index : -1).filter(index => index !== -1);
             if (envIndexs.every((idx, index) => !envIndexs[index + 1] || idx === envIndexs[index + 1] - 1)) {
-                const envContent = this.content.splice(envIndexs[0], envIndexs[envIndexs.length - 1] - envIndexs[0] + 1);
+                let arg: Argument|null=null;
+                const firstMacroIndex=this.content.findIndex(node=>node instanceof Macro);
+                const firstEnvIndex=this.content.findIndex(node=>node instanceof Environment);
+                const firstSquareBracketIndex=this.content.findIndex(node=>node instanceof String&&node.content==="[");
+                if(firstSquareBracketIndex===Math.min(firstMacroIndex,firstEnvIndex,firstSquareBracketIndex)){
+                    const matchingBracketIndex=findMatchingBracket(this.content,firstSquareBracketIndex);
+                    const options=this.content.splice(firstSquareBracketIndex,(matchingBracketIndex-firstSquareBracketIndex)+1);
+                    arg=new Argument("[","]",options);
+                }
+                envIndexs=this.content.map((node, index) => node instanceof Environment ? index : -1).filter(index => index !== -1);
+                const envContent = this.content.splice(envIndexs[0], (envIndexs[envIndexs.length - 1] - envIndexs[0]) + 1);
                 const doc = new Environment(
                     "environment",
                     "document",
-                    envContent,
+                    [new Environment(
+                        "environment",
+                        "tikzpicture",
+                        envContent,
+                        arg!==null?[arg]:undefined,
+                    )],
                 );
+                console.log("doc",doc,envContent,arg);
                 this.content.splice(envIndexs[0], 0, doc);
                 return;
             }
@@ -186,6 +206,29 @@ export class LatexAbstractSyntaxTree{
 class DefineMacro{
     //type
 
+}
+const bracketPairs = {
+    "(": ")",
+    ")": "(",
+    "[": "]",
+    "]": "[",
+    "{": "}",
+    "}": "{",
+}
+
+function findMatchingBracket(content: Node[],index: number){
+    if(!(content[index] instanceof String)|| !(content[index].content in bracketPairs))throw new Error("Not a bracket");
+    const bracket=content[index].content;
+    const bracketPair=bracketPairs[bracket as keyof typeof bracketPairs];
+    let count=0;
+    for(let i=index;i<content.length;i++){
+        const node=content[i];
+        if(!(node instanceof String))continue;
+        if(node.content===bracket)count++;
+        if(node.content===bracketPair)count--;
+        if(count===0)return i+index;
+    }
+    throw new Error("No matching bracket found");
 }
 
 
