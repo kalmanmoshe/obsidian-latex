@@ -114,6 +114,7 @@ export class Macro extends BaseNode {
     args?: Argument[];
     _renderInfo?: MacroInfo;
     constructor(content: string, escapeToken?: string, args?: Argument[], renderInfo?: MacroInfo, position?: Position) {
+        renderInfo=renderInfo||getDefaultMacroInfoConfig(content);
         super("macro", renderInfo, position);
         this.content = content;
         if(escapeToken)this.escapeToken = escapeToken;
@@ -124,6 +125,17 @@ export class Macro extends BaseNode {
         return prefix+this.content+(this.args ? this.args.map(arg => arg.toString()).join("") : "")+(this._renderInfo?.renderInfo?.breakAfter?"\n":"")
     }
     
+}
+const macrosNotToescapeRegex = /(_|\^)/;
+const getDefaultMacroInfoConfig=(content: string):MacroInfo|undefined=>{
+    let macroInfo: MacroInfo = {}
+    if (!macrosNotToescapeRegex.test(content)){
+        macroInfo.escapeToken = "\\";
+    }
+    macroInfo.renderInfo = {
+        breakAfter: true,
+    };
+    return Object.keys(macroInfo).length === 0?undefined:macroInfo
 }
 type RenderInfo = _renderInfo;
 
@@ -162,7 +174,7 @@ export class DisplayMath extends ContentNode {
         super("displaymath", content, renderInfo, position);
     }
     toString(args: ToStringConfig={}): string {
-        return `${this.content.map(node => node.toString()).join("")}`
+        return "$$"+this.content.map(node => node.toString()).join("")+"$$"
     }
 }
 
@@ -182,7 +194,7 @@ export class InlineMath extends ContentNode {
         super("inlinemath", content, renderInfo, position);
     }
     toString(args: ToStringConfig={}): string {
-        return `${this.content.map(node => node.toString()).join("")}`
+        return "\$"+this.content.map(node => node.toString()).join("")+"\$"
     }
 }
 

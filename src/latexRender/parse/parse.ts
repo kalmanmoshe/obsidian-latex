@@ -49,7 +49,7 @@ import('@unified-latex/unified-latex-util-pgfkeys').then(module => {
  * - Auto load librarys
  * - Auto load packages
 */
-const macrosNotToescapeRegex = /(_|\^)/;
+
 function insureRenderInfoexists(node: Node){
     if(!node._renderInfo)node._renderInfo={};
 }
@@ -83,10 +83,7 @@ export function assignRenderInfoToNode(ast: Ast): void{
             case "macro":
                 if(!ast.isMacro()) return;
                 ast.args?.forEach(assignRenderInfoToNode);
-                if (!macrosNotToescapeRegex.test(ast.content)){
-                    insureRenderInfoexists(ast);
-                    ast._renderInfo!.escapeToken = "\\";
-                }
+                
                 break;
         }
     }
@@ -115,11 +112,13 @@ export class LatexAbstractSyntaxTree{
     verifyEnvironmentWrap(){
         const envs=this.content.filter(node=>node instanceof Environment);
         if(envs.length===0){
+            let arg=findEnvironmentArgs(this.content);
+            console.log("arg",arg);
             const doc=new Environment(
                 "environment",
                 "document",
                 [
-                    new Environment("environment","tikzpicture",this.content)
+                    new Environment("environment","tikzpicture",this.content,arg)
                 ],
             );
             this.content=[doc];
@@ -129,15 +128,7 @@ export class LatexAbstractSyntaxTree{
         else if(envs.every((env)=>env.env!=="document")){
             let envIndexs = this.content.map((node, index) => node instanceof Environment ? index : -1).filter(index => index !== -1);
             if (envIndexs.every((idx, index) => !envIndexs[index + 1] || idx === envIndexs[index + 1] - 1)) {
-                let arg: Argument|null=null;
-                const firstMacroIndex=this.content.findIndex(node=>node instanceof Macro);
-                const firstEnvIndex=this.content.findIndex(node=>node instanceof Environment);
-                const firstSquareBracketIndex=this.content.findIndex(node=>node instanceof String&&node.content==="[");
-                if(firstSquareBracketIndex===Math.min(firstMacroIndex,firstEnvIndex,firstSquareBracketIndex)){
-                    const matchingBracketIndex=findMatchingBracket(this.content,firstSquareBracketIndex);
-                    const options=this.content.splice(firstSquareBracketIndex,(matchingBracketIndex-firstSquareBracketIndex)+1);
-                    arg=new Argument("[","]",options);
-                }
+                let arg=findEnvironmentArgs(this.content);
                 envIndexs=this.content.map((node, index) => node instanceof Environment ? index : -1).filter(index => index !== -1);
                 const envContent = this.content.splice(envIndexs[0], (envIndexs[envIndexs.length - 1] - envIndexs[0]) + 1);
                 const doc = new Environment(
@@ -147,7 +138,7 @@ export class LatexAbstractSyntaxTree{
                         "environment",
                         "tikzpicture",
                         envContent,
-                        arg!==null?[arg]:undefined,
+                        arg
                     )],
                 );
                 console.log("doc",doc,envContent,arg);
@@ -161,7 +152,7 @@ export class LatexAbstractSyntaxTree{
         if(!documentclass){
             this.content.unshift(new Macro("documentclass",undefined,[
                 new Argument("{","}",[new String("standalone")])
-            ],autoMacroInfo));
+            ]));
         }
     }
     toString() {
@@ -169,7 +160,7 @@ export class LatexAbstractSyntaxTree{
         return this.content.map(node => node.toString()).join("");
     }
     addInputFileToPramble(filePath: string, index?: number){
-        const input=new Macro("input",undefined,[new Argument("{","}",[new String(filePath)])],autoMacroInfo);
+        const input=new Macro("input",undefined,[new Argument("{","}",[new String(filePath)])]);
         if(index){
             this.content.splice(index,0,input);
             return;
@@ -207,6 +198,30 @@ class DefineMacro{
     //type
 
 }
+function findEnvironmentArgs(ast: Node[]): Argument[]|undefined {
+    let arg: Argument|undefined=undefined;
+    const firstSquareBracketIndex=ast.findIndex(node=>node instanceof String&&node.content==="[");
+    const controlIndexes=[
+        ast.findIndex(node=>node instanceof Macro),
+        ast.findIndex(node=>node instanceof Environment),
+        firstSquareBracketIndex,
+    ].filter(index=>index!==-1);
+    
+    if(
+        firstSquareBracketIndex!==-1&&
+        controlIndexes.length>0&&
+        firstSquareBracketIndex===Math.min(...controlIndexes)
+    ){
+        const matchingBracketIndex=findMatchingBracket(ast,firstSquareBracketIndex);
+        const options=ast.splice(firstSquareBracketIndex,(matchingBracketIndex-firstSquareBracketIndex)+1);
+        const [firstOption, lastOption] = [options[0], options[options.length - 1]];
+        if([firstOption, lastOption].every(node=> node instanceof String)&&firstOption==="[")options.shift();
+        arg=new Argument("[","]",options);
+    }
+    return arg?[arg]:undefined;
+}
+
+
 const bracketPairs = {
     "(": ")",
     ")": "(",
@@ -274,12 +289,7 @@ class Input{
         return `\\input{${this.content}}`;
     }
 }
-const autoMacroInfo: MacroInfo={
-    renderInfo:{
-        breakAfter: true,
-    },
-    escapeToken: "\\",
-}
+
 function cleanUpTikzSet(ast: any) {
     
 }
