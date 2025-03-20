@@ -94,6 +94,12 @@
       [
         "פיזיקה/יחיאל/שיעורי בית.md"
       ]
+    ],
+    [
+      "c621d271254696015d87e913155b9f63",
+      [
+        "Untitled 2.md"
+      ]
     ]
   ],
   "packageCache": [
@@ -101,7 +107,9 @@
       "26/tikzlibrarypgfplots.surfshading.code.tex": 1,
       "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/numprint.cfg": 1,
-      "26/main.aux": 1
+      "26/main.aux": 1,
+      "33/cmmi10.vf": 1,
+      "33/cmr7.vf": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
