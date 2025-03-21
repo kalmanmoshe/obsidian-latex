@@ -185,7 +185,7 @@ export function migrateToClassStructure(ast: Ast): AstClass {
             if (macroArgs && !isArgumentClassArray(macroArgs)) {
                 throw new Error("macro node args must be an array of Arguments");
             }
-            return new MacroClass(ast.content, ast.escapeToken, macroArgs, ast._renderInfo, ast.position);
+            return new MacroClass(ast.content, ast.escapeToken, macroArgs, undefined, ast.position);
         case "environment":
             const envArgs = ast.args?.map(migrateToClassStructure);
             if (envArgs && !isArgumentClassArray(envArgs)) {
