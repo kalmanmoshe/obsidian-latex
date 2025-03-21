@@ -53,42 +53,6 @@ import('@unified-latex/unified-latex-util-pgfkeys').then(module => {
 function insureRenderInfoexists(node: Node){
     if(!node._renderInfo)node._renderInfo={};
 }
-export function assignRenderInfoToNode(ast: Ast): void{
-    if (Array.isArray(ast)) ast.forEach(assignRenderInfoToNode);
-    if (ast instanceof ContentNode){
-        ast.content.forEach(assignRenderInfoToNode);
-        switch (ast.type) {
-            case "root":
-                break;
-            case "environment":
-                ast = ast as Environment;
-                ast.args?.forEach(assignRenderInfoToNode);
-                break;
-            case "mathenv":
-                break;
-            case "inlinemath":
-                break;
-            case "displaymath":
-                break;
-            case "group":
-                break;
-            case "argument":
-                break;
-            default:
-                throw new Error(`Unknown node type: ${ast["type"]}`);
-        }
-    }
-    else if (ast instanceof BaseNode){
-        switch (ast.type) {
-            case "macro":
-                if(!ast.isMacro()) return;
-                ast.args?.forEach(assignRenderInfoToNode);
-                
-                break;
-        }
-    }
-}
-
 
 export class LatexAbstractSyntaxTree{
     content: Node[];
@@ -156,7 +120,6 @@ export class LatexAbstractSyntaxTree{
         }
     }
     toString() {
-        assignRenderInfoToNode(this.content);
         return this.content.map(node => node.toString()).join("");
     }
     addInputFileToPramble(filePath: string, index?: number){
@@ -198,6 +161,7 @@ class DefineMacro{
     //type
 
 }
+
 function findEnvironmentArgs(ast: Node[]): Argument[]|undefined {
     let arg: Argument|undefined=undefined;
     const firstSquareBracketIndex=ast.findIndex(node=>node instanceof String&&node.content==="[");
@@ -214,8 +178,11 @@ function findEnvironmentArgs(ast: Node[]): Argument[]|undefined {
     ){
         const matchingBracketIndex=findMatchingBracket(ast,firstSquareBracketIndex);
         const options=ast.splice(firstSquareBracketIndex,(matchingBracketIndex-firstSquareBracketIndex)+1);
-        const [firstOption, lastOption] = [options[0], options[options.length - 1]];
-        if([firstOption, lastOption].every(node=> node instanceof String)&&firstOption==="[")options.shift();
+        const [first, last] = [options[0], options[options.length - 1]];
+        if (first.isString() && first.content === "[" && last.isString() && last.content === "]") {
+            options.shift();
+            options.pop();
+        }
         arg=new Argument("[","]",options);
     }
     return arg?[arg]:undefined;

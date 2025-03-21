@@ -1,4 +1,4 @@
-import {assignRenderInfoToNode, parseMath} from "./parse"
+import {parseMath} from "./parse"
 import {migrateToClassStructure} from "./typs/ast-types-pre"
 import { Whitespace,Parbreak, Macro, Argument, Ast,Node, ToStringConfig } from './typs/ast-types-post';
 
@@ -35,7 +35,6 @@ export class MathJaxAbstractSyntaxTree{
     }
     
   toString(args: ToStringConfig={}): string {
-    assignRenderInfoToNode(this.ast);
     return this.ast.map(node => {
       return node.toString(args)
     }).join("");

@@ -737,6 +737,14 @@ class SvgContextMenu extends Menu {
 			});
 		});
 		this.addItem((item) => {
+			item.setTitle("Copy parsed source");
+			item.setIcon("copy");
+			item.onClick(async () => {
+				const source = await this.getparsedSource();
+				await navigator.clipboard.writeText(source);
+			});
+		});
+		this.addItem((item) => {
 			item.setTitle("properties");
 			item.setIcon("settings");
 			item.onClick(async () => {
@@ -757,7 +765,7 @@ class SvgContextMenu extends Menu {
 		return hash;
 	}
 	private async assignLatexSource(){
-		if(this.source)return true ;
+		if(this.source!==undefined)return true ;
 		const file=await this.getFile();
 		const hash=this.getHash();
 		if(!hash)return false;
@@ -794,8 +802,6 @@ class SvgContextMenu extends Menu {
 		if(!sections)throw new Error("No sections found in metadata");
 
 
-		
-		const md5Hash = hashLatexSource(this.source);
 		addMenu(this.plugin,parentEl,this.sourcePath)
 		const queue=this.plugin.swiftlatexRender.queue;
 		const fileText = await this.plugin.app.vault.read(file);
@@ -818,11 +824,14 @@ class SvgContextMenu extends Menu {
 	
 	async open(event: MouseEvent) {
 		console.log("open")
-		
-		const id=this.triggeringElement.id;
-		//if(!id)return;
-		//const source=await getLatexSourceFromHash(id,this.plugin)
 		this.showAtPosition({ x: event.pageX, y: event.pageY });
+	}
+	private async getparsedSource(){
+		await this.assignLatexSource()
+		const ast = LatexAbstractSyntaxTree.parse(this.source);
+		ast.verifyEnvironmentWrap()
+		ast.verifyDocumentclass();
+		return ast.toString();
 	}
 }
 
