@@ -150,24 +150,16 @@ function validateNodeContent<T extends BaseNodeClass>(
     return content;
 }
 
-function validateNodeArgs<T extends BaseNodeClass>(
-    ast: MacroClass | EnvironmentClass,
-    errorMessagePrefix: string
-): NodeClass[]|undefined {
-    const args = ast.args?.map(migrateToClassStructure);
-    if (!isNodeClassArray(content)) {
-        throw new Error(errorMessagePrefix+" node args must be an array of Arguments, got: "+content);
-    }
-    return args;
-}
 
 export function migrateToClassStructure(ast: Ast): AstClass {
     if (Array.isArray(ast)) {
-        const nodes = ast.map(migrateToClassStructure);
-        if (nodes.some(node => Array.isArray(node))) {
-            throw new Error("Array of nodes must not contain arrays of nodes");
-        }
-        return nodes as Node[];
+        const nodes: NodeClass[] = ast.map(migrateToClassStructure).map(node => {
+            if(Array.isArray(node)||node instanceof ArgumentClass) {
+                throw new Error("Array of nodes must contain only BaseNode instances/children");
+            }
+            return node;
+        });
+        return nodes;
     }
     switch (ast.type) {
         case "root":

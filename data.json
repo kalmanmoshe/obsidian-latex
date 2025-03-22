@@ -216,7 +216,13 @@
       ]
     ],
     [
-      "6fe1c8d297a0ba14277347ce401747f5",
+      "d41d8cd98f00b204e9800998ecf8427e",
+      [
+        "Untitled 2.md"
+      ]
+    ],
+    [
+      "9cb58454ef9f584812a7bd6d272a5816",
       [
         "Untitled 2.md"
       ]
@@ -503,7 +509,26 @@
       "32/cmr5.pfb": "/tex/cmr5.pfb",
       "32/cmsy7.pfb": "/tex/cmsy7.pfb",
       "26/cmbx10.pfb": "/tex/cmbx10.pfb",
-      "26/cmbx10.tfm": "/tex/cmbx10.tfm"
+      "26/cmbx10.tfm": "/tex/cmbx10.tfm",
+      "26/inputenc.sty": "/tex/inputenc.sty",
+      "26/babel.sty": "/tex/babel.sty",
+      "26/switch.def": "/tex/switch.def",
+      "26/english.ldf": "/tex/english.ldf",
+      "26/babel.def": "/tex/babel.def",
+      "26/txtbabel.def": "/tex/txtbabel.def",
+      "26/rlbabel.def": "/tex/rlbabel.def",
+      "26/hebrew.ldf": "/tex/hebrew.ldf",
+      "26/lheenc.def": "/tex/lheenc.def",
+      "26/amsmath.sty": "/tex/amsmath.sty",
+      "26/amstext.sty": "/tex/amstext.sty",
+      "26/amsgen.sty": "/tex/amsgen.sty",
+      "26/amsbsy.sty": "/tex/amsbsy.sty",
+      "26/amsopn.sty": "/tex/amsopn.sty",
+      "26/bidi.sty": "/tex/bidi.sty",
+      "26/lhecmr.fd": "/tex/lhecmr.fd",
+      "3/cmex10": "/tex/cmex10.tfm",
+      "3/cmex8": "/tex/cmex8.tfm",
+      "3/cmex7": "/tex/cmex7.tfm"
     },
     {},
     {}

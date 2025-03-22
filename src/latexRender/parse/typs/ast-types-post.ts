@@ -1,4 +1,5 @@
 
+import { get } from "http";
 import { EnvInfo, MacroInfo } from "./info-specs";
 
 export type GenericAst = GenericNode | GenericNode[];
@@ -27,6 +28,7 @@ export class BaseNode {
     }
     isMacro(): this is Macro { return this instanceof Macro; }
     isString(): this is String { return this instanceof String; }
+    isContentNode(): this is ContentNode{ return this instanceof ContentNode;}
     getMacroDef():null|any {
         if (!this.isMacro()) return null;
         if(this.content!=="def")return null;
@@ -126,11 +128,25 @@ export class Macro extends BaseNode {
         return prefix+this.content+(this.args ? this.args.map(arg => arg.toString()).join("") : "")+(this._renderInfo?.renderInfo?.breakAfter?"\n":"")
     }
 }
+
 export class Path extends Macro{
     components: Node[];
     constructor(content: string,components: Node[], renderInfo?: MacroInfo, position?: typeof BaseNode.prototype.position) {
+        renderInfo = modifyPathMacroInfo(renderInfo);
         super(content, "\\", undefined, renderInfo, position);
         this.components = components;
+    }
+    toString(): string {
+        let string = this._renderInfo?.escapeToken||"";
+        string += this.content;
+        if (this.args) {
+            string += this.args.map(arg => arg.toString()).join("");
+        }
+        string += this.components.map(node => node.toString()).join("");
+        console.log(this._renderInfo?.renderInfo?.tikzPathCommand);
+        string += this._renderInfo?.renderInfo?.tikzPathCommand?";":"";
+        string += this._renderInfo?.renderInfo?.breakAfter?"\n":"";
+        return string;
     }
 }
 
@@ -163,6 +179,14 @@ const getDefaultMacroInfoConfig=(content: string):MacroInfo|undefined=>{
     return Object.keys(macroInfo).length === 0?undefined:macroInfo
 }
 type RenderInfo = _renderInfo;
+const modifyPathMacroInfo=(macroInfo?: MacroInfo)=>{
+    if(!macroInfo){
+        macroInfo=getDefaultMacroInfoConfig("path")??{};
+    };
+    if(!macroInfo.renderInfo)macroInfo.renderInfo={};
+    macroInfo.renderInfo.tikzPathCommand = true;
+    return macroInfo;
+}
 
 export class Environment extends ContentNode {
     type: "environment" | "mathenv";
@@ -274,7 +298,6 @@ export type Node =
     | InlineMath
     | DisplayMath
     | Group
-    | Verb
-    //| Def;
+    | Verb;
 
 export type Ast = Node | Argument | Node[];

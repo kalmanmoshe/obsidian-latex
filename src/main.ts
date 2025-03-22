@@ -192,7 +192,7 @@ export default class Moshe extends Plugin {
     let data = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
     await this.saveData(this.settings);
-    await this.swiftlatexRender.setVirtualFileSystemEnabled(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled);
+    await this.swiftlatexRender.virtualFileSystem.setEnabled(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled);
     if (this.settings.pdfTexEnginevirtualFileSystemFilesEnabled) {
       this.app.workspace.onLayoutReady(async () => {
           await this.processLatexPreambles();
@@ -205,7 +205,7 @@ export default class Moshe extends Plugin {
     await this.loadData();
 		await this.saveData(this.settings);
     if(didFileLocationChange){
-      await this.swiftlatexRender.setVirtualFileSystemEnabled(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled);
+      await this.swiftlatexRender.virtualFileSystem.setEnabled(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled);
       if(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled){
         await this.processLatexPreambles(didFileLocationChange);
         this.updateCoorVirtualFiles();
@@ -213,20 +213,20 @@ export default class Moshe extends Plugin {
     }
 	}
   async processLatexPreambles(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
-      const preambles = await this.getPreambleFiles(becauseFileLocationUpdated, becauseFileUpdated)
-      this.swiftlatexRender.setVirtualFileSystemFiles(preambles.explicitPreambleFiles);
+      const preambles = await this.getlatexPreambleFiles(becauseFileLocationUpdated, becauseFileUpdated)
+      this.swiftlatexRender.virtualFileSystem.setVirtualFileSystemFiles(preambles.latexVirtualFiles);
   }
   updateCoorVirtualFiles(){
     const coorFileSet=new Set<string>
     this.settings.autoloadedVirtualFileSystemFiles.forEach(file => coorFileSet.add(file));
-    this.swiftlatexRender.setCoorVirtualFiles(coorFileSet);
+    this.swiftlatexRender.virtualFileSystem.setCoorVirtualFiles(coorFileSet);
   }
   
-  async getPreambleFiles(becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean){
+  async getlatexPreambleFiles(becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean){
     const files = getFileSets(this);
-    const explicitPreambleFiles = await getPreambleFromFiles(this,files.explicitPreambleFiles);
-    this.showPreambleLoadedNotice(explicitPreambleFiles.length,  becauseFileLocationUpdated, becauseFileUpdated);
-    return {explicitPreambleFiles};
+    const latexVirtualFiles = await getPreambleFromFiles(this,files.latexVirtualFiles);
+    this.showPreambleLoadedNotice(latexVirtualFiles.length,  becauseFileLocationUpdated, becauseFileUpdated);
+    return {latexVirtualFiles};
   }
 
   showPreambleLoadedNotice(nExplicitPreambleFiles: number,becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean){
@@ -243,7 +243,7 @@ export default class Moshe extends Plugin {
       } else {
         throw new Error("Moshe: Could not get vault path.");
       }
-    }
+  }
   
   private watchFiles() {
     // Only begin watching files once the layout is ready.
