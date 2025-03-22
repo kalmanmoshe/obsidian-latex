@@ -124,16 +124,16 @@ function getFilesWithin(vault: Vault, path: string): Set<TFile> {
 
 interface FileSets {
 	mathjaxPreambleFiles: Set<TFile>;
-	explicitPreambleFiles: Set<TFile>;
+	latexVirtualFiles: Set<TFile>;
 }
 
 export function getFileSets(plugin: Moshe):FileSets {
 	const locations=[plugin.settings.mathjaxPreambleFileLocation,plugin.settings.virtualFilesFileLocation];
-	const [mathjaxPreambleFiles,explicitPreambleFiles]=locations.map((path)=>getFilesWithin(plugin.app.vault, path));
-	return {mathjaxPreambleFiles, explicitPreambleFiles};
+	const [mathjaxPreambleFiles,latexVirtualFiles]=locations.map((path)=>getFilesWithin(plugin.app.vault, path));
+	return {mathjaxPreambleFiles, latexVirtualFiles};
 }
-export type VirtualFile={path: string; name: string; content: string};
-export async function getPreambleFromFiles(plugin: Moshe, files: Set<TFile>): Promise<VirtualFile[]> {
+export type PreambleFile={path: string; name: string; content: string};
+export async function getPreambleFromFiles(plugin: Moshe, files: Set<TFile>): Promise<PreambleFile[]> {
     const fileContents: { path: string; name: string; content: string }[] = [];
 
     for (const file of files) {

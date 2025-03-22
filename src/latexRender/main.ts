@@ -1,5 +1,5 @@
 
-import { FileSystemAdapter, MarkdownPostProcessorContext, TFile, MarkdownPreviewRenderer, Modal, App, Menu, SectionCache, Notice, MarkdownView, MarkdownRenderer } from 'obsidian';
+import { FileSystemAdapter, MarkdownPostProcessorContext, TFile, MarkdownPreviewRenderer, Modal, App, Menu, SectionCache, Notice, MarkdownView, MarkdownRenderer, TFolder, TAbstractFile } from 'obsidian';
 import { Md5 } from 'ts-md5';
 import * as fs from 'fs';
 import * as temp from 'temp';
@@ -9,9 +9,10 @@ import Moshe from '../main';
 import { StringMap } from 'src/settings/settings.js';
 import async from 'async';
 import { LatexAbstractSyntaxTree } from './parse/parse';
-import { VirtualFile } from 'src/obsidian/file_watch';
-import { pdfToHtml, pdfToSVG } from './pdfToHtml';
+import { pdfToHtml, pdfToSVG } from './pdfToHtml/pdfToHtml';
 import {createErrorDisplay} from './log-parser/HumanReadableLogs';
+import { String as StringClass } from './parse/typs/ast-types-post';
+import { VirtualFileSystem } from './VirtualFileSystem';
 export const waitFor = async (condFunc: () => boolean) => {
 	return new Promise<void>((resolve) => {
 		if (condFunc()) {
@@ -25,52 +26,27 @@ export const waitFor = async (condFunc: () => boolean) => {
 		}
 	});
 };
-/**
- * Pauses without blocking external code execution until a given condition returns true, or until a timeout occurs.
- */
-async function nonBlockingWaitUntil(condition: () => boolean, timeoutMs = 10000, checkInterval = 500): Promise<void> {
-    const startTime = performance.now();
-    const maxWaitTime = startTime + timeoutMs;
-
-    while (!condition()) {
-        if (performance.now() >= maxWaitTime) {
-            throw new Error("Timeout waiting for condition.");
-        }
-        // Yield control to allow external code execution.
-        await new Promise(resolve => setTimeout(resolve, checkInterval));
-    }
-}
 
 
+const latexCodeBlockNamesRegex = /``` *(latex|tikz)/;
 type Task = { source: string, el: HTMLElement,md5Hash:string, sourcePath: string , blockId: string,process: boolean};
 const cacheFileFormat="svg"
 
-enum VirtualFileSystemFilesStatus{
-	undefined,
-	outdated,
-	uptodate,
-	error,
-}
-function createFilePath(file: VirtualFile): string {
-	return path.join(file.path, file.name);
-}
 export class SwiftlatexRender {
 	plugin: Moshe;
 	cacheFolderPath: string;
 	packageCacheFolderPath: string;
+	virtualFileSystem: VirtualFileSystem=new VirtualFileSystem();
 	pdfEngine: PdfTeXEngine;
 	cache: Map<string, Set<string>>;
 	queue: async.QueueObject<Task>;
-	private virtualFileSystemFiles: VirtualFile[]
-	private coorVirtualFiles: Set<string> = new Set();
-	private virtualFileSystemFilesStatus: VirtualFileSystemFilesStatus=VirtualFileSystemFilesStatus.undefined;
-	private virtualFileSystemEnabled: boolean;
 	async onload(plugin: Moshe) {
 		this.plugin = plugin;
 		this.validateCatchDirectory();
 		await this.loadCache();
 		// initialize the latex compiler
-		this.pdfEngine = new PdfTeXEngine();
+		this.initializePDfEngine();
+
 		await this.pdfEngine.loadEngine();
 		await this.loadPackageCache();
 		await this.pdfEngine.setTexliveEndpoint(this.plugin.settings.package_url);
@@ -79,40 +55,46 @@ export class SwiftlatexRender {
 			new svgDisplayModule(this.plugin.app, this.cacheFolderPath,this.cache).open();
 		})
 	}
-	async setVirtualFileSystemEnabled(enabled: boolean){
-		this.virtualFileSystemEnabled=enabled
-		if(!enabled){
-			this.virtualFileSystemFiles=[];
-			this.virtualFileSystemFilesStatus=VirtualFileSystemFilesStatus.undefined;
-			this.coorVirtualFiles=new Set();
-			await this.pdfEngine.flushWorkCache()
-		}
+	private initializePDfEngine(){
+		this.pdfEngine = new PdfTeXEngine();
+		this.virtualFileSystem.setPdfEngine(this.pdfEngine);
 	}
-	setCoorVirtualFiles(files: Set<string>){
-		if(this.virtualFileSystemEnabled)
-			this.coorVirtualFiles=files;
-	}
-	tidyLatexSource(tikzSource: string) {
-
-		// Remove non-breaking space characters, otherwise we get errors
-		const remove = "&nbsp;";
-		tikzSource = tikzSource.replaceAll(remove, "");
-		let lines = tikzSource.split("\n");
-		// Trim whitespace that is inserted when pasting in code, otherwise TikZJax complains
-		lines = lines.map(line => line.trim());
-		// Remove empty lines
-		lines = lines.filter(line => line);
-		return lines.join("\n");
+	async getFileContent(file: TFile,remainingPath?: string): Promise<string> {
+		const fileContent = await this.plugin.app.vault.read(file);
+		if(!remainingPath) return fileContent;
+		const metadata = this.plugin.app.metadataCache.getFileCache(file);
+		if (!metadata||!metadata.sections) throw new Error("No metadata found for file");
+		const codeBlocks = await getLatexCodeBlocksFromString(fileContent,metadata.sections);
+		const target = codeBlocks.find((block) => 
+			block.content
+			.split("\n")[0]
+			.replace(latexCodeBlockNamesRegex,"").trim()
+			.match(new RegExp("name: *"+remainingPath))
+		);
+		if(!target)throw new Error("No code block found with name: "+remainingPath);
+		return target.content.split("\n").slice(1,-1).join("\n");
 	}
 	configQueue() {
-		const processTask = (task: Task): void => {
+		const processTask = async (task: Task): Promise<void> => {
 			try{
 				const ast = LatexAbstractSyntaxTree.parse(task.source);
-				ast.verifyEnvironmentWrap()
-				ast.verifyDocumentclass();
-				this.coorVirtualFiles.forEach((name) => {
-					ast.addInputFileToPramble(name);
-				});
+				const inputFilesMacros = ast.usdInputFiles();
+
+				for (const macro of inputFilesMacros) {
+					const args = macro.args;
+					if (!args || args.length !== 1) continue;
+		
+					const filePath = args[0].content.map(node => node.toString()).join("");
+					const dir = findRelativeFile(filePath, this.plugin.app.vault.getAbstractFileByPath(task.sourcePath));
+					const name = (dir.remainingPath || dir.file.basename) + ".tex";
+		
+					args[0].content = [new StringClass(name)];
+		
+					const content = await this.getFileContent(dir.file, dir.remainingPath);
+					this.virtualFileSystem.addVirtualFileSystemFile({ name, content });
+				}
+
+				this.virtualFileSystem.getAutoUseFileNames().forEach((name) => ast.addInputFileToPramble(name));
 				task.source = ast.toString();
 				console.log("task.source",ast,task.source.split('\n'),)
 			}
@@ -120,41 +102,16 @@ export class SwiftlatexRender {
 				console.error("Error processing task: "+e);
 				return;
 			}
-			let coorPreambles=""
-			this.coorVirtualFiles.forEach((name) => {
-				coorPreambles+=`\\input{${name}}`
-			});
-			//task.source="\\documentclass{standalone}"+coorPreambles+"\\pgfplotsset{compat=1.16}\\begin{document}\\begin{tikzpicture}"+task.source+"\n\\end{tikzpicture}\\end{document}"
-			//task.source = this.tidyLatexSource(task.source);
-			
-			/*
-			const ast = new LatexAbstractSyntaxTree();
-			try {
-				ast.parse(task.source);
-				ast.a();
-				ast.cleanUp()
-				const myAst = ast.myAst;
-				ast.usdInputFiles()
-				console.log("myAst",myAst,ast.usdInputFiles())
-				ast.deleteComments();
-				task.source = ast.toString();
-			} catch (e) {
-				console.error("Error parsing latex", e);
-				ast.parse(task.source);
-				ast.deleteComments();
-				task.source = ast.toString();
-			}
-			*/
 		}
-		this.queue = async.queue((task, done) => {
-			if(task.process)processTask(task)
+		this.queue = async.queue(async (task, done) => {
+			if(task.process) await processTask(task)
 				
 			this.renderLatexToElement(task.source, task.el,task.md5Hash, task.sourcePath).then(() => {
 				// Wait X seconds before marking the task as done
 				setTimeout(() =>{updateQueueCountdown(this.queue);done();}, this.plugin.settings.pdfEngineCooldown);
 			})
 			.catch((err) => {
-				console.error("Error processing task:",[ err.split("\n")]);
+				console.error("Error processing task:",typeof err==="string"?[ err.split("\n")]:err);
 				// Optionally, delay even on errors:
 				setTimeout(() => {updateQueueCountdown(this.queue);done(err);}, this.plugin.settings.pdfEngineCooldown);
 			});
@@ -178,31 +135,7 @@ export class SwiftlatexRender {
 			this.cache = new Map();
 		}
 	}
-	setVirtualFileSystemFiles(files: VirtualFile[]){
-		if(!this.virtualFileSystemEnabled) throw new Error("Virtual file system is not enabled");
-		this.virtualFileSystemFiles=files;
-		this.virtualFileSystemFilesStatus=VirtualFileSystemFilesStatus.outdated;
-	}
-
-	private async loadVirtualFileSystemFiles() {
-		if(this.virtualFileSystemEnabled===false||this.virtualFileSystemFilesStatus === VirtualFileSystemFilesStatus.uptodate)return;
-		if (this.virtualFileSystemFilesStatus === VirtualFileSystemFilesStatus.undefined){
-			await nonBlockingWaitUntil(() => 
-				this.virtualFileSystemFilesStatus === VirtualFileSystemFilesStatus.outdated
-			);
-		}
-		try {
-			await this.pdfEngine.flushWorkCache();
-			for (const file of this.virtualFileSystemFiles) {
-				await this.pdfEngine.writeMemFSFile(file.name, file.content);
-			}
-			this.virtualFileSystemFilesStatus = VirtualFileSystemFilesStatus.uptodate;
-		} catch (err) {
-			console.error("Error loading virtual filesystem files:", err);
-			this.virtualFileSystemFilesStatus = VirtualFileSystemFilesStatus.error;
-			throw err;
-		}
-	}
+	
 	
 
 
@@ -327,7 +260,7 @@ export class SwiftlatexRender {
 					return;
 				}
 				if (err) reject(err);
-				await this.loadVirtualFileSystemFiles();
+				await this.virtualFileSystem.loadVirtualFileSystemFiles();
 				await this.pdfEngine.writeMemFSFile("main.tex", source);
 				await this.pdfEngine.setEngineMainFile("main.tex");
 				await this.pdfEngine.compileLaTeX().then(async (result: CompileResult) => {
@@ -556,7 +489,7 @@ async function getLatexHashesFromFile(file: TFile,app:App) {
 	if (sections != undefined) {
 		const lines = (await app.vault.read(file)).split('\n');
 		for (const section of sections) {
-			if (section.type != "code" && lines[section.position.start.line].match("``` *(latex|tikz)") == null) continue;
+			if (section.type != "code" && lines[section.position.start.line].match(latexCodeBlockNamesRegex) == null) continue;
 			let source = lines.slice(section.position.start.line + 1, section.position.end.line).join("\n");
 			const hash = hashLatexSource(source);
 			hashes.push(hash);
@@ -564,6 +497,23 @@ async function getLatexHashesFromFile(file: TFile,app:App) {
 	}
 	return hashes;
 }
+async function getLatexCodeBlocksFromString(string: String,sections: SectionCache[]) {
+	const lines = string.split('\n');
+	// Filter sections that are code blocks with latex or tikz language hints.
+	sections = sections.filter((section: SectionCache) =>
+	section.type === "code" &&
+	lines[section.position.start.line].match(latexCodeBlockNamesRegex)
+	);
+	const codeBlocks: {lineStart: number, lineEnd: number, content: string}[] = sections.map((section) => {
+	return {
+		lineStart: section.position.start.line,
+		lineEnd: section.position.end.line,
+		content: lines.slice(section.position.start.line, section.position.end.line+1).join("\n")
+	}
+	});
+	return codeBlocks;
+}
+
 
 async function getLatexSourceFromHash(hash: string, plugin: Moshe, file?: TFile): Promise<string> {
 	// Cache for file content to avoid multiple disk reads.
@@ -581,17 +531,11 @@ async function getLatexSourceFromHash(hash: string, plugin: Moshe, file?: TFile)
 	const findLatexSourceFromHashInFile = async (hash: string, file?: TFile): Promise<string | undefined> => {
 	  if (!file) return;
 	  const content = await readFile(file);
-	  const lines = content.split('\n');
 	  const fileCache = plugin.app.metadataCache.getFileCache(file);
 	  if (!fileCache?.sections) return;
-	  // Filter sections that are code blocks with latex or tikz language hints.
-	  const sections = fileCache.sections.filter((section: SectionCache) =>
-		section.type === "code" &&
-		lines[section.position.start.line].match(/``` *(latex|tikz)/)
-	  );
+	  const sections = await getLatexCodeBlocksFromString(content, fileCache.sections);
 	  for (const section of sections) {
-		// Extract section content.
-		const codeSection = lines.slice(section.position.start.line + 1, section.position.end.line).join("\n");
+		const codeSection = section.content.split("\n").slice(1, -1).join("\n");
 		if (hashLatexSource(codeSection) === hash) {
 		  return codeSection;
 		}
@@ -692,6 +636,61 @@ function getSectionCacheFromString(sectionsCache: SectionCache[],source: string,
 	return sectionsCache.find((section)=>section.position.start.line===codeBlockStartLine);
 }
 
+function findRelativeFile(filePath: string, currentDir: TAbstractFile | null) {
+	if (!currentDir) {
+		throw new Error(`Source file not found`);
+	}
+	const sourcePath = currentDir.path;
+	const separator = filePath.includes("\\") ? "\\" : "/";
+	const leadingDotsRegex = new RegExp("^\\.{1,2}(" + separator + ")?");
+	const leadingPrefix = filePath.match(leadingDotsRegex)?.[0] || "";
+	filePath = filePath.replace(leadingDotsRegex, "");
+	if(leadingPrefix&&leadingPrefix[1]){
+		for (let i = 0; i < leadingPrefix[1].length; i++) {
+			if (!currentDir.parent) throw new Error(`Reached root without resolving full path from: ${sourcePath}`);
+			currentDir = currentDir.parent;
+		}
+	}
+	// if dir is the correct file return it
+	if (currentDir instanceof TFile) {
+		return { file: currentDir, remainingPath: filePath };
+	}
+	const pathParts = filePath.split(separator).filter(Boolean);
+	while (pathParts.length > 1 && currentDir instanceof TFolder) {
+		const nextFolder: TAbstractFile|undefined = currentDir.children.find(
+			(child) => child instanceof TFolder && child.name === pathParts[0]
+		);
+		if(!nextFolder||!(nextFolder instanceof TFolder))break;
+		currentDir = nextFolder;
+		pathParts.shift();
+		
+	}
+	if (!(currentDir instanceof TFolder)) {
+		console.log("currentDir",currentDir)
+		throw new Error(`Invalid folder: ${pathParts[0]}`);
+	}
+	const fileName = pathParts[0];
+	const file =
+		currentDir.children.find(
+			(child) => child instanceof TFile && child.name === fileName
+		) ??
+		currentDir.children.find(
+			(child) =>
+				child instanceof TFile &&
+				child.basename === fileName &&
+				child.name.endsWith(".md")
+		);
+	if (!file) {
+		throw new Error(`File not found: ${fileName}`);
+	}
+	pathParts.shift();
+	if(pathParts.length>1||!(file instanceof TFile))throw new Error("Path not found");
+	return {
+		file,
+		remainingPath: pathParts.length>0 ? pathParts[0] : undefined,
+	};
+}
+
 class SvgContextMenu extends Menu {
 	plugin: Moshe;
 	triggeringElement: SVGElement;
@@ -724,6 +723,7 @@ class SvgContextMenu extends Menu {
 		return null;
 	}
 	private addDisplayItems(){
+		if(this.isError)return;
 		this.addItem((item) => {
 			item.setTitle("Copy SVG");
 			item.setIcon("copy");
@@ -853,12 +853,6 @@ class SvgContextMenu extends Menu {
 
 
 
-
-
-
-enum latexErrors{
-	undefinedControlSequence="LaTeX does not recognize a command in your document"
-}
 
 
 

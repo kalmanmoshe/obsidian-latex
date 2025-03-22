@@ -1,5 +1,5 @@
 import { ErrorRuleId } from '../log-parser/HumanReadableLogsRules';
-import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node, ContentNode, BaseNode } from './typs/ast-types-post';
+import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument,Path, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node, ContentNode, BaseNode } from './typs/ast-types-post';
 import { migrateToClassStructure } from './typs/ast-types-pre';
 import { VirtualFile } from 'src/obsidian/file_watch';
 import { MacroInfo } from './typs/info-specs';
@@ -65,7 +65,11 @@ export class LatexAbstractSyntaxTree{
         const classAst= migrateToClassStructure(autoAst);
         if (!(classAst instanceof Root)) throw new Error("Root not found");
         const content=classAst.content
-        return new LatexAbstractSyntaxTree(content);
+        const ast=new LatexAbstractSyntaxTree(content);
+        ast.verifyEnvironmentWrap()
+        ast.verifyDocumentclass();
+        ast.cleanUp();
+        return ast;
     }
     verifydocstructure(){
         
@@ -77,7 +81,6 @@ export class LatexAbstractSyntaxTree{
         const envs=this.content.filter(node=>node instanceof Environment);
         if(envs.length===0){
             let arg=findEnvironmentArgs(this.content);
-            console.log("arg",arg);
             const doc=new Environment(
                 "environment",
                 "document",
@@ -135,6 +138,9 @@ export class LatexAbstractSyntaxTree{
         }
         this.content.splice(startIndex,0,input);
     }
+    cleanUp(){
+        claenUpPaths(this.content);
+    }
     removeAllWhitespace(){
         
     }
@@ -153,6 +159,8 @@ export class LatexAbstractSyntaxTree{
     usdCommands(){}
     usdEnvironments(){}   
 }
+
+
 //a 
 
 //a Macro is in esins in emplmntsin of a newCommand
@@ -225,37 +233,37 @@ function findUsdInputFiles(ast: Ast):Macro[] {
         inputMacros.push(...ast.content.map(findUsdInputFiles).flat())
     }
     if ("args" in ast && ast.args) {
-        console.log(ast,ast.args,typeof ast.args)
         inputMacros.push(...ast.args.map(findUsdInputFiles).flat())
     }
     return inputMacros
 }
+const pathMatchRegex = /^(path|draw)$/;
 
-function cleanUpInputs(ast: Node){
-    const condition=(node: Node)=>node instanceof Macro && node.content==="input";
+const lengthBetweenIndexes = (index1: number, index2: number)=> {
+    if (index1 > index2) {
+        throw new Error("Index 1 must be smaller than index 2");
+    }
+    return (index2 - index1)+1;
+}
+function claenUpPaths(ast: Ast){
+    const condition=(node: Node)=>node instanceof Macro && !!node.content.match(pathMatchRegex);
     function action(ast: Node, index: number){
         if(!contentInNodeAndArray(ast))return;
-        const node = ast.content[index].args;
-        if (!node.length || node.length > 1)
-            throw new Error("");
-        //const input=new Input(node)
-       // ast.content.splice(index,1,input);
+        const matchIndex=ast.content.findIndex((node, i) => i > index && node.isString() && node.content === ";");
+        if (matchIndex === -1) { throw new Error("No match found"); }
+        if (!ast.isContentNode()||!Array.isArray(ast.content)) { throw new Error("Content must be an array"); }
+        ast.content=ast.content as typeof ContentNode.prototype.content;
+
+        const pathContent = ast.content.slice(index, matchIndex + 1);
+        const content = pathContent.shift() as Macro;
+        pathContent.pop();
+        const path = new Path(content.content, pathContent);
+        ast.content.splice(index, lengthBetweenIndexes(index, matchIndex), path);
     }
     cleanUpAst(ast,condition,action);
 }
 
 
-class Input{
-    name: string;
-    content: string;
-    constructor(content: string){
-        this.name="input";
-        this.content = content;
-    }
-    toString() {
-        return `\\input{${this.content}}`;
-    }
-}
 
 function cleanUpTikzSet(ast: any) {
     
@@ -279,10 +287,15 @@ function cleanUpDefs(ast:Node) {
 
 
 function cleanUpAst(
-    ast: Node,
+    ast: Ast,
     condition: (node: Node) => boolean,
     action: (node: Node, index: number) => void
 ) {
+    if (ast instanceof Array) {
+        ast.forEach((node: Node) => cleanUpAst(node, condition, action));
+        return;
+    }
+    if(ast instanceof Argument)throw new Error("Argument not allowed");
     if (!contentInNodeAndArray(ast)) return;
     const indices:number[] = ast.content
         .map((node:Node, index:number) => (condition(node) ? index : -1))
@@ -349,17 +362,6 @@ export class Def{
     
 }*/
 
-class Path{
-
-}
-class Draw extends Path{
-    content: any[];
-    args: any[];
-    constructor(content: any[]){
-        super();
-        this.content=content;
-    }
-}
 
 
 class unit{
