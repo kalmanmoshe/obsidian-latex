@@ -1,8 +1,6 @@
 import { ErrorRuleId } from '../log-parser/HumanReadableLogsRules';
 import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument,Path, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node, ContentNode, BaseNode } from './typs/ast-types-post';
 import { migrateToClassStructure } from './typs/ast-types-pre';
-import { VirtualFile } from 'src/obsidian/file_watch';
-import { MacroInfo } from './typs/info-specs';
 /**
  * Parse the string into an AST.
  */
