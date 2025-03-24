@@ -72,43 +72,13 @@
       ]
     ],
     [
-      "48b50227d727927feefc36da37b2a686",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "b806b63e86d762697fede6eca3fcc3a3",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
       "39136ddab4517c3bd8d977d7f2c47a29",
       [
         "פיזיקה/יחיאל/שיעורי בית.md"
       ]
     ],
     [
-      "6405932096f0b1e11c9f9e3aae7349bd",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "b17856bb0886881ca3c7ea5944d6ed27",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
       "c94845ea5303fc4da0209d68a10b1742",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "a5f64d902f2b75dc27046271757450c6",
       [
         "פיזיקה/יחיאל/שיעורי בית.md"
       ]
@@ -168,37 +138,7 @@
       ]
     ],
     [
-      "d0b6b7069632d91624cfeeedc85a4eae",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
       "6cd27b1628613fd392d2dcf62b8c0992",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "f0f30e327d64b2859d72d4a441af1cc6",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "a90e4b054d366627a319d64247b0faef",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "ad853c83c3a33763e5e3a34a0b7b536b",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "40b7b759538572e2859af76ed701a263",
       [
         "פיזיקה/יחיאל/שיעורי בית.md"
       ]
@@ -210,21 +150,75 @@
       ]
     ],
     [
-      "e26bbc5e94eeb0b90e60162d01edfcf3",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
       "d41d8cd98f00b204e9800998ecf8427e",
       [
         "Untitled 2.md"
       ]
     ],
     [
-      "9cb58454ef9f584812a7bd6d272a5816",
+      "b806b63e86d762697fede6eca3fcc3a3",
       [
-        "Untitled 2.md"
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "09fe37bf805b5e94139aeb054e9e7e5b",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "6405932096f0b1e11c9f9e3aae7349bd",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "05e47aa1ddabe986599fd4c329bd0bb4",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "671770856aa2183deb6a4a0b57d27a87",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "df2beac330e39b57546172a4318df37a",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "f0f30e327d64b2859d72d4a441af1cc6",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "48b50227d727927feefc36da37b2a686",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "794e60db3e98f082e5207bd159a5ffd9",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "a5f64d902f2b75dc27046271757450c6",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "a9aaebf063de640c9d2b5db5018cfae0",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
       ]
     ]
   ],
@@ -233,7 +227,15 @@
       "26/tikzlibrarypgfplots.surfshading.code.tex": 1,
       "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/numprint.cfg": 1,
-      "26/main.aux": 1
+      "26/main.aux": 1,
+      "33/cmr10.vf": 1,
+      "33/cmr12.vf": 1,
+      "33/cmmi10.vf": 1,
+      "33/cmr7.vf": 1,
+      "33/cmmi7.vf": 1,
+      "33/cmsy10.vf": 1,
+      "33/cmmi8.vf": 1,
+      "33/cmsy8.vf": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -504,31 +506,17 @@
       "26/etoolbox.sty": "/tex/etoolbox.sty",
       "32/cmr7.pfb": "/tex/cmr7.pfb",
       "32/cmmi7.pfb": "/tex/cmmi7.pfb",
-      "26/tcrm1000.tfm": "/tex/tcrm1000.tfm",
-      "26/keyval.sty": "/tex/keyval.sty",
       "32/cmr5.pfb": "/tex/cmr5.pfb",
       "32/cmsy7.pfb": "/tex/cmsy7.pfb",
-      "26/cmbx10.pfb": "/tex/cmbx10.pfb",
-      "26/cmbx10.tfm": "/tex/cmbx10.tfm",
       "26/inputenc.sty": "/tex/inputenc.sty",
-      "26/babel.sty": "/tex/babel.sty",
-      "26/switch.def": "/tex/switch.def",
-      "26/english.ldf": "/tex/english.ldf",
-      "26/babel.def": "/tex/babel.def",
-      "26/txtbabel.def": "/tex/txtbabel.def",
-      "26/rlbabel.def": "/tex/rlbabel.def",
-      "26/hebrew.ldf": "/tex/hebrew.ldf",
-      "26/lheenc.def": "/tex/lheenc.def",
       "26/amsmath.sty": "/tex/amsmath.sty",
       "26/amstext.sty": "/tex/amstext.sty",
       "26/amsgen.sty": "/tex/amsgen.sty",
       "26/amsbsy.sty": "/tex/amsbsy.sty",
       "26/amsopn.sty": "/tex/amsopn.sty",
-      "26/bidi.sty": "/tex/bidi.sty",
-      "26/lhecmr.fd": "/tex/lhecmr.fd",
+      "3/cmex7": "/tex/cmex7.tfm",
       "3/cmex10": "/tex/cmex10.tfm",
-      "3/cmex8": "/tex/cmex8.tfm",
-      "3/cmex7": "/tex/cmex7.tfm"
+      "3/cmex8": "/tex/cmex8.tfm"
     },
     {},
     {}
