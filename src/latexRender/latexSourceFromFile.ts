@@ -52,7 +52,13 @@ export async function getLatexSourceFromHash(hash: string, plugin: Moshe, file?:
     throw new Error("Latex source not found for hash: " + hash);
 }
 
-
+function getDirRoot(currentDir: TAbstractFile): TFolder {
+    while (currentDir.parent) {
+        currentDir = currentDir.parent;
+    }
+    if (!(currentDir instanceof TFolder) || !currentDir.isRoot()) throw new Error("Root not found");
+    return currentDir;
+}
 
 export function findRelativeFile(filePath: string, currentDir: TAbstractFile | null) {
     if (!currentDir) {
@@ -70,8 +76,7 @@ export function findRelativeFile(filePath: string, currentDir: TAbstractFile | n
         }
     }
     else {
-        const pathParts = sourcePath.split(separator).filter(Boolean);
-        
+        currentDir = getDirRoot(currentDir);
     }
     // if dir is the correct file return it
     if (currentDir instanceof TFile) {
