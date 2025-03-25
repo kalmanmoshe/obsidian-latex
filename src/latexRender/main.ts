@@ -29,7 +29,7 @@ export const waitFor = async (condFunc: () => boolean) => {
 };
 
 
-export const latexCodeBlockNamesRegex = /``` *(latex|tikz)/;
+export const latexCodeBlockNamesRegex = /(`|~){3,} *(latex|tikz)/;
 type Task = { source: string, el: HTMLElement,md5Hash:string, sourcePath: string , blockId: string,process: boolean};
 const cacheFileFormat="svg"
 
