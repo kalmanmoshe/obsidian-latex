@@ -104,7 +104,6 @@ export class VirtualFileSystem{
      * @returns Promise<void>
      */
     async loadVirtualFileSystemFiles() {
-        console.log("this",this)
         if(this.enabled===false||this.status === VirtualFileSystemFilesStatus.uptodate)return;
         if (this.status === VirtualFileSystemFilesStatus.undefined){
             await nonBlockingWaitUntil(() => 

@@ -33,7 +33,8 @@ export const latexCodeBlockNamesRegex = /(`|~){3,} *(latex|tikz)/;
 type Task = { source: string, el: HTMLElement,md5Hash:string, sourcePath: string , blockId: string,process: boolean};
 const cacheFileFormat="svg"
 
-export class SwiftlatexRender {
+export class 
+SwiftlatexRender {
 	plugin: Moshe;
 	cacheFolderPath: string;
 	packageCacheFolderPath: string;
@@ -78,9 +79,9 @@ export class SwiftlatexRender {
 	configQueue() {
 		const processTask = async (task: Task): Promise<void> => {
 			try{
+				
 				const ast = LatexAbstractSyntaxTree.parse(task.source);
 				const inputFilesMacros = ast.usdInputFiles();
-
 				for (const macro of inputFilesMacros) {
 					const args = macro.args;
 					if (!args || args.length !== 1) continue;
@@ -94,7 +95,6 @@ export class SwiftlatexRender {
 					const content = await this.getFileContent(dir.file, dir.remainingPath);
 					this.virtualFileSystem.addVirtualFileSystemFile({ name, content });
 				}
-
 				this.virtualFileSystem.getAutoUseFileNames().forEach((name) => ast.addInputFileToPramble(name));
 				task.source = ast.toString();
 				console.log("task.source",ast,task.source.split('\n'),)
@@ -112,7 +112,7 @@ export class SwiftlatexRender {
 				setTimeout(() =>{updateQueueCountdown(this.queue);done();}, this.plugin.settings.pdfEngineCooldown);
 			})
 			.catch((err) => {
-				console.error("Error processing task:",typeof err==="string"?[ err.split("\n")]:err);
+				console.error("Error rendering/compiling:",typeof err==="string"?[ err.split("\n")]:err);
 				// Optionally, delay even on errors:
 				setTimeout(() => {updateQueueCountdown(this.queue);done(err);}, this.plugin.settings.pdfEngineCooldown);
 			});
@@ -137,8 +137,6 @@ export class SwiftlatexRender {
 		}
 	}
 	
-	
-
 
 	private async loadCache() {
 		this.cache = new Map(this.plugin.settings.cache);
@@ -197,7 +195,7 @@ export class SwiftlatexRender {
 		const isLangTikz = el.classList.contains("block-language-tikz");
 		el.classList.remove("block-language-tikz");
 		el.classList.remove("block-language-latex");
-		el.classList.add("block-language-latexsvg");
+		el.classList.add("block-language-latexsvg")
 		const md5Hash = hashLatexSource(source);
 		addMenu(this.plugin,el,ctx.sourcePath)
 		
@@ -665,8 +663,6 @@ class SvgContextMenu extends Menu {
 	private async getparsedSource(){
 		await this.assignLatexSource()
 		const ast = LatexAbstractSyntaxTree.parse(this.source);
-		ast.verifyEnvironmentWrap()
-		ast.verifyDocumentclass();
 		return ast.toString();
 	}
 }

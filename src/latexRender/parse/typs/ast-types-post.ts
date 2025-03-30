@@ -1,5 +1,4 @@
 
-import { get } from "http";
 import { EnvInfo, MacroInfo } from "./info-specs";
 
 export type GenericAst = GenericNode | GenericNode[];

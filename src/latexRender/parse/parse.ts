@@ -1,46 +1,9 @@
 import { ErrorRuleId } from '../log-parser/HumanReadableLogsRules';
 import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument,Path, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node, ContentNode, BaseNode } from './typs/ast-types-post';
-import { migrateToClassStructure } from './typs/ast-types-pre';
-/**
- * Parse the string into an AST.
- */
+import { migrateToClassStructure, parse } from './autoParse/ast-types-pre';
+import { claenUpPaths } from './cleanUpAst';
+import { verifyEnvironmentWrap } from './verifyEnvironmentWrap';
 
-export let parse: (str: string) => any;
-
-/**
- * Parse str into an AST. Parsing starts in math mode and a list of nodes is returned (instead of a "root" node).
- */
-
-export let parseMath: any;
-export let deleteComments: any;
-export let toString: any;
-export let createMatchers:any;
-export let parsePgfkeys:any;
-export let pgfkeysArgToObject:any;
-
-
-interface utilMacros{
-    LATEX_NEWCOMMAND: Set<string>;
-    XPARSE_NEWCOMMAND: Set<string>;
-}
-
-
-import('@unified-latex/unified-latex-util-to-string').then(module => {
-	toString = module.toString;
-});
-import('@unified-latex/unified-latex-util-comments').then(module => {
-	deleteComments = module.deleteComments;
-});
-import('@unified-latex/unified-latex-util-parse').then(module => {
-	parse = module.parse;
-    parseMath=module.parseMath
-});
-
-import('@unified-latex/unified-latex-util-pgfkeys').then(module => {
-	createMatchers = module.createMatchers;
-    parsePgfkeys = module.parsePgfkeys;
-    pgfkeysArgToObject = module.pgfkeysArgToObject;
-});
 
 /**
  * Assignments:
@@ -64,9 +27,12 @@ export class LatexAbstractSyntaxTree{
         if (!(classAst instanceof Root)) throw new Error("Root not found");
         const content=classAst.content
         const ast=new LatexAbstractSyntaxTree(content);
-        ast.verifyEnvironmentWrap()
+        ast.content = verifyEnvironmentWrap(ast.content);
         ast.verifyDocumentclass();
+        console.log("finest verifyDocumentclass");
         ast.cleanUp();
+        console.log("Finished cleanUp");
+        console.warn("ast",ast);
         return ast;
     }
     verifydocstructure(){
@@ -75,43 +41,7 @@ export class LatexAbstractSyntaxTree{
     parseArguments(){
         
     }
-    verifyEnvironmentWrap(){
-        const envs=this.content.filter(node=>node instanceof Environment);
-        if(envs.length===0){
-            let arg=findEnvironmentArgs(this.content);
-            const doc=new Environment(
-                "environment",
-                "document",
-                [
-                    new Environment("environment","tikzpicture",this.content,arg)
-                ],
-            );
-            this.content=[doc];
-            return;
-        }
-        //if no doc
-        else if(envs.every((env)=>env.env!=="document")){
-            let envIndexs = this.content.map((node, index) => node instanceof Environment ? index : -1).filter(index => index !== -1);
-            if (envIndexs.every((idx, index) => !envIndexs[index + 1] || idx === envIndexs[index + 1] - 1)) {
-                let arg=findEnvironmentArgs(this.content);
-                envIndexs=this.content.map((node, index) => node instanceof Environment ? index : -1).filter(index => index !== -1);
-                const envContent = this.content.splice(envIndexs[0], (envIndexs[envIndexs.length - 1] - envIndexs[0]) + 1);
-                const doc = new Environment(
-                    "environment",
-                    "document",
-                    [new Environment(
-                        "environment",
-                        "tikzpicture",
-                        envContent,
-                        arg
-                    )],
-                );
-                console.log("doc",doc,envContent,arg);
-                this.content.splice(envIndexs[0], 0, doc);
-                return;
-            }
-        }
-    }
+    
     verifyDocumentclass(){
         const documentclass=this.content.find(node=>node instanceof Macro&&node.content==="documentclass");
         if(!documentclass){
@@ -168,56 +98,15 @@ class DefineMacro{
 
 }
 
-function findEnvironmentArgs(ast: Node[]): Argument[]|undefined {
-    let arg: Argument|undefined=undefined;
-    const firstSquareBracketIndex=ast.findIndex(node=>node instanceof String&&node.content==="[");
-    const controlIndexes=[
-        ast.findIndex(node=>node instanceof Macro),
-        ast.findIndex(node=>node instanceof Environment),
-        firstSquareBracketIndex,
-    ].filter(index=>index!==-1);
-    
-    if(
-        firstSquareBracketIndex!==-1&&
-        controlIndexes.length>0&&
-        firstSquareBracketIndex===Math.min(...controlIndexes)
-    ){
-        const matchingBracketIndex=findMatchingBracket(ast,firstSquareBracketIndex);
-        const options=ast.splice(firstSquareBracketIndex,(matchingBracketIndex-firstSquareBracketIndex)+1);
-        const [first, last] = [options[0], options[options.length - 1]];
-        if (first.isString() && first.content === "[" && last.isString() && last.content === "]") {
-            options.shift();
-            options.pop();
-        }
-        arg=new Argument("[","]",options);
-    }
-    return arg?[arg]:undefined;
-}
 
 
-const bracketPairs = {
-    "(": ")",
-    ")": "(",
-    "[": "]",
-    "]": "[",
-    "{": "}",
-    "}": "{",
-}
 
-function findMatchingBracket(content: Node[],index: number){
-    if(!(content[index] instanceof String)|| !(content[index].content in bracketPairs))throw new Error("Not a bracket");
-    const bracket=content[index].content;
-    const bracketPair=bracketPairs[bracket as keyof typeof bracketPairs];
-    let count=0;
-    for(let i=index;i<content.length;i++){
-        const node=content[i];
-        if(!(node instanceof String))continue;
-        if(node.content===bracket)count++;
-        if(node.content===bracketPair)count--;
-        if(count===0)return i+index;
-    }
-    throw new Error("No matching bracket found");
-}
+
+
+
+
+
+
 
 
 function findUsdInputFiles(ast: Ast):Macro[] {
@@ -235,31 +124,7 @@ function findUsdInputFiles(ast: Ast):Macro[] {
     }
     return inputMacros
 }
-const pathMatchRegex = /^(path|draw)$/;
 
-const lengthBetweenIndexes = (index1: number, index2: number)=> {
-    if (index1 > index2) {
-        throw new Error("Index 1 must be smaller than index 2");
-    }
-    return (index2 - index1)+1;
-}
-function claenUpPaths(ast: Ast){
-    const condition=(node: Node)=>node instanceof Macro && !!node.content.match(pathMatchRegex);
-    function action(ast: Node, index: number){
-        if(!contentInNodeAndArray(ast))return;
-        const matchIndex=ast.content.findIndex((node, i) => i > index && node.isString() && node.content === ";");
-        if (matchIndex === -1) { throw new Error("No match found"); }
-        if (!ast.isContentNode()||!Array.isArray(ast.content)) { throw new Error("Content must be an array"); }
-        ast.content=ast.content as typeof ContentNode.prototype.content;
-
-        const pathContent = ast.content.slice(index, matchIndex + 1);
-        const content = pathContent.shift() as Macro;
-        pathContent.pop();
-        const path = new Path(content.content, pathContent);
-        ast.content.splice(index, lengthBetweenIndexes(index, matchIndex), path);
-    }
-    cleanUpAst(ast,condition,action);
-}
 
 
 
@@ -267,7 +132,7 @@ function cleanUpTikzSet(ast: any) {
     
 }
 
-
+/*
 function cleanUpDefs(ast:Node) {
     const condition = (node: Node) => node instanceof Macro && node.content === "def";
     function action(ast: Node,index:number) {
@@ -284,32 +149,12 @@ function cleanUpDefs(ast:Node) {
 }
 
 
-function cleanUpAst(
-    ast: Ast,
-    condition: (node: Node) => boolean,
-    action: (node: Node, index: number) => void
-) {
-    if (ast instanceof Array) {
-        ast.forEach((node: Node) => cleanUpAst(node, condition, action));
-        return;
-    }
-    if(ast instanceof Argument)throw new Error("Argument not allowed");
-    if (!contentInNodeAndArray(ast)) return;
-    const indices:number[] = ast.content
-        .map((node:Node, index:number) => (condition(node) ? index : -1))
-        .filter((index:number) => index !== -1)
-        .reverse();
-
-    indices.forEach(index => action(ast, index));
-    ast.content.forEach((child: Node) => cleanUpAst(child, condition, action));
-}
 
 
 
 
-function contentInNodeAndArray<T extends Node>(node: T): node is T & { content: Node[] } {
-    return "content" in node && Array.isArray(node.content);
-}
+
+
 
 
 
@@ -338,36 +183,4 @@ function parsePlaceholders(ast: Node, startIndex: number) {
 }
 
 
-
-/*
-export class Def{
-    name: string;
-    content: any[];
-    params: number;
-    constructor(name: string,content: any[],params: number){
-        this.name=name;
-        this.content=content;
-        this.params=params;
-    }
-    toString() {
-        let paramsStr = "";
-        for (let i = 1; i <= this.params + 1; i++) {
-            paramsStr += "#" + i;
-        }
-        const string = `\\def\\${this.name}${paramsStr}{${this.content.map(el => el.toString()).join("")}}`;
-        return string;
-    }
-    
-}*/
-
-
-
-class unit{
-
-}
-
-
-
-const latexErrors = {
-
-}
+*/

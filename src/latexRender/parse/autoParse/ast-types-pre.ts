@@ -1,4 +1,43 @@
-import { EnvInfo, MacroInfo } from "./info-specs";
+import { EnvInfo, MacroInfo } from "../typs/info-specs";
+
+
+/**
+ * Parse the string into an AST.
+ */
+
+export let parse: (str: string) => any;
+/**
+ * Parse str into an AST. Parsing starts in math mode and a list of nodes is returned (instead of a "root" node).
+ */
+export let parseMath: any;
+let deleteComments: any;
+let toString: any;
+let createMatchers:any;
+let parsePgfkeys:any;
+let pgfkeysArgToObject:any;
+
+interface utilMacros{
+    LATEX_NEWCOMMAND: Set<string>;
+    XPARSE_NEWCOMMAND: Set<string>;
+}
+
+import('@unified-latex/unified-latex-util-to-string').then(module => {
+    toString = module.toString;
+});
+import('@unified-latex/unified-latex-util-comments').then(module => {
+    deleteComments = module.deleteComments;
+});
+import('@unified-latex/unified-latex-util-parse').then(module => {
+    parse = module.parse;
+    parseMath=module.parseMath
+});
+
+import('@unified-latex/unified-latex-util-pgfkeys').then(module => {
+    createMatchers = module.createMatchers;
+    parsePgfkeys = module.parsePgfkeys;
+    pgfkeysArgToObject = module.pgfkeysArgToObject;
+});
+
 import { 
     Root as RootClass ,
     String as StringClass, 
@@ -16,7 +55,7 @@ import {
     Ast as AstClass,
     Node as NodeClass,
     BaseNode as BaseNodeClass,
-} from './ast-types-post';
+} from '../typs/ast-types-post';
 
 
 export type GenericAst = GenericNode | GenericNode[];

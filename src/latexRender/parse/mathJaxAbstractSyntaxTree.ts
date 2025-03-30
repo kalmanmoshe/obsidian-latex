@@ -1,6 +1,5 @@
-import {parseMath} from "./parse"
-import {migrateToClassStructure} from "./typs/ast-types-pre"
-import { Whitespace,Parbreak, Macro, Argument, Ast,Node, ToStringConfig } from './typs/ast-types-post';
+import {parseMath,migrateToClassStructure} from "./autoParse/ast-types-pre"
+import { Whitespace,Parbreak, Macro, Argument, Ast,Node } from './typs/ast-types-post';
 
 export class MathJaxAbstractSyntaxTree{
     ast: Node[];
@@ -16,7 +15,7 @@ export class MathJaxAbstractSyntaxTree{
     reverseRtl() {
         const args = findTextMacros(this.ast);
         for (const arg of args) {
-          const text = arg.toString({ removeOpenCloseMarks: true });
+          const text = arg.toString();
           let tokens = text.match(/([א-ת]+|\s+|[^א-ת\s]+)/g)as string[]|null;
           if (!tokens) continue;
           tokens = mergeHebrewTokens(tokens);
@@ -34,9 +33,9 @@ export class MathJaxAbstractSyntaxTree{
         }
     }
     
-  toString(args: ToStringConfig={}): string {
+  toString(): string {
     return this.ast.map(node => {
-      return node.toString(args)
+      return node.toString()
     }).join("");
   }
 }
@@ -92,13 +91,18 @@ function mergeHebrewTokens(tokens: string[]): string[] {
 
 function findTextMacros(ast: Ast): Argument[] {
     const macros: Argument[] = [];
-  
     if (Array.isArray(ast)) {
       for (const node of ast) {
         macros.push(...findTextMacros(node));
       }
-    } else if (ast instanceof Macro && ast.content === "text"&&ast.args) {
-      macros.push(...ast.args);
+    } else if (ast instanceof Macro&&ast.args) {
+      if(ast.content === "text")
+        macros.push(...ast.args);
+      else {
+        for (const arg of ast.args) {
+          macros.push(...findTextMacros(arg));
+        }
+      }
     } else if (!(ast instanceof Whitespace || ast instanceof Parbreak) && Array.isArray(ast.content)) {
       for (const node of ast.content) {
         macros.push(...findTextMacros(node));
