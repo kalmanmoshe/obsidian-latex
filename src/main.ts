@@ -63,15 +63,16 @@ export default class Moshe extends Plugin {
     await this.loadSettings();
 		this.addSettingTab(new MosheMathSettingTab(this.app, this));
     this.addEditorCommands();
+    this.updateApiHooks();
+    this.addSyntaxHighlighting();
     this.app.workspace.onLayoutReady(async () => await this.loadLayoutReadyDependencies());
   }
 
   private async loadLayoutReadyDependencies() {
     await this.loadMathJax();
     await this.loadSwiftLatexRender()
-    this.addSyntaxHighlighting();
+    // processing of the code blocks have layout dependencies
     this.setCodeblocks();
-    this.updateApiHooks();
     this.watchFiles()
   }
 

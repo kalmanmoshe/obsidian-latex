@@ -12,12 +12,6 @@
   "package_url": "https://texlive2.swiftlatex.com/",
   "cache": [
     [
-      "2d375d30d2ffa09a090c9cf018b92481",
-      [
-        "Untitled 2.md"
-      ]
-    ],
-    [
       "39136ddab4517c3bd8d977d7f2c47a29",
       [
         "פיזיקה/יחיאל/שיעורי בית.md"
@@ -126,19 +120,163 @@
       ]
     ],
     [
-      "b806b63e86d762697fede6eca3fcc3a3",
+      "457cf96ac5932618bf0836e68c9e55d6",
       [
-        "פיזיקה/יחיאל/מבחני בגרות.md"
+        "פיזיקה/יחיאל/ניסוי קפיץ.md"
       ]
     ],
     [
-      "6405932096f0b1e11c9f9e3aae7349bd",
+      "cf7d7399ae5413e8eac612be6884e174",
       [
-        "פיזיקה/יחיאל/מבחני בגרות.md"
+        "פיזיקה/יחיאל/ניסוי קפיץ.md"
       ]
     ],
     [
-      "09fe37bf805b5e94139aeb054e9e7e5b",
+      "6308ad859519d81d4b548a8d1406a218",
+      [
+        "Untitled 3.md"
+      ]
+    ],
+    [
+      "fc9b1d00ca47bb75448cc77a4e273daa",
+      [
+        "Untitled 3.md"
+      ]
+    ],
+    [
+      "66e076048949a1123268f68bbd1fd6ae",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "b92727c221c6a4c3dd6fc6049aa64b65",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "7739d9af9706e377fdb1032c3242fa1c",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "7484b27be5ae9701e9011a8341947a4a",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "20e3764199497743ec068fd4662b3c3a",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "8b45f6471ae74d45c7082e477b47ef96",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "f5c23a7fcc5d8ac9417d550a86b30c7c",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "6021e6e7052369d20f4cf38d822398db",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "e668b6b5dca44ee9d9ecaa6dd4608beb",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "9418793536713bc9b9b7cebdddfb57c8",
+      [
+        "moshe/latex/tikz/tikz.md"
+      ]
+    ],
+    [
+      "0c2b7e27c3f55ecf734d20db97e95008",
+      [
+        "moshe/latex/tikz/pgfplots.md"
+      ]
+    ],
+    [
+      "87c29c6357b2d2f59725ab1c389a5065",
+      [
+        "moshe/latex/tikz/pgfplots.md"
+      ]
+    ],
+    [
+      "8d8e0623fd08552227a2ca4d320803da",
+      [
+        "moshe/latex/tikz/pgfplots.md"
+      ]
+    ],
+    [
+      "9b344c84bb17f3df6259e17f32b83d01",
+      [
+        "moshe/latex/tikz/pgfplots.md"
+      ]
+    ],
+    [
+      "afb5b5c5a8bc0658ac231842ad4dd488",
+      [
+        "moshe/latex/tikz/pgfplots.md"
+      ]
+    ],
+    [
+      "e283a28ff56edec97e906ee0b4e60711",
+      [
+        "moshe/latex/tikz/pgfplots.md"
+      ]
+    ],
+    [
+      "fc7a7df26522d536298f2257019239f1",
+      [
+        "moshe/latex/tikz/pgfplots.md"
+      ]
+    ],
+    [
+      "9ec34b5500ea21e23f7f96f493a37d22",
+      [
+        "moshe/latex/tikz/pgfplots.md"
+      ]
+    ],
+    [
+      "64d2649801ba6563a3f384121a04e538",
+      [
+        "moshe/latex/tikz/pgfplots.md"
+      ]
+    ],
+    [
+      "a13167ac5618c1886fd81e0adfcc70c8",
+      [
+        "moshe/latex/tikz/pgfplots.md"
+      ]
+    ],
+    [
+      "cffd952db2a09f98a3bfb3861f5e5428",
+      [
+        "moshe/latex/tikz/pgfplots.md"
+      ]
+    ],
+    [
+      "50fe8814780f6d5c984ea490a2530d2a",
+      [
+        "moshe/latex/tikz/pgfplots.md"
+      ]
+    ],
+    [
+      "8bd7d2c354391d28606fec94455b168e",
       [
         "פיזיקה/יחיאל/מבחני בגרות.md"
       ]
@@ -150,45 +288,9 @@
       ]
     ],
     [
-      "89383f79f31d6a6c2e119a4c650a442c",
+      "2d375d30d2ffa09a090c9cf018b92481",
       [
-        "פיזיקה/יחיאל/מבחני בגרות.md"
-      ]
-    ],
-    [
-      "e36e1c6d279b19220b48b00084d36f70",
-      [
-        "פיזיקה/יחיאל/מבחני בגרות.md"
-      ]
-    ],
-    [
-      "c83d27bb3ba7cfe826ceb2183440eaa9",
-      [
-        "פיזיקה/יחיאל/מבחני בגרות.md"
-      ]
-    ],
-    [
-      "baafab8836a4c70ee3ad39956ef0a042",
-      [
-        "פיזיקה/יחיאל/מבחני בגרות.md"
-      ]
-    ],
-    [
-      "c46d3d5095d6f5fdb074c380a61e272c",
-      [
-        "פיזיקה/יחיאל/מבחני בגרות.md"
-      ]
-    ],
-    [
-      "df2beac330e39b57546172a4318df37a",
-      [
-        "פיזיקה/יחיאל/מבחני בגרות.md"
-      ]
-    ],
-    [
-      "671770856aa2183deb6a4a0b57d27a87",
-      [
-        "פיזיקה/יחיאל/מבחני בגרות.md"
+        "Untitled 2.md"
       ]
     ]
   ],
@@ -197,16 +299,7 @@
       "26/tikzlibrarypgfplots.surfshading.code.tex": 1,
       "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/numprint.cfg": 1,
-      "26/main.aux": 1,
-      "33/cmmi10.vf": 1,
-      "33/cmr10.vf": 1,
-      "33/cmr7.vf": 1,
-      "33/cmmi7.vf": 1,
-      "33/cmr12.vf": 1,
-      "33/cmsy10.vf": 1,
-      "33/cmmi8.vf": 1,
-      "33/cmmi12.vf": 1,
-      "33/cmr8.vf": 1
+      "26/main.aux": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -503,7 +596,32 @@
       "3/cmex8": "/tex/cmex8.tfm",
       "3/cmex7": "/tex/cmex7.tfm",
       "3/cmbx12": "/tex/cmbx12.tfm",
-      "32/cmbx12.pfb": "/tex/cmbx12.pfb"
+      "32/cmbx12.pfb": "/tex/cmbx12.pfb",
+      "3/cmr9": "/tex/cmr9.tfm",
+      "32/cmr9.pfb": "/tex/cmr9.pfb",
+      "26/tikz-cd.sty": "/tex/tikz-cd.sty",
+      "26/tikzlibrarycd.code.tex": "/tex/tikzlibrarycd.code.tex",
+      "26/amssymb.sty": "/tex/amssymb.sty",
+      "26/amsfonts.sty": "/tex/amsfonts.sty",
+      "26/umsa.fd": "/tex/umsa.fd",
+      "3/msam10": "/tex/msam10.tfm",
+      "3/msam7": "/tex/msam7.tfm",
+      "26/umsb.fd": "/tex/umsb.fd",
+      "3/msbm10": "/tex/msbm10.tfm",
+      "3/msbm7": "/tex/msbm7.tfm",
+      "32/cmex10.pfb": "/tex/cmex10.pfb",
+      "3/msam5": "/tex/msam5.tfm",
+      "3/msbm5": "/tex/msbm5.tfm",
+      "26/tikzlibrarytrees.code.tex": "/tex/tikzlibrarytrees.code.tex",
+      "3/cmbx10": "/tex/cmbx10.tfm",
+      "3/cmbx7": "/tex/cmbx7.tfm",
+      "3/cmbx8": "/tex/cmbx8.tfm",
+      "3/cmbx6": "/tex/cmbx6.tfm",
+      "3/cmmi9": "/tex/cmmi9.tfm",
+      "3/cmsy9": "/tex/cmsy9.tfm",
+      "3/cmex9": "/tex/cmex9.tfm",
+      "32/cmmi9.pfb": "/tex/cmmi9.pfb",
+      "32/cmr6.pfb": "/tex/cmr6.pfb"
     },
     {},
     {}
