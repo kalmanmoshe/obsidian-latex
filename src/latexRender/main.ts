@@ -95,6 +95,7 @@ SwiftlatexRender {
 					const content = await this.getFileContent(dir.file, dir.remainingPath);
 					this.virtualFileSystem.addVirtualFileSystemFile({ name, content });
 				}
+				console.log(this.virtualFileSystem)
 				this.virtualFileSystem.getAutoUseFileNames().forEach((name) => ast.addInputFileToPramble(name));
 				task.source = ast.toString();
 				console.log("task.source",ast,task.source.split('\n'),)
@@ -201,6 +202,7 @@ SwiftlatexRender {
 		
 		// PDF file has already been cached
 		// Could have a case where pdfCache has the key but the cached file has been deleted
+		console.log(this)
 		const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${cacheFileFormat}`);
 		if (this.cache.has(md5Hash) && fs.existsSync(dataPath)) {
 			const data = fs.readFileSync(dataPath, 'utf8');
