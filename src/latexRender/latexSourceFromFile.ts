@@ -1,6 +1,7 @@
 import { App, SectionCache, TAbstractFile, TFile, TFolder } from "obsidian";
 import Moshe from "src/main";
 import { hashLatexSource, latexCodeBlockNamesRegex } from "./main";
+import { getFileSections, parseNestedCodeBlocks } from "./sectionCache";
 
 export async function getLatexSourceFromHash(hash: string, plugin: Moshe, file?: TFile): Promise<string> {
     // Cache for file content to avoid multiple disk reads.
@@ -18,10 +19,10 @@ export async function getLatexSourceFromHash(hash: string, plugin: Moshe, file?:
     const findLatexSourceFromHashInFile = async (hash: string, file?: TFile): Promise<string | undefined> => {
       if (!file) return;
       const content = await readFile(file);
-      const fileCache = plugin.app.metadataCache.getFileCache(file);
-      if (!fileCache?.sections) return;
-      const sections = await getLatexCodeBlocksFromString(content, fileCache.sections);
-      for (const section of sections) {
+      const sections = await getFileSections(file, plugin.app, true);
+      if (!sections) return;
+      const blockSections = await getLatexCodeBlocksFromString(content, sections);
+      for (const section of blockSections) {
         const codeSection = section.content.split("\n").slice(1, -1).join("\n");
         if (hashLatexSource(codeSection) === hash) {
           return codeSection;
@@ -75,7 +76,7 @@ export function findRelativeFile(filePath: string, currentDir: TAbstractFile | n
             currentDir = currentDir.parent;
         }
     }
-    else {
+    else if (filePath.includes(separator)){
         currentDir = getDirRoot(currentDir);
     }
     // if dir is the correct file return it
@@ -117,69 +118,70 @@ export function findRelativeFile(filePath: string, currentDir: TAbstractFile | n
         remainingPath: pathParts.length>0 ? pathParts[0] : undefined,
     };
 }
-
-
+  
 
 
 export async function getLatexHashesFromFile(file: TFile,app:App) {
     const hashes: string[] = [];
-    const sections = app.metadataCache.getFileCache(file)?.sections
-    if (sections != undefined) {
-        const lines = (await app.vault.read(file)).split('\n');
-        for (const section of sections) {
-            if (section.type != "code" && lines[section.position.start.line].match(latexCodeBlockNamesRegex) == null) continue;
-            let source = lines.slice(section.position.start.line + 1, section.position.end.line).join("\n");
-            const hash = hashLatexSource(source);
-            hashes.push(hash);
-        }
+    const sections = await getFileSections(file, app, true);
+    if (!sections) return [];
+
+    const lines = (await app.vault.read(file)).split('\n');
+    for (const section of sections) {
+        if (section.type != "code" && lines[section.position.start.line].match(latexCodeBlockNamesRegex) == null) continue;
+        let source = lines.slice(section.position.start.line + 1, section.position.end.line).join("\n");
+        const hash = hashLatexSource(source);
+        hashes.push(hash);
     }
     return hashes;
 }
 
 
-export async function getLatexCodeBlocksFromString(string: String,sections: SectionCache[]) {
+
+
+
+
+
+
+/**
+ * converts the sections into code block information with startLine Endline and content
+ * @param string 
+ * @param sections 
+ * @param accountForNestedCodeBlocks 
+ * @returns { lineStart: number; lineEnd: number; content: string }[]
+ */
+export async function getLatexCodeBlocksFromString(string: String,sections: SectionCache[],accountForNestedCodeBlocks=false) {
     const lines = string.split('\n');
     // Filter sections that are code blocks with latex or tikz language hints.
     sections = sections.filter((section: SectionCache) =>
-    section.type === "code" &&
-    lines[section.position.start.line].match(latexCodeBlockNamesRegex)
+        section.type === "code" &&//nested code blocks can be in none latex/tikz named code blocks
+        (accountForNestedCodeBlocks||lines[section.position.start.line].match(latexCodeBlockNamesRegex))
     );
-    const codeBlocks: {lineStart: number, lineEnd: number, content: string}[] = sections.map((section) => {
-    return {
-        lineStart: section.position.start.line,
-        lineEnd: section.position.end.line,
-        content: lines.slice(section.position.start.line, section.position.end.line+1).join("\n")
+    let codeBlocks: { lineStart: number; lineEnd: number; content: string }[] = [];
+    for (const section of sections) {
+        const content = lines.slice(section.position.start.line, section.position.end.line + 1).join("\n");
+        const startPos = section.position.start;
+        if (accountForNestedCodeBlocks) {
+            const nestedCodeBlocks = parseNestedCodeBlocks(content, startPos.line,startPos.offset).map((block) => ({
+                lineStart: block.position.start.line,
+                lineEnd: block.position.end.line,
+                content: lines.slice(block.position.start.line, block.position.end.line + 1).join("\n")
+            }));
+            codeBlocks.push(...nestedCodeBlocks);
+        }
+        codeBlocks.push({
+            lineStart: section.position.start.line,
+            lineEnd: section.position.end.line,
+            content
+        });
     }
-    });
+    if (accountForNestedCodeBlocks){
+        codeBlocks = codeBlocks
+        .filter((block) => lines[block.lineStart].match(latexCodeBlockNamesRegex))
+        .sort((a, b) => a.lineStart - b.lineStart);
+    }
     return codeBlocks;
 }
 
-export function findMultiLineStartIndex(text: string, searchString: string) {
-    const textLines = text.split("\n"); // Split the full text into lines
-    const searchLines = searchString.split("\n"); // Split the search string into lines
-    const searchLength = searchLines.length;
 
-    for (let i = 0; i <= textLines.length - searchLength; i++) {
-        let match = true;
-        
-        for (let j = 0; j < searchLength; j++) {
-            if (textLines[i + j] !== searchLines[j]) {
-                match = false;
-                break;
-            }
-        }
 
-        if (match) {
-            return i; // Return the 0-based start line index
-        }
-    }
-    return -1; // Return -1 if not found
-}
-
-export function getSectionCacheFromString(sectionsCache: SectionCache[],source: string,target: string){
-    const sourceIndex=findMultiLineStartIndex(source,target);
-    if(sourceIndex===-1)throw new Error("source not found in file");
-    if(sourceIndex===0)throw new Error("source index is 0 which is invalid (i don't know why this happens)");
-    const codeBlockStartLine=sourceIndex-1;
-    return sectionsCache.find((section)=>section.position.start.line===codeBlockStartLine);
-}
