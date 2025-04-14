@@ -1,5 +1,5 @@
 
-import { MarkdownPostProcessorContext, TFile, Modal, App, Menu,  Notice,} from 'obsidian';
+import { MarkdownPostProcessorContext, TFile, Modal, App, Menu,  Notice, MarkdownSectionInformation,} from 'obsidian';
 import { Md5 } from 'ts-md5';
 import * as fs from 'fs';
 import * as temp from 'temp';
@@ -10,10 +10,13 @@ import { StringMap } from 'src/settings/settings.js';
 import async from 'async';
 import { LatexAbstractSyntaxTree } from './parse/parse';
 import { pdfToHtml, pdfToSVG } from './pdfToHtml/pdfToHtml';
-import {createErrorDisplay} from './log-parser/HumanReadableLogs';
+import {createErrorDisplay, errorDiv} from './log-parser/HumanReadableLogs';
 import { String as StringClass } from './parse/typs/ast-types-post';
 import { VirtualFileSystem } from './VirtualFileSystem';
-import { findRelativeFile, getLatexCodeBlocksFromString, getLatexHashesFromFile, getLatexSourceFromHash, getSectionCacheFromString } from './latexSourceFromFile';
+import { findRelativeFile, getLatexCodeBlocksFromString, getLatexHashesFromFile, getLatexSourceFromHash } from './latexSourceFromFile';
+import { getFileSections, getSectionCacheOfString } from './sectionCache';
+import { SvgContextMenu } from './svgContextMenu';
+
 export const waitFor = async (condFunc: () => boolean) => {
 	return new Promise<void>((resolve) => {
 		if (condFunc()) {
@@ -33,8 +36,17 @@ export const latexCodeBlockNamesRegex = /(`|~){3,} *(latex|tikz)/;
 type Task = { source: string, el: HTMLElement,md5Hash:string, sourcePath: string , blockId: string,process: boolean};
 const cacheFileFormat="svg"
 
-export class 
-SwiftlatexRender {
+export class PackageCache {
+	packageCacheFolderPath: string;
+}
+export class SvgCache {
+	private plugin: Moshe;
+	constructor() {
+		
+	}
+	
+}
+export class SwiftlatexRender {
 	plugin: Moshe;
 	cacheFolderPath: string;
 	packageCacheFolderPath: string;
@@ -63,25 +75,34 @@ SwiftlatexRender {
 	}
 	async getFileContent(file: TFile,remainingPath?: string): Promise<string> {
 		const fileContent = await this.plugin.app.vault.read(file);
-		if(!remainingPath) return fileContent;
-		const metadata = this.plugin.app.metadataCache.getFileCache(file);
-		if (!metadata||!metadata.sections) throw new Error("No metadata found for file");
-		const codeBlocks = await getLatexCodeBlocksFromString(fileContent,metadata.sections);
+		if(!remainingPath)return fileContent;
+		const sections = await getFileSections(file,this.plugin.app,true);
+		const err= ()=>{throw new Error("No code block found with name: "+remainingPath+" in file: "+file.path)};
+		if(!sections)err();
+		const codeBlocks = await getLatexCodeBlocksFromString(fileContent,sections!,true);
 		const target = codeBlocks.find((block) => 
 			block.content
 			.split("\n")[0]
 			.replace(latexCodeBlockNamesRegex,"").trim()
 			.match(new RegExp("name: *"+remainingPath))
 		);
-		if(!target)throw new Error("No code block found with name: "+remainingPath);
-		return target.content.split("\n").slice(1,-1).join("\n");
+		if(!target)err();
+		return target!.content.split("\n").slice(1,-1).join("\n");
 	}
 	configQueue() {
 		const processTask = async (task: Task): Promise<void> => {
-			try{
-				
+			const startTime = performance.now();
+			try {
+				// ── AST Parsing ──────────────────────────────
+				const startAstTime = performance.now();
 				const ast = LatexAbstractSyntaxTree.parse(task.source);
+				const astDuration = performance.now() - startAstTime;
+				console.log(`[TIMER] AST parsing: ${astDuration.toFixed(2)} ms`);
+		
+				// ── Input File Macros ────────────────────────
 				const inputFilesMacros = ast.usdInputFiles();
+		
+				const startInputFilesTime = performance.now();
 				for (const macro of inputFilesMacros) {
 					const args = macro.args;
 					if (!args || args.length !== 1) continue;
@@ -92,32 +113,53 @@ SwiftlatexRender {
 		
 					args[0].content = [new StringClass(name)];
 		
+					const startGetFile = performance.now();
 					const content = await this.getFileContent(dir.file, dir.remainingPath);
+					const fileLoadDuration = performance.now() - startGetFile;
+					console.log(`[TIMER] Loaded file '${name}' in ${fileLoadDuration.toFixed(2)} ms`);
+		
 					this.virtualFileSystem.addVirtualFileSystemFile({ name, content });
 				}
-				console.log(this.virtualFileSystem)
-				this.virtualFileSystem.getAutoUseFileNames().forEach((name) => ast.addInputFileToPramble(name));
+				const inputFilesDuration = performance.now() - startInputFilesTime;
+				console.log(`[TIMER] Input file processing total: ${inputFilesDuration.toFixed(2)} ms`);
+		
+				// ── Update AST with virtual files ────────────
+				const startPreambleUpdateTime = performance.now();
+				this.virtualFileSystem.getAutoUseFileNames().forEach((name) => {
+					ast.addInputFileToPramble(name);
+				});
+				const preambleUpdateDuration = performance.now() - startPreambleUpdateTime;
+				console.log(`[TIMER] Preamble update: ${preambleUpdateDuration.toFixed(2)} ms`);
+		
+				// ── Final task update ────────────────────────
 				task.source = ast.toString();
-				console.log("task.source",ast,task.source.split('\n'),)
+				console.log("task.source", this.virtualFileSystem, ast, task.source.split('\n'));
 			}
-			catch(e){
-				console.error("Error processing task: "+e);
-				return;
+			catch (e) {
+				const err = "Error processing task: " + e;
+				this.handleError(task.el, err);
 			}
-		}
+		
+			const totalDuration = performance.now() - startTime;
+			console.log(`[TIMER] Total processing time: ${totalDuration.toFixed(2)} ms`);
+		};
+		
 		this.queue = async.queue(async (task, done) => {
-			if(task.process) await processTask(task)
-				
-			this.renderLatexToElement(task.source, task.el,task.md5Hash, task.sourcePath).then(() => {
-				// Wait X seconds before marking the task as done
-				setTimeout(() =>{updateQueueCountdown(this.queue);done();}, this.plugin.settings.pdfEngineCooldown);
-			})
-			.catch((err) => {
-				console.error("Error rendering/compiling:",typeof err==="string"?[ err.split("\n")]:err);
-				// Optionally, delay even on errors:
-				setTimeout(() => {updateQueueCountdown(this.queue);done(err);}, this.plugin.settings.pdfEngineCooldown);
-			});
-		}, 1); // Concurrency is set to 1, so tasks run one at a time
+			try {
+		  
+			  if (task.process) await processTask(task);
+		  
+			  await this.renderLatexToElement(task.source, task.el, task.md5Hash, task.sourcePath);
+			} catch (err) {
+			  console.error("Error rendering/compiling:", typeof err === "string" ? [err.split("\n")] : err);
+			  this.handleError(task.el, "Render error: " + err);
+			} finally {
+			  setTimeout(() => {
+				updateQueueCountdown(this.queue);
+				done();
+			  }, this.plugin.settings.pdfEngineCooldown);
+			}
+		  }, 1);// Concurrency is set to 1, so tasks run one at a time
 	}
 	
 	private validateCatchDirectory(){
@@ -202,7 +244,6 @@ SwiftlatexRender {
 		
 		// PDF file has already been cached
 		// Could have a case where pdfCache has the key but the cached file has been deleted
-		console.log(this)
 		const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${cacheFileFormat}`);
 		if (this.cache.has(md5Hash) && fs.existsSync(dataPath)) {
 			const data = fs.readFileSync(dataPath, 'utf8');
@@ -210,11 +251,43 @@ SwiftlatexRender {
 		}
 		else {
 			//Reliable enough for repeated entries
-			const blockId = `${ctx.sourcePath.replace(/[^\wא-ת]/g, '_')}_${ctx.getSectionInfo(el)?.lineStart}`;
-			this.queue.remove(node => node.data.blockId === blockId);
-			el.appendChild(createWaitingCountdown(this.queue.length()));
-			this.queue.push({ source, el, md5Hash, sourcePath: ctx.sourcePath, blockId, process:isLangTikz });
+			this.ensureContextSectionInfo(source, el, ctx).then((sectionInfo) => {
+				const blockId = getBlockId(ctx.sourcePath,sectionInfo.lineStart)
+				this.queue.remove(node => node.data.blockId === blockId);
+				el.appendChild(createWaitingCountdown(this.queue.length()));
+				this.queue.push({ source, el, md5Hash, sourcePath: ctx.sourcePath, blockId, process:isLangTikz });
+
+			}).catch((err) => this.handleError(el, err as string));
 		}
+	}
+	/**
+	 * when programmatically parsing nested code blocks or simulating a rendering environment the section info is not available
+	 * so we rebuild it here
+	 * **If you encounter problems, check how the document is rendered in a reading view as the sections are based off that**
+	 * @param ctx 
+	 * @param el
+	 */
+	private async ensureContextSectionInfo(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext):Promise<MarkdownSectionInformation> {
+		const sectionInfo = ctx.getSectionInfo(el);
+		if (sectionInfo) return sectionInfo;
+
+		const file = this.plugin.app.vault.getAbstractFileByPath(ctx.sourcePath) as TFile;
+		const sections=await getFileSections(file,this.plugin.app,true);
+		if(!sections)throw new Error("No sections found in metadata");
+		const fileText = await this.plugin.app.vault.read(file);
+		const sectionCache=getSectionCacheOfString(sections,fileText,source);
+		if(!sectionCache)throw new Error("Section cache not found");
+		return {
+			lineStart: sectionCache.position.start.line,
+			lineEnd: sectionCache.position.end.line,
+			text: fileText,
+		}
+	}
+	private handleError(el: HTMLElement, err: string,parseErr: boolean=false): void {
+		el.innerHTML = "";
+		const child = parseErr? createErrorDisplay(err) : errorDiv({title: err});
+		el.appendChild(child);
+		throw err;
 	}
 	private async renderLatexToElement(source: string, el: HTMLElement,md5Hash: string, sourcePath: string): Promise<void> {
 		try {
@@ -225,9 +298,7 @@ SwiftlatexRender {
 			await fs.promises.writeFile(dataPath, el.innerHTML, "utf8");
 			this.addFileToCache(md5Hash, sourcePath);
 		} catch (err) {
-			el.innerHTML = "";
-			el.appendChild(createErrorDisplay(err));
-			throw err;
+			this.handleError(el, err as string,true);
 		} finally {
 			await waitFor(() => this.pdfEngine.isReady());
 			await this.cleanUpCache();
@@ -486,7 +557,7 @@ const updateQueueCountdown = (queue: async.QueueObject<Task>) => {
 export function hashLatexSource(source: string) {
 	return Md5.hashStr(source.replace(/\s/g, ''))
 }
-function getBlockId(path: string,lineStart: number): string {
+export function getBlockId(path: string,lineStart: number): string {
 	return `${path.replace(/ /g, '_')}_${lineStart}`;
 };
 	
@@ -510,7 +581,7 @@ function getNewPackageFileNames(oldCacheData: StringMap, newCacheData: StringMap
 
 
 
-function addMenu(plugin: Moshe,el: HTMLElement,filePath: string) {
+export function addMenu(plugin: Moshe,el: HTMLElement,filePath: string) {
 	el.addEventListener("contextmenu", (event) => {
 		if(!event.target)return
 		const clickedElement = event.target as HTMLElement;
@@ -527,147 +598,7 @@ function addMenu(plugin: Moshe,el: HTMLElement,filePath: string) {
 
 
 
-class SvgContextMenu extends Menu {
-	plugin: Moshe;
-	triggeringElement: SVGElement;
-	sourcePath: string;
-	isError: boolean;
-	source: string;
-	constructor(plugin: Moshe,trigeringElement: HTMLElement,sourcePath: string) {
-		super();
-    	this.plugin = plugin;
-		const el=this.insureIsSVG(trigeringElement);
-		if(!el&&!this.isError)
-			console.error("No svg element found in the hierarchy")
-		else if(el)
-			this.triggeringElement = el;
-		this.sourcePath = sourcePath;
-		this.addDisplayItems();
-	}
-	private insureIsSVG(el: HTMLElement): SVGElement|null {
-		if (el instanceof SVGElement) {
-			return el;
-		}
-		if(el.classList.contains("moshe-swift-latex-error-cause")||el.classList.contains("moshe-swift-latex-error-container")){
-			this.isError=true;
-			return null;
-		}
-		for (const child of Array.from(el.children)) {
-			const svg = this.insureIsSVG(child as HTMLElement);
-			if (svg) return svg;
-		}
-		return null;
-	}
-	private addDisplayItems(){
-		if(this.isError)return;
-		this.addItem((item) => {
-			item.setTitle("Copy SVG");
-			item.setIcon("copy");
-			item.onClick(async () => {
-				const svg = this.triggeringElement;
-				console.log("svg",svg)
-				if (svg) {
-					const svgString = new XMLSerializer().serializeToString(svg);
-					await navigator.clipboard.writeText(svgString);
-				}
-			});
-		});
-		this.addItem((item) => {
-			item.setTitle("Copy parsed source");
-			item.setIcon("copy");
-			item.onClick(async () => {
-				const source = await this.getparsedSource();
-				await navigator.clipboard.writeText(source);
-			});
-		});
-		this.addItem((item) => {
-			item.setTitle("properties");
-			item.setIcon("settings");
-			item.onClick(async () => {
-				console.log("properties")
-			});
-		});
-		this.addItem((item) => {
-			item.setTitle("remove & re-render");
-			item.setIcon("trash");
-			item.onClick(async () => await this.removeAndReRender());
-		});
 
-	}
-	private getHash(){
-		if(this.isError)return null;
-		const hash = this.triggeringElement.id;
-		if (hash===undefined) throw new Error("No hash found for SVG element got: "+hash);
-		return hash;
-	}
-	private async assignLatexSource(){
-		if(this.source!==undefined)return true ;
-		const file=await this.getFile();
-		const hash=this.getHash();
-		if(!hash)return false;
-		this.source = await getLatexSourceFromHash(hash,this.plugin,file);
-		return true;
-	}
-	private async getFile(){
-		const file = this.plugin.app.vault.getAbstractFileByPath(this.sourcePath);
-		if (!file) throw new Error("File not found");
-		if(!(file instanceof TFile))throw new Error("File is not a TFile");
-		return file;
-	}
-	private async removeAndReRender(){
-		if(this.isError){
-			new Notice("this is in err message the PDF never existed in the first place");
-			return;
-		}
-		this.assignLatexSource()
-		const hash=this.getHash();if(!hash)return;
-
-		await this.plugin.swiftlatexRender.removePDFFromCache(hash);
-		const parentEl=this.triggeringElement.parentNode;
-		if(!parentEl)throw new Error("No parent element found for SVG element");
-		if(!(parentEl instanceof HTMLElement))throw new Error("Parent element is not an HTMLElement");
-		parentEl.removeChild(this.triggeringElement);
-
-		
-		const file=await this.getFile();
-		if(!file)throw new Error("No file found");
-
-		const metadata = this.plugin.app.metadataCache.getFileCache(file);
-		if (!metadata) throw new Error("No metadata found for file");
-		const sections=metadata.sections;
-		if(!sections)throw new Error("No sections found in metadata");
-
-
-		addMenu(this.plugin,parentEl,this.sourcePath)
-		const queue=this.plugin.swiftlatexRender.queue;
-		const fileText = await this.plugin.app.vault.read(file);
-		const sectionCache=getSectionCacheFromString(sections,fileText,this.source);
-		if(!sectionCache)throw new Error("Section cache not found");
-		const blockId = getBlockId(this.sourcePath,sectionCache.position.start.line);
-		queue.remove(node => node.data.blockId === blockId);
-		parentEl.appendChild(createWaitingCountdown(queue.length()));
-		
-		this.plugin.swiftlatexRender.queue.push({
-			source: this.source,
-			el: parentEl,
-			md5Hash: hash,
-			sourcePath: this.sourcePath,
-			blockId,
-			process: true
-		})
-		new Notice("SVG removed from cache. Re-rendering...");
-	}
-	
-	async open(event: MouseEvent) {
-		console.log("open")
-		this.showAtPosition({ x: event.pageX, y: event.pageY });
-	}
-	private async getparsedSource(){
-		await this.assignLatexSource()
-		const ast = LatexAbstractSyntaxTree.parse(this.source);
-		return ast.toString();
-	}
-}
 
 
 
@@ -731,7 +662,7 @@ class svgDisplayModule extends Modal {
 
 
 
-function createWaitingCountdown(index: number){
+export function createWaitingCountdown(index: number){
 	const parentContainer = Object.assign(document.createElement("div"), { 
 		className: "moshe-latex-render-loader-parent-container" 
 	});

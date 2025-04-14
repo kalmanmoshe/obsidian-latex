@@ -12,12 +12,6 @@
   "package_url": "https://texlive2.swiftlatex.com/",
   "cache": [
     [
-      "39136ddab4517c3bd8d977d7f2c47a29",
-      [
-        "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
       "9bafa6d85bfee2ba821b0d426a264dcd",
       [
         "פיזיקה/יחיאל/שיעורי בית.md"
@@ -292,6 +286,96 @@
       [
         "Untitled 2.md"
       ]
+    ],
+    [
+      "fb5f42cbe586899474e2600b77e4e3d7",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "5b1e8ce8b9b807d1860979e3341bf0fe",
+      [
+        "פיזיקה/יחיאל/דוח גלים.md"
+      ]
+    ],
+    [
+      "1eebf99d51cbec3b5f7cf20a544ad3b9",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "c766710fbadafc1c2c69842f345a3cfb",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "7090d4039a303ff50609b1975d4634e2",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "6569daa1410e5f944950aa96b29bc0ba",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "3054b50cc48602c046ef1d8f9a635ec7",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "5310eaf07eda98d05c6ce3b7de161f8a",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "a131e1d4196065868f88e8c89d55a55f",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "a8e867abaae1383a76ae3fe5bae0b964",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "d1a8a9ed4c8e0e0b866b32596364eb08",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "376e833737ef6b3c631f9fdc6d21457f",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "413d6a5e243b2825fd1bea3bc13803aa",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "cf106de93b312629bcfd9770821213ec",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "bd76bdbd22ccd7715d8b73b4b5b03a7e",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
     ]
   ],
   "packageCache": [
@@ -299,7 +383,10 @@
       "26/tikzlibrarypgfplots.surfshading.code.tex": 1,
       "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/numprint.cfg": 1,
-      "26/main.aux": 1
+      "26/main.aux": 1,
+      "33/cmr10.vf": 1,
+      "33/cmr12.vf": 1,
+      "33/cmmi10.vf": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -621,7 +708,13 @@
       "3/cmsy9": "/tex/cmsy9.tfm",
       "3/cmex9": "/tex/cmex9.tfm",
       "32/cmmi9.pfb": "/tex/cmmi9.pfb",
-      "32/cmr6.pfb": "/tex/cmr6.pfb"
+      "32/cmr6.pfb": "/tex/cmr6.pfb",
+      "26/tikzlibraryshapes.geometric.code.tex": "/tex/tikzlibraryshapes.geometric.code.tex",
+      "26/pgflibraryshapes.geometric.code.tex": "/tex/pgflibraryshapes.geometric.code.tex",
+      "26/tikzlibrarypatterns.meta.code.tex": "/tex/tikzlibrarypatterns.meta.code.tex",
+      "26/pgflibrarypatterns.meta.code.tex": "/tex/pgflibrarypatterns.meta.code.tex",
+      "26/omscmr.fd": "/tex/omscmr.fd",
+      "32/cmmi5.pfb": "/tex/cmmi5.pfb"
     },
     {},
     {}

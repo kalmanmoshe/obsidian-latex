@@ -82,15 +82,6 @@ export class VirtualFileSystem{
         this.status=VirtualFileSystemFilesStatus.outdated;
     }
     /**
-     * set the virtual file system files
-     * @param files 
-     */
-    setExplicitVirtualFileSystemFiles(files: {name: string,content: string}[]){
-        this.files=this.files.filter(file=>file.autoUse);
-        this.files.push(...files);
-        this.status=VirtualFileSystemFilesStatus.outdated;
-    }
-    /**
      * add a virtual file system file
      * @param file 
      */

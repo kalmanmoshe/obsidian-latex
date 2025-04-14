@@ -58,8 +58,7 @@ export default class Moshe extends Plugin {
   swiftlatexRender: SwiftlatexRender=new SwiftlatexRender();
 
   async onload() {
-    console.log("Loading Moshe math plugin")
-    //readAndParseSVG().then((res: any)=>console.log(res))
+    console.warn("Loading Moshe math plugin")
     await this.loadSettings();
 		this.addSettingTab(new MosheMathSettingTab(this.app, this));
     this.addEditorCommands();
@@ -214,8 +213,9 @@ export default class Moshe extends Plugin {
     }
 	}
   async processLatexPreambles(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
-      const preambles = await this.getlatexPreambleFiles(becauseFileLocationUpdated, becauseFileUpdated)
-      this.swiftlatexRender.virtualFileSystem.setVirtualFileSystemFiles(preambles.latexVirtualFiles);
+    const preambles = await this.getlatexPreambleFiles(becauseFileLocationUpdated, becauseFileUpdated)
+    this.swiftlatexRender.virtualFileSystem.setVirtualFileSystemFiles(preambles.latexVirtualFiles);
+    this.updateCoorVirtualFiles();
   }
   updateCoorVirtualFiles(){
     const coorFileSet=new Set<string>
