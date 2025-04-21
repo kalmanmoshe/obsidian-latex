@@ -26,6 +26,7 @@ interface MosheMathBasicSettings {
 	 */
 	packageCache: Array<StringMap>;
 	pdfEngineCooldown: number;
+	saveLogs: boolean;
 }
 
 /**
@@ -57,6 +58,7 @@ export const DEFAULT_SETTINGS: MosheMathPluginSettings = {
 	cache: [],
 	packageCache: [{},{},{},{}],
 	pdfEngineCooldown: 1000,
+	saveLogs: false,
 }
 
 export function processMosheMathSettings(settings: MosheMathPluginSettings):MosheMathettings {

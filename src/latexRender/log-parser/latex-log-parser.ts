@@ -1,4 +1,3 @@
-import { ErrorRuleId } from "./HumanReadableLogsRules"
 
 const LOG_WRAP_LIMIT = 79
 const LATEX_WARNING_REGEX = /^LaTeX(?:3| Font)? Warning: (.*)$/
@@ -11,18 +10,20 @@ const PACKAGE_REGEX = /^(?:Package|Class|Module) (\b.+\b) Warning/
 const FILE_LINE_ERROR_REGEX = /^([./].*):(\d+): (.*)/
 
 enum STATE {
-    NORMAL,
-    ERROR,
-}
-export interface Options{
-  fileBaseNames?: RegExp[];
-  ignoreDuplicates?: boolean;
+  NORMAL,
+  ERROR,
 }
 enum ErrorLevel{
   Error = 'error',
   Warning = 'warning',
   Typesetting = 'typesetting',
 }
+
+export interface Options{
+  fileBaseNames?: RegExp[];
+  ignoreDuplicates?: boolean;
+}
+
 export interface CurrentError{
   line: number | null;
   file: string|null;
@@ -30,142 +31,130 @@ export interface CurrentError{
   message: string;
   content?: string;
   raw: string;
-  
-  ruleId?: ErrorRuleId
-  contentDetails?: string[]
-  command?: string
-  suppressed?: boolean
+  cause?: string;
 }
 interface File{
   path: string;
   files: File[];
 }
-
+type LineHandler = {
+  test: () => boolean;
+  action: () => void;
+};
+export type ProcessedLog={
+  errors: CurrentError[],
+  warnings: CurrentError[],
+  typesetting: CurrentError[],
+  all: CurrentError[],
+  files: File[],
+  raw: string,
+}
 
 export default class LatexParser {
-    state: STATE;
+    state: STATE = STATE.NORMAL;
     fileBaseNames?: RegExp[];
     ignoreDuplicates?: boolean;
-    data: Array<CurrentError>;
-    fileStack: Array<File>;
-    currentFileList: Array<File>;
-    openParens: number;
-    readonly latexWarningRegex = LATEX_WARNING_REGEX;
-    readonly packageWarningRegex = PACKAGE_WARNING_REGEX;
-    readonly packageRegex = PACKAGE_REGEX;
+    data: Array<CurrentError>=[];
+    fileStack: Array<File>=[];
+    
+    openParens: number = 0;
     log: LogText;
     currentError: CurrentError;
     currentLine: string;
-    rootFileList: Array<{}>
+    rootFileList: Array<File>=[]
+    currentFileList: Array<File>=this.rootFileList;
     currentFilePath: string;
   constructor(text: string, options:Options = {}) {
-    this.state = STATE.NORMAL
     this.fileBaseNames = options.fileBaseNames || [/compiles/, /\/usr\/local/]
-    this.ignoreDuplicates = options.ignoreDuplicates
-    this.data = []
-    this.fileStack = []
-    this.currentFileList = this.rootFileList = []
-    this.openParens = 0
+    this.ignoreDuplicates = options.ignoreDuplicates;
     this.log = new LogText(text)
+  }
+  
+  parse() {
+    const handlers: LineHandler[] = [
+      {
+        test: () =>
+          this.currentLine[0] === '!' &&
+          this.currentLine !== '!  ==> Fatal error occurred, no output PDF file produced!',
+        action: () => {
+          this.state = STATE.ERROR;
+          this.currentError = {
+            line: null,
+            file: this.currentFilePath,
+            level: ErrorLevel.Error,
+            message: this.currentLine.slice(2),
+            content: '',
+            raw: this.currentLine + '\n',
+          };
+        },
+      },
+      {
+        test: () => FILE_LINE_ERROR_REGEX.test(this.currentLine),
+        action: () => {
+          this.state = STATE.ERROR;
+          this.parseFileLineError();
+        },
+      },
+      {
+        test: () => /^Runaway argument/.test(this.currentLine),
+        action: () => this.parseRunawayArgumentError(),
+      },
+      {
+        test: () => LATEX_WARNING_REGEX.test(this.currentLine),
+        action: () => this.parseSingleWarningLine(LATEX_WARNING_REGEX),
+      },
+      {
+        test: () => HBOX_WARNING_REGEX.test(this.currentLine),
+        action: () => this.parseHboxLine(),
+      },
+      {
+        test: () => PACKAGE_WARNING_REGEX.test(this.currentLine),
+        action: () => this.parseMultipleWarningLine(),
+      },
+    ];
+  
+    while (this.getNextLine()) {
+      if (this.state === STATE.NORMAL) {
+        let handled = false;
+        for (const { test, action } of handlers) {
+          if (test()) {
+            action();
+            handled = true;
+            break;
+          }
+        }
+        if (!handled) this.parseParensForFilenames();
+      }
+
+      if (this.state === STATE.ERROR) this.parseCurrentLineError();
+
+    }
+    return this.postProcess(this.data);
   }
   getNextLine() {
     const line = this.log.nextLine()
     if (typeof line ==="string")this.currentLine = line
     return line !== false;
   }
-  parse() {
-    while (this.getNextLine()) {
-      if (this.state === STATE.NORMAL) {
-        switch (true) {
-          case this.currentLineIsError():{
-            this.state = STATE.ERROR
-            this.currentError = {
-              line: null,
-              file: this.currentFilePath,
-              level: ErrorLevel.Error,
-              message: this.currentLine.slice(2),
-              content: '',
-              raw: this.currentLine + '\n',
-            }
-            break;
-          }
-          case this.currentLineIsFileLineError():{
-            this.state = STATE.ERROR
-            this.parseFileLineError()
-            break;
-          }
-          case !!this.currentLineIsRunawayArgument():
-            this.parseRunawayArgumentError()
-            break;
-          case this.currentLineIsWarning():
-            this.parseSingleWarningLine(this.latexWarningRegex)
-            break;
-          case this.currentLineIsHboxWarning():
-            this.parseHboxLine()
-            break;
-          case this.currentLineIsPackageWarning(): 
-            this.parseMultipleWarningLine()
-            break;
-          default:
-            this.parseParensForFilenames()
-          
-        }
-      }
-      if (this.state === STATE.ERROR) {
-        this.currentError.content += this.log
-          .linesUpToNextMatchingLine(/^l\.[0-9]+/)
-          .join('\n')
-        this.currentError.content += '\n'
-        this.currentError.content += this.log
-          .linesUpToNextWhitespaceLine(true)
-          .join('\n')
-        this.currentError.content += '\n'
-        this.currentError.content += this.log
-          .linesUpToNextWhitespaceLine(true)
-          .join('\n')
-        this.currentError.raw += this.currentError.content
-        const lineNo = this.currentError.raw.match(/l\.([0-9]+)/)
-        if (lineNo && this.currentError.line === null) {
-          this.currentError.line = parseInt(lineNo[1], 10)
-        }
-        this.data.push(this.currentError)
-        this.state = STATE.NORMAL
-      }
+
+  parseCurrentLineError(){
+    this.currentError.content+=this.log
+    .linesUpToNextMatchingLine(/^l\.[0-9]+/).join('\n')
+
+    this.currentError.cause=this.currentError.content?.split("\n").pop()?.replace(/^l\.[0-9]+/,'').trim()
+
+    this.finalizeCurrentError()
+
+    const lineNo = this.currentError.raw.match(/l\.([0-9]+)/)
+    if (lineNo && this.currentError.line === null) {
+      this.currentError.line = parseInt(lineNo[1], 10)
     }
-    return this.postProcess(this.data)
-  }
-
-  currentLineIsError() {
-    return (
-      this.currentLine[0] === '!' &&
-      this.currentLine !==
-        '!  ==> Fatal error occurred, no output PDF file produced!'
-    )
-  }
-
-  currentLineIsFileLineError() {
-    return FILE_LINE_ERROR_REGEX.test(this.currentLine)
-  }
-
-  currentLineIsRunawayArgument() {
-    return this.currentLine.match(/^Runaway argument/)
-  }
-
-  currentLineIsWarning() {
-    return !!this.currentLine.match(this.latexWarningRegex)
-  }
-
-  currentLineIsPackageWarning() {
-    return !!this.currentLine.match(this.packageWarningRegex)
-  }
-
-  currentLineIsHboxWarning() {
-    return !!this.currentLine.match(HBOX_WARNING_REGEX)
+    this.data.push(this.currentError)
+    this.state = STATE.NORMAL
   }
 
   parseFileLineError() {
-    const result = this.currentLine.match(FILE_LINE_ERROR_REGEX)
-    if(!result) throw new Error("Error parsing file line error")
+    const result = this.currentLine.match(FILE_LINE_ERROR_REGEX)!
     this.currentError = {
       line: parseInt(result[2]),
       file: result[1],
@@ -175,7 +164,7 @@ export default class LatexParser {
       raw: this.currentLine + '\n',
     }
   }
-
+  
   parseRunawayArgumentError() {
     this.currentError = {
       line: null,
@@ -183,16 +172,9 @@ export default class LatexParser {
       level: ErrorLevel.Error,
       message: this.currentLine,
       content: '',
-      raw: this.currentLine + '\n',
+      raw: this.currentLine,
     }
-    this.currentError.content += this.log
-      .linesUpToNextWhitespaceLine()
-      .join('\n')
-    this.currentError.content += '\n'
-    this.currentError.content += this.log
-      .linesUpToNextWhitespaceLine()
-      .join('\n')
-    this.currentError.raw += this.currentError.content
+    this.finalizeCurrentError()
     const lineNo = this.currentError.raw.match(/l\.([0-9]+)/)
     if (lineNo) {
       this.currentError.line = parseInt(lineNo[1], 10)
@@ -200,16 +182,23 @@ export default class LatexParser {
     return this.data.push(this.currentError)
   }
 
+  private finalizeCurrentError(){
+    this.currentError.content+="\n"+
+    this.log.linesUpToNextWhitespaceLine(true).join('\n')+
+    "\n"+
+    this.log.linesUpToNextWhitespaceLine(true).join('\n')
+    this.currentError.raw += this.currentError.content
+  }
+
   parseSingleWarningLine(prefixRegex: RegExp) {
     const warningMatch = this.currentLine.match(prefixRegex)
-    if (!warningMatch) {
-      return
-    }
+    if (!warningMatch) return;
+
     const warning = warningMatch[1]
     const lineMatch = warning.match(LINES_REGEX)
-    const line = lineMatch ? parseInt(lineMatch[1], 10) : null
+
     this.data.push({
-      line,
+      line: lineMatch ? parseInt(lineMatch[1], 10) : null,
       file: this.currentFilePath,
       level: ErrorLevel.Warning,
       message: warning,
@@ -218,22 +207,18 @@ export default class LatexParser {
   }
 
   parseMultipleWarningLine() {
-    // Some package warnings are multiple lines, let's parse the first line
-    let warningMatch = this.currentLine.match(this.packageWarningRegex)
-    // Something strange happened, return early
-    if (!warningMatch) {
-      throw new Error('Error parsing package warning somting strange happened');
-    }
+    let warningMatch:RegExpMatchArray |null = this.currentLine.match(PACKAGE_WARNING_REGEX)!
+
     const warningLines: Array<string|null> = [warningMatch[1]]
+
     let lineMatch = this.currentLine.match(LINES_REGEX)
     let line = lineMatch ? parseInt(lineMatch[1], 10) : null
-    const packageMatch = this.currentLine.match(this.packageRegex)
+
+    const packageMatch = this.currentLine.match(PACKAGE_REGEX)
     const packageName = packageMatch?.[1]
     // Regex to get rid of the unnecesary (packagename) prefix in most multi-line warnings
-    const prefixRegex = new RegExp(
-      '(?:\\(' + packageName + '\\))*[\\s]*(.*)',
-      'i'
-    )
+    const prefixRegex = new RegExp('(?:\\(' + packageName + '\\))*[\\s]*(.*)','i')
+
     // After every warning message there's a blank line, let's use it
     while (this.getNextLine()) {
       if (/^ *$/.test(this.currentLine)) { // Blank line detected
@@ -349,36 +334,40 @@ export default class LatexParser {
     return path
   }
 
-  postProcess(data: Array<CurrentError>) {
-    const all: CurrentError[] = []
+  postProcess(data: Array<CurrentError>): ProcessedLog {
     const errorsByLevel: Record<ErrorLevel, CurrentError[]>={
       error: [],
       warning: [],
       typesetting: [],
     }
-    const hashes = new Set()
-
-    const hashEntry = (entry: CurrentError) => entry.raw
-
-    data.forEach(item => {
-      const hash = hashEntry(item)
-
-      if (this.ignoreDuplicates && hashes.has(hash)) {
-        return
-      }
-      errorsByLevel[item.level]?.push(item)
-      all.push(item)
-      hashes.add(hash)
-    })
+    if(this.ignoreDuplicates) {
+      data = [...new Map(data.map(item => [item.raw, item])).values()]
+    }
+    data.forEach(item => errorsByLevel[item.level]?.push(item))
     return {
       errors: errorsByLevel[ErrorLevel.Error],
       warnings: errorsByLevel[ErrorLevel.Warning],
       typesetting: errorsByLevel[ErrorLevel.Typesetting],
-      all,
+      all: data,
       files: this.rootFileList,
+      raw: this.log.text,
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class LogText {
     row: number;
@@ -430,15 +419,19 @@ class LogText {
     return this.linesUpToNextMatchingLine(/^ *$/, stopAtError)
   }
 
+  /**
+   * Reads lines from the current position in the log until a line matching the specified regular expression is found
+   * or an optional error condition is met.
+   *
+   * @param match - A regular expression to match the target line. The method stops reading once a line matches this pattern.
+   * @param stopAtError - (optional) If true, the method stops reading when it encounters an error line (lines starting with "! ").
+   * @returns the lines read until stoped.
+   */
   linesUpToNextMatchingLine(match: RegExp, stopAtError?: boolean) {
     const lines = []
-
     while (true) {
       const nextLine = this.nextLine()
-
-      if (nextLine === false) {
-        break
-      }
+      if (nextLine === false) break;
 
       if (stopAtError && nextLine.match(/^! /)) {
         this.rewindLine()

@@ -75,11 +75,20 @@ export class MosheMathSettingTab extends PluginSettingTab {
 			  this.plugin.saveSettings();
 			});
 		});
-		
+
+		staticMosheMathTypingApi!.addToggleSetting(
+			containerEl,this.plugin,
+			(value: boolean)=>{this.plugin.settings.saveLogs=value,this.plugin.saveSettings()},
+			{
+				name: "Save latex logs",
+				description: "Whether to save the latex render logs (memory only not physical)",
+				defValue: this.plugin.settings.saveLogs
+			}
+		)
 		this.addButtonSetting(
 			containerEl,
 			() =>{
-				this.plugin.swiftlatexRender.removeAllCachedSvgs();
+				this.plugin.swiftlatexRender.cache.removeAllCachedSvgs();
 				throw new Notice("Cleared cached SVGs");
 			},
 			{
