@@ -1,5 +1,4 @@
-
-import { MarkdownPostProcessorContext, TFile, Modal, App, Menu,  Notice, MarkdownSectionInformation,} from 'obsidian';
+import { MarkdownPostProcessorContext, TFile, Modal, App, Menu,  Notice, MarkdownSectionInformation, SectionCache, MarkdownView, Editor,} from 'obsidian';
 import { Md5 } from 'ts-md5';
 import * as fs from 'fs';
 import * as temp from 'temp';
@@ -10,12 +9,18 @@ import { StringMap } from 'src/settings/settings.js';
 import async from 'async';
 import { LatexAbstractSyntaxTree } from './parse/parse';
 import { pdfToHtml, pdfToSVG } from './pdfToHtml/pdfToHtml';
-import {createErrorDisplay, errorDiv} from './log-parser/HumanReadableLogs';
+import parseLatexLog, {createErrorDisplay, errorDiv} from './log-parser/HumanReadableLogs';
 import { String as StringClass } from './parse/typs/ast-types-post';
 import { VirtualFileSystem } from './VirtualFileSystem';
-import { findRelativeFile, getLatexCodeBlocksFromString, getLatexHashesFromFile, getLatexSourceFromHash } from './latexSourceFromFile';
-import { getFileSections, getSectionCacheOfString } from './sectionCache';
+import { findRelativeFile, getLatexCodeBlocksFromString, } from './latexSourceFromFile';
+import { getFileSections,} from './sectionCache';
 import { SvgContextMenu } from './svgContextMenu';
+import { cacheFileFormat, SvgCache } from './svgCache';
+import { createTransactionLogger } from './transactionLogger';
+import { Extension, StateEffect, StateField, Transaction } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { getSectionFromMatching, getSectionFromTransaction } from './findSection';
+import { ProcessedLog } from './log-parser/latex-log-parser';
 
 export const waitFor = async (condFunc: () => boolean) => {
 	return new Promise<void>((resolve) => {
@@ -34,28 +39,36 @@ export const waitFor = async (condFunc: () => boolean) => {
 
 export const latexCodeBlockNamesRegex = /(`|~){3,} *(latex|tikz)/;
 type Task = { source: string, el: HTMLElement,md5Hash:string, sourcePath: string , blockId: string,process: boolean};
-const cacheFileFormat="svg"
+type ProcessableTask = Partial<Omit<Task, "source" | "sourcePath"|"el">> & Pick<Task, "source" | "sourcePath"|"el">;
 
-export class PackageCache {
-	packageCacheFolderPath: string;
-}
-export class SvgCache {
-	private plugin: Moshe;
-	constructor() {
-		
+export function clearFolder(folderPath: string){
+	if (fs.existsSync(folderPath)) {
+		const packageFiles = fs.readdirSync(folderPath);
+		for (const file of packageFiles) {
+			const fullPath = path.join(folderPath, file);
+			try {
+				fs.rmSync(fullPath, { recursive: true, force: true });
+			} catch (err) {
+				console.error(`Failed to remove file ${fullPath}:`, err);
+			}
+		}
 	}
-	
 }
+
+
 export class SwiftlatexRender {
 	plugin: Moshe;
 	cacheFolderPath: string;
 	packageCacheFolderPath: string;
 	virtualFileSystem: VirtualFileSystem=new VirtualFileSystem();
 	pdfEngine: PdfTeXEngine;
-	cache: Map<string, Set<string>>;
+	cache: SvgCache;
+	private logCache: Map<string, ProcessedLog>|undefined;
 	queue: async.QueueObject<Task>;
+	logger = createTransactionLogger();
 	async onload(plugin: Moshe) {
 		this.plugin = plugin;
+		this.bindTransactionLogger();
 		this.validateCatchDirectory();
 		await this.loadCache();
 		// initialize the latex compiler
@@ -66,12 +79,73 @@ export class SwiftlatexRender {
 		await this.pdfEngine.setTexliveEndpoint(this.plugin.settings.package_url);
 		this.configQueue();
 		this.plugin.addRibbonIcon("dice", "Moshe Math", () => {
-			new svgDisplayModule(this.plugin.app, this.cacheFolderPath,this.cache).open();
+			new svgDisplayModule(this.plugin.app, this.cacheFolderPath,this.cache.getCache()).open();
 		})
+	}
+	private bindTransactionLogger() {
+		const markdownView = this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
+		if (!markdownView) return;
+		const editor = markdownView.editor;
+		const cmView = (editor as any).cm as EditorView;
+
+		cmView.dispatch({
+			effects: StateEffect.appendConfig.of([this.logger.extension])
+		});
 	}
 	private initializePDfEngine(){
 		this.pdfEngine = new PdfTeXEngine();
 		this.virtualFileSystem.setPdfEngine(this.pdfEngine);
+	}
+	universalCodeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+		const isLangTikz = el.classList.contains("block-language-tikz");
+		el.classList.remove("block-language-tikz");
+		el.classList.remove("block-language-latex");
+		el.classList.add("block-language-latexsvg")
+		const md5Hash = hashLatexSource(source);
+		addMenu(this.plugin,el,ctx.sourcePath)
+		
+		// PDF file has already been cached
+		// Could have a case where pdfCache has the key but the cached file has been deleted
+		const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${cacheFileFormat}`);
+		if (this.cache.hasFile(md5Hash,dataPath)) {
+			const data = fs.readFileSync(dataPath, 'utf8');
+			el.innerHTML = data
+		}
+		else {
+			//Reliable enough for repeated entries
+			this.ensureContextSectionInfo(source, el, ctx).then((sectionInfo) => {
+				source = sectionInfo.source || source;
+				const blockId = getBlockId(ctx.sourcePath,sectionInfo.lineStart)
+				this.queue.remove(node => node.data.blockId === blockId);
+				el.appendChild(createWaitingCountdown(this.queue.length()));
+				this.queue.push({ source, el, md5Hash, sourcePath: ctx.sourcePath, blockId, process:isLangTikz });
+
+			}).catch((err) => this.handleError(el, err as string,{hash: md5Hash}));
+		}
+	}
+	/**
+	* Attempts to locate the Markdown section that corresponds to a rendered code block,
+	* even when section info is unavailable (e.g., virtual rendering or nested codeBlock environments).
+	*/
+	private async ensureContextSectionInfo(
+		source: string,
+		el: HTMLElement,
+		ctx: MarkdownPostProcessorContext
+	): Promise<MarkdownSectionInformation & { source?: string }> {
+		const sectionFromContext = ctx.getSectionInfo(el);
+		if (sectionFromContext) return sectionFromContext;
+
+		const {file,sections} = await getFileSectionsFromPath(ctx.sourcePath, this.plugin.app);
+
+		const editor = this.plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+		const fileText = editor?.getValue() ?? await this.plugin.app.vault.cachedRead(file);
+		const sectionFromTransaction = getSectionFromTransaction(sections, fileText, this.logger, editor);
+		if (sectionFromTransaction) return sectionFromTransaction;
+
+		const sectionFromMatching = getSectionFromMatching(sections, fileText, source);
+		if (sectionFromMatching) return sectionFromMatching;
+
+		throw new Error("Section cache not found");
 	}
 	async getFileContent(file: TFile,remainingPath?: string): Promise<string> {
 		const fileContent = await this.plugin.app.vault.read(file);
@@ -89,70 +163,59 @@ export class SwiftlatexRender {
 		if(!target)err();
 		return target!.content.split("\n").slice(1,-1).join("\n");
 	}
+	async processTask(task: ProcessableTask): Promise<void> {
+		const startTime = performance.now();
+		try {
+			// ── AST Parsing ──────────────────────────────
+			const startAstTime = performance.now();
+			const ast = LatexAbstractSyntaxTree.parse(task.source);
+	
+			// ── Input File Macros ────────────────────────
+			const inputFilesMacros = ast.usdInputFiles();
+	
+			for (const macro of inputFilesMacros) {
+				const args = macro.args;
+				if (!args || args.length !== 1) continue;
+	
+				const filePath = args[0].content.map(node => node.toString()).join("");
+				const dir = findRelativeFile(filePath, this.plugin.app.vault.getAbstractFileByPath(task.sourcePath));
+				const name = (dir.remainingPath || dir.file.basename) + ".tex";
+	
+				args[0].content = [new StringClass(name)];
+	
+				const content = await this.getFileContent(dir.file, dir.remainingPath);
+	
+				this.virtualFileSystem.addVirtualFileSystemFile({ name, content });
+			}
+	
+			// ── Update AST with virtual files ────────────
+			this.virtualFileSystem.getAutoUseFileNames().forEach((name) => {
+				ast.addInputFileToPramble(name);
+			});
+	
+			// ── Final task update ────────────────────────
+			task.source = ast.toString();
+			console.log("task.source", this.virtualFileSystem, ast, task.source.split('\n'));
+		}
+		catch (e) {
+			const err = "Error processing task: " + e;
+			this.handleError(task.el, err,{hash: task.md5Hash});
+		}
+	
+		const totalDuration = performance.now() - startTime;
+		console.log(`[TIMER] Total processing time: ${totalDuration.toFixed(2)} ms`);
+	};
+	
 	configQueue() {
-		const processTask = async (task: Task): Promise<void> => {
-			const startTime = performance.now();
-			try {
-				// ── AST Parsing ──────────────────────────────
-				const startAstTime = performance.now();
-				const ast = LatexAbstractSyntaxTree.parse(task.source);
-				const astDuration = performance.now() - startAstTime;
-				console.log(`[TIMER] AST parsing: ${astDuration.toFixed(2)} ms`);
-		
-				// ── Input File Macros ────────────────────────
-				const inputFilesMacros = ast.usdInputFiles();
-		
-				const startInputFilesTime = performance.now();
-				for (const macro of inputFilesMacros) {
-					const args = macro.args;
-					if (!args || args.length !== 1) continue;
-		
-					const filePath = args[0].content.map(node => node.toString()).join("");
-					const dir = findRelativeFile(filePath, this.plugin.app.vault.getAbstractFileByPath(task.sourcePath));
-					const name = (dir.remainingPath || dir.file.basename) + ".tex";
-		
-					args[0].content = [new StringClass(name)];
-		
-					const startGetFile = performance.now();
-					const content = await this.getFileContent(dir.file, dir.remainingPath);
-					const fileLoadDuration = performance.now() - startGetFile;
-					console.log(`[TIMER] Loaded file '${name}' in ${fileLoadDuration.toFixed(2)} ms`);
-		
-					this.virtualFileSystem.addVirtualFileSystemFile({ name, content });
-				}
-				const inputFilesDuration = performance.now() - startInputFilesTime;
-				console.log(`[TIMER] Input file processing total: ${inputFilesDuration.toFixed(2)} ms`);
-		
-				// ── Update AST with virtual files ────────────
-				const startPreambleUpdateTime = performance.now();
-				this.virtualFileSystem.getAutoUseFileNames().forEach((name) => {
-					ast.addInputFileToPramble(name);
-				});
-				const preambleUpdateDuration = performance.now() - startPreambleUpdateTime;
-				console.log(`[TIMER] Preamble update: ${preambleUpdateDuration.toFixed(2)} ms`);
-		
-				// ── Final task update ────────────────────────
-				task.source = ast.toString();
-				console.log("task.source", this.virtualFileSystem, ast, task.source.split('\n'));
-			}
-			catch (e) {
-				const err = "Error processing task: " + e;
-				this.handleError(task.el, err);
-			}
-		
-			const totalDuration = performance.now() - startTime;
-			console.log(`[TIMER] Total processing time: ${totalDuration.toFixed(2)} ms`);
-		};
-		
 		this.queue = async.queue(async (task, done) => {
 			try {
 		  
-			  if (task.process) await processTask(task);
+			  if (task.process) await this.processTask(task);
 		  
 			  await this.renderLatexToElement(task.source, task.el, task.md5Hash, task.sourcePath);
 			} catch (err) {
 			  console.error("Error rendering/compiling:", typeof err === "string" ? [err.split("\n")] : err);
-			  this.handleError(task.el, "Render error: " + err);
+			  //this.handleError(task.el, "Render error: " + err);
 			} finally {
 			  setTimeout(() => {
 				updateQueueCountdown(this.queue);
@@ -166,27 +229,20 @@ export class SwiftlatexRender {
 		const cacheFolderParentPath = path.join(this.plugin.getVaultPath(), this.plugin.app.vault.configDir, "swiftlatex-render-cache");
 		this.packageCacheFolderPath = path.join(cacheFolderParentPath, "package-cache");
 		this.cacheFolderPath = path.join(cacheFolderParentPath, "pdf-cache");
-
-		//if swiftlatex-render-cache folder does not exist, create it
-		if (!fs.existsSync(cacheFolderParentPath)) {
-			fs.mkdirSync(cacheFolderParentPath);
-		}
-		if (!fs.existsSync(this.packageCacheFolderPath)) {
-			fs.mkdirSync(this.packageCacheFolderPath);
-		}
-		if (!fs.existsSync(this.cacheFolderPath)) {
-			fs.mkdirSync(this.cacheFolderPath);
-			this.cache = new Map();
+		for (const path of [cacheFolderParentPath,this.cacheFolderPath, this.packageCacheFolderPath]) {
+			if (!fs.existsSync(path)) {
+				fs.mkdirSync(path, { recursive: true });
+			}
 		}
 	}
-	
 
 	private async loadCache() {
-		this.cache = new Map(this.plugin.settings.cache);
+		const cache = new Map(this.plugin.settings.cache);
 		// For some reason `this.cache` at this point is actually `Map<string, Array<string>>`
-		for (const [k, v] of this.cache) {
-			this.cache.set(k, new Set(v))
+		for (const [k, v] of cache) {
+			cache.set(k, new Set(v))
 		}
+		this.cache = new SvgCache(this.plugin,cache,this.cacheFolderPath);
 	}
 
 	private async loadPackageCache() {
@@ -227,86 +283,38 @@ export class SwiftlatexRender {
 	async onunload() {
 		await this.pdfEngine.flushWorkCache();
 		this.pdfEngine.closeWorker();
-		await this.cleanUpCache();
 	}
 	private async unloadCache() {
 		await this.pdfEngine.flushCache();
 		fs.rmdirSync(this.cacheFolderPath, { recursive: true });
 	}
-	
-	universalCodeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
-		const isLangTikz = el.classList.contains("block-language-tikz");
-		el.classList.remove("block-language-tikz");
-		el.classList.remove("block-language-latex");
-		el.classList.add("block-language-latexsvg")
-		const md5Hash = hashLatexSource(source);
-		addMenu(this.plugin,el,ctx.sourcePath)
-		
-		// PDF file has already been cached
-		// Could have a case where pdfCache has the key but the cached file has been deleted
-		const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${cacheFileFormat}`);
-		if (this.cache.has(md5Hash) && fs.existsSync(dataPath)) {
-			const data = fs.readFileSync(dataPath, 'utf8');
-			el.innerHTML = data
-		}
-		else {
-			//Reliable enough for repeated entries
-			this.ensureContextSectionInfo(source, el, ctx).then((sectionInfo) => {
-				const blockId = getBlockId(ctx.sourcePath,sectionInfo.lineStart)
-				this.queue.remove(node => node.data.blockId === blockId);
-				el.appendChild(createWaitingCountdown(this.queue.length()));
-				this.queue.push({ source, el, md5Hash, sourcePath: ctx.sourcePath, blockId, process:isLangTikz });
 
-			}).catch((err) => this.handleError(el, err as string));
-		}
-	}
-	/**
-	 * when programmatically parsing nested code blocks or simulating a rendering environment the section info is not available
-	 * so we rebuild it here
-	 * **If you encounter problems, check how the document is rendered in a reading view as the sections are based off that**
-	 * @param ctx 
-	 * @param el
-	 */
-	private async ensureContextSectionInfo(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext):Promise<MarkdownSectionInformation> {
-		const sectionInfo = ctx.getSectionInfo(el);
-		if (sectionInfo) return sectionInfo;
-
-		const file = this.plugin.app.vault.getAbstractFileByPath(ctx.sourcePath) as TFile;
-		const sections=await getFileSections(file,this.plugin.app,true);
-		if(!sections)throw new Error("No sections found in metadata");
-		const fileText = await this.plugin.app.vault.read(file);
-		const sectionCache=getSectionCacheOfString(sections,fileText,source);
-		if(!sectionCache)throw new Error("Section cache not found");
-		return {
-			lineStart: sectionCache.position.start.line,
-			lineEnd: sectionCache.position.end.line,
-			text: fileText,
-		}
-	}
-	private handleError(el: HTMLElement, err: string,parseErr: boolean=false): void {
+	private handleError(el: HTMLElement, err: string,options: {parseErr?:boolean,hash?:string,throw?: boolean}={}): void {
 		el.innerHTML = "";
-		const child = parseErr? createErrorDisplay(err) : errorDiv({title: err});
+		let child: HTMLElement;
+		if(options.parseErr){
+			const processedError:ProcessedLog = (options.hash&&this.getLog(options.hash))||parseLatexLog(err);
+			child = createErrorDisplay(processedError);
+		} else child = errorDiv({title: err});
+		if(options.hash) child.id = options.hash;
 		el.appendChild(child);
-		throw err;
+		if(options.throw) throw err;
 	}
 	private async renderLatexToElement(source: string, el: HTMLElement,md5Hash: string, sourcePath: string): Promise<void> {
 		try {
 			const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${cacheFileFormat}`);
-			const result = await this.renderLatexToPDF(source);
+			const result = await this.renderLatexToPDF(source,md5Hash);
 			el.innerHTML = "";
 			await this.translatePDF(result.pdf, el,md5Hash);
 			await fs.promises.writeFile(dataPath, el.innerHTML, "utf8");
-			this.addFileToCache(md5Hash, sourcePath);
+			this.cache.addFile(md5Hash, sourcePath);
 		} catch (err) {
-			this.handleError(el, err as string,true);
+			this.handleError(el, err as string,{parseErr: true,hash: md5Hash});
 		} finally {
 			await waitFor(() => this.pdfEngine.isReady());
-			await this.cleanUpCache();
-			await this.removeUntraceablePDFs();
-			await this.removeHashsWithNoCorrespondingPDF()
+			await this.cache.afterRenderCleanUp();
 		}
 	}
-	  
 	
 	private async translatePDF(pdfData: Buffer<ArrayBufferLike>, el: HTMLElement,hash: string, outputSVG = true): Promise<void> {
 		return new Promise<void>((resolve) => {
@@ -321,10 +329,9 @@ export class SwiftlatexRender {
 		});
 	}
 
-	private renderLatexToPDF(source: string): Promise<CompileResult> {
+	renderLatexToPDF(source: string,md5Hash: string): Promise<CompileResult> {
 		return new Promise(async (resolve, reject) => {
 			temp.mkdir("obsidian-swiftlatex-renderer", async (err: any, dirPath: any) => {
-				
 				try {
 					await waitFor(() => this.pdfEngine.isReady());
 				} catch (err) {
@@ -336,6 +343,7 @@ export class SwiftlatexRender {
 				await this.pdfEngine.writeMemFSFile("main.tex", source);
 				await this.pdfEngine.setEngineMainFile("main.tex");
 				await this.pdfEngine.compileLaTeX().then(async (result: CompileResult) => {
+					this.addLog(result.log,md5Hash);
 					if (result.status != 0) {
 						// manage latex errors
 						reject(result.log);
@@ -371,169 +379,30 @@ export class SwiftlatexRender {
 		}
 	}
 	
-
-	private async saveCache() {
-		let temp = new Map();
-		for (const [k, v] of this.cache) {
-			temp.set(k, [...v])
-		}
-		this.plugin.settings.cache = [...temp];
-		await this.plugin.saveSettings();
-	}
-
-	private addFileToCache(hash: string, file_path: string) {
-		if (!this.cache.has(hash)) {
-			this.cache.set(hash, new Set());
-		}
-		this.cache.get(hash)!.add(file_path);
-		this.saveCache();
-	}
-
-	/**
-	 * Removes PDFS that don't have a reference to them in the catch, Aka will never be used as there will never be reached
-	 */
-	private async removeUntraceablePDFs(){
-		const cacheFolderfiles = fs.readdirSync(this.cacheFolderPath);
-		const cacheFiles = [...this.cache.keys()];
-		const filesToRemove = cacheFolderfiles.filter(file => !cacheFiles.includes(file.split(".")[0]));
-		for (const file of filesToRemove) {
-			await this.removePDFFromCache(file);
-		}
-	}
-	private async removeHashsWithNoCorrespondingPDF(){
-		const cacheFolderfiles = fs.readdirSync(this.cacheFolderPath).map(file => file.split(".")[0]);
-		const cacheFiles = [...this.cache.keys()];
-		const filesToRemove = cacheFiles.filter(file => !cacheFolderfiles.includes(file));
-		for (const file of filesToRemove) {
-			await this.removePDFFromCache(file);
-		}
-	}
-	/**
-	 * Remove all unused cachet svgs from the cache and file system.
-	*/
-	private getFilePathsFromCache(): string[] {
-		return [...new Set([...this.cache.values()].flatMap(set => [...set]))];
-	}
-	/**
-	 * Iterates over the filed paths in the catch
-	 * and removes the cache entries for the files that do not exist.
-	 * Also removes the ones that do not exist in the vault.
-	 */
-	private async cleanUpCache(): Promise<void> {
-	
-		const filePathsToRemove: string[] = [];
-		// Collect file paths safely first
-		for (const filePath of this.getFilePathsFromCache()) {
-			const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
-			if (!file) {
-				filePathsToRemove.push(filePath);
-			} else if (file instanceof TFile) {
-				try {
-					await this.removeUnusedCachesForFile(file);
-				} catch (err) {
-					console.error(`Error removing cache for file ${filePath}:`, err);
-				}
-			}
-		}
-		for (const filePath of filePathsToRemove) {
-			this.removeFileFromCache(filePath);
-		}
-		await this.plugin.saveSettings();
-	}
-	
-
-	private async removeUnusedCachesForFile(file: TFile) {
-		const hashes_in_file = await getLatexHashesFromFile(file,this.plugin.app);
-		const hashes_in_cache = this.getLatexHashesFromCacheForFile(file);
-		for (const hash of hashes_in_cache) {
-			if (!hashes_in_file.contains(hash)) {
-				this.cache.get(hash)?.delete(file.path);
-				if (this.cache.get(hash)?.size == 0) {
-					await this.removePDFFromCache(hash);
-				}
-			}
-		}
-	}
-
-	async removePDFFromCache(key: string) {
-		if(this.cache.has(key))
-			this.cache.delete(key);
-		const filePath=path.join(this.cacheFolderPath, `${key}.${cacheFileFormat}`);
-		if (fs.existsSync(filePath)) {
-			fs.rmSync(filePath);
-		}
-		await this.saveCache();
-	}
-
-	private async removeFileFromCache(file_path: string) {
-		for (const hash of this.cache.keys()) {
-			this.cache.get(hash)?.delete(file_path);
-			if (this.cache.get(hash)?.size == 0) {
-				this.removePDFFromCache(hash);
-			}
-		}
-		await this.saveCache();
-	}
-
-	private getLatexHashesFromCacheForFile(file: TFile) {
-		const hashes: string[] = [];
-		const path = file.path;
-		for (const [k, v] of this.cache.entries()) {
-			if (v.has(path)) {
-				hashes.push(k);
-			}
-		}
-		return hashes;
-	}
-
-	/**
-	 * Remove all cached SVG files from the file system and update the settings.
-	 */
-	public removeAllCachedSvgs(): void {
-		if (fs.existsSync(this.cacheFolderPath)) {
-			const files = fs.readdirSync(this.cacheFolderPath);
-			// Loop through each file and remove if it has a .svg extension
-			for (const file of files) {
-				if (file.endsWith('.svg')) {
-					const fullPath = path.join(this.cacheFolderPath, file);
-					try {
-						fs.rmSync(fullPath);
-						console.log(`Removed cached SVG: ${fullPath}`);
-					} catch (err) {
-						console.error(`Failed to remove SVG file ${fullPath}:`, err);
-					}
-				}
-			}
-		}
-
-		for (const [hash, fileSet] of this.cache.entries()) {
-			if(this.cache.delete(hash))
-				console.log(`Removed cache entry for ${hash}`);
-		}
-		this.saveCache();
-	}
 	
 	/**
 	 * Remove all cached package files from the file system and update the settings.
 	 */
 	public removeAllCachedPackages(): void {
-		// Remove all files in the package cache folder
-		if (fs.existsSync(this.packageCacheFolderPath)) {
-			const packageFiles = fs.readdirSync(this.packageCacheFolderPath);
-			for (const file of packageFiles) {
-				const fullPath = path.join(this.packageCacheFolderPath, file);
-				try {
-					fs.rmSync(fullPath);
-					console.log(`Removed cached package file: ${fullPath}`);
-				} catch (err) {
-					console.error(`Failed to remove package file ${fullPath}:`, err);
-				}
-			}
-		}
+		clearFolder(this.packageCacheFolderPath);
 		this.plugin.settings.packageCache=[{}, {}, {}, {}];
 		this.plugin.saveSettings().then(() => {
 			console.log("Package cache settings updated.");
 		});
+	}
+	addLog(log: ProcessedLog|string,hash: string): void {
+		if (!this.plugin.settings.saveLogs) return this.logCache=undefined;
+		if (!this.logCache) this.logCache = new Map();
+		if (typeof log === "string") log = parseLatexLog(log);
+		this.logCache.set(hash, log);
+	}
+	getLog(hash: string): ProcessedLog | undefined {
+		if (!this.plugin.settings.saveLogs||!this.logCache) return undefined;
+		return this.logCache.get(hash);
+	}
+	removeLog(log: ProcessedLog,hash: string): void {
+		if (!this.plugin.settings.saveLogs||!this.logCache) return this.logCache=undefined;
+		this.logCache.delete(hash);
 	}
 }
 
@@ -577,7 +446,13 @@ function getNewPackageFileNames(oldCacheData: StringMap, newCacheData: StringMap
 
 
 
-
+export async function getFileSectionsFromPath(path: string, app: App) {
+	const file = app.vault.getAbstractFileByPath(path) as TFile;
+	//we cant use the file cache
+	const sections = await getFileSections(file, app, true);
+	if (!sections) throw new Error("No sections found in metadata");
+	return {file,sections};
+}
 
 
 
@@ -589,14 +464,6 @@ export function addMenu(plugin: Moshe,el: HTMLElement,filePath: string) {
 		menu.open(event)
 	});
 }
-
-
-
-
-
-
-
-
 
 
 
@@ -658,9 +525,6 @@ class svgDisplayModule extends Modal {
 		}
 	}
 }
-
-
-
 
 export function createWaitingCountdown(index: number){
 	const parentContainer = Object.assign(document.createElement("div"), { 

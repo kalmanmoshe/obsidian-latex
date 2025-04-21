@@ -1,9 +1,12 @@
-import { Menu, Notice, TFile } from "obsidian";
+import { MarkdownView, Menu, Notice, TFile } from "obsidian";
 import { LatexAbstractSyntaxTree } from "./parse/parse";
 import Moshe from "src/main";
 import { getLatexSourceFromHash } from "./latexSourceFromFile";
 import { getFileSections, getSectionCacheOfString } from "./sectionCache";
-import { addMenu, createWaitingCountdown, getBlockId } from "./main";
+import { addMenu, createWaitingCountdown, getBlockId, getFileSectionsFromPath, hashLatexSource, latexCodeBlockNamesRegex } from "./main";
+import parseLatexLog from "./log-parser/HumanReadableLogs";
+import { CompileResult } from "./PdfTeXEngine";
+import { getSectionFromMatching } from "./findSection";
 /**add:
  * - Reveal in file explorer
  * - show log
@@ -12,37 +15,43 @@ import { addMenu, createWaitingCountdown, getBlockId } from "./main";
  */
 export class SvgContextMenu extends Menu {
 	plugin: Moshe;
-	triggeringElement: SVGElement;
+	triggeringElement: HTMLElement|SVGElement;
 	sourcePath: string;
 	isError: boolean;
 	source: string;
+	private sourceAssignmentPromise: Promise<boolean> | null = null;
 	constructor(plugin: Moshe,trigeringElement: HTMLElement,sourcePath: string) {
 		super();
     	this.plugin = plugin;
 		const el=this.insureIsSVG(trigeringElement);
-		if(!el&&!this.isError)
-			console.error("No svg element found in the hierarchy")
+		if(!el)
+			console.error("No element found in the hierarchy")
 		else if(el)
 			this.triggeringElement = el;
 		this.sourcePath = sourcePath;
 		this.addDisplayItems();
 	}
-	private insureIsSVG(el: HTMLElement): SVGElement|null {
-		if (el instanceof SVGElement) {
-			return el;
+	private insureIsSVG(el: HTMLElement) {
+		const isSvgContainer = (el: HTMLElement) => el.classList.contains("block-language-latexsvg");
+		// Climb up the DOM until we find a valid container or reach the top
+		while (el && (!el.parentElement || !isSvgContainer(el)) && 
+			   !Array.from(el.children).some(child => isSvgContainer(child as HTMLElement))) {
+			el = el.parentElement!;
 		}
-		if(el.classList.contains("moshe-swift-latex-error-cause")||el.classList.contains("moshe-swift-latex-error-container")){
-			this.isError=true;
-			return null;
+		if (!isSvgContainer(el) && el) {
+			const childContainer = Array.from(el.children).find(child =>
+				isSvgContainer(child as HTMLElement)
+			) as HTMLElement | undefined;
+			if (childContainer) el = childContainer;
 		}
-		for (const child of Array.from(el.children)) {
-			const svg = this.insureIsSVG(child as HTMLElement);
-			if (svg) return svg;
-		}
-		return null;
+		const svg = Array.from(el.children).find(child => child instanceof SVGElement) as SVGElement | undefined;
+		this.isError = !svg;
+		return svg ?? Array.from(el.children).find(child =>child.classList.contains("moshe-swift-latex-error-container")&&child instanceof HTMLElement)as HTMLElement?? null;
 	}
+	
 	private addDisplayItems(){
-		if(this.isError)return;
+		
+		if(!this.isError)
 		this.addItem((item) => {
 			item.setTitle("Copy SVG");
 			item.setIcon("copy");
@@ -63,6 +72,7 @@ export class SvgContextMenu extends Menu {
 				await navigator.clipboard.writeText(source);
 			});
 		});
+		if(!this.isError)
 		this.addItem((item) => {
 			item.setTitle("properties");
 			item.setIcon("settings");
@@ -70,26 +80,80 @@ export class SvgContextMenu extends Menu {
 				console.log("properties")
 			});
 		});
+
 		this.addItem((item) => {
 			item.setTitle("remove & re-render");
 			item.setIcon("trash");
 			item.onClick(async () => await this.removeAndReRender());
 		});
+		this.addItem((item) => {
+			item.setTitle("Show logs");
+			item.setIcon("info");
+			item.onClick(async () => {
+				this.showLogs();
+			});
+		});
+	}
+	private codeBlockLanguage(){
+		if (!this.source) return undefined;
 
 	}
+	private async showLogs() {
+		const hash = this.getHash();
+		this.assignLatexSource();
+		let log = this.plugin.swiftlatexRender.getLog(hash);
+		if (!log) {
+			let cause = "This may be because ";
+			if (!this.plugin.settings.saveLogs) {
+				cause += "log saving is disabled in the settings.";
+			} else {
+				cause = "";
+			}
+			new Notice(
+				"No logs were found for this SVG element.\n" +
+				(cause ? cause + "\n" : "") +
+				"Re-rendering the SVG to generate logs. This may take a moment..."
+			);
+			await this.assignLatexSource();
+			const {file,sections} = await getFileSectionsFromPath(this.sourcePath, this.plugin.app);
+			const editor = this.plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+			const fileText = editor?.getValue() ?? await this.plugin.app.vault.cachedRead(file);
+			const sectionFromMatching = getSectionFromMatching(sections, fileText, this.source);
+			if (!sectionFromMatching) throw new Error("No section found for this source");
+			const shouldProcess = fileText.split("\n")[sectionFromMatching.lineStart].match(latexCodeBlockNamesRegex)?.[2]==="tikz"
+			const el = document.createElement("div");
+			const task = {md5Hash: hash, source: this.source, el: el, sourcePath: this.sourcePath}
+			if(shouldProcess){
+				this.plugin.swiftlatexRender.processTask(task);
+			}
+			try{
+				const newCompile = await this.plugin.swiftlatexRender.renderLatexToPDF(task.source,task.md5Hash);
+				log = parseLatexLog(newCompile.log);
+			}catch(err){
+				log= parseLatexLog(err);
+			}
+		}
+	
+		console.log("log", log);
+	}
+	
 	private getHash(){
-		if(this.isError)return null;
 		const hash = this.triggeringElement.id;
-		if (hash===undefined) throw new Error("No hash found for SVG element got: "+hash);
+		if (hash===undefined) throw new Error("No hash found for SVG element");
 		return hash;
 	}
-	private async assignLatexSource(){
-		if(this.source!==undefined)return true ;
-		const file=await this.getFile();
-		const hash=this.getHash();
-		if(!hash)return false;
-		this.source = await getLatexSourceFromHash(hash,this.plugin,file);
-		return true;
+	assignLatexSource(): Promise<boolean> {
+		if (this.source !== undefined) return Promise.resolve(true);
+		if (!this.sourceAssignmentPromise) {
+			this.sourceAssignmentPromise = (async () => {
+				const file = await this.getFile();
+				const hash = this.getHash();
+				if (!hash) return false;
+				this.source = await getLatexSourceFromHash(hash, this.plugin, file);
+				return true;
+			})();
+		}
+		return this.sourceAssignmentPromise;
 	}
 	private async getFile(){
 		const file = this.plugin.app.vault.getAbstractFileByPath(this.sourcePath);
@@ -97,21 +161,22 @@ export class SvgContextMenu extends Menu {
 		if(!(file instanceof TFile))throw new Error("File is not a TFile");
 		return file;
 	}
+	/**
+	 * Can't be saved as contains dynamic content.
+	 */
+	
 	private async removeAndReRender(){
-		if(this.isError){
-			new Notice("this is in err message the PDF never existed in the first place");
-			return;
+		let hash=this.getHash()
+		if(!this.isError&&hash){
+			await this.plugin.swiftlatexRender.cache.removePDFFromCache(hash);
 		}
-		this.assignLatexSource()
-		const hash=this.getHash();if(!hash)return;
 
-		await this.plugin.swiftlatexRender.removePDFFromCache(hash);
 		const parentEl=this.triggeringElement.parentNode;
 		if(!parentEl)throw new Error("No parent element found for SVG element");
 		if(!(parentEl instanceof HTMLElement))throw new Error("Parent element is not an HTMLElement");
 		parentEl.removeChild(this.triggeringElement);
 
-		
+		this.assignLatexSource()
 		const file=await this.getFile();
 		if(!file)throw new Error("No file found");
 
@@ -120,18 +185,22 @@ export class SvgContextMenu extends Menu {
 
 
 		addMenu(this.plugin,parentEl,this.sourcePath)
-		const queue=this.plugin.swiftlatexRender.queue;
+		
 		const fileText = await this.plugin.app.vault.read(file);
+		
+		await this.assignLatexSource();
 		const sectionCache=getSectionCacheOfString(sections,fileText,this.source);
 		if(!sectionCache)throw new Error("Section cache not found");
+
 		const blockId = getBlockId(this.sourcePath,sectionCache.position.start.line);
+		const queue=this.plugin.swiftlatexRender.queue;
 		queue.remove(node => node.data.blockId === blockId);
 		parentEl.appendChild(createWaitingCountdown(queue.length()));
 		
 		this.plugin.swiftlatexRender.queue.push({
 			source: this.source,
 			el: parentEl,
-			md5Hash: hash,
+			md5Hash: hash??hashLatexSource(this.source),
 			sourcePath: this.sourcePath,
 			blockId,
 			process: true

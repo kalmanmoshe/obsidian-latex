@@ -270,18 +270,6 @@
       ]
     ],
     [
-      "8bd7d2c354391d28606fec94455b168e",
-      [
-        "פיזיקה/יחיאל/מבחני בגרות.md"
-      ]
-    ],
-    [
-      "933db17d7dc5fe0ff64e538542d5d12e",
-      [
-        "פיזיקה/יחיאל/מבחני בגרות.md"
-      ]
-    ],
-    [
       "2d375d30d2ffa09a090c9cf018b92481",
       [
         "Untitled 2.md"
@@ -354,13 +342,19 @@
       ]
     ],
     [
-      "376e833737ef6b3c631f9fdc6d21457f",
+      "413d6a5e243b2825fd1bea3bc13803aa",
       [
         "פיזיקה/יחיאל/שיעורי בית.md"
       ]
     ],
     [
-      "413d6a5e243b2825fd1bea3bc13803aa",
+      "bd76bdbd22ccd7715d8b73b4b5b03a7e",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "376e833737ef6b3c631f9fdc6d21457f",
       [
         "פיזיקה/יחיאל/שיעורי בית.md"
       ]
@@ -372,9 +366,63 @@
       ]
     ],
     [
-      "bd76bdbd22ccd7715d8b73b4b5b03a7e",
+      "3b2ac0685da1bd960a29e0ef73e93584",
       [
         "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "4a53879e2d3e3d3248dd4dc89ce792d1",
+      [
+        "פיזיקה/יחיאל/שיעורי בית.md"
+      ]
+    ],
+    [
+      "da00622a7013f3761dde8f1fd617545d",
+      [
+        "מתמטיקה/שי/משוואות טריגונומטריות.md"
+      ]
+    ],
+    [
+      "8271413464dd479ac799444da74a282b",
+      [
+        "מתמטיקה/שי/משוואות טריגונומטריות.md"
+      ]
+    ],
+    [
+      "30ae824acaf0f89090c57eb1bb6bf842",
+      [
+        "obsidian/Templates/5-tikz/1-tikz.md"
+      ]
+    ],
+    [
+      "d9bf782c7b496e72ebab31d85ac12ad3",
+      [
+        "מתמטיקה/שי/בגרויות שלמות.md"
+      ]
+    ],
+    [
+      "386bb549f20aab7802c239e600a94486",
+      [
+        "Untitled 5.md"
+      ]
+    ],
+    [
+      "e805f19a945a33d1689cb94724061918",
+      [
+        "פיזיקה/יחיאל/מבחני בגרות.md"
+      ]
+    ],
+    [
+      "e1ce9592d2d72671356d905efdc7bb82",
+      [
+        "פיזיקה/יחיאל/מבחני בגרות.md"
+      ]
+    ],
+    [
+      "031a7377489da0adf092db3f74afd5b8",
+      [
+        "פיזיקה/יחיאל/מבחני בגרות.md"
       ]
     ]
   ],
@@ -384,9 +432,7 @@
       "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/numprint.cfg": 1,
       "26/main.aux": 1,
-      "33/cmr10.vf": 1,
-      "33/cmr12.vf": 1,
-      "33/cmmi10.vf": 1
+      "33/cmr12.vf": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -714,12 +760,19 @@
       "26/tikzlibrarypatterns.meta.code.tex": "/tex/tikzlibrarypatterns.meta.code.tex",
       "26/pgflibrarypatterns.meta.code.tex": "/tex/pgflibrarypatterns.meta.code.tex",
       "26/omscmr.fd": "/tex/omscmr.fd",
-      "32/cmmi5.pfb": "/tex/cmmi5.pfb"
+      "32/cmmi5.pfb": "/tex/cmmi5.pfb",
+      "32/cmbx10.pfb": "/tex/cmbx10.pfb",
+      "26/tikzlibrarypgfplots.fillbetween.code.tex": "/tex/tikzlibrarypgfplots.fillbetween.code.tex",
+      "26/tikzlibraryfillbetween.code.tex": "/tex/tikzlibraryfillbetween.code.tex",
+      "26/tikzlibrarydecorations.softclip.code.tex": "/tex/tikzlibrarydecorations.softclip.code.tex",
+      "26/pgflibraryfillbetween.code.tex": "/tex/pgflibraryfillbetween.code.tex",
+      "26/tikzlibrarypgfplots.decorations.softclip.code.tex": "/tex/tikzlibrarypgfplots.decorations.softclip.code.tex"
     },
     {},
     {}
   ],
   "pdfEngineCooldown": 3000,
+  "saveLogs": false,
   "preambleEnabled": true,
   "hash": "669cbe25a05c829ec6d308ec81d0da38"
 }
