@@ -33,7 +33,7 @@ export interface CurrentError{
   raw: string;
   cause?: string;
 }
-interface File{
+export interface File{
   path: string;
   files: File[];
 }

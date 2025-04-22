@@ -230,3 +230,108 @@
   width: 100%;
   max-width: 1000px;
 }
+
+
+
+
+
+
+
+
+.moshe-log-tab-button {
+	margin-right: 8px;
+	padding: 4px 10px;
+	cursor: pointer;
+}
+.moshe-log-tab-button.active {
+	background-color: #ccc;
+}
+.moshe-log-tab-content {
+	margin-top: 12px;
+}
+.moshe-log-error {
+	color: red;
+}
+.moshe-log-warning {
+	color: orange;
+}
+.moshe-log-typesetting {
+	color: purple;
+}
+.moshe-log-file {
+	color: #333;
+}
+
+
+.moshe-log-tab-button {
+	margin-right: 8px;
+	padding: 4px 10px;
+	cursor: pointer;
+}
+.moshe-log-tab-button.active {
+	background-color: var(--interactive-accent);
+	color: white;
+}
+.moshe-log-tab-content {
+	margin-top: 12px;
+}
+.moshe-log-error { color: red; }
+.moshe-log-warning { color: orange; }
+.moshe-log-typesetting { color: purple; }
+details summary {
+	cursor: pointer;
+	font-weight: bold;
+	margin: 2px 0;
+}
+
+.moshe-log-file-item {
+	margin: 4px 0;
+	padding: 4px 8px;
+	border-left: 2px solid var(--background-modifier-border);
+}
+
+.moshe-log-file-label {
+	font-family: var(--font-monospace);
+	padding: 2px 4px;
+	border-radius: 4px;
+	transition: background 0.2s;
+}
+
+.moshe-log-file-label:hover {
+	background-color: var(--background-modifier-hover);
+	cursor: pointer;
+}
+
+/* Indentation levels */
+.depth-0 .moshe-log-file-label { margin-left: 0px; background-color: rgba(240,240,240,0.1); }
+.depth-1 .moshe-log-file-label { margin-left: 10px; background-color: rgba(240,240,240,0.15); }
+.depth-2 .moshe-log-file-label { margin-left: 20px; background-color: rgba(240,240,240,0.2); }
+.depth-3 .moshe-log-file-label { margin-left: 30px; background-color: rgba(240,240,240,0.25); }
+/* Continue if needed... */
+.moshe-log-file-wrapper {
+	margin: 2px 0;
+}
+
+.moshe-log-file-details {
+	margin-left: 12px;
+}
+
+/* Optional: slightly more spacing per depth level */
+.depth-1 { margin-left: 16px; }
+.depth-2 { margin-left: 24px; }
+.depth-3 { margin-left: 32px; }
+/* etc... */
+
+/* Clean minimal style */
+.moshe-log-file-summary {
+	font-family: var(--font-monospace);
+	font-size: 0.9em;
+	padding: 2px 4px;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+
+.moshe-log-file-summary:hover {
+	background-color: var(--background-modifier-hover);
+}
