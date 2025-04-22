@@ -1,4 +1,4 @@
-import { MarkdownView, Menu, Notice, TFile } from "obsidian";
+import { MarkdownView, Menu, Modal, Notice, TFile } from "obsidian";
 import { LatexAbstractSyntaxTree } from "./parse/parse";
 import Moshe from "src/main";
 import { getLatexSourceFromHash } from "./latexSourceFromFile";
@@ -7,6 +7,7 @@ import { addMenu, createWaitingCountdown, getBlockId, getFileSectionsFromPath, h
 import parseLatexLog from "./log-parser/HumanReadableLogs";
 import { CompileResult } from "./PdfTeXEngine";
 import { getSectionFromMatching } from "./findSection";
+import { ProcessedLog } from "./log-parser/latex-log-parser";
 /**add:
  * - Reveal in file explorer
  * - show log
@@ -133,8 +134,9 @@ export class SvgContextMenu extends Menu {
 				log= parseLatexLog(err);
 			}
 		}
-	
 		console.log("log", log);
+		const modal = new LogDisplayModal(this.plugin, log);
+		modal.open();
 	}
 	
 	private getHash(){
@@ -216,5 +218,28 @@ export class SvgContextMenu extends Menu {
 		await this.assignLatexSource()
 		const ast = LatexAbstractSyntaxTree.parse(this.source);
 		return ast.toString();
+	}
+}
+
+
+
+class LogDisplayModal extends Modal {
+	plugin: Moshe;
+	log: ProcessedLog;
+	constructor(plugin: Moshe, log: ProcessedLog) {
+		super(plugin.app);
+		this.plugin = plugin;
+		this.log = log;
+		this.modalEl.addClass("moshe-swift-latex-log-modal");
+	}
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.createEl("h2", { text: "LaTeX Log" });
+		const pre = contentEl.createEl("pre", { text: this.log.raw });
+		pre.setAttribute("style", "white-space: pre-wrap; word-wrap: break-word;");
+	}
+	onClose() {
+		this.contentEl.empty();
 	}
 }
