@@ -225,3 +225,8 @@
   white-space: pre-wrap;
 }
 
+
+.moshe-swift-latex-log-modal{
+  width: 100%;
+  max-width: 1000px;
+}
