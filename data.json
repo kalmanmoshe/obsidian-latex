@@ -484,6 +484,24 @@
       [
         "מתמטיקה/שי/בגרויות שלמות.md"
       ]
+    ],
+    [
+      "2b42c5bbf6ca9a1f3c68f00fdb4cb37d",
+      [
+        "מתמטיקה/שי/אינטגרלים.md"
+      ]
+    ],
+    [
+      "874f86823a8efd711215e42deae7010f",
+      [
+        "מתמטיקה/שי/אינטגרלים.md"
+      ]
+    ],
+    [
+      "41784f84350951ec335dddd31a1eecae",
+      [
+        "מתמטיקה/שי/אינטגרלים.md"
+      ]
     ]
   ],
   "packageCache": [
@@ -492,17 +510,7 @@
       "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/numprint.cfg": 1,
       "26/main.aux": 1,
-      "33/cmr12.vf": 1,
-      "33/cmsy10.vf": 1,
-      "33/cmr10.vf": 1,
-      "33/cmmi10.vf": 1,
-      "33/cmr7.vf": 1,
-      "33/cmr17.vf": 1,
-      "33/cmmi12.vf": 1,
-      "33/cmmi7.vf": 1,
-      "33/cmr5.vf": 1,
-      "33/cmsy7.vf": 1,
-      "33/cmbx10.vf": 1
+      "33/cmr12.vf": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",

@@ -7,7 +7,7 @@ import { addMenu, createWaitingCountdown, getBlockId, getFileSectionsFromPath, h
 import parseLatexLog from "./log-parser/HumanReadableLogs";
 import { CompileResult } from "./PdfTeXEngine";
 import { getSectionFromMatching } from "./findSection";
-import { ProcessedLog } from "./log-parser/latex-log-parser";
+import { ProcessedLog,File } from "./log-parser/latex-log-parser";
 /**add:
  * - Reveal in file explorer
  * - show log
@@ -222,7 +222,6 @@ export class SvgContextMenu extends Menu {
 }
 
 
-
 class LogDisplayModal extends Modal {
 	plugin: Moshe;
 	log: ProcessedLog;
@@ -235,10 +234,102 @@ class LogDisplayModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
+	
 		contentEl.createEl("h2", { text: "LaTeX Log" });
-		const pre = contentEl.createEl("pre", { text: this.log.raw });
-		pre.setAttribute("style", "white-space: pre-wrap; word-wrap: break-word;");
+	
+		// Define what to show
+		const tabs = [
+			{ name: "Errors", items: this.log.errors, render: this.renderError.bind(this) },
+			{ name: "Warnings", items: this.log.warnings, render: this.renderWarning.bind(this) },
+			{ name: "Typesetting", items: this.log.typesetting, render: this.renderTypesetting.bind(this) },
+			{ name: "Files", items: this.log.files, render: this.renderFiles.bind(this) },
+			{ name: "Raw", items: this.log.raw?.trim() ? [{}] : [], render: this.renderRaw.bind(this) }
+		].filter(tab => tab.items.length > 0); // Show only non-empty tabs
+	
+		// Containers
+		const tabsContainer = contentEl.createDiv("moshe-log-tabs");
+		const buttonsContainer = tabsContainer.createDiv("moshe-log-buttons");
+		const sectionsContainer = tabsContainer.createDiv("moshe-log-sections");
+		const contentSections: Record<string, HTMLElement> = {};
+	
+		// Create Buttons + Content Areas
+		tabs.forEach(({ name, render }) => {
+			const button = buttonsContainer.createEl("button", {
+				text: name,
+				cls: "moshe-log-tab-button"
+			});
+			const section = sectionsContainer.createDiv("moshe-log-tab-content");
+			section.style.display = "none";
+			contentSections[name] = section;
+	
+			button.onclick = () => {
+				for (const sec of Object.values(contentSections)) sec.style.display = "none";
+				for (const btn of Array.from(buttonsContainer.children)) btn.removeClass("active");
+				section.style.display = "";
+				button.addClass("active");
+			};
+	
+			render(section);
+		});
+	
+		(buttonsContainer.firstChild as HTMLElement)?.click();
+		contentEl.appendChild(tabsContainer);
 	}
+	private renderError(container: HTMLElement) {
+		this.log.errors.forEach(err => {
+			container.createEl("div", {
+				text: `${err.message} (${err.file}:${err.line})`,
+				cls: "moshe-log-error"
+			});
+		});
+	}
+	
+	private renderWarning(container: HTMLElement) {
+		this.log.warnings.forEach(warn => {
+			container.createEl("div", {
+				text: `${warn.message} (${warn.file}:${warn.line})`,
+				cls: "moshe-log-warning"
+			});
+		});
+	}
+	
+	private renderTypesetting(container: HTMLElement) {
+		this.log.typesetting.forEach(typeErr => {
+			container.createEl("div", {
+				text: `${typeErr.message} (${typeErr.file}:${typeErr.line})`,
+				cls: "moshe-log-typesetting"
+			});
+		});
+	}
+	
+	private renderFiles(container: HTMLElement) {
+		const renderTree = (file: File, parent: HTMLElement, depth = 0) => {
+			const wrapper = parent.createEl("div", { cls: "moshe-log-file-wrapper" });
+	
+			const item = wrapper.createEl("details", {
+				cls: `moshe-log-file-details depth-${depth}`
+			});
+			const summary = item.createEl("summary", {
+				text: file.path,
+				cls: "moshe-log-file-summary"
+			});
+	
+			if (file.files?.length) {
+				file.files.forEach(child => renderTree(child, item, depth + 1));
+			}
+		};
+	
+		this.log.files.forEach(file => renderTree(file, container));
+	}
+	
+	
+	
+	private renderRaw(container: HTMLElement) {
+		const rawPre = container.createEl("pre", { text: this.log.raw });
+		rawPre.setAttribute("style", "white-space: pre-wrap; word-wrap: break-word;");
+	}
+	
+	
 	onClose() {
 		this.contentEl.empty();
 	}
