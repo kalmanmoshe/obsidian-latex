@@ -7,7 +7,7 @@ import { addMenu, createWaitingCountdown, getBlockId, getFileSectionsFromPath, h
 import parseLatexLog from "./log-parser/HumanReadableLogs";
 import { CompileResult } from "./PdfTeXEngine";
 import { getSectionFromMatching } from "./findSection";
-import { ProcessedLog,File } from "./log-parser/latex-log-parser";
+import { ProcessedLog,File, CurrentError, ErrorLevel } from "./log-parser/latex-log-parser";
 /**add:
  * - Reveal in file explorer
  * - show log
@@ -237,22 +237,24 @@ class LogDisplayModal extends Modal {
 	
 		contentEl.createEl("h2", { text: "LaTeX Log" });
 	
-		// Define what to show
+		
+		
 		const tabs = [
-			{ name: "Errors", items: this.log.errors, render: this.renderError.bind(this) },
-			{ name: "Warnings", items: this.log.warnings, render: this.renderWarning.bind(this) },
-			{ name: "Typesetting", items: this.log.typesetting, render: this.renderTypesetting.bind(this) },
-			{ name: "Files", items: this.log.files, render: this.renderFiles.bind(this) },
-			{ name: "Raw", items: this.log.raw?.trim() ? [{}] : [], render: this.renderRaw.bind(this) }
-		].filter(tab => tab.items.length > 0); // Show only non-empty tabs
+			...([this.log.all].length > 0
+				? [{ name: "Errors",  render: this.renderErrors.bind(this) }]
+				: []),
+			...(this.log.files.length > 0
+				? [{ name: "Files", render: this.renderFiles.bind(this) }]
+				: []),
+			...(this.log.raw?.trim()
+				? [{ name: "Raw", render: this.renderRaw.bind(this) }]
+				: [])
+		];
 	
-		// Containers
 		const tabsContainer = contentEl.createDiv("moshe-log-tabs");
 		const buttonsContainer = tabsContainer.createDiv("moshe-log-buttons");
 		const sectionsContainer = tabsContainer.createDiv("moshe-log-sections");
 		const contentSections: Record<string, HTMLElement> = {};
-	
-		// Create Buttons + Content Areas
 		tabs.forEach(({ name, render }) => {
 			const button = buttonsContainer.createEl("button", {
 				text: name,
@@ -268,21 +270,56 @@ class LogDisplayModal extends Modal {
 				section.style.display = "";
 				button.addClass("active");
 			};
-	
 			render(section);
 		});
 	
 		(buttonsContainer.firstChild as HTMLElement)?.click();
 		contentEl.appendChild(tabsContainer);
 	}
-	private renderError(container: HTMLElement) {
-		this.log.errors.forEach(err => {
-			container.createEl("div", {
-				text: `${err.message} (${err.file}:${err.line})`,
-				cls: "moshe-log-error"
+	
+	private renderErrors(container: HTMLElement) {
+		console.log("renderErrors", this.log.all);
+		const allErrors = this.log.all;
+		allErrors.sort((a, b) => {
+			const severity = {
+				[ErrorLevel.Error]: 0,
+				[ErrorLevel.Warning]: 1,
+				[ErrorLevel.Typesetting]: 2,
+			};
+			return severity[a.level] - severity[b.level];
+		});
+		console.log("allErrors", allErrors);
+		allErrors.forEach(err => {
+			const box = container.createDiv("moshe-log-error-box " + `level-${err.level}`);
+			
+			const header = box.createDiv({
+				text: `${err.level.toUpperCase()}: ${err.message}`,
+				cls: "moshe-log-error-header", 
 			});
+	
+			if (err.file || err.line !== null) {
+				box.createDiv({
+					text: `↳ ${err.file ?? "unknown file"}:${err.line ?? "?"}`,
+					cls: "moshe-log-error-location"
+				});
+			}
+	
+			if (err.content) {
+				box.createEl("pre", {
+					text: err.content,
+					cls: "moshe-log-error-snippet"
+				});
+			}
+	
+			if (err.cause) {
+				box.createDiv({
+					text: `Cause: ${err.cause}`,
+					cls: "moshe-log-error-cause"
+				});
+			}
 		});
 	}
+	
 	
 	private renderWarning(container: HTMLElement) {
 		this.log.warnings.forEach(warn => {
@@ -304,23 +341,27 @@ class LogDisplayModal extends Modal {
 	
 	private renderFiles(container: HTMLElement) {
 		const renderTree = (file: File, parent: HTMLElement, depth = 0) => {
-			const wrapper = parent.createEl("div", { cls: "moshe-log-file-wrapper" });
-	
-			const item = wrapper.createEl("details", {
-				cls: `moshe-log-file-details depth-${depth}`
-			});
-			const summary = item.createEl("summary", {
-				text: file.path,
-				cls: "moshe-log-file-summary"
-			});
+			const wrapper = parent.createDiv("moshe-log-file-wrapper depth-" + depth);
 	
 			if (file.files?.length) {
-				file.files.forEach(child => renderTree(child, item, depth + 1));
+				const details = wrapper.createEl("details", { cls: "moshe-log-file-details" });
+				details.createEl("summary", {
+					text: file.path,
+					cls: "moshe-log-file-summary"
+				});
+				file.files.forEach(child => renderTree(child, details, depth + 1));
+			} else {
+				// Just a line, no <details>
+				wrapper.createEl("div", {
+					text: file.path,
+					cls: "moshe-log-file-line"
+				});
 			}
 		};
 	
 		this.log.files.forEach(file => renderTree(file, container));
 	}
+	
 	
 	
 	
