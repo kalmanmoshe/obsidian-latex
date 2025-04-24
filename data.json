@@ -402,12 +402,6 @@
       ]
     ],
     [
-      "386bb549f20aab7802c239e600a94486",
-      [
-        "Untitled 5.md"
-      ]
-    ],
-    [
       "e805f19a945a33d1689cb94724061918",
       [
         "פיזיקה/יחיאל/מבחני בגרות.md"
@@ -502,6 +496,30 @@
       [
         "מתמטיקה/שי/אינטגרלים.md"
       ]
+    ],
+    [
+      "386bb549f20aab7802c239e600a94486",
+      [
+        "Untitled 5.md"
+      ]
+    ],
+    [
+      "3c664763dc0ad2eed4a598784bf16d52",
+      [
+        "מתמטיקה/שי/בגרויות שלמות.md"
+      ]
+    ],
+    [
+      "fd3d843c9556b6467da526e4ae63fa5d",
+      [
+        "מתמטיקה/שי/בגרויות שלמות.md"
+      ]
+    ],
+    [
+      "3bc48a89b5f0ce79a588abb620b43c86",
+      [
+        "פיזיקה/יחיאל/ניסוי גלים.md"
+      ]
     ]
   ],
   "packageCache": [
@@ -509,8 +527,7 @@
       "26/tikzlibrarypgfplots.surfshading.code.tex": 1,
       "26/tikzlibraryarrows.meta.code.tex": 1,
       "26/numprint.cfg": 1,
-      "26/main.aux": 1,
-      "33/cmr12.vf": 1
+      "26/main.aux": 1
     },
     {
       "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
@@ -850,7 +867,7 @@
     {}
   ],
   "pdfEngineCooldown": 3000,
-  "saveLogs": false,
+  "saveLogs": true,
   "preambleEnabled": true,
   "hash": "669cbe25a05c829ec6d308ec81d0da38"
 }

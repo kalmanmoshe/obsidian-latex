@@ -13,7 +13,7 @@ enum STATE {
   NORMAL,
   ERROR,
 }
-enum ErrorLevel{
+export enum ErrorLevel{
   Error = 'error',
   Warning = 'warning',
   Typesetting = 'typesetting',

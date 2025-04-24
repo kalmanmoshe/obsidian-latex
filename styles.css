@@ -335,3 +335,57 @@ details summary {
 .moshe-log-file-summary:hover {
 	background-color: var(--background-modifier-hover);
 }
+
+
+
+
+/* Severity Coloring */
+.level-error   { border-left: 3px solid red; }
+.level-warning { border-left: 3px solid orange; }
+.level-typesetting { border-left: 3px solid purple; }
+
+.moshe-log-error-box {
+	padding: 8px;
+	margin: 6px 0;
+	background-color: var(--background-secondary);
+	border-radius: 6px;
+}
+
+.moshe-log-error-header {
+	font-weight: bold;
+	font-size: 0.95em;
+	margin-bottom: 4px;
+}
+
+.moshe-log-error-location {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	margin-bottom: 4px;
+}
+
+.moshe-log-error-snippet {
+	background: var(--background-modifier-hover);
+	padding: 4px;
+	border-radius: 4px;
+	font-family: var(--font-monospace);
+	white-space: pre-wrap;
+}
+
+.moshe-log-error-cause {
+	font-style: italic;
+	color: var(--text-faint);
+}
+
+/* File Display Clean Style */
+.moshe-log-file-summary {
+	font-family: var(--font-monospace);
+	padding: 2px 4px;
+	border-radius: 4px;
+	cursor: pointer;
+}
+
+.moshe-log-file-line {
+	font-family: var(--font-monospace);
+	margin-left: 16px;
+	padding: 2px 4px;
+}

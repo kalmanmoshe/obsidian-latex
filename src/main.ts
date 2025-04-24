@@ -19,6 +19,7 @@ import { processMathBlock } from "./mathParser/iNeedToFindABetorPlace";
 import { readAndParseSVG } from "./latexRender/svg2latex/temp";
 import { MathJaxAbstractSyntaxTree } from "./latexRender/parse/mathJaxAbstractSyntaxTree";
 import { getFileSets, getPreambleFromFiles, onFileChange, onFileCreate, onFileDelete } from "./obsidian/file_watch";
+import { temp } from "./LaTeX_js/latex";
 
 /**
  * Assignments:
@@ -65,6 +66,7 @@ export default class Moshe extends Plugin {
     this.updateApiHooks();
     this.addSyntaxHighlighting();
     this.app.workspace.onLayoutReady(async () => await this.loadLayoutReadyDependencies());
+    temp()
   }
 
   private async loadLayoutReadyDependencies() {
