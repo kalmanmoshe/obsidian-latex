@@ -44,9 +44,41 @@ function latexStringToTokenArray(latex: string): string[] {
 
     return tokens;
 }
-function tokenArrayToObjArray(latex: string[]){
-    
+enum TokenType {
+    Macro,
+    Bracket,
+    Text
 }
+enum TokenState {
+    Open,
+    Close,
+}
+const openBracket = ["{","(","["];
+function isTokenOpenBracket(token: string): boolean |null{
+    if (token.length !== 1 || !token.match(new RegExp(bracketRegex))) return null;
+    return openBracket.includes(token);
+}
+
+function tokenArrayToObjArray(latex: string[]){
+    const tokens: { type: TokenType, value: string, state?: TokenState }[] = [];
+    
+    for (let i = 0; i < latex.length; i++) {
+        const token = latex[i];
+        if (token.match(new RegExp("^"+macroRegexString))) {
+            tokens.push({type: TokenType.Macro, value: token});
+            continue;
+        }
+        const isOpenBracket = isTokenOpenBracket(token);
+        if (openBracket === null) {
+            tokens.push({ type: TokenType.Text, value: token });
+        }
+        else {
+            tokens.push({type: TokenType.Bracket,state: isOpenBracket?TokenState.Open:TokenState.Close, value: token});
+        }
+    }
+}
+
+
 
 export function temp(){
     const stringTokens = latexStringToTokenArray(latex);
@@ -64,3 +96,4 @@ const latex=String.raw`
 \draw [] (O)--(B)(O)--(A)--(D) --cycle;
 \draw [] (A)--($(A)!1.5!(B)$);
 `;
+
