@@ -96,6 +96,7 @@ export class VirtualFileSystem{
      */
     async loadVirtualFileSystemFiles() {
         if(this.enabled===false||this.status === VirtualFileSystemFilesStatus.uptodate)return;
+        console.log("Loading virtual filesystem files into pdf engine...", this.files);
         if (this.status === VirtualFileSystemFilesStatus.undefined){
             await nonBlockingWaitUntil(() => 
                 this.status === VirtualFileSystemFilesStatus.outdated
@@ -112,5 +113,10 @@ export class VirtualFileSystem{
             this.status = VirtualFileSystemFilesStatus.error;
             throw err;
         }
+    }
+    async removeVirtualFileSystemFiles() {
+        this.files = this.files.filter(file => !file.autoUse);
+        this.status = VirtualFileSystemFilesStatus.outdated;
+        await this.pdfEngine.removeMemFSFile(file.name, file.content);
     }
 }

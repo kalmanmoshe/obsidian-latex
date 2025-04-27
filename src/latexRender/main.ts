@@ -54,7 +54,9 @@ export function clearFolder(folderPath: string){
 		}
 	}
 }
-
+/**
+ * add option for Persistent preamble.so it won't get deleted.after use Instead, saved until overwritten
+ */
 
 export class SwiftlatexRender {
 	plugin: Moshe;
@@ -343,6 +345,7 @@ export class SwiftlatexRender {
 				await this.pdfEngine.writeMemFSFile("main.tex", source);
 				await this.pdfEngine.setEngineMainFile("main.tex");
 				await this.pdfEngine.compileLaTeX().then(async (result: CompileResult) => {
+					await this.virtualFileSystem.removeVirtualFileSystemFiles();
 					this.addLog(result.log,md5Hash);
 					if (result.status != 0) {
 						// manage latex errors
