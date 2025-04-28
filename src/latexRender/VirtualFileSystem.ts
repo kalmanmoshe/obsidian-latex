@@ -115,8 +115,13 @@ export class VirtualFileSystem{
         }
     }
     async removeVirtualFileSystemFiles() {
-        this.files = this.files.filter(file => !file.autoUse);
+        const remove: string[] = []
+        this.files = this.files.filter(file => {
+            return file.autoUse || remove.push(file.name) && false;
+        });
         this.status = VirtualFileSystemFilesStatus.outdated;
-        await this.pdfEngine.removeMemFSFile(file.name, file.content);
+        for (const file of remove) {
+            await this.pdfEngine.removeMemFSFile(file);
+        }
     }
 }

@@ -3,7 +3,7 @@ import { Md5 } from 'ts-md5';
 import * as fs from 'fs';
 import * as temp from 'temp';
 import * as path from 'path';
-import {CompileResult, PdfTeXEngine} from './PdfTeXEngine';
+import PdfTeXEngine,{CompileResult} from './PdfTeXEngine';
 import Moshe from '../main';
 import { StringMap } from 'src/settings/settings.js';
 import async from 'async';
@@ -75,14 +75,16 @@ export class SwiftlatexRender {
 		await this.loadCache();
 		// initialize the latex compiler
 		this.initializePDfEngine();
-
+		console.log("Loading SwiftlatexRender PDF engine...");
 		await this.pdfEngine.loadEngine();
 		await this.loadPackageCache();
+		console.log("Loading SwiftlatexRender PDF engine finished.");
 		await this.pdfEngine.setTexliveEndpoint(this.plugin.settings.package_url);
 		this.configQueue();
 		this.plugin.addRibbonIcon("dice", "Moshe Math", () => {
 			new svgDisplayModule(this.plugin.app, this.cacheFolderPath,this.cache.getCache()).open();
 		})
+		console.log("SwiftlatexRender loaded");
 	}
 	private bindTransactionLogger() {
 		const markdownView = this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
@@ -345,7 +347,7 @@ export class SwiftlatexRender {
 				await this.pdfEngine.writeMemFSFile("main.tex", source);
 				await this.pdfEngine.setEngineMainFile("main.tex");
 				await this.pdfEngine.compileLaTeX().then(async (result: CompileResult) => {
-					await this.virtualFileSystem.removeVirtualFileSystemFiles();
+					this.virtualFileSystem.removeVirtualFileSystemFiles();
 					this.addLog(result.log,md5Hash);
 					if (result.status != 0) {
 						// manage latex errors
