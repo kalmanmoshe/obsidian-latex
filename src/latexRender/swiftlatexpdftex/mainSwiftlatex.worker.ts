@@ -1,6 +1,7 @@
 ////@ts-nocheck
 import { intArrayFromString, lengthBytesUTF8, stringToUTF8Array, UTF8ArrayToString } from './encodingDecoding.';
 import { wasmBinaryFileImport } from './wasmBinaryStaticImport';
+import { onmessage } from './communication';
 import Fs from "fs";
 
 declare global {
@@ -9,9 +10,43 @@ declare global {
     initmem?: any;
     mainfile: string;
     texlive_endpoint: string;
+    constants: {
+      TEXCACHEROOT: "/tex";
+      WORKROOT: "/work";
+    }
+    cacheRecord: {
+      texlive404: Record<string, number>,
+      texlive200: Record<string, string>,
+      pk404: Record<string, number>,
+      pk200: Record<string, string>,
+    }
   }
 }
 
+self.memlog = "";
+self.initmem = undefined;
+self.mainfile = "main.tex";
+self.texlive_endpoint = "https://texlive2.swiftlatex.com/";
+self.constants = {
+  TEXCACHEROOT: "/tex",
+  WORKROOT: "/work"
+}
+self.cacheRecord = {
+  texlive404: {},
+  texlive200: {},
+  pk404: {},
+  pk200: {},
+}
+
+interface Log{
+  regular: string[];
+  errors: string[];
+}
+
+var log: Log={
+  regular: [],
+  errors: []
+}
 
 var Module:any = typeof Module !== "undefined" ? Module : 
 {
@@ -25,32 +60,15 @@ var Module:any = typeof Module !== "undefined" ? Module :
     console.error(text);
   },
   preRun: function () {
-    FS.mkdir(TEXCACHEROOT);
-    FS.mkdir(WORKROOT);
+    FS.mkdir(self.constants.TEXCACHEROOT);
+    FS.mkdir(self.constants.WORKROOT);
   },
 };
 export default Module;
+var out = Module["print"] || console.log.bind(console);
+var err = Module["printErr"] || console.error.bind(console);
 
-
-
-const TEXCACHEROOT = "/tex";
-const WORKROOT = "/work";
-self.memlog = "";
-self.initmem = undefined;
-self.mainfile = "main.tex";
-self.texlive_endpoint = "https://texlive2.swiftlatex.com/";
-
-interface Log{
-  regular: string[];
-  errors: string[];
-}
-
-var log: Log={
-  regular: [],
-  errors: []
-}
-
-function _allocate(content) {
+function _allocate(content: number[]) {
   let res = _malloc(content.length);
   HEAPU8.set(new Uint8Array(content), res);
   return res;
@@ -81,14 +99,14 @@ function prepareExecutionContext() {
   self.memlog = "";
   restoreHeapMemory();
   closeFSStreams();
-  FS.chdir(WORKROOT);
+  FS.chdir(self.constants.WORKROOT);
 }
 Module["postRun"] = function () {
   self.postMessage({ result: "ok" });
   self.initmem = dumpHeapMemory();
 };
 
-function cleanDir(dir: string) {
+export function cleanDir(dir: string) {
   let l = FS.readdir(dir);
   for (let i in l) {
     let item = l[i];
@@ -113,7 +131,7 @@ function cleanDir(dir: string) {
       }
     }
   }
-  if (dir !== WORKROOT) {
+  if (dir !== self.constants.WORKROOT) {
     try {
       FS.rmdir(dir);
     } catch (err) {
@@ -144,7 +162,7 @@ export function compileLaTeXRoutine() {
     _compileBibtex();
     try {
       let pdfurl =
-        WORKROOT +
+      self.constants.WORKROOT +
         "/" +
         self.mainfile.substr(0, self.mainfile.length - 4) +
         ".pdf";
@@ -184,13 +202,13 @@ export function compileLaTeXRoutine() {
     });
   }
 }
-function compileFormatRoutine() {
+export function compileFormatRoutine() {
   prepareExecutionContext();
   let status = _compileFormat();
   if (status === 0) {
     let pdfArrayBuffer = null;
     try {
-      let pdfurl = WORKROOT + "/pdflatex.fmt";
+      let pdfurl = self.constants.WORKROOT + "/pdflatex.fmt";
       pdfArrayBuffer = FS.readFile(pdfurl, { encoding: "binary" });
       if(!pdfArrayBuffer)throw new Error("File not found");
     } catch (err) {
@@ -227,27 +245,36 @@ function compileFormatRoutine() {
     });
   }
 }
-function mkdirRoutine(dirname: string) {
+export function mkdirRoutine(dirname: string) {
   try {
-    FS.mkdir(WORKROOT + "/" + dirname);
+    FS.mkdir(self.constants.WORKROOT + "/" + dirname);
     self.postMessage({ result: "ok", cmd: "mkdir" });
   } catch (err) {
     console.error("Not able to mkdir " + dirname);
     self.postMessage({ result: "failed", cmd: "mkdir" });
   }
 }
-function writeFileRoutine(filename:string, content: string) {
+export function writeFileRoutine(filename:string, content: string) {
   try {
-    FS.writeFile(WORKROOT + "/" + filename, content);
+    FS.writeFile(self.constants.WORKROOT + "/" + filename, content);
     self.postMessage({ result: "ok", cmd: "writefile" });
   } catch (err) {
     console.error("Unable to write mem work file "+filename);
     self.postMessage({ result: "failed", cmd: "writefile" });
   }
 }
-function writeTexFileRoutine(filename: string, content: string) {
+export function removeFileRoutine(filename:string) {
   try {
-    FS.writeFile(TEXCACHEROOT + "/" + filename, content);
+    FS.unlink(self.constants.WORKROOT + "/" + filename);
+    self.postMessage({ result: "ok", cmd: "removefile" });
+  } catch (err) {
+    console.error("Unable to remove mem work file "+filename);
+    self.postMessage({ result: "failed", cmd: "removefile" });
+  }
+}
+export function writeTexFileRoutine(filename: string, content: string) {
+  try {
+    FS.writeFile(self.constants.TEXCACHEROOT + "/" + filename, content);
     self.postMessage({ result: "ok", cmd: "writetexfile" });
   } catch (err) {
     console.error("Unable to write mem tex file " + filename);
@@ -276,7 +303,7 @@ function findWorkDirectory(node: any): any | undefined {
   return undefined;
 }
 
-function transferWorkFilesToHost() {
+export function transferWorkFilesToHost() {
   let dir = findWorkDirectory(FS.root);
   if (!dir) {
     self.postMessage({ result: "failed", cmd: "fetchWorkFiles" });
@@ -288,7 +315,7 @@ function transferWorkFilesToHost() {
   for (const key in dir.contents) {
     if (Object.prototype.hasOwnProperty.call(dir.contents, key)) {
       try {
-        const fileData = FS.readFile(WORKROOT + "/" + key, {
+        const fileData = FS.readFile(self.constants.WORKROOT + "/" + key, {
           encoding: "binary",
         });
         files.push(key);
@@ -300,9 +327,9 @@ function transferWorkFilesToHost() {
   self.postMessage({ result: "ok", cmd: "fetchWorkFiles", files: files });
 }
   
-function transferTexFileToHost(filename: string) {
+export function transferTexFileToHost(filename: string) {
   try {
-    let content = FS.readFile(TEXCACHEROOT + "/" + filename, {
+    let content = FS.readFile(self.constants.TEXCACHEROOT + "/" + filename, {
       encoding: "binary",
     });
     if(!content)throw new Error("File not found");
@@ -315,21 +342,22 @@ function transferTexFileToHost(filename: string) {
   }
 }
 
-function transferCacheDataToHost() {
+export function transferCacheDataToHost() {
   try {
+    const {texlive404,texlive200,pk404,pk200} = self.cacheRecord;
     self.postMessage({
       result: "ok",
       cmd: "fetchcache",
-      texlive404_cache: texlive404_cache,
-      texlive200_cache: texlive200_cache,
-      pk404_cache: pk404_cache,
-      pk200_cache: pk200_cache,
+      texlive404_cache: texlive404,
+      texlive200_cache: texlive200,
+      pk404_cache: pk404,
+      pk200_cache: pk200,
     });
   } catch (err) {
     self.postMessage({ result: "failed", cmd: "fetchcache",error: err });
   }
 }
-function setTexliveEndpoint(url:string) {
+export function setTexliveEndpoint(url: string) {
   if (url) {
     if (!url.endsWith("/")) {
       url += "/";
@@ -338,66 +366,7 @@ function setTexliveEndpoint(url:string) {
   }
   self.postMessage({ result: "ok", cmd: "settexliveurl" });
 }
-self["onmessage"] = function (ev) {
-  let data = ev["data"];
-  let cmd = data["cmd"];
-  switch (cmd) {
-    case "compilelatex":
-      compileLaTeXRoutine();
-      break;
-    case "compileformat":
-      compileFormatRoutine();
-      break;
-    case "settexliveurl":
-      setTexliveEndpoint(data["url"]);
-      break;
-    case "mkdir":
-      mkdirRoutine(data["url"]);
-      break;
-    case "writefile":
-      writeFileRoutine(data["url"], data["src"]);
-      break;
-    case "setmainfile":
-      self.mainfile = data["url"];
-      self.postMessage({ result: "ok", cmd: "setmainfile" });
-      break;
-    case "grace":
-      console.error("Gracefully Close");
-      self.close();
-      break;
-    case "fetchfile":
-      transferTexFileToHost(data["filename"]);
-      break;
-    case "flushCache":
-      cleanDir(TEXCACHEROOT);
-      cleanDir(WORKROOT);
-      self.postMessage({ result: "ok", cmd: "flushCache" });
-    case "flushworkcache":
-      cleanDir(WORKROOT);
-      self.postMessage({ result: "ok", cmd: "flushworkcache" });
-      break;
-    case "fetchcache":
-      transferCacheDataToHost();
-      break;
-    case "fetchWorkFiles":
-      transferWorkFilesToHost();
-    case "writetexfile":
-      writeTexFileRoutine(data["url"], data["src"]);
-      break;
-    case "writecache":
-      texlive404_cache = data["texlive404_cache"];
-      texlive200_cache = data["texlive200_cache"];
-      pk404_cache = data["pk404_cache"];
-      pk200_cache = data["pk200_cache"];
-      self.postMessage({ result: "ok", cmd: "writecache" });
-      break;
-    default:
-      console.error("Unknown command " + cmd);
-      self.postMessage({ result: "failed", cmd: cmd });
-  }
-};
-let texlive404_cache:Record<string, number> = {};
-let texlive200_cache:Record<string, string> = {};
+self.onmessage = onmessage
 
 /**
  * This will download all files needed for the project. The texlive404_cache will always have to be retried because we can't pass it along as the VFS will cause issues when switching between texlive sources.
@@ -412,11 +381,11 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
     return 0;
   }
   const cacheKey = format + "/" + reqname;
-  if (cacheKey in texlive404_cache) {
+  if (cacheKey in self.cacheRecord.texlive404) {
     return 0;
   }
-  if (cacheKey in texlive200_cache) {
-    const savepath = texlive200_cache[cacheKey];
+  if (cacheKey in self.cacheRecord.texlive200) {
+    const savepath = self.cacheRecord.texlive200[cacheKey];
     return _allocate(intArrayFromString(savepath));
   }
   const remote_url = self.texlive_endpoint + "pdftex/" + cacheKey;
@@ -435,19 +404,20 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
   if (xhr.status === 200) {
     let arraybuffer = xhr.response;
     const fileid = xhr.getResponseHeader("fileid");
-    const savepath = TEXCACHEROOT + "/" + fileid;
+    const savepath = self.constants.TEXCACHEROOT + "/" + fileid;
     FS.writeFile(savepath, new Uint8Array(arraybuffer));
-    texlive200_cache[cacheKey] = savepath;
+    self.cacheRecord.texlive200[cacheKey] = savepath;
     return _allocate(intArrayFromString(savepath));
   } else if (xhr.status === 301) {
     //console.log("TexLive File not exists " + remote_url);
-    texlive404_cache[cacheKey] = 1;
+    self.cacheRecord.texlive404[cacheKey] = 1;
     return 0;
   }
   return 0;
 }
 let pk404_cache:Record<string, number> = {};
 let pk200_cache:Record<string, string> = {};
+
 function kpse_find_pk_impl(nameptr, dpi) {
   const reqname = UTF8ToString(nameptr);
   if (reqname.includes("/")) {
@@ -476,7 +446,7 @@ function kpse_find_pk_impl(nameptr, dpi) {
   if (xhr.status === 200) {
     let arraybuffer = xhr.response;
     const pkid = xhr.getResponseHeader("pkid");
-    const savepath = TEXCACHEROOT + "/" + pkid;
+    const savepath = self.constants.TEXCACHEROOT + "/" + pkid;
     FS.writeFile(savepath, new Uint8Array(arraybuffer));
     pk200_cache[cacheKey] = savepath;
     return _allocate(intArrayFromString(savepath));
@@ -552,19 +522,18 @@ if (ENVIRONMENT_IS_NODE) {
   };
 } else {
 }
-var out = Module["print"] || console.log.bind(console);
-var err = Module["printErr"] || console.error.bind(console);
+
 Object.assign(Module, moduleOverrides);
 moduleOverrides = null;
 if (Module["arguments"]) arguments_ = Module["arguments"];
 if (Module["thisProgram"]) thisProgram = Module["thisProgram"];
 if (Module["quit"]) quit_ = Module["quit"];
-var wasmBinary;
+var wasmBinary: Uint8Array | undefined;
 if (Module["wasmBinary"]) wasmBinary = Module["wasmBinary"];
 if (typeof WebAssembly != "object") {
   abort("no native wasm support detected");
 }
-function intArrayFromBase64(s) {
+function intArrayFromBase64(s: string) {
   if (typeof ENVIRONMENT_IS_NODE != "undefined" && ENVIRONMENT_IS_NODE) {
     var buf = Buffer.from(s, "base64");
     return new Uint8Array(buf.buffer, buf.byteOffset, buf.length);
@@ -576,15 +545,15 @@ function intArrayFromBase64(s) {
   }
   return bytes;
 }
-function tryParseAsDataURI(filename) {
+function tryParseAsDataURI(filename: string) {
   if (!isDataURI(filename)) {
     return;
   }
   return intArrayFromBase64(filename.slice(dataURIPrefix.length));
 }
-var wasmMemory;
+var wasmMemory: WebAssembly.Memory;
 var ABORT = false;
-var EXITSTATUS;
+var EXITSTATUS: number;
 var HEAP8: Int8Array, 
   HEAPU8:Uint8Array, 
   HEAP16:Int16Array, 
@@ -688,6 +657,7 @@ var isDataURI = (filename: string) => filename.startsWith(dataURIPrefix);
 var isFileURI = (filename: string) => filename.startsWith("file://");
 var wasmBinaryFile;
 wasmBinaryFile = wasmBinaryFileImport
+
 if (!isDataURI(wasmBinaryFile)) {
   wasmBinaryFile = locateFile(wasmBinaryFile);
 }
@@ -1085,7 +1055,7 @@ var MEMFS = {
   mount(mount) {
     return MEMFS.createNode(null, "/", 16384 | 511, 0);
   },
-  createNode(parent, name, mode, dev) {
+  createNode(parent: FSNode, name, mode, dev) {
     if (FS.isBlkdev(mode) || FS.isFIFO(mode)) {
       throw new FS.ErrnoError(63);
     }
@@ -1231,10 +1201,10 @@ var MEMFS = {
         MEMFS.resizeFileStorage(node, attr.size);
       }
     },
-    lookup(parent, name) {
+    lookup(parent: FSNode, name) {
       throw FS.genericErrors[44];
     },
-    mknod(parent, name, mode, dev) {
+    mknod(parent:FSNode, name, mode, dev) {
       return MEMFS.createNode(parent, name, mode, dev);
     },
     rename(old_node, new_dir, new_name) {
@@ -1256,11 +1226,11 @@ var MEMFS = {
       new_dir.timestamp = old_node.parent.timestamp;
       old_node.parent = new_dir;
     },
-    unlink(parent, name) {
+    unlink(parent: { contents: { [x: string]: any; }; timestamp: number; }, name: string | number) {
       delete parent.contents[name];
       parent.timestamp = Date.now();
     },
-    rmdir(parent, name) {
+    rmdir(parent: { contents: { [x: string]: any; }; timestamp: number; }, name: string) {
       var node = FS.lookupNode(parent, name);
       for (var i in node.contents) {
         throw new FS.ErrnoError(55);
@@ -1268,14 +1238,14 @@ var MEMFS = {
       delete parent.contents[name];
       parent.timestamp = Date.now();
     },
-    readdir(node) {
+    readdir(node: { contents: {}; }) {
       var entries = [".", ".."];
       for (var key of Object.keys(node.contents)) {
         entries.push(key);
       }
       return entries;
     },
-    symlink(parent, newname, oldpath) {
+    symlink(parent: FSNode, newname: any, oldpath: any) {
       var node = MEMFS.createNode(parent, newname, 511 | 40960, 0);
       node.link = oldpath;
       return node;
@@ -1405,7 +1375,7 @@ var asyncLoad = (url, onload, onerror, noRunDep?: any) => {
   );
   if (dep) addRunDependency(dep);
 };
-var FS_createDataFile = (parent, name:string, fileData, canRead, canWrite, canOwn) => {
+var FS_createDataFile = (parent: string | FSNode, name:string, fileData: any, canRead: any, canWrite: any, canOwn: any) => {
   FS.createDataFile(parent, name, fileData, canRead, canWrite, canOwn);
 };
 var preloadPlugins = Module["preloadPlugins"] || [];
@@ -1543,7 +1513,7 @@ var FS = {
     }
     return { path: current_path, node: current };
   },
-  getPath(node: FSNode) {
+  getPath(node: FSNode):string {
     var path;
     while (true) {
       if (FS.isRoot(node)) {
@@ -1584,7 +1554,7 @@ var FS = {
       }
     }
   },
-  lookupNode(parent, name: string) {
+  lookupNode(parent: FSNode, name: string) {
     var errCode = FS.mayLookup(parent);
     if (errCode) {
       throw new FS.ErrnoError(errCode);
@@ -1598,7 +1568,7 @@ var FS = {
     }
     return FS.lookup(parent, name);
   },
-  createNode(parent, name, mode, rdev) {
+  createNode(parent: FSNode, name, mode, rdev) {
     var node = new FS.FSNode(parent, name, mode, rdev);
     FS.hashAddNode(node);
     return node;
@@ -1653,7 +1623,7 @@ var FS = {
     }
     return 0;
   },
-  mayLookup(dir) {
+  mayLookup(dir: FSNode) {
     if (!FS.isDir(dir.mode)) return 54;
     var errCode = FS.nodePermissions(dir, "x");
     if (errCode) return errCode;
@@ -2601,21 +2571,22 @@ var FS = {
     }
     return ret;
   },
-  createPath(parent, path, canRead, canWrite) {
+  createPath(parent: string|FSNode, path: string) {
     parent = typeof parent == "string" ? parent : FS.getPath(parent);
     var parts = path.split("/").reverse();
+    var current
     while (parts.length) {
       var part = parts.pop();
       if (!part) continue;
-      var current = PATH.join2(parent, part);
+      current = PATH.join2(parent, part);
       try {
         FS.mkdir(current);
       } catch (e) {}
       parent = current;
     }
-    return current;
+    return current||null
   },
-  createFile(parent, name, properties, canRead, canWrite) {
+  createFile(parent: string|FSNode, name: string, properties, canRead, canWrite) {
     var path = PATH.join2(
       typeof parent == "string" ? parent : FS.getPath(parent),
       name,
@@ -2623,7 +2594,7 @@ var FS = {
     var mode = FS_getMode(canRead, canWrite);
     return FS.create(path, mode);
   },
-  createDataFile(parent: string|any, name, data, canRead, canWrite, canOwn) {
+  createDataFile(parent: string|FSNode, name, data, canRead, canWrite, canOwn) {
     var path = name;
     if (parent) {
       parent = typeof parent == "string" ? parent : FS.getPath(parent);
@@ -3012,6 +2983,7 @@ var SYSCALLS = {
     return stream;
   },
 };
+
 function ___syscall_faccessat(dirfd, path, amode, flags) {
   try {
     path = SYSCALLS.getStr(path);
@@ -3037,6 +3009,7 @@ function ___syscall_faccessat(dirfd, path, amode, flags) {
     return -e.errno;
   }
 }
+
 function ___syscall_fcntl64(fd, cmd, varargs) {
   SYSCALLS.varargs = varargs;
   try {
@@ -3080,6 +3053,7 @@ function ___syscall_fcntl64(fd, cmd, varargs) {
     return -e.errno;
   }
 }
+
 var stringToUTF8 = (str, outPtr, maxBytesToWrite) =>
   stringToUTF8Array(str, HEAPU8, outPtr, maxBytesToWrite);
 function ___syscall_getcwd(buf, size) {
@@ -4136,3 +4110,6 @@ if (Module["preInit"]) {
 var shouldRunNow = true;
 if (Module["noInitialRun"]) shouldRunNow = false;
 run();
+
+//Finished utilization post message to indicate
+self.postMessage({ result: "ok" });
