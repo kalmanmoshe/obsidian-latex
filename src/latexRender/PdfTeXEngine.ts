@@ -173,7 +173,7 @@ export default class PdfTeXEngine {
     
 
     writeCacheData(texlive404_cache: any, texlive200_cache: any, pk404_cache: any, pk200_cache: any) {
-        return this.voidTask({ cmd: LatexWorkerCommands.writecache, texlive404_cache, texlive200_cache, pk404_cache, pk200_cache });
+        return this.task({ cmd: LatexWorkerCommands.writecache, texlive404_cache, texlive200_cache, pk404_cache, pk200_cache });
     }
 
     async fetchWorkFiles() {
@@ -202,17 +202,14 @@ export default class PdfTeXEngine {
      * @param hostDir - The directory on the host system where the fetched files will be saved.
      */
     async fetchTexFiles(filenames: string[], hostDir: string): Promise<void> {
-        await Promise.all(filenames.map(filename => 
-            this.task<void>({ cmd: "fetchfile", filename }, (data: any) => {
-                if (data.result === "ok") {
-                    const fileContent = new Uint8Array(data.content);
-                    return fs.promises.writeFile(path.join(hostDir, filename), fileContent);
-                } else {
-                    throw new Error(`Failed to fetch ${filename} from memfs`);
-                }
+        await Promise.all(
+            filenames.map(async (filename) => {
+                const data = await this.task<{ content: string | Uint8Array<any> }>({ cmd: "fetchfile", filename });
+                const fileContent = new Uint8Array(data.content);
+                fs.promises.writeFile(path.join(hostDir, filename), fileContent);
             })
-        ));
-    }
+        );
+    }    
     
     
     private task<T = void>(task: any,callback?: (data: any) => void): Promise<T> {
@@ -221,7 +218,7 @@ export default class PdfTeXEngine {
         this.latexWorkerStatus = EngineStatus.Busy;
         return new Promise<T>((resolve, reject) => {
             this.latexWorker!.onmessage = (ev: MessageEvent<any>) => {
-                console.log("task onmessage",ev,ev.data,callback);
+                console.log("task onmessage",ev,ev.data,ev.data.cmd,callback);
                 try {
                     console.log("task onmessage 1",command===ev.data.cmd);
                     //Issue here 
@@ -258,18 +255,15 @@ export default class PdfTeXEngine {
     }
     
     
-    private voidTask(task: any,callback?: (data: any)=>void): Promise<void> {
-        return this.task<void>(task, callback);
-    }
     /**
      * 
      */
     writeTexFSFile(filename: string, srcCode: Buffer<ArrayBufferLike>) {
-        return this.voidTask({ cmd: LatexWorkerCommands.Writetexfile, url: filename, src: srcCode });
+        return this.task({ cmd: LatexWorkerCommands.Writetexfile, url: filename, src: srcCode });
     }
 
     setEngineMainFile(filename: string) {
-        return this.voidTask({ cmd: LatexWorkerCommands.Setmainfile, url: filename });
+        return this.task({ cmd: LatexWorkerCommands.Setmainfile, url: filename });
     }
     /**
      * Writes a file to the in-memory filesystem managed by the LaTeX worker.
@@ -278,7 +272,7 @@ export default class PdfTeXEngine {
      * @param srcCode - The source code or content to write into the file.
      */
     writeMemFSFile(filename: string, srcCode: string) {
-        return this.voidTask({ cmd: LatexWorkerCommands.Writefile, url: filename, src: srcCode });
+        return this.task({ cmd: LatexWorkerCommands.Writefile, url: filename, src: srcCode });
     }
 
     /**
@@ -287,26 +281,26 @@ export default class PdfTeXEngine {
      * @param filename - The name (or URL path) of the file to be removed.
      */
     removeMemFSFile(filename: string) {
-        return this.voidTask({ cmd: LatexWorkerCommands.Removefile, url: filename });
+        return this.task({ cmd: LatexWorkerCommands.Removefile, url: filename });
     }
 
     makeMemFSFolder(folder: string) {
         if (!folder || folder === "/") return Promise.resolve();
-        return this.voidTask({ cmd: "mkdir", url: folder });
+        return this.task({ cmd: "mkdir", url: folder });
     }
     
 
     flushWorkCache(): Promise<void> {
-        return this.voidTask({ cmd: LatexWorkerCommands.FlushWorkDirectory });
+        return this.task({ cmd: LatexWorkerCommands.FlushWorkDirectory });
     }
     
     flushCache(): Promise<void> {
-        return this.voidTask({ cmd: LatexWorkerCommands.Flushcatche });
+        return this.task({ cmd: LatexWorkerCommands.Flushcatche });
     }
     
 
     setTexliveEndpoint(url: string): Promise<void> {
-        return this.voidTask({ cmd: LatexWorkerCommands.Settexliveurl, url });
+        return this.task({ cmd: LatexWorkerCommands.Settexliveurl, url });
     }
 
 

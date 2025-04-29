@@ -102,7 +102,7 @@ function prepareExecutionContext() {
   FS.chdir(self.constants.WORKROOT);
 }
 Module["postRun"] = function () {
-  self.postMessage({ result: "ok" });
+  self.postMessage({ result: "ok",cmd: "postRun" });
   self.initmem = dumpHeapMemory();
 };
 
@@ -4110,6 +4110,3 @@ if (Module["preInit"]) {
 var shouldRunNow = true;
 if (Module["noInitialRun"]) shouldRunNow = false;
 run();
-
-//Finished utilization post message to indicate
-self.postMessage({ result: "ok" });
