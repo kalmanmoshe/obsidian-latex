@@ -135,6 +135,7 @@ export default class PdfTeXEngine {
     }
 
     async fetchCacheData(): Promise<any[]> {
+        this.task
         this.checkEngineStatus();
         this.latexWorkerStatus = EngineStatus.Busy;
         return new Promise<any[]>((resolve, reject) => {
@@ -204,21 +205,20 @@ export default class PdfTeXEngine {
     async fetchTexFiles(filenames: string[], hostDir: string): Promise<void> {
         await Promise.all(
             filenames.map(async (filename) => {
-                const data = await this.task<{ content: string | Uint8Array<any> }>({ cmd: "fetchfile", filename });
+                const data = await this.task<{ content: Uint8Array<any> }>({ cmd: "fetchfile", filename });
                 const fileContent = new Uint8Array(data.content);
                 fs.promises.writeFile(path.join(hostDir, filename), fileContent);
             })
         );
-    }    
+    }
     
     
-    private task<T = void>(task: any,callback?: (data: any) => void): Promise<T> {
+    private task<T = void>(task: any): Promise<T> {
         const command = task.cmd;
         this.checkEngineStatus();
         this.latexWorkerStatus = EngineStatus.Busy;
         return new Promise<T>((resolve, reject) => {
             this.latexWorker!.onmessage = (ev: MessageEvent<any>) => {
-                console.log("task onmessage",ev,ev.data,ev.data.cmd,callback);
                 try {
                     console.log("task onmessage 1",command===ev.data.cmd);
                     //Issue here 
@@ -226,7 +226,6 @@ export default class PdfTeXEngine {
                     this.latexWorkerStatus = EngineStatus.Ready;
                     this.latexWorker!.onmessage = null;
                     this.latexWorker!.onerror = null;
-                    if (callback) callback(ev.data);
                     const data = ev.data; delete data.result;
                     if (Array.from(Object.keys(data)).length > 0) {
                         resolve(data as T);
