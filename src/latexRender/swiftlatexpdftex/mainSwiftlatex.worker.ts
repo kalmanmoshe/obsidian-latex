@@ -49,8 +49,7 @@ var log: Log={
   errors: []
 }
 
-var Module= 
-{
+var Module = {
   print: function (text: string) {
     self.memlog += text + "\n";
     log.regular.push(text);
@@ -67,6 +66,17 @@ var Module=
   postRun: function () {
     self.postMessage({ result: "ok",cmd: "postRun" });
     self.initmem = dumpHeapMemory();
+  },
+  onAbort: function () {
+    self.memlog += "Engine crashed";
+    self.postMessage({
+      result: "failed",
+      status: -254,
+      log: self.memlog,
+      myLog: log,
+      cmd: "compile",
+    });
+    return;
   },
 };
 export default Module;
@@ -142,17 +152,7 @@ export function cleanDir(dir: string) {
   }
 }
 
-Module["onAbort"] = function () {
-  self.memlog += "Engine crashed";
-  self.postMessage({
-    result: "failed",
-    status: -254,
-    log: self.memlog,
-    myLog: log,
-    cmd: "compile",
-  });
-  return;
-};
+
 
 export function compileLaTeXRoutine() {
   prepareExecutionContext();
