@@ -74,10 +74,10 @@ var Module = {
       status: -254,
       log: self.memlog,
       myLog: log,
-      cmd: "compile",
+      cmd: "compilelatex",
     });
     return;
-  },
+  }
 };
 export default Module;
 export var out = Module.print || console.log.bind(console);
@@ -178,7 +178,7 @@ export function compileLaTeXRoutine() {
         status: status,
         log: self.memlog,
         myLog: log,
-        cmd: "compile",
+        cmd: "compilelatex",
       });
       return;
     }
@@ -189,7 +189,7 @@ export function compileLaTeXRoutine() {
         log: self.memlog,
         myLog: log,
         pdf: pdfArrayBuffer.buffer,
-        cmd: "compile",
+        cmd: "compilelatex",
       },
       [pdfArrayBuffer.buffer],
     );
@@ -200,7 +200,7 @@ export function compileLaTeXRoutine() {
       status: status,
       log: self.memlog,
       myLog: log,
-      cmd: "compile",
+      cmd: "compilelatex",
     });
   }
 }
@@ -221,7 +221,7 @@ export function compileFormatRoutine() {
         status: status,
         log: self.memlog,
         myLog: log,
-        cmd: "compile",
+        cmd: "compilelatex",
       });
       return;
     }
@@ -232,7 +232,7 @@ export function compileFormatRoutine() {
         log: self.memlog,
         myLog: log,
         pdf: pdfArrayBuffer.buffer,
-        cmd: "compile",
+        cmd: "compilelatex",
       },
       [pdfArrayBuffer.buffer],
     );
@@ -243,7 +243,7 @@ export function compileFormatRoutine() {
       status: status,
       log: self.memlog,
       myLog: log,
-      cmd: "compile",
+      cmd: "compilelatex",
     });
   }
 }
@@ -459,8 +459,8 @@ function kpse_find_pk_impl(nameptr, dpi) {
   }
   return 0;
 }
-var moduleOverrides = Object.assign({}, Module);
-var arguments_ = [];
+var moduleOverrides:typeof Module|null = Object.assign({}, Module);
+var arguments_: string[] = [];
 var thisProgram = "./this.program";
 var quit_ = (status, toThrow) => {
   throw toThrow;
@@ -475,6 +475,7 @@ function locateFile(path) {
   return scriptDirectory + path;
 }
 export var read_, readAsync, readBinary;
+
 if (ENVIRONMENT_IS_NODE) {
   var fs = require("fs");
   var nodePath = require("path");
@@ -657,8 +658,7 @@ function abort(what: string="") {
 var dataURIPrefix = "data:application/octet-stream;base64,";
 var isDataURI = (filename: string) => filename.startsWith(dataURIPrefix);
 var isFileURI = (filename: string) => filename.startsWith("file://");
-var wasmBinaryFile;
-wasmBinaryFile = wasmBinaryFileImport
+var wasmBinaryFile: string = wasmBinaryFileImport
 
 if (!isDataURI(wasmBinaryFile)) {
   wasmBinaryFile = locateFile(wasmBinaryFile);

@@ -1,6 +1,6 @@
 import { App, SectionCache, TAbstractFile, TFile, TFolder } from "obsidian";
 import Moshe from "src/main";
-import { hashLatexSource, latexCodeBlockNamesRegex } from "./main";
+import { hashLatexSource, latexCodeBlockNamesRegex } from "../main";
 import { getFileSections, parseNestedCodeBlocks } from "./sectionCache";
 
 export async function getLatexSourceFromHash(hash: string, plugin: Moshe, file?: TFile): Promise<string> {
@@ -94,7 +94,6 @@ export function findRelativeFile(filePath: string, currentDir: TAbstractFile | n
         
     }
     if (!(currentDir instanceof TFolder)) {
-        console.log("currentDir",currentDir)
         throw new Error(`Invalid folder: ${pathParts[0]}`);
     }
     const fileName = pathParts[0];
@@ -125,7 +124,6 @@ export async function getLatexHashesFromFile(file: TFile,app:App) {
     const hashes: string[] = [];
     const sections = await getFileSections(file, app, true);
     if (!sections) return [];
-
     const lines = (await app.vault.read(file)).split('\n');
     for (const section of sections) {
         if (section.type != "code" && lines[section.position.start.line].match(latexCodeBlockNamesRegex) == null) continue;

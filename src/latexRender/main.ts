@@ -12,14 +12,14 @@ import { pdfToHtml, pdfToSVG } from './pdfToHtml/pdfToHtml';
 import parseLatexLog, {createErrorDisplay, errorDiv} from './log-parser/HumanReadableLogs';
 import { String as StringClass } from './parse/typs/ast-types-post';
 import { VirtualFileSystem } from './VirtualFileSystem';
-import { findRelativeFile, getLatexCodeBlocksFromString, } from './latexSourceFromFile';
-import { getFileSections,} from './sectionCache';
+import { findRelativeFile, getLatexCodeBlocksFromString, } from './cache/latexSourceFromFile';
+import { getFileSections,} from './cache/sectionCache';
 import { SvgContextMenu } from './svgContextMenu';
-import { cacheFileFormat, SvgCache } from './svgCache';
-import { createTransactionLogger } from './transactionLogger';
+import { cacheFileFormat, SvgCache } from './cache/svgCache';
+import { createTransactionLogger } from './cache/transactionLogger';
 import { Extension, StateEffect, StateField, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { getSectionFromMatching, getSectionFromTransaction } from './findSection';
+import { getSectionFromMatching, getSectionFromTransaction } from './cache/findSection';
 import { ProcessedLog } from './log-parser/latex-log-parser';
 
 export const waitFor = async (condFunc: () => boolean) => {
@@ -54,6 +54,11 @@ export function clearFolder(folderPath: string){
 		}
 	}
 }
+type InputFile = {
+	name: string;
+  	content: string;
+  	dependencies: InputFile[];
+}
 /**
  * add option for Persistent preamble.so it won't get deleted.after use Instead, saved until overwritten
  */
@@ -72,13 +77,11 @@ export class SwiftlatexRender {
 		this.plugin = plugin;
 		this.bindTransactionLogger();
 		this.validateCatchDirectory();
-		await this.loadCache();
+		this.loadCache();
 		// initialize the latex compiler
 		this.initializePDfEngine();
-		console.log("Loading SwiftlatexRender PDF engine...");
 		await this.pdfEngine.loadEngine();
 		await this.loadPackageCache();
-		console.log("Loading SwiftlatexRender PDF engine finished.");
 		await this.pdfEngine.setTexliveEndpoint(this.plugin.settings.package_url);
 		this.configQueue();
 		this.plugin.addRibbonIcon("dice", "Moshe Math", () => {
@@ -100,6 +103,13 @@ export class SwiftlatexRender {
 		this.pdfEngine = new PdfTeXEngine();
 		this.virtualFileSystem.setPdfEngine(this.pdfEngine);
 	}
+	private restoreFromCache(el: HTMLElement,hash: string){
+		const dataPath = path.join(this.cacheFolderPath, `${hash}.${cacheFileFormat}`);
+		if(!this.cache.hasFile(hash,dataPath))return false;
+		const data = fs.readFileSync(dataPath, 'utf8');
+		el.innerHTML = data
+		return true;
+	}
 	universalCodeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
 		const isLangTikz = el.classList.contains("block-language-tikz");
 		el.classList.remove("block-language-tikz");
@@ -110,18 +120,16 @@ export class SwiftlatexRender {
 		
 		// PDF file has already been cached
 		// Could have a case where pdfCache has the key but the cached file has been deleted
-		const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${cacheFileFormat}`);
-		if (this.cache.hasFile(md5Hash,dataPath)) {
-			const data = fs.readFileSync(dataPath, 'utf8');
-			el.innerHTML = data
-		}
-		else {
+		if (!this.restoreFromCache(el,md5Hash)) {
 			//Reliable enough for repeated entries
 			this.ensureContextSectionInfo(source, el, ctx).then((sectionInfo) => {
 				source = sectionInfo.source || source;
+				const finalHash = hashLatexSource(source);
+				if (md5Hash !== finalHash && this.restoreFromCache(el, finalHash)) return;
 				const blockId = getBlockId(ctx.sourcePath,sectionInfo.lineStart)
 				this.queue.remove(node => node.data.blockId === blockId);
 				el.appendChild(createWaitingCountdown(this.queue.length()));
+				console.log("Task added to queue:", el,);
 				this.queue.push({ source, el, md5Hash, sourcePath: ctx.sourcePath, blockId, process:isLangTikz });
 
 			}).catch((err) => this.handleError(el, err as string,{hash: md5Hash}));
@@ -136,21 +144,28 @@ export class SwiftlatexRender {
 		el: HTMLElement,
 		ctx: MarkdownPostProcessorContext
 	): Promise<MarkdownSectionInformation & { source?: string }> {
+	
 		const sectionFromContext = ctx.getSectionInfo(el);
 		if (sectionFromContext) return sectionFromContext;
-
-		const {file,sections} = await getFileSectionsFromPath(ctx.sourcePath, this.plugin.app);
-
+	
+		const { file, sections } = await getFileSectionsFromPath(ctx.sourcePath, this.plugin.app);
+	
 		const editor = this.plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
 		const fileText = editor?.getValue() ?? await this.plugin.app.vault.cachedRead(file);
+	
 		const sectionFromTransaction = getSectionFromTransaction(sections, fileText, this.logger, editor);
 		if (sectionFromTransaction) return sectionFromTransaction;
-
+	
 		const sectionFromMatching = getSectionFromMatching(sections, fileText, source);
 		if (sectionFromMatching) return sectionFromMatching;
-
-		throw new Error("Section cache not found");
-	}
+		// If no section is found, this is a fallback. Since it’s artificial, include the source explicitly.
+		return {
+			lineStart: Math.floor(Math.random() * 1000) * -1,
+			lineEnd: 0,
+			text: fileText,
+			source
+		};
+	}	
 	async getFileContent(file: TFile,remainingPath?: string): Promise<string> {
 		const fileContent = await this.plugin.app.vault.read(file);
 		if(!remainingPath)return fileContent;
@@ -167,32 +182,35 @@ export class SwiftlatexRender {
 		if(!target)err();
 		return target!.content.split("\n").slice(1,-1).join("\n");
 	}
+	private async processInputFiles(ast: LatexAbstractSyntaxTree, basePath: string): Promise<void> {
+		const inputFilesMacros = ast.usdInputFiles().filter((macro) => macro.args && macro.args.length === 1);
+
+		for (const macro of inputFilesMacros) {
+			const args = macro.args!;
+			const filePath = args[0].content.map(node => node.toString()).join("");
+			const dir = findRelativeFile(filePath, this.plugin.app.vault.getAbstractFileByPath(basePath));
+			const name = (dir.remainingPath || dir.file.basename) + ".tex";
+
+			// Replace the macro argument with normalized name
+			args[0].content = [new StringClass(name)];
+
+			// Avoid circular includes
+			if (this.virtualFileSystem.hasFile(name)) continue;
+
+			const content = await this.getFileContent(dir.file, dir.remainingPath);
+			
+
+			// Recursively process the content
+			const nestedAst = LatexAbstractSyntaxTree.shallowParse(content);
+			await this.processInputFiles(nestedAst, dir.file.path);
+			this.virtualFileSystem.addVirtualFileSystemFile({ name, content: nestedAst.toString() });
+		}
+	}
 	async processTask(task: ProcessableTask): Promise<void> {
 		const startTime = performance.now();
 		try {
-			// ── AST Parsing ──────────────────────────────
-			const startAstTime = performance.now();
 			const ast = LatexAbstractSyntaxTree.parse(task.source);
-	
-			// ── Input File Macros ────────────────────────
-			const inputFilesMacros = ast.usdInputFiles();
-	
-			for (const macro of inputFilesMacros) {
-				const args = macro.args;
-				if (!args || args.length !== 1) continue;
-	
-				const filePath = args[0].content.map(node => node.toString()).join("");
-				const dir = findRelativeFile(filePath, this.plugin.app.vault.getAbstractFileByPath(task.sourcePath));
-				const name = (dir.remainingPath || dir.file.basename) + ".tex";
-	
-				args[0].content = [new StringClass(name)];
-	
-				const content = await this.getFileContent(dir.file, dir.remainingPath);
-	
-				this.virtualFileSystem.addVirtualFileSystemFile({ name, content });
-			}
-	
-			// ── Update AST with virtual files ────────────
+			await this.processInputFiles(ast, task.sourcePath);
 			this.virtualFileSystem.getAutoUseFileNames().forEach((name) => {
 				ast.addInputFileToPramble(name);
 			});
@@ -222,6 +240,7 @@ export class SwiftlatexRender {
 			  //this.handleError(task.el, "Render error: " + err);
 			} finally {
 			  setTimeout(() => {
+				console.log("Task completed:", task.el);
 				updateQueueCountdown(this.queue);
 				done();
 			  }, this.plugin.settings.pdfEngineCooldown);
@@ -240,7 +259,7 @@ export class SwiftlatexRender {
 		}
 	}
 
-	private async loadCache() {
+	private loadCache() {
 		const cache = new Map(this.plugin.settings.cache);
 		// For some reason `this.cache` at this point is actually `Map<string, Array<string>>`
 		for (const [k, v] of cache) {
@@ -262,7 +281,7 @@ export class SwiftlatexRender {
 			}
 		}
 		// move packages to the VFS
-		for (const [key, val] of Object.entries(this.plugin.settings.packageCache[1])) {
+		for (const [key, val] of Object.entries(this.plugin.settings.packageCache[1] as Record<string,string>)) {
 			const filename = path.basename(val);
 			//const read_success = false;
 			try {
@@ -371,9 +390,10 @@ export class SwiftlatexRender {
 	async fetchPackageCacheData(): Promise<void> {
 		try {
 			const cacheData: StringMap[] = await this.pdfEngine.fetchCacheData();
+			
 			const newFileNames = getNewPackageFileNames(
-				this.plugin.settings.packageCache[1],
-				cacheData[1]
+				this.plugin.settings.packageCache[1] as Record<string,string>,
+				cacheData[1] as Record<string,string>
 			);
 			await this.pdfEngine.fetchTexFiles(newFileNames, this.packageCacheFolderPath);
 			this.plugin.settings.packageCache = cacheData;
@@ -438,7 +458,7 @@ export function getBlockId(path: string,lineStart: number): string {
 
 
 
-function getNewPackageFileNames(oldCacheData: StringMap, newCacheData: StringMap): string[] 
+function getNewPackageFileNames(oldCacheData: Record<string,string>, newCacheData: Record<string,string>): string[] 
 {
 	// based on the old and new package files in package cache data,
 	// return the new package files

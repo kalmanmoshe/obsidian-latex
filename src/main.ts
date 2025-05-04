@@ -59,19 +59,25 @@ export default class Moshe extends Plugin {
   swiftlatexRender: SwiftlatexRender=new SwiftlatexRender();
 
   async onload() {
-    console.warn("Loading Moshe math plugin")
+
+    console.log("Loading Moshe math plugin")
     await this.loadSettings();
-		this.addSettingTab(new MosheMathSettingTab(this.app, this));
+		
     this.addEditorCommands();
     this.updateApiHooks();
     this.addSyntaxHighlighting();
     this.app.workspace.onLayoutReady(async () => await this.loadLayoutReadyDependencies());
-    temp()
+    this.addSettingTab(new MosheMathSettingTab(this.app, this));
+    //temp()
+  }
+  async onunload() {
+    this.removeSyntaxHighlighting();
+    this.swiftlatexRender.onunload();
   }
 
   private async loadLayoutReadyDependencies() {
-    await this.loadMathJax();
-    await this.loadSwiftLatexRender()
+    this.loadMathJax();
+    this.loadSwiftLatexRender()
     // processing of the code blocks have layout dependencies
     this.setCodeblocks();
     this.watchFiles()
@@ -141,7 +147,6 @@ export default class Moshe extends Plugin {
       await this.getMathjaxPreamble() :
       "";
     
-    await loadMathJax();
     //this isnt really needed all it dose is make it of type any so thar are no errors
     const MJ: any = MathJax;
     if (typeof MJ.tex2chtml !== "undefined") {
@@ -184,6 +189,7 @@ export default class Moshe extends Plugin {
   }
 
   private processMathJax(input: string): string {
+    if(!/[א-ת]/.test(input))return input;
     const ast = new MathJaxAbstractSyntaxTree();
     ast.parse(input);
     ast.reverseRtl();
@@ -194,7 +200,7 @@ export default class Moshe extends Plugin {
     let data = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
     await this.saveData(this.settings);
-    await this.swiftlatexRender.virtualFileSystem.setEnabled(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled);
+    this.swiftlatexRender.virtualFileSystem.setEnabled(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled);
     if (this.settings.pdfTexEnginevirtualFileSystemFilesEnabled) {
       this.app.workspace.onLayoutReady(async () => {
           await this.processLatexPreambles();

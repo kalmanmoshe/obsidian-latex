@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import { TFile } from "obsidian";
 import { getLatexHashesFromFile } from "./latexSourceFromFile";
 import * as path from 'path';
-import { clearFolder } from "./main";
+import { clearFolder } from "../main";
 export const cacheFileFormat="svg"
 export class SvgCache {
     private plugin: Moshe;

@@ -61,7 +61,7 @@ export function onmessage(eventData: MessageEvent<any>) {
       break;
     case "fetchWorkFiles":
       transferWorkFilesToHost();
-        break;
+      break;
     case "writetexfile":
       writeTexFileRoutine(data["url"], data["src"]);
       break;

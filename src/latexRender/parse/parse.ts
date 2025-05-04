@@ -1,4 +1,4 @@
-import { ErrorRuleId } from '../log-parser/HumanReadableLogsRules';
+
 import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument,Path, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node, ContentNode, BaseNode } from './typs/ast-types-post';
 import { migrateToClassStructure, parse } from './autoParse/ast-types-pre';
 import { claenUpPaths } from './cleanUpAst';
@@ -19,6 +19,15 @@ export class LatexAbstractSyntaxTree{
     content: Node[];
     constructor(content: Node[]){
         this.content=content;
+    }
+    static shallowParse(latex: string){
+        const autoAst=parse(latex);
+        console.log("autoAst",autoAst);
+        const classAst= migrateToClassStructure(autoAst);
+        if (!(classAst instanceof Root)) throw new Error("Root not found");
+        const content=classAst.content
+        return new LatexAbstractSyntaxTree(content);
+
     }
     static parse(latex: string){
         const autoAst=parse(latex);

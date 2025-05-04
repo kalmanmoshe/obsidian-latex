@@ -1,5 +1,5 @@
 
-export type StringMap = { [key: string]: string };
+export type StringMap = Record<string,string|number>;
 
 interface MosheMathBasicSettings {
 	mathjaxPreamblePreambleEnabled: boolean;
