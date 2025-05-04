@@ -48,12 +48,12 @@ export class VirtualFileSystem{
      * @param enabled
      */
     async setEnabled(enabled: boolean){
-        this.enabled=enabled
-        if(!enabled){
+        if(this.enabled&&!enabled){
             this.files=[];
             this.status=VirtualFileSystemFilesStatus.undefined;
             await this.pdfEngine.flushWorkCache()
         }
+        this.enabled=enabled
     }
     /**
      * set the coor virtual files
@@ -81,6 +81,9 @@ export class VirtualFileSystem{
         this.files=files;
         this.status=VirtualFileSystemFilesStatus.outdated;
     }
+    hasFile(name: string){
+        return this.files.some(file => file.name === name);
+    }
     /**
      * add a virtual file system file
      * @param file 
@@ -96,7 +99,6 @@ export class VirtualFileSystem{
      */
     async loadVirtualFileSystemFiles() {
         if(this.enabled===false||this.status === VirtualFileSystemFilesStatus.uptodate)return;
-        console.log("Loading virtual filesystem files into pdf engine...", this.files);
         if (this.status === VirtualFileSystemFilesStatus.undefined){
             await nonBlockingWaitUntil(() => 
                 this.status === VirtualFileSystemFilesStatus.outdated

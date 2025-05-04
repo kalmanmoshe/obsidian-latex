@@ -1,6 +1,6 @@
 import { Editor, MarkdownSectionInformation, SectionCache } from "obsidian";
 import { TransactionLogger } from "./transactionLogger";
-import { getSectionCacheOfString, getSectionCacheOfStringFuzzy } from "./sectionCache";
+import { getBestFitSectionCatch, getSectionCacheOfString, getSectionCacheOfStringFuzzy } from "./sectionCache";
 
 
 
@@ -44,14 +44,14 @@ export function getSectionFromMatching(
 ): (MarkdownSectionInformation & { source?: string }) | undefined {
 	let sectionCache: SectionCache | undefined;
 	let fuzzyResult: { source: string; section: SectionCache } | undefined;
-
-	try {
-		sectionCache = getSectionCacheOfString(sections, fileText, source);
-	} catch (err) {
+	sectionCache = getSectionCacheOfString(sections, fileText, source, false);
+	if(!sectionCache){
 		fuzzyResult = getSectionCacheOfStringFuzzy(sections, fileText, source);
 		sectionCache = fuzzyResult?.section;
 	}
-
+	if (!sectionCache) {
+		const bestFit= getBestFitSectionCatch(sections, fileText, source)
+	}
 	if (!sectionCache) return;
 
 	return {
@@ -73,8 +73,10 @@ function extractSectionSource(fileText: string, section: SectionCache): string {
 /**
  * Returns the most nested (deepest) section that contains a given line.
  */
-function getInnermostSection(sections: SectionCache[], lineIndex: number): SectionCache | undefined {
+export function getInnermostSection(sections: SectionCache[], lineIndex: number,lineEnd?: number): SectionCache | undefined {
 	return sections
-		.filter(sec => sec.position.start.line <= lineIndex && sec.position.end.line >= lineIndex)
+		.filter(sec => sec.position.start.line <= lineIndex && sec.position.end.line >= lineIndex
+			&& (lineEnd ? sec.position.end.line <= lineEnd : true)
+		)
 		.sort((a, b) => b.position.start.line - a.position.start.line)[0];
 }

@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 
 import Worker from "./swiftlatexpdftex/mainSwiftlatex.worker";
+import { StringMap } from "src/settings/settings";
 export enum EngineStatus {
     Init,
     Ready,
@@ -29,7 +30,8 @@ export enum LatexWorkerCommands {
     Compileformat = "compileformat",
     writecache = "writecache",
     Fetchfile = "fetchfile",
-    fetchWorkFiles = "fetchWorkFiles",
+    FetchWorkFiles = "fetchWorkFiles",
+    FetchCache= "fetchcache",
     Writetexfile = "writetexfile",
     Setmainfile = "setmainfile",
     Writefile = "writefile",
@@ -48,6 +50,7 @@ export default class PdfTeXEngine {
         this.latexWorkerStatus = EngineStatus.Init;
 
         await new Promise<void>((resolve, reject) => {
+            //@ts-expect-error
             this.latexWorker = new Worker(Worker);
             this.latexWorker!.onmessage = (ev:MessageEvent<any>) => {
                 const data = ev.data;
@@ -75,101 +78,47 @@ export default class PdfTeXEngine {
             throw new Error("Engine is still spinning or not ready yet! engineStatus: " + EngineStatus[this.latexWorkerStatus]);
         }
     }
-    private unexpectedCommandCheck(expected: string,cmd: string,): void {
-        if(cmd!==expected)
-            throw new Error(`Unexpected command: ${cmd}, expected: ${expected}`);
-    }
 
     async compileLaTeX(): Promise<CompileResult> {
-        this.checkEngineStatus();
-        this.latexWorkerStatus = EngineStatus.Busy;
         const startCompileTime = performance.now();
-
-        const result = await new Promise<CompileResult>((resolve) => {
-            console.log("compileLaTeX",this.latexWorkerStatus);
-            this.latexWorker!.onmessage = (ev:MessageEvent<any>) => {
-                console.log("compileLaTeX onmessage",ev);
-                const data = ev.data;
-                this.unexpectedCommandCheck("compile",data.cmd);
-
-                this.latexWorkerStatus = EngineStatus.Ready;
-                console.log(`Engine compilation finished in ${performance.now() - startCompileTime} ms`);
-                //console.log("data.myLog",data);
-                const compileResult = new CompileResult(data.pdf?Buffer.from(new Uint8Array(data.pdf)):undefined, data.status, data.log);
-                resolve(compileResult);
-            };
-            console.log("compileLaTeX postMessage",this.latexWorkerStatus);
-            this.latexWorker!.postMessage({ cmd: "compilelatex" });
+    
+        const data = await this.task<{pdf?: Uint8Array;status: number;log: string;cmd: string;}>({
+            cmd: LatexWorkerCommands.Compilelatex,
         });
+    
+        console.log(`Engine compilation finished in ${performance.now() - startCompileTime} ms`);
+        return new CompileResult(
+            data.pdf ? Buffer.from(new Uint8Array(data.pdf)) : undefined,
+            data.status,
+            data.log
+        );
 
-        this.latexWorker!.onmessage = null;
-        return result;
     }
+    
 
     async compileFormat(): Promise<void> {
-        this.checkEngineStatus();
-        this.latexWorkerStatus = EngineStatus.Busy;
-
-        await new Promise<void>((resolve, reject) => {
-            this.latexWorker!.onmessage = (ev:MessageEvent<any>) => {
-            const data = ev.data;
-            this.unexpectedCommandCheck("compile",data.cmd);
-
-            this.latexWorkerStatus = EngineStatus.Ready;
-
-            if (data.result === "ok") {
-                const formatBlob = new Blob([data.pdf], { type: "application/octet-stream" });
-                const formatURL = URL.createObjectURL(formatBlob);
-                setTimeout(() => URL.revokeObjectURL(formatURL), 30000);
-                console.log(`Download format file via ${formatURL}`);
-                resolve();
-            } else {
-                reject(data.log);
-            }
-            };
-
-            this.latexWorker!.postMessage({ cmd: "compileformat" });
+        const data = await this.task<{ pdf: Uint8Array, log?: string }>({
+            cmd: LatexWorkerCommands.Compileformat,
         });
-
-        this.latexWorker!.onmessage = null;
+        const formatBlob = new Blob([data.pdf], { type: "application/octet-stream" });
+        const formatURL = URL.createObjectURL(formatBlob);
+        setTimeout(() => URL.revokeObjectURL(formatURL), 30000);
     }
 
-    async fetchCacheData(): Promise<any[]> {
-        this.task
-        this.checkEngineStatus();
-        this.latexWorkerStatus = EngineStatus.Busy;
-        return new Promise<any[]>((resolve, reject) => {
-            if (!this.latexWorker) {
-                this.latexWorkerStatus = EngineStatus.Error;
-                reject(new Error("Latex worker not initialized."));
-                return;
-            }
-            const onMessageHandler = (ev: MessageEvent<any>) => {
-                const data = ev.data;
-                this.unexpectedCommandCheck("fetchcache", data.cmd);
-                
-                this.latexWorkerStatus = EngineStatus.Ready;
-                this.latexWorker!.onmessage = null;
-                this.latexWorker!.onerror = null;
-                if (data.result === "ok") {
-                    resolve([
-                        data.texlive404_cache,
-                        data.texlive200_cache,
-                        data.pk404_cache,
-                        data.pk200_cache,
-                    ]);
-                } else {
-                    reject(new Error("Failed to fetch cache data"));
-                }
-            };
-            this.latexWorker!.onmessage = (ev) => onMessageHandler(ev);
-            this.latexWorker!.onerror = (err) => {
-                this.latexWorkerStatus = EngineStatus.Error;
-                this.latexWorker!.onmessage = null;
-                reject(new Error(`Worker error: ${err.message}`));
-            };
-            this.latexWorker!.postMessage({ cmd: "fetchcache" });
-        });
+    async fetchCacheData() {
+        const recordToString = (record: Record<string, number>) => {
+            return Object.fromEntries(
+                Object.entries(record).map(([key, value]) => [key, String(value)])
+            );
+        };
+        return this.task<{texlive404: Record<string,number>,texlive200: Record<string,string>,pk404: Record<string,number>,pk200: Record<string,string>}>(
+            { cmd: LatexWorkerCommands.FetchCache, texlive404_cache: [], texlive200_cache: [], pk404_cache: [], pk200_cache: [] }
+        ).then(data =>[
+            recordToString(data.texlive404),
+            data.texlive200,
+            recordToString(data.pk404),
+            data.pk200,
+        ])
     }
     
 
@@ -178,22 +127,7 @@ export default class PdfTeXEngine {
     }
 
     async fetchWorkFiles() {
-        this.checkEngineStatus();
-        this.latexWorkerStatus = EngineStatus.Busy;
-        this.latexWorker!.postMessage({ cmd: LatexWorkerCommands.fetchWorkFiles });
-        return new Promise<void>((resolve, reject) => {
-          this.latexWorker!.onmessage = (event: MessageEvent) => {
-            this.unexpectedCommandCheck(LatexWorkerCommands.fetchWorkFiles,event.data.cmd);
-            this.latexWorkerStatus = EngineStatus.Ready;
-            this.latexWorker!.onmessage = null;
-            console.log("event.data",event.data);
-            if (event.data.result === "ok") {
-                resolve();
-            } else {
-                reject(new Error("Failed to fetch work files"));
-            }
-          };
-        });
+        return this.task<{ file: String[] }>({ cmd: LatexWorkerCommands.FetchWorkFiles });
     }
     
     /**
@@ -220,19 +154,18 @@ export default class PdfTeXEngine {
         return new Promise<T>((resolve, reject) => {
             this.latexWorker!.onmessage = (ev: MessageEvent<any>) => {
                 try {
-                    console.log("task onmessage 1",command===ev.data.cmd);
-                    //Issue here 
-                    this.unexpectedCommandCheck(command, ev.data.cmd);
+                    if(ev.data.cmd!==command){
+                        throw new Error(`Unexpected command: ${ev.data.cmd}, expected: ${command}`);
+                    }
                     this.latexWorkerStatus = EngineStatus.Ready;
                     this.latexWorker!.onmessage = null;
                     this.latexWorker!.onerror = null;
-                    const data = ev.data; delete data.result;
+                    const data = ev.data; delete data.result;delete data.cmd;
                     if (Array.from(Object.keys(data)).length > 0) {
                         resolve(data as T);
                     } else {
                         resolve(undefined as T);
                     }
-                    
                 } catch (err) {
                     console.error("Error in task", err);
                     this.latexWorkerStatus = EngineStatus.Error;
@@ -248,7 +181,6 @@ export default class PdfTeXEngine {
                 console.error("Worker error:", err);
                 reject(new Error(`Worker error: ${err.message}`));
             };
-            console.log("postMessage",task);
             this.latexWorker!.postMessage(task);
         });
     }

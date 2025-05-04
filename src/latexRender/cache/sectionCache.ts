@@ -1,4 +1,5 @@
 import { App, Notice, SectionCache, TFile } from "obsidian";
+import { getInnermostSection } from "./findSection";
 /**
  * get the sections of a file from the metadata cache with the option to account for nested code blocks.
  * @param file 
@@ -51,7 +52,6 @@ function findMultiLineStartIndex(text: string, searchString: string): number {
     const searchLines = searchString.split("\n"); // Split the search string into lines
     const searchLength = searchLines.length;
 
-    // First, try exact match
     for (let i = 0; i <= textLines.length - searchLength; i++) {
         let match = true;
 
@@ -83,8 +83,8 @@ function findMultiLineStartIndicesFuzzy(text: string, target: string, fuzzyMatch
         let earlyExit = false;
 
         for (let j = 0; j < searchLength; j++) {
-            const line = textLines[i + j].trim();
-            const targetLine = targetLines[j].trim();
+            const line = textLines[i + j]
+            const targetLine = targetLines[j]
 
             if (line === targetLine) {
                 continue;
@@ -92,14 +92,13 @@ function findMultiLineStartIndicesFuzzy(text: string, target: string, fuzzyMatch
 
             const distance = levenshteinWithEarlyStop(line, targetLine, fuzzyMatchCurrency - totalDistance);
             totalDistance += distance;
-
             if (totalDistance > fuzzyMatchCurrency) {
                 earlyExit = true;
                 break; // Stop further calculation
             }
         }
 
-        if (!earlyExit && totalDistance > 0) {
+        if (!earlyExit && totalDistance >= 0) {
             matches.push({ index: i, distance: totalDistance });
         }
     }
@@ -141,14 +140,17 @@ function levenshteinWithEarlyStop(a: string, b: string, threshold: number): numb
 }
 
 
-export function getSectionCacheOfString(sectionsCache: SectionCache[],source: string,target: string):SectionCache|undefined {
+export function getSectionCacheOfString(sectionsCache: SectionCache[],source: string,target: string,exact=true):SectionCache|undefined {
     let sourceIndex=findMultiLineStartIndex(source,target);
-    if(sourceIndex===-1)throw new Error("source not found in file");
-    if(sourceIndex===0)throw new Error("source index is 0 which is invalid (i don't know why this happens)");
+    console.log("sourceIndex",sourceIndex);
+    if(sourceIndex<=0) return;
     const codeBlockStartLine=sourceIndex-1;
-    const section=sectionsCache.find((section)=>section.position.start.line===codeBlockStartLine);
+    const section=exact?
+    sectionsCache.find((section)=>section.position.start.line===codeBlockStartLine):
+    sectionsCache.find((section)=>section.position.start.line>=codeBlockStartLine&&section.position.end.line>=codeBlockStartLine);
     return section;
 }
+
 export function getSectionCacheOfStringFuzzy(sectionsCache: SectionCache[],source: string,target: string,fuzzyMatchCurrency=1):{source:string, section: SectionCache}|undefined{
     const matches = findMultiLineStartIndicesFuzzy(source, target, fuzzyMatchCurrency);
 	if (matches.length === 0) return undefined;
@@ -166,6 +168,47 @@ export function getSectionCacheOfStringFuzzy(sectionsCache: SectionCache[],sourc
 	const slicedSource = lines.slice(section.position.start.line+1, section.position.end.line).join("\n");
 	return { source: slicedSource, section };
 }
+export function getBestFitSectionCatch(sectionsCache: SectionCache[],source: string,target: string):{source:string, section: SectionCache}|undefined{
+    const matches = findPartialMatchInText(source, target);
+    console.log("matches",matches)
+	if (matches.length === 0) return undefined;
+	if (matches.length !== 1) {
+		new Notice("LatexRender: Couldn't determine the source of the code block. Possibly due to a nested or duplicated block.");
+		return undefined;
+	}
+    const { indexInDoc, start, end } = matches[0];
+	const section =getInnermostSection(sectionsCache,indexInDoc);
+	if (!section) return undefined;
+	const slicedSource = target.split("\n").slice(start, end+1).join("\n");
+	return { source: slicedSource, section };
+}
+export function findPartialMatchInText(text: string, target: string): { indexInDoc: number, start: number, end: number }[] {
+	const textLines = text.split("\n");
+	const targetLines = target.split("\n");
+	const matches = [];
+
+	for (let i = 0; i < textLines.length; i++) {
+		// Try to align with any line in target
+		const index = targetLines.findIndex(line => line === textLines[i]);
+		if (index === -1) continue;
+
+		let endIndex = index;
+
+		for (let j = 1; i + j < textLines.length && index + j < targetLines.length; j++) {
+			if (textLines[i + j] === targetLines[index + j]) {
+				endIndex = index + j;
+			} else {
+				break;
+			}
+		}
+
+		matches.push({ indexInDoc: i, start: index, end: endIndex });
+	}
+    if (matches.length === 0) return [];
+    const maxLength = Math.max(...matches.map(m => m.end - m.start + 1));
+	return matches.filter(m => (m.end - m.start + 1) === maxLength);
+}
+
 
 const codeBlockDeliminatorRegex = /^\s*(`|~){3,}/;
 export function parseNestedCodeBlocks(source: string, lineShiftFactor: number,offsetShiftFactor: number): SectionCache[] {
@@ -177,14 +220,14 @@ export function parseNestedCodeBlocks(source: string, lineShiftFactor: number,of
         // Find the next code block start
         const startLineIndex = lines.slice(index).findIndex(line => line.match(codeBlockDeliminatorRegex));
         if (startLineIndex === -1) break;
-
         const absoluteStartIndex = index + startLineIndex;
         const deliminator = lines[absoluteStartIndex].trim().match(codeBlockDeliminatorRegex)?.[0] || null;
 
         // Find the matching end delimiter
         const remainingLines = lines.slice(absoluteStartIndex + 1);
-        const relativeEndIndex = remainingLines.findIndex(line => line.trim() === deliminator);
-        if (!deliminator||relativeEndIndex === -1) break;
+        let relativeEndIndex = remainingLines.findIndex(line => line.trim() === deliminator);
+        if(relativeEndIndex === -1) relativeEndIndex=remainingLines.length;
+        if (!deliminator) break;
         const absoluteEndIndex = absoluteStartIndex + 1 + relativeEndIndex;
         const content = lines.slice(absoluteStartIndex, absoluteEndIndex+1).join("\n");
         codeBlocks.push(...parseNestedCodeBlocks(content.split("\n").slice(1, -1).join("\n"), lineShiftFactor + absoluteStartIndex + 1, offsetShiftFactor + getOffsetForLine(source, absoluteStartIndex)));
