@@ -68,7 +68,7 @@ export default class Moshe extends Plugin {
     this.addSyntaxHighlighting();
     this.app.workspace.onLayoutReady(async () => await this.loadLayoutReadyDependencies());
     this.addSettingTab(new MosheMathSettingTab(this.app, this));
-    //temp()
+    temp()
   }
   async onunload() {
     this.removeSyntaxHighlighting();
