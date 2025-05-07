@@ -69,20 +69,22 @@ function tokenArrayToObjArray(latex: string[]){
             continue;
         }
         const isOpenBracket = isTokenOpenBracket(token);
-        if (openBracket === null) {
+        if (isOpenBracket === null) {
             tokens.push({ type: TokenType.Text, value: token });
         }
         else {
             tokens.push({type: TokenType.Bracket,state: isOpenBracket?TokenState.Open:TokenState.Close, value: token});
         }
     }
+    return tokens;
 }
 
 
 
 export function temp(){
     const stringTokens = latexStringToTokenArray(latex);
-    console.log("stringTokens",latex,stringTokens);
+    console.log("stringTokens", latex, stringTokens);
+    console.log("objTokens", tokenArrayToObjArray(stringTokens));
 }
 
 const latex=String.raw`
