@@ -328,6 +328,7 @@ export class SwiftlatexRender {
 			const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${cacheFileFormat}`);
 			const result = await this.renderLatexToPDF(source,md5Hash);
 			el.innerHTML = "";
+			console.log("PDF data", result.pdf);
 			await this.translatePDF(result.pdf, el,md5Hash);
 			await fs.promises.writeFile(dataPath, el.innerHTML, "utf8");
 			this.cache.addFile(md5Hash, sourcePath);
@@ -390,6 +391,7 @@ export class SwiftlatexRender {
 	async fetchPackageCacheData(): Promise<void> {
 		try {
 			const cacheData: StringMap[] = await this.pdfEngine.fetchCacheData();
+			console.log("Cache data fetched:", cacheData);
 			
 			const newFileNames = getNewPackageFileNames(
 				this.plugin.settings.packageCache[1] as Record<string,string>,

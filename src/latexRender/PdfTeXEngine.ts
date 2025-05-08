@@ -137,13 +137,11 @@ export default class PdfTeXEngine {
      * @param hostDir - The directory on the host system where the fetched files will be saved.
      */
     async fetchTexFiles(filenames: string[], hostDir: string): Promise<void> {
-        await Promise.all(
-            filenames.map(async (filename) => {
-                const data = await this.task<{ content: Uint8Array<any> }>({ cmd: "fetchfile", filename });
-                const fileContent = new Uint8Array(data.content);
-                fs.promises.writeFile(path.join(hostDir, filename), fileContent);
-            })
-        );
+        for (const filename of filenames) {
+            const data = await this.task<{ content: Uint8Array<any> }>({ cmd: "fetchfile", filename });
+            const fileContent = new Uint8Array(data.content);
+            await fs.promises.writeFile(path.join(hostDir, filename), fileContent);
+        }
     }
     
     

@@ -350,10 +350,10 @@ export function transferCacheDataToHost() {
     self.postMessage({
       result: "ok",
       cmd: "fetchcache",
-      texlive404_cache: texlive404,
-      texlive200_cache: texlive200,
-      pk404_cache: pk404,
-      pk200_cache: pk200,
+      texlive404,
+      texlive200,
+      pk404,
+      pk200,
     });
   } catch (err) {
     self.postMessage({ result: "failed", cmd: "fetchcache",error: err });
