@@ -1,8 +1,79 @@
+import { DEFAULT_CAT_CODES } from "./catCodes";
+
 export class Latex{
 
 }
+type CatCode = {
+    char: string;
+    code: number;
+}
+enum ActiveState {
 
-
+}
+export class LatexParser {
+    private active: string;
+    private catCodes: CatCode[] = DEFAULT_CAT_CODES;
+    private index: number = 0;
+    getCatCode(char: string): number{
+        const catCode = this.catCodes.find((cat) => cat.char === char);
+        if (catCode) {
+            return catCode.code;
+        }
+        return 12;
+    }
+    parse(latex: string): void {
+        const chars = latex.split("");
+        const codeActoinMap = {
+            0: this.
+        }
+        while (this.index < chars.length) {
+            const char = chars[this.index];
+            const catCode = this.getCatCode(char);
+            
+            switch (catCode) {
+                case 0:
+                    this.active = char;
+                    break;
+                case 1:
+                    this.active = char;
+                    break;
+                case 2:
+                    this.active = char;
+                    break;
+                case 3:
+                    this.active = char;
+                    break;
+                case 4:
+                    this.active = char;
+                    break;
+                case 5:
+                    this.active = char;
+                    break;
+                case 6:
+                    this.active = char;
+                    break;
+                case 7:
+                    this.active = char;
+                    break;
+                case 8:
+                    this.active = char;
+                    break;
+                case 10:
+                    this.active = char;
+                    break;
+                case 11:
+                    this.active = char;
+                    break;
+                case 12:
+                    this.active = char;
+                    break;
+                default:
+                    throw new Error(`Unknown cat code: ${catCode}`);
+            }
+            this.index++;
+        }
+    }
+}
 
 
 export class Parser{
