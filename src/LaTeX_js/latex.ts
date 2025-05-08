@@ -169,4 +169,3 @@ const latex=String.raw`
 \draw [] (O)--(B)(O)--(A)--(D) --cycle;
 \draw [] (A)--($(A)!1.5!(B)$);
 `;
-

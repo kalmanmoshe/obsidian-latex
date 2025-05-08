@@ -210,12 +210,6 @@
       ]
     ],
     [
-      "d0fa1b1fa361b1190f434e6c24b6fcbd",
-      [
-        "מתמטיקה/שי/בגרויות שלמות.md"
-      ]
-    ],
-    [
       "3bc48a89b5f0ce79a588abb620b43c86",
       [
         "פיזיקה/יחיאל/ניסוי גלים.md"
@@ -264,12 +258,6 @@
       ]
     ],
     [
-      "06bfc46bc9c099f6b574e7fdd108677b",
-      [
-        "פיזיקה/יחיאל/מבחני בגרות.md"
-      ]
-    ],
-    [
       "cf7d7399ae5413e8eac612be6884e174",
       [
         "פיזיקה/יחיאל/ניסוי קפיץ.md"
@@ -278,35 +266,12 @@
     [
       "3b461966077b7a8df93206df3b431865",
       [
-        "מדעי המחשב/עבודות/מתכונת 2 מבני נתונים.md"
-      ]
-    ],
-    [
-      "02603229d8f7c59f75969910d73461ce",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
-      "06bcb2e4d16be7966ce116cf78915100",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
-      "05d8d2ffe8959d339f9ec0b6b7353aa9",
-      [
-        "מתמטיקה/שי/טריגו.md"
+        "Untitled.md"
       ]
     ]
   ],
   "packageCache": [
-    {
-      "26/tikzlibrarypgfplots.surfshading.code.tex": 1,
-      "26/tikzlibraryarrows.meta.code.tex": 1,
-      "26/numprint.cfg": 1,
-      "26/main.aux": 1
-    },
+    {},
     {
       "26/amsbsy.sty": "/tex/amsbsy.sty",
       "26/amsfonts.sty": "/tex/amsfonts.sty",
@@ -580,104 +545,51 @@
       "26/xkeyval.tex": "/tex/xkeyval.tex",
       "26/xkvutils.tex": "/tex/xkvutils.tex",
       "26/xparse.sty": "/tex/xparse.sty",
-      "26/amsthm.sty": "/tex/amsthm.sty",
-      "26/animate.sty": "/tex/animate.sty",
-      "26/atbegshi.sty": "/tex/atbegshi.sty",
-      "26/atveryend.sty": "/tex/atveryend.sty",
-      "26/auxhook.sty": "/tex/auxhook.sty",
-      "26/beamer.cls": "/tex/beamer.cls",
-      "26/beamerbaseauxtemplates.sty": "/tex/beamerbaseauxtemplates.sty",
-      "26/beamerbaseboxes.sty": "/tex/beamerbaseboxes.sty",
-      "26/beamerbasecolor.sty": "/tex/beamerbasecolor.sty",
-      "26/beamerbasecompatibility.sty": "/tex/beamerbasecompatibility.sty",
-      "26/beamerbasedecode.sty": "/tex/beamerbasedecode.sty",
-      "26/beamerbasefont.sty": "/tex/beamerbasefont.sty",
-      "26/beamerbaseframe.sty": "/tex/beamerbaseframe.sty",
-      "26/beamerbaseframecomponents.sty": "/tex/beamerbaseframecomponents.sty",
-      "26/beamerbaseframesize.sty": "/tex/beamerbaseframesize.sty",
-      "26/beamerbaselocalstructure.sty": "/tex/beamerbaselocalstructure.sty",
-      "26/beamerbasemisc.sty": "/tex/beamerbasemisc.sty",
-      "26/beamerbasemodes.sty": "/tex/beamerbasemodes.sty",
-      "26/beamerbasenavigation.sty": "/tex/beamerbasenavigation.sty",
-      "26/beamerbasenotes.sty": "/tex/beamerbasenotes.sty",
-      "26/beamerbaseoptions.sty": "/tex/beamerbaseoptions.sty",
-      "26/beamerbaseoverlay.sty": "/tex/beamerbaseoverlay.sty",
-      "26/beamerbaserequires.sty": "/tex/beamerbaserequires.sty",
-      "26/beamerbasesection.sty": "/tex/beamerbasesection.sty",
-      "26/beamerbasetemplates.sty": "/tex/beamerbasetemplates.sty",
-      "26/beamerbasethemes.sty": "/tex/beamerbasethemes.sty",
-      "26/beamerbasetheorems.sty": "/tex/beamerbasetheorems.sty",
-      "26/beamerbasetitle.sty": "/tex/beamerbasetitle.sty",
-      "26/beamerbasetoc.sty": "/tex/beamerbasetoc.sty",
-      "26/beamerbasetranslator.sty": "/tex/beamerbasetranslator.sty",
-      "26/beamerbasetwoscreens.sty": "/tex/beamerbasetwoscreens.sty",
-      "26/beamerbaseverbatim.sty": "/tex/beamerbaseverbatim.sty",
-      "26/beamercolorthemedefault.sty": "/tex/beamercolorthemedefault.sty",
-      "26/beamerfontthemedefault.sty": "/tex/beamerfontthemedefault.sty",
-      "26/beamericonarticle.20.pdf": "/tex/beamericonarticle.20.pdf",
-      "26/beamericonarticle.pdf": "/tex/beamericonarticle.pdf",
-      "26/beamericonbook.20.pdf": "/tex/beamericonbook.20.pdf",
-      "26/beamericonbook.pdf": "/tex/beamericonbook.pdf",
-      "26/beamericononline.20.pdf": "/tex/beamericononline.20.pdf",
-      "26/beamericononline.pdf": "/tex/beamericononline.pdf",
-      "26/beamerinnerthemedefault.sty": "/tex/beamerinnerthemedefault.sty",
-      "26/beamerouterthemedefault.sty": "/tex/beamerouterthemedefault.sty",
-      "26/beamerthemedefault.sty": "/tex/beamerthemedefault.sty",
-      "26/bigintcalc.sty": "/tex/bigintcalc.sty",
-      "26/bitset.sty": "/tex/bitset.sty",
-      "26/calc.sty": "/tex/calc.sty",
-      "26/cmmi10.tfm": "/tex/cmmi10.tfm",
-      "26/cmr10.tfm": "/tex/cmr10.tfm",
-      "26/cmss10.pfb": "/tex/cmss10.pfb",
-      "26/cmss10.tfm": "/tex/cmss10.tfm",
-      "26/cmss12.pfb": "/tex/cmss12.pfb",
-      "26/cmss12.tfm": "/tex/cmss12.tfm",
-      "26/cmss8.tfm": "/tex/cmss8.tfm",
-      "26/cmssi10.pfb": "/tex/cmssi10.pfb",
-      "26/enumerate.sty": "/tex/enumerate.sty",
-      "26/etexcmds.sty": "/tex/etexcmds.sty",
-      "26/geometry.sty": "/tex/geometry.sty",
-      "26/gettitlestring.sty": "/tex/gettitlestring.sty",
-      "26/hpdftex.def": "/tex/hpdftex.def",
-      "26/hycolor.sty": "/tex/hycolor.sty",
-      "26/hyperref.sty": "/tex/hyperref.sty",
-      "26/ifdraft.sty": "/tex/ifdraft.sty",
-      "26/ifpdf.sty": "/tex/ifpdf.sty",
-      "26/ifvtex.sty": "/tex/ifvtex.sty",
-      "26/infwarerr.sty": "/tex/infwarerr.sty",
-      "26/intcalc.sty": "/tex/intcalc.sty",
-      "26/kvdefinekeys.sty": "/tex/kvdefinekeys.sty",
-      "26/kvoptions.sty": "/tex/kvoptions.sty",
-      "26/kvsetkeys.sty": "/tex/kvsetkeys.sty",
-      "26/l3keys2e.sty": "/tex/l3keys2e.sty",
-      "26/letltxmacro.sty": "/tex/letltxmacro.sty",
-      "26/ltxcmds.sty": "/tex/ltxcmds.sty",
-      "26/mathkerncmssi10.tfm": "/tex/mathkerncmssi10.tfm",
-      "26/mathkerncmssi8.tfm": "/tex/mathkerncmssi8.tfm",
-      "26/nameref.sty": "/tex/nameref.sty",
-      "26/ocgbase.sty": "/tex/ocgbase.sty",
-      "26/ot1mathkerncmss.fd": "/tex/ot1mathkerncmss.fd",
-      "26/pd1enc.def": "/tex/pd1enc.def",
-      "26/pdfbase.sty": "/tex/pdfbase.sty",
-      "26/pdfescape.sty": "/tex/pdfescape.sty",
-      "26/pdftexcmds.sty": "/tex/pdftexcmds.sty",
-      "26/refcount.sty": "/tex/refcount.sty",
-      "26/rerunfilecheck.sty": "/tex/rerunfilecheck.sty",
-      "26/sansmathaccent.sty": "/tex/sansmathaccent.sty",
-      "26/scrlfile.sty": "/tex/scrlfile.sty",
-      "26/size11.clo": "/tex/size11.clo",
-      "26/translator-basic-dictionary-English.dict": "/tex/translator-basic-dictionary-English.dict",
-      "26/translator-bibliography-dictionary-English.dict": "/tex/translator-bibliography-dictionary-English.dict",
-      "26/translator-environment-dictionary-English.dict": "/tex/translator-environment-dictionary-English.dict",
-      "26/translator-months-dictionary-English.dict": "/tex/translator-months-dictionary-English.dict",
-      "26/translator-numbers-dictionary-English.dict": "/tex/translator-numbers-dictionary-English.dict",
-      "26/translator-theorem-dictionary-English.dict": "/tex/translator-theorem-dictionary-English.dict",
-      "26/translator.sty": "/tex/translator.sty",
-      "26/uniquecounter.sty": "/tex/uniquecounter.sty",
-      "26/url.sty": "/tex/url.sty",
-      "26/xxcolor.sty": "/tex/xxcolor.sty",
-      "26/zref-abspage.sty": "/tex/zref-abspage.sty",
-      "26/zref-base.sty": "/tex/zref-base.sty"
+      "26/babel.def": "/tex/babel.def",
+      "26/babel.sty": "/tex/babel.sty",
+      "26/bidi.sty": "/tex/bidi.sty",
+      "26/cmbx6.tfm": "/tex/cmbx6.tfm",
+      "26/cmbx7.tfm": "/tex/cmbx7.tfm",
+      "26/cmbx8.tfm": "/tex/cmbx8.tfm",
+      "26/cmex10.pfb": "/tex/cmex10.pfb",
+      "26/cmex9.tfm": "/tex/cmex9.tfm",
+      "26/cmmi5.pfb": "/tex/cmmi5.pfb",
+      "26/cmmi9.pfb": "/tex/cmmi9.pfb",
+      "26/cmmi9.tfm": "/tex/cmmi9.tfm",
+      "26/cmr6.pfb": "/tex/cmr6.pfb",
+      "26/cmr9.pfb": "/tex/cmr9.pfb",
+      "26/cmr9.tfm": "/tex/cmr9.tfm",
+      "26/cmsy9.tfm": "/tex/cmsy9.tfm",
+      "26/english.ldf": "/tex/english.ldf",
+      "26/hebrew.ldf": "/tex/hebrew.ldf",
+      "26/lhecmr.fd": "/tex/lhecmr.fd",
+      "26/lheenc.def": "/tex/lheenc.def",
+      "26/omscmr.fd": "/tex/omscmr.fd",
+      "26/rlbabel.def": "/tex/rlbabel.def",
+      "26/switch.def": "/tex/switch.def",
+      "26/tcrm1000.tfm": "/tex/tcrm1000.tfm",
+      "26/tikz-cd.sty": "/tex/tikz-cd.sty",
+      "26/tikzlibrarycd.code.tex": "/tex/tikzlibrarycd.code.tex",
+      "26/tikzlibrarytrees.code.tex": "/tex/tikzlibrarytrees.code.tex",
+      "26/txtbabel.def": "/tex/txtbabel.def",
+      "10/swiftlatexpdftex.fmt": "/tex/swiftlatexpdftex.fmt",
+      "26/xkeyval": "/tex/xkeyval.tex",
+      "26/xkvutils": "/tex/xkvutils.tex",
+      "26/keyval": "/tex/keyval.tex",
+      "26/tkz-tools-modules": "/tex/tkz-tools-modules.tex",
+      "26/tkz-lib-marks": "/tex/tkz-lib-marks.tex",
+      "26/tkz-tools-intersections": "/tex/tkz-tools-intersections.tex",
+      "26/tkz-tools-angles": "/tex/tkz-tools-angles.tex",
+      "26/tikzlibraryautomata.code.tex": "/tex/tikzlibraryautomata.code.tex",
+      "26/tikzlibraryshapes.multipart.code.tex": "/tex/tikzlibraryshapes.multipart.code.tex",
+      "26/pgflibraryshapes.multipart.code.tex": "/tex/pgflibraryshapes.multipart.code.tex",
+      "3/cmex7": "/tex/cmex7.tfm",
+      "3/cmbx10": "/tex/cmbx10.tfm",
+      "11/pdftex.map": "/tex/pdftex.map",
+      "32/cmbx10.pfb": "/tex/cmbx10.pfb",
+      "32/cmmi10.pfb": "/tex/cmmi10.pfb",
+      "32/cmr10.pfb": "/tex/cmr10.pfb",
+      "32/cmr7.pfb": "/tex/cmr7.pfb"
     },
     {},
     {}
