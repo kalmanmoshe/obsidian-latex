@@ -1,7 +1,8 @@
 import { App, SectionCache, TAbstractFile, TFile, TFolder } from "obsidian";
 import Moshe from "src/main";
 import { hashLatexSource, latexCodeBlockNamesRegex } from "../main";
-import { getFileSections, parseNestedCodeBlocks } from "./sectionCache";
+import { getFileSections } from "./sectionCache";
+import { parseNestedCodeBlocks, shiftSections } from "obsidian-dev-utils";
 
 export async function getLatexSourceFromHash(hash: string, plugin: Moshe, file?: TFile): Promise<string> {
     // Cache for file content to avoid multiple disk reads.
@@ -160,10 +161,10 @@ export async function getLatexCodeBlocksFromString(string: String,sections: Sect
         const content = lines.slice(section.position.start.line, section.position.end.line + 1).join("\n");
         const startPos = section.position.start;
         if (accountForNestedCodeBlocks) {
-            const nestedCodeBlocks = parseNestedCodeBlocks(content, startPos.line,startPos.offset).map((block) => ({
-                lineStart: block.position.start.line,
-                lineEnd: block.position.end.line,
-                content: lines.slice(block.position.start.line, block.position.end.line + 1).join("\n")
+            const nestedCodeBlocks = shiftSections(startPos.line,parseNestedCodeBlocks(content)).map((block) => ({
+                lineStart: block.start,
+                lineEnd: block.end,
+                content: lines.slice(block.start, block.end + 1).join("\n")
             }));
             codeBlocks.push(...nestedCodeBlocks);
         }

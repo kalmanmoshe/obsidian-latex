@@ -120,45 +120,9 @@
       ]
     ],
     [
-      "1eebf99d51cbec3b5f7cf20a544ad3b9",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
       "c766710fbadafc1c2c69842f345a3cfb",
       [
         "פיזיקה/יחיאל/שיעורי בית.md"
-      ]
-    ],
-    [
-      "7090d4039a303ff50609b1975d4634e2",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
-      "6569daa1410e5f944950aa96b29bc0ba",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
-      "3054b50cc48602c046ef1d8f9a635ec7",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
-      "a131e1d4196065868f88e8c89d55a55f",
-      [
-        "מתמטיקה/שי/טריגו.md"
-      ]
-    ],
-    [
-      "a8e867abaae1383a76ae3fe5bae0b964",
-      [
-        "מתמטיקה/שי/טריגו.md"
       ]
     ],
     [
@@ -246,32 +210,82 @@
       ]
     ],
     [
-      "87d4d36f4283fa157730f476267ef183",
-      [
-        "Untitled 2.md"
-      ]
-    ],
-    [
-      "6d441ea1dd6e4e95b2446ce9e1de4331",
-      [
-        "Untitled 2.md"
-      ]
-    ],
-    [
       "cf7d7399ae5413e8eac612be6884e174",
       [
         "פיזיקה/יחיאל/ניסוי קפיץ.md"
       ]
     ],
     [
-      "3b461966077b7a8df93206df3b431865",
+      "df2b66f4c9e0c5cfd15b8766b16186a4",
+      [
+        "מדעי המחשב/עבודות/מתכונת 2 מבני נתונים.md"
+      ]
+    ],
+    [
+      "1eebf99d51cbec3b5f7cf20a544ad3b9",
+      [
+        "מתמטיקה/שי/טריגו.md"
+      ]
+    ],
+    [
+      "97a218bd9e557433beb727779e611cb7",
+      [
+        "מתמטיקה/איגור/הסתברות.md"
+      ]
+    ],
+    [
+      "6b6d07e3fc5ba8f3bb57fd9a028c759a",
+      [
+        "מתמטיקה/איגור/הסתברות.md"
+      ]
+    ],
+    [
+      "3246c50e6f68e1d96401df3db7f59309",
+      [
+        "מתמטיקה/איגור/הסתברות.md"
+      ]
+    ],
+    [
+      "e0011bee755b0738160c0e5ae302072a",
+      [
+        "מתמטיקה/איגור/הסתברות.md"
+      ]
+    ],
+    [
+      "5556d57cac35508fba20abc4eb4ebc16",
+      [
+        "מתמטיקה/איגור/הסתברות.md"
+      ]
+    ],
+    [
+      "ae441e92ec2535542d51e2f1cffee9ee",
+      [
+        "מתמטיקה/איגור/הסתברות.md"
+      ]
+    ],
+    [
+      "d41d8cd98f00b204e9800998ecf8427e",
       [
         "Untitled.md"
+      ]
+    ],
+    [
+      "a8e867abaae1383a76ae3fe5bae0b964",
+      [
+        "מתמטיקה/שי/טריגו.md"
       ]
     ]
   ],
   "packageCache": [
-    {},
+    {
+      "26/tikzlibrarypgfplots.surfshading.code.tex": "1",
+      "26/tikzlibraryarrows.meta.code.tex": "1",
+      "26/numprint.cfg": "1",
+      "26/main.aux": "1",
+      "33/cmbx10.vf": "1",
+      "33/cmr10.vf": "1",
+      "33/cmr12.vf": "1"
+    },
     {
       "26/amsbsy.sty": "/tex/amsbsy.sty",
       "26/amsfonts.sty": "/tex/amsfonts.sty",
@@ -589,7 +603,27 @@
       "32/cmbx10.pfb": "/tex/cmbx10.pfb",
       "32/cmmi10.pfb": "/tex/cmmi10.pfb",
       "32/cmr10.pfb": "/tex/cmr10.pfb",
-      "32/cmr7.pfb": "/tex/cmr7.pfb"
+      "32/cmr7.pfb": "/tex/cmr7.pfb",
+      "3/cmr12": "/tex/cmr12.tfm",
+      "32/cmmi7.pfb": "/tex/cmmi7.pfb",
+      "32/cmr5.pfb": "/tex/cmr5.pfb",
+      "32/cmsy10.pfb": "/tex/cmsy10.pfb",
+      "32/cmsy7.pfb": "/tex/cmsy7.pfb",
+      "3/cmr17": "/tex/cmr17.tfm",
+      "3/cmmi12": "/tex/cmmi12.tfm",
+      "3/cmsy10": "/tex/cmsy10.tfm",
+      "3/cmex10": "/tex/cmex10.tfm",
+      "32/cmr17.pfb": "/tex/cmr17.pfb",
+      "3/cmr8": "/tex/cmr8.tfm",
+      "3/cmr6": "/tex/cmr6.tfm",
+      "3/cmmi8": "/tex/cmmi8.tfm",
+      "3/cmmi6": "/tex/cmmi6.tfm",
+      "3/cmsy8": "/tex/cmsy8.tfm",
+      "3/cmsy6": "/tex/cmsy6.tfm",
+      "3/cmex8": "/tex/cmex8.tfm",
+      "32/cmmi12.pfb": "/tex/cmmi12.pfb",
+      "32/cmr12.pfb": "/tex/cmr12.pfb",
+      "32/cmr8.pfb": "/tex/cmr8.pfb"
     },
     {},
     {}
