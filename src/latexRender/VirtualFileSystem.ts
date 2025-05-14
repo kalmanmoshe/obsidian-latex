@@ -99,6 +99,7 @@ export class VirtualFileSystem{
      */
     async loadVirtualFileSystemFiles() {
         if(this.enabled===false||this.status === VirtualFileSystemFilesStatus.uptodate)return;
+        //console.log("Loading virtual filesystem files", this.files);
         if (this.status === VirtualFileSystemFilesStatus.undefined){
             await nonBlockingWaitUntil(() => 
                 this.status === VirtualFileSystemFilesStatus.outdated

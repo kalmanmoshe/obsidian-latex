@@ -1,7 +1,8 @@
-import { Editor, MarkdownSectionInformation, SectionCache } from "obsidian";
+import { Editor, MarkdownSectionInformation, SectionCache, TFile } from "obsidian";
 import { TransactionLogger } from "./transactionLogger";
-import { getBestFitSectionCatch, getSectionCacheOfString, getSectionCacheOfStringFuzzy } from "./sectionCache";
-
+import { getBestFitSectionCatch, getFileSections, getSectionCacheOfString, getSectionCacheOfStringFuzzy } from "./sectionCache";
+import Moshe from "src/main";
+import { EditorView } from "@codemirror/view";
 
 
 
@@ -16,7 +17,6 @@ export function getSectionFromTransaction(
 	fileText: string,
 	logger: TransactionLogger,
 	editor?: Editor
-
 ): (MarkdownSectionInformation & { source: string }) | undefined {
 	if (!editor) return;
 	const latestChange = logger.getLatestChange();
@@ -32,6 +32,15 @@ export function getSectionFromTransaction(
 		text: fileText,
 		source: extractSectionSource(fileText, section)
 	};
+}
+export async function getCurrentCursorLocationSection(file: TFile,plugin: Moshe,editor: Editor){
+	const sections = await getFileSections(file, plugin.app,true);
+	if (!sections) return;
+	const selection = ((editor as any).cm as EditorView).state.selection;
+	const head=selection.main.head;
+	const lineIndex = editor.offsetToPos(head).line;
+	const section = getInnermostSection(sections, lineIndex);
+	return section;
 }
 
 /**

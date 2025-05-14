@@ -1,5 +1,6 @@
 import { App, Notice, SectionCache, TFile } from "obsidian";
 import { getInnermostSection } from "./findSection";
+import { parseNestedCodeBlocks,shiftSections } from "obsidian-dev-utils";
 /**
  * get the sections of a file from the metadata cache with the option to account for nested code blocks.
  * @param file 
@@ -16,7 +17,7 @@ export function getFileSections(file: TFile,app: App,accountForNestedCodeBlocks 
     }
     return getFileSectionsWithNested(file, app, fileCache.sections);
 }
-  
+
 async function getFileSectionsWithNested(file: TFile,app: App,sectionsBase: SectionCache[]): Promise<SectionCache[]> {
     const sections: SectionCache[] = [];
     const source = await app.vault.read(file);
@@ -27,23 +28,43 @@ async function getFileSectionsWithNested(file: TFile,app: App,sectionsBase: Sect
   
       const startPos = section.position.start;
       const content = lines.slice(startPos.line + 1, section.position.end.line).join("\n");
-      const nestedCodeBlocks = parseNestedCodeBlocks(
-        content,
-        startPos.line + 1,
-        getOffsetForLine(source, startPos.line + 1)
-      );
+      const nestedCodeBlocks = shiftSections(startPos.line+1,parseNestedCodeBlocks(content)).map((section) => 
+        createSectionCache(source, section.start, section.end));
+      
       sections.push(...nestedCodeBlocks);
     }
 
     return sections.sort((a, b) => a.position.start.line - b.position.start.line);
 }
 
-
+function createSectionCache(source: string, startLine: number, endLine: number): SectionCache {
+    return {
+        type: "code",
+        position: {
+            start: { line: startLine, col: 0, offset: getOffsetForLine(source, startLine) },
+            end: { line: endLine, col: source.split("\n")[endLine].trim().length, offset: getOffsetForLine(source, endLine) },
+        },
+    }
+}
 function getOffsetForLine(source: string, lineNumber: number): number {
 	return source
 		.split("\n")
 		.slice(0, lineNumber)
 		.reduce((acc, curr) => acc + curr.length + 1, 0); // +1 for \n
+}
+// u can Always use editor.offsetToPos(offset) to get the line number
+// this is for when you dont have access to the editor
+export function getLineFromOffset(source: string, offset: number): number {
+	const lines = source.split("\n");
+	let total = 0;
+	for (let i = 0; i < lines.length; i++) {
+		const lineLength = lines[i].length + 1;
+		if (total + lineLength > offset) {
+			return i;
+		}
+		total += lineLength;
+	}
+	return lines.length - 1;
 }
 
 
@@ -209,7 +230,7 @@ export function findPartialMatchInText(text: string, target: string): { indexInD
 	return matches.filter(m => (m.end - m.start + 1) === maxLength);
 }
 
-
+/*
 const codeBlockDeliminatorRegex = /^\s*(`|~){3,}/;
 export function parseNestedCodeBlocks(source: string, lineShiftFactor: number,offsetShiftFactor: number): SectionCache[] {
     const codeBlocks: SectionCache[] = [];
@@ -245,4 +266,4 @@ export function parseNestedCodeBlocks(source: string, lineShiftFactor: number,of
         index = absoluteEndIndex + 1;
     }
     return codeBlocks;
-}
+}*/

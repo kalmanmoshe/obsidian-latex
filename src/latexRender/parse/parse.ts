@@ -22,7 +22,6 @@ export class LatexAbstractSyntaxTree{
     }
     static shallowParse(latex: string){
         const autoAst=parse(latex);
-        console.log("autoAst",autoAst);
         const classAst= migrateToClassStructure(autoAst);
         if (!(classAst instanceof Root)) throw new Error("Root not found");
         const content=classAst.content
@@ -31,16 +30,13 @@ export class LatexAbstractSyntaxTree{
     }
     static parse(latex: string){
         const autoAst=parse(latex);
-        console.log("autoAst",autoAst);
         const classAst= migrateToClassStructure(autoAst);
         if (!(classAst instanceof Root)) throw new Error("Root not found");
         const content=classAst.content
         const ast=new LatexAbstractSyntaxTree(content);
         ast.content = verifyEnvironmentWrap(ast.content);
         ast.verifyDocumentclass();
-        console.log("finest verifyDocumentclass");
         ast.cleanUp();
-        console.log("Finished cleanUp");
         console.warn("ast",ast);
         return ast;
     }

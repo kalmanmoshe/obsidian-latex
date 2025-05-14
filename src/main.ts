@@ -38,9 +38,8 @@ import { temp } from "./LaTeX_js/latex";
 - External files via `\externaldocument{}` (for `xr` or `xr-hyper`) → Adds lookup time for cross-references.
  */
 /**
- * With Corpriambola whatever is loaded is loaded if explicit. I have to make sure that.only the files is specified are loaded To the engine.
+ * With Corprieambol whatever is loaded is loaded if explicit. I have to make sure that.only the files is specified are loaded To the engine.
  */
-
 interface MosheMathTypingApi {
   context: any;
   fileSuggest: any;
@@ -118,7 +117,7 @@ export default class Moshe extends Plugin {
   }
 
   private addSyntaxHighlighting() {
-    if (!window.CodeMirror) return; 
+    if (!window.CodeMirror) return;
 
     // @ts-ignore
     const codeMirrorCodeBlocksSyntaxHighlighting = window.CodeMirror.modeInfo;
@@ -170,10 +169,10 @@ export default class Moshe extends Plugin {
   }
 
   private refreshAllWindows() {
-    this.app.workspace.iterateAllLeaves((leaf) => {
+   this.app.workspace.iterateAllLeaves((leaf) => {
       if (leaf.view instanceof MarkdownView) {
-          const editor = leaf.view.editor;
-        if (editor && editor.getValue().trim() !== "") {
+        const editor = leaf.view.editor;
+        if (editor) {
           const cursor = editor.getCursor();
           editor.setValue(editor.getValue());
           editor.setCursor(cursor);

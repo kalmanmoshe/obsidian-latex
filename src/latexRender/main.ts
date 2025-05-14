@@ -35,7 +35,13 @@ export const waitFor = async (condFunc: () => boolean) => {
 		}
 	});
 };
-
+/**
+ * add command to rerender all fils using (\input{}) this file
+ * add resove tab indentasins setting
+ * The goust bubble happens when I do ctrl z 
+ * add replac all & replace in selection
+ * 
+ */
 
 export const latexCodeBlockNamesRegex = /(`|~){3,} *(latex|tikz)/;
 type Task = { source: string, el: HTMLElement,md5Hash:string, sourcePath: string , blockId: string,process: boolean};
@@ -114,7 +120,7 @@ export class SwiftlatexRender {
 		const isLangTikz = el.classList.contains("block-language-tikz");
 		el.classList.remove("block-language-tikz");
 		el.classList.remove("block-language-latex");
-		el.classList.add("block-language-latexsvg")
+		el.classList.add("block-language-latexsvg");
 		const md5Hash = hashLatexSource(source);
 		addMenu(this.plugin,el,ctx.sourcePath)
 		
@@ -129,9 +135,7 @@ export class SwiftlatexRender {
 				const blockId = getBlockId(ctx.sourcePath,sectionInfo.lineStart)
 				this.queue.remove(node => node.data.blockId === blockId);
 				el.appendChild(createWaitingCountdown(this.queue.length()));
-				console.log("Task added to queue:", el,);
 				this.queue.push({ source, el, md5Hash, sourcePath: ctx.sourcePath, blockId, process:isLangTikz });
-
 			}).catch((err) => this.handleError(el, err as string,{hash: md5Hash}));
 		}
 	}
@@ -158,12 +162,10 @@ export class SwiftlatexRender {
 	
 		const sectionFromMatching = getSectionFromMatching(sections, fileText, source);
 		if (sectionFromMatching) return sectionFromMatching;
-		// If no section is found, this is a fallback. Since it’s artificial, include the source explicitly.
 		return {
 			lineStart: Math.floor(Math.random() * 1000) * -1,
 			lineEnd: 0,
 			text: fileText,
-			source
 		};
 	}	
 	async getFileContent(file: TFile,remainingPath?: string): Promise<string> {
@@ -182,9 +184,8 @@ export class SwiftlatexRender {
 		if(!target)err();
 		return target!.content.split("\n").slice(1,-1).join("\n");
 	}
-	private async processInputFiles(ast: LatexAbstractSyntaxTree, basePath: string): Promise<void> {
+	private async processInputFiles(ast: LatexAbstractSyntaxTree, basePath: string): Promise<void|any> {
 		const inputFilesMacros = ast.usdInputFiles().filter((macro) => macro.args && macro.args.length === 1);
-
 		for (const macro of inputFilesMacros) {
 			const args = macro.args!;
 			const filePath = args[0].content.map(node => node.toString()).join("");
@@ -196,9 +197,12 @@ export class SwiftlatexRender {
 
 			// Avoid circular includes
 			if (this.virtualFileSystem.hasFile(name)) continue;
-
-			const content = await this.getFileContent(dir.file, dir.remainingPath);
-			
+			let content=""
+			try{
+				content = await this.getFileContent(dir.file, dir.remainingPath);
+			}catch(e){
+				return e;
+			}
 
 			// Recursively process the content
 			const nestedAst = LatexAbstractSyntaxTree.shallowParse(content);
@@ -206,22 +210,28 @@ export class SwiftlatexRender {
 			this.virtualFileSystem.addVirtualFileSystemFile({ name, content: nestedAst.toString() });
 		}
 	}
-	async processTask(task: ProcessableTask): Promise<void> {
+	async processTask(task: ProcessableTask): Promise<void|boolean> {
 		const startTime = performance.now();
 		try {
 			const ast = LatexAbstractSyntaxTree.parse(task.source);
-			await this.processInputFiles(ast, task.sourcePath);
+			const result = await this.processInputFiles(ast, task.sourcePath);
+			if(result) throw {message: result,abort: true};
 			this.virtualFileSystem.getAutoUseFileNames().forEach((name) => {
 				ast.addInputFileToPramble(name);
 			});
-	
 			// ── Final task update ────────────────────────
 			task.source = ast.toString();
 			console.log("task.source", this.virtualFileSystem, ast, task.source.split('\n'));
 		}
 		catch (e) {
+			let abort = false;
+			if (typeof e !== "string"&&"abort" in e) {
+				abort = e.abort;
+				e = e.message;
+			}
 			const err = "Error processing task: " + e;
 			this.handleError(task.el, err,{hash: task.md5Hash});
+			if (abort) return true;
 		}
 	
 		const totalDuration = performance.now() - startTime;
@@ -231,10 +241,10 @@ export class SwiftlatexRender {
 	configQueue() {
 		this.queue = async.queue(async (task, done) => {
 			try {
-		  
-			  if (task.process) await this.processTask(task);
-		  
-			  await this.renderLatexToElement(task.source, task.el, task.md5Hash, task.sourcePath);
+				let abort;
+				if (task.process) abort = await this.processTask(task);
+				if(abort) return done();
+			 	await this.renderLatexToElement(task.source, task.el, task.md5Hash, task.sourcePath);
 			} catch (err) {
 			  console.error("Error rendering/compiling:", typeof err === "string" ? [err.split("\n")] : err);
 			  //this.handleError(task.el, "Render error: " + err);
@@ -328,7 +338,6 @@ export class SwiftlatexRender {
 			const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${cacheFileFormat}`);
 			const result = await this.renderLatexToPDF(source,md5Hash);
 			el.innerHTML = "";
-			console.log("PDF data", result.pdf);
 			await this.translatePDF(result.pdf, el,md5Hash);
 			await fs.promises.writeFile(dataPath, el.innerHTML, "utf8");
 			this.cache.addFile(md5Hash, sourcePath);
