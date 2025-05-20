@@ -130,13 +130,19 @@ export class SwiftlatexRender {
 			//Reliable enough for repeated entries
 			this.ensureContextSectionInfo(source, el, ctx).then((sectionInfo) => {
 				source = sectionInfo.source || source;
+
 				const finalHash = hashLatexSource(source);
 				if (md5Hash !== finalHash && this.restoreFromCache(el, finalHash)) return;
+
 				const blockId = getBlockId(ctx.sourcePath,sectionInfo.lineStart)
 				this.queue.remove(node => node.data.blockId === blockId);
 				el.appendChild(createWaitingCountdown(this.queue.length()));
 				this.queue.push({ source, el, md5Hash, sourcePath: ctx.sourcePath, blockId, process:isLangTikz });
-			}).catch((err) => this.handleError(el, err as string,{hash: md5Hash}));
+
+			}).catch((err) => {
+				err = "Error queuing task: " + err;
+				this.handleError(el, err as string,{hash: md5Hash})
+			});
 		}
 	}
 	/**
@@ -184,7 +190,7 @@ export class SwiftlatexRender {
 		if(!target)err();
 		return target!.content.split("\n").slice(1,-1).join("\n");
 	}
-	private async processInputFiles(ast: LatexAbstractSyntaxTree, basePath: string): Promise<void|any> {
+	private async processInputFiles(ast: LatexAbstractSyntaxTree, basePath: string): Promise<void> {
 		const inputFilesMacros = ast.usdInputFiles().filter((macro) => macro.args && macro.args.length === 1);
 		for (const macro of inputFilesMacros) {
 			const args = macro.args!;
@@ -197,6 +203,7 @@ export class SwiftlatexRender {
 
 			// Avoid circular includes
 			if (this.virtualFileSystem.hasFile(name)) continue;
+
 			let content=""
 			try{
 				content = await this.getFileContent(dir.file, dir.remainingPath);
@@ -205,8 +212,9 @@ export class SwiftlatexRender {
 			}
 
 			// Recursively process the content
-			const nestedAst = LatexAbstractSyntaxTree.shallowParse(content);
+			const nestedAst = LatexAbstractSyntaxTree.parse(content);
 			await this.processInputFiles(nestedAst, dir.file.path);
+			ast.addDependency(filePath, name, path.extname(name), { isTex: true, ast: nestedAst },);
 			this.virtualFileSystem.addVirtualFileSystemFile({ name, content: nestedAst.toString() });
 		}
 	}
@@ -214,11 +222,13 @@ export class SwiftlatexRender {
 		const startTime = performance.now();
 		try {
 			const ast = LatexAbstractSyntaxTree.parse(task.source);
-			const result = await this.processInputFiles(ast, task.sourcePath);
-			if(result) throw {message: result,abort: true};
+			await this.processInputFiles(ast, task.sourcePath);
 			this.virtualFileSystem.getAutoUseFileNames().forEach((name) => {
 				ast.addInputFileToPramble(name);
+				const file = this.virtualFileSystem.getFile(name).content;
+				ast.addDependency(file, name, path.extname(name), { isTex: true, autoUse: true });
 			});
+			ast.verifyProperDocumentStructure();
 			// ── Final task update ────────────────────────
 			task.source = ast.toString();
 			console.log("task.source", this.virtualFileSystem, ast, task.source.split('\n'));

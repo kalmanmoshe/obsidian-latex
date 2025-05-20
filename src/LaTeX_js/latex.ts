@@ -1,4 +1,5 @@
 import { DEFAULT_CAT_CODES } from "./catCodes";
+import { ControlSequenceLookupTable } from "./controlSequenceLookupTable ";
 
 export class Latex{
 
@@ -15,13 +16,30 @@ enum ActiveState {
     BracketClose,
     Text,
 }
-export class LatexParser {
+class controlSequence{
+    expandable: boolean;
+    name: string;
+
+}
+abstract class BasicParser{
+    protected index: number = 0;
+    protected chars: string[] = [];
+    abstract parse(latex: string): any;
+}
+
+class DefParser extends BasicParser{
+    parse(latex: string): string {
+        return latex;
+    }
+}
+
+export class LatexParser extends BasicParser{
     private active: ActiveState|null=null;
     private catCodes: CatCode[] = DEFAULT_CAT_CODES;
-    private index: number = 0;
-    private chars: string[];
+    private initialText: string;
     tempTokens: {type: string,value: string}[] = [];
     private bracketBalance: number = 0;
+    private lookupTable = new ControlSequenceLookupTable();
     getCatCode(char: string): number{
         const catCode = this.catCodes.find((cat) => cat.char === char);
         if (catCode) {
@@ -30,6 +48,7 @@ export class LatexParser {
         return 12;
     }
     parse(latex: string): void {
+        this.initialText = latex;
         this.chars = latex.split("");
         const codeActoinMap:Record<number,()=>void> = {
             0: this.parseControlSequence.bind(this),

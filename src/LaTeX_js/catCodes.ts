@@ -8,7 +8,7 @@ const cat5 = ["\n"];
 const cat6 = ["#"];
 const cat7 = ["^"];
 const cat8 = ["_"];
-const cat10 = ["\s","\t"];
+const cat10 = [" ","\t"];
 const cat11 = ["a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","p","q","r","s","t","u","v","w","x","y","z",
     "A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z",
 ];

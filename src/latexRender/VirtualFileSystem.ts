@@ -84,6 +84,11 @@ export class VirtualFileSystem{
     hasFile(name: string){
         return this.files.some(file => file.name === name);
     }
+    getFile(name: string){
+        const file = this.files.find(file => file.name === name);
+        if (!file) throw new Error("File not found in virtual file system: "+name);
+        return file;
+    }
     /**
      * add a virtual file system file
      * @param file 

@@ -1,56 +1,52 @@
 import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument,Path, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node, ContentNode, BaseNode } from './typs/ast-types-post';
 import { migrateToClassStructure } from './autoParse/ast-types-pre';
+import { LatexAbstractSyntaxTree } from './parse';
 
-export function verifyEnvironmentWrap(content: Node[]):Node[]{
+export function verifyEnvironmentWrap(ast: LatexAbstractSyntaxTree):Node[]{
+    const content=ast.content;
     const envs=content.filter(node=>node instanceof Environment);
     if(envs.some(env=>env.env==="document"))return content;
 
+    let arg=findEnvironmentArgs(content);
+
     //if no envs
     if(envs.length===0){
-        let arg=findEnvironmentArgs(content);
-        return content=[createDocEnvironment(content,arg)];
+        return ast.content=[...createDocEnvironment(ast,content,arg)];
     }
 
-    let arg=findEnvironmentArgs(content);
     let firstNonPreambleMacro=content.findIndex(node=>{
         if(!(node instanceof Macro))return false;
         return node.content.match(/^(documentclass|usepackage|usetikzlibrary|include|bibliography)$/)===null;
     });
     if(firstNonPreambleMacro===-1)return content;
     const envContent = content.splice(firstNonPreambleMacro);
-    const doc = createDocEnvironment(envContent,arg);
-    content.splice(firstNonPreambleMacro, 0, doc);
+    const doc = createDocEnvironment(ast,envContent,arg);
+    content.splice(firstNonPreambleMacro, 0, ...doc);
     return content;
 
-
-
-    let envIndexs=findEnvIndexs(content);
-
-    //if all envs are in a row
-    if (envIndexs.every((idx, index) => !envIndexs[index + 1] || idx === envIndexs[index + 1] - 1)) {
-        let arg=findEnvironmentArgs(content);
-        envIndexs=content.map((node, index) => node instanceof Environment ? index : -1).filter(index => index !== -1);
-
-
-        const envContent = content.splice(envIndexs[0], (envIndexs[envIndexs.length - 1] - envIndexs[0]) + 1);
-        const doc = createDocEnvironment(envContent,arg);
-        content.splice(envIndexs[0], 0, doc);
-        return;
-    }
 }
 function findEnvIndexs(content: Node[]){
     return content.map((node, index) => node instanceof Environment ? index : -1).filter(index => index !== -1);
 }
 
 
-function createDocEnvironment(content: Node[],args?:Argument[]){
-    const doc=new Environment(
+function createDocEnvironment(ast: LatexAbstractSyntaxTree,content: Node[],args?:Argument[]){
+    const preambleEndIndex=content.findIndex(node=>{
+        if(node.isMacro()){
+            if(/(documentclass|usetikzlibrary|usepackage)/.test(node.content))return false;
+            if(node.content==="input"&&ast.dependencies.get(node.args![0].content.map(n=>n.toString()).join(""))?.autoUse)return false;
+        }
+        return true;
+    })
+    const index=preambleEndIndex===-1?0:preambleEndIndex;
+    const preamble=ast.content.splice(0,index);
+    const doc=[...preamble,new Environment(
         "environment",
         "document",
         [
-            new Environment("environment","tikzpicture",content,args)
+            new Environment("environment","tikzpicture",ast.content,args)
         ],
-    );
+    )];
     return doc;
 }
 
