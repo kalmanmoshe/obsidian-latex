@@ -25,6 +25,11 @@ export class BaseNode {
         if(renderInfo)this._renderInfo = renderInfo;
         if(position)this.position = position;
     }
+    clone(): this {
+        const clone = new (this.constructor as new (...args: any[]) => this)(this.type, this._renderInfo, this.position);
+        Object.assign(clone, this);
+        return clone;
+    }
     isMacro(): this is Macro { return this instanceof Macro; }
     isString(): this is String { return this instanceof String; }
     isContentNode(): this is ContentNode{ return this instanceof ContentNode;}

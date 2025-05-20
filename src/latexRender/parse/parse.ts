@@ -14,13 +14,23 @@ import { verifyEnvironmentWrap } from './verifyEnvironmentWrap';
 function insureRenderInfoexists(node: Node){
     if(!node._renderInfo)node._renderInfo={};
 }
+export interface LatexDependency{
+    source: string;
+    name: string;
+    extension: string;
+    ast?: LatexAbstractSyntaxTree;
+    isTex: boolean;
+    autoUse?: boolean;
+}
 
 export class LatexAbstractSyntaxTree{
     content: Node[];
-    constructor(content: Node[]){
+    dependencies: Map<string,LatexDependency>=new Map();
+    constructor(content: Node[],dependencies?: Map<string,LatexDependency>){
         this.content=content;
+        if(dependencies)this.dependencies=dependencies;
     }
-    static shallowParse(latex: string){
+    static parse(latex: string){
         const autoAst=parse(latex);
         const classAst= migrateToClassStructure(autoAst);
         if (!(classAst instanceof Root)) throw new Error("Root not found");
@@ -28,17 +38,10 @@ export class LatexAbstractSyntaxTree{
         return new LatexAbstractSyntaxTree(content);
 
     }
-    static parse(latex: string){
-        const autoAst=parse(latex);
-        const classAst= migrateToClassStructure(autoAst);
-        if (!(classAst instanceof Root)) throw new Error("Root not found");
-        const content=classAst.content
-        const ast=new LatexAbstractSyntaxTree(content);
-        ast.content = verifyEnvironmentWrap(ast.content);
-        ast.verifyDocumentclass();
-        ast.cleanUp();
-        console.warn("ast",ast);
-        return ast;
+    verifyProperDocumentStructure(){
+        this.content = verifyEnvironmentWrap(this);
+        this.verifyDocumentclass();
+        this.cleanUp();
     }
     verifydocstructure(){
         
@@ -46,13 +49,19 @@ export class LatexAbstractSyntaxTree{
     parseArguments(){
         
     }
-    
+    hasDocumentclass(){
+        return this.content.some(node=>node instanceof Macro&&node.content==="documentclass")
+    }
     verifyDocumentclass(){
-        const documentclass=this.content.find(node=>node instanceof Macro&&node.content==="documentclass");
+        const documentclass=[this,...Array.from(this.dependencies.values()).map(dep=>dep.ast)]
+        .find(ast=> ast?.content.find(node=>node instanceof Macro&&node.content==="documentclass"));
         if(!documentclass){
-            this.content.unshift(new Macro("documentclass",undefined,[
-                new Argument("{","}",[new String("standalone")])
-            ]));
+            this.content.unshift(new Macro("documentclass",undefined,
+                [
+                    new Argument("[","]",[new String("tikz,border=2mm")]),
+                    new Argument("{","}",[new String("standalone")])
+            ]
+        ));
         }
     }
     toString() {
@@ -70,6 +79,13 @@ export class LatexAbstractSyntaxTree{
             return;
         }
         this.content.splice(startIndex,0,input);
+    }
+    addDependency(source: string, name: string, extension: string,config: {isTex?: boolean, ast?: LatexAbstractSyntaxTree,autoUse?: boolean}={}){
+        let {isTex,ast,autoUse}=config;
+        if(!this.isInputFile(name)) throw new Error("File not found in input files");
+        isTex=isTex||isExtensionTex(extension);
+        if(isTex&&!ast) ast = LatexAbstractSyntaxTree.parse(source);
+        this.dependencies.set(name,{source,ast,isTex,name,extension,autoUse});
     }
     cleanUp(){
         claenUpPaths(this.content);
@@ -89,8 +105,29 @@ export class LatexAbstractSyntaxTree{
     usdInputFiles() {
         return findUsdInputFiles(this.content);
     }
+    getInputFilesPaths() {
+        return this.usdInputFiles().map(input => {
+            const args = input.args;
+            if (!args||args.length!==1) throw new Error("Unexpected input file format");
+            return args[0].content.map(node => node.toString()).filter(Boolean).join("").trim();
+        });
+    }
+    isInputFile(filePath: string) {
+        return this.getInputFilesPaths().some(path => filePath===path.trim());
+    }
     usdCommands(){}
     usdEnvironments(){}   
+    clone(){
+        return new LatexAbstractSyntaxTree(this.content.map(node => node.clone()),cloneMap(this.dependencies));
+    }
+}
+
+function cloneMap<T, V>(map: Map<T, V>): Map<T, V> {
+    const newMap = new Map<T, V>();
+    for (const [key, value] of map.entries()) {
+        newMap.set(key, value);
+    }
+    return newMap;
 }
 
 
@@ -102,8 +139,10 @@ class DefineMacro{
     //type
 
 }
-
-
+const texExtensions= ["latex","tex","sty","cls","texlive","texmf","texmf","cnf"];
+function isExtensionTex(extension: string){
+    return extension.split(".").some(ext=>texExtensions.includes(ext.toLowerCase()));
+}
 
 
 

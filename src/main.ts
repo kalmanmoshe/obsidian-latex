@@ -76,7 +76,9 @@ export default class Moshe extends Plugin {
 
   private async loadLayoutReadyDependencies() {
     this.loadMathJax();
-    this.loadSwiftLatexRender()
+    // we need to use await here because the codeBlock processor
+    // needs to be loaded before the codeBlocks are processed
+    await this.loadSwiftLatexRender()
     // processing of the code blocks have layout dependencies
     this.setCodeblocks();
     this.watchFiles()
