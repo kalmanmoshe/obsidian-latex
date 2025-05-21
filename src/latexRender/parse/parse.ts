@@ -53,8 +53,8 @@ export class LatexAbstractSyntaxTree{
         return this.content.some(node=>node instanceof Macro&&node.content==="documentclass")
     }
     verifyDocumentclass(){
-        const documentclass=[this,...Array.from(this.dependencies.values()).map(dep=>dep.ast)]
-        .find(ast=> ast?.content.find(node=>node instanceof Macro&&node.content==="documentclass"));
+        const documentclass=this.content.find(node=>node instanceof Macro&&node.content==="documentclass")/*[this,...Array.from(this.dependencies.values()).map(dep=>dep.ast)]
+        .find(ast=> ast?.content.find(node=>node instanceof Macro&&node.content==="documentclass"))*/
         if(!documentclass){
             this.content.unshift(new Macro("documentclass",undefined,
                 [
