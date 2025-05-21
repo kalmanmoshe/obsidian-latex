@@ -81,11 +81,8 @@ export class LatexAbstractSyntaxTree{
         this.content.splice(startIndex,0,input);
     }
     addDependency(source: string, name: string, extension: string,config: {isTex?: boolean, ast?: LatexAbstractSyntaxTree,autoUse?: boolean}={}){
-        let {isTex,ast,autoUse}=config;
         if(!this.isInputFile(name)) throw new Error("File not found in input files");
-        isTex=isTex||isExtensionTex(extension);
-        if(isTex&&!ast) ast = LatexAbstractSyntaxTree.parse(source);
-        this.dependencies.set(name,{source,ast,isTex,name,extension,autoUse});
+        this.dependencies.set(name,createDpendency(source,name,extension,config));
     }
     cleanUp(){
         claenUpPaths(this.content);
@@ -140,10 +137,15 @@ class DefineMacro{
 
 }
 const texExtensions= ["latex","tex","sty","cls","texlive","texmf","texmf","cnf"];
-function isExtensionTex(extension: string){
+export function isExtensionTex(extension: string){
     return extension.split(".").some(ext=>texExtensions.includes(ext.toLowerCase()));
 }
-
+export function createDpendency(source: string, name: string, extension: string,config: {isTex?: boolean, ast?: LatexAbstractSyntaxTree,autoUse?: boolean}={}): LatexDependency{
+    let {isTex,ast,autoUse}=config;
+    isTex=isTex||isExtensionTex(extension);
+    if(isTex&&!ast) ast = LatexAbstractSyntaxTree.parse(source);
+    return {source,ast,isTex,name,extension,autoUse};
+}
 
 
 
