@@ -218,7 +218,7 @@ export class SwiftlatexRender {
 			this.virtualFileSystem.addVirtualFileSystemFile({ name, content: nestedAst.toString() });
 		}
 	}
-	async processTask(task: ProcessableTask): Promise<void|boolean> {
+	async processTask(task: ProcessableTask): Promise<boolean> {
 		const startTime = performance.now();
 		try {
 			const ast = LatexAbstractSyntaxTree.parse(task.source);
@@ -243,9 +243,9 @@ export class SwiftlatexRender {
 			this.handleError(task.el, err,{hash: task.md5Hash});
 			if (abort) return true;
 		}
-	
 		const totalDuration = performance.now() - startTime;
 		console.log(`[TIMER] Total processing time: ${totalDuration.toFixed(2)} ms`);
+		return false;
 	};
 	
 	configQueue() {

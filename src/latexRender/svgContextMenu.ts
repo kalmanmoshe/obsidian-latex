@@ -213,11 +213,16 @@ export class SvgContextMenu extends Menu {
 		console.log("open")
 		this.showAtPosition({ x: event.pageX, y: event.pageY });
 	}
-	private async getparsedSource(){
+	private async getparsedSource() {
 		await this.assignLatexSource()
-		const ast = LatexAbstractSyntaxTree.parse(this.source);
-		return ast.toString();
+		const task = {
+			source: this.source,
+			md5Hash: this.getHash(),
+			el: document.createElement("div"),
+			sourcePath: this.sourcePath
+		}
+		await this.plugin.swiftlatexRender.processTask(task);
+
+		return task.source;
 	}
 }
-
-
