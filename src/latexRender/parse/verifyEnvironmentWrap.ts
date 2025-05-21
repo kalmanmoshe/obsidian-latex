@@ -11,7 +11,7 @@ export function verifyEnvironmentWrap(ast: LatexAbstractSyntaxTree):Node[]{
 
     //if no envs
     if(envs.length===0){
-        return ast.content=[...createDocEnvironment(ast,content,arg)];
+        return [...createDocEnvironment(ast,content,arg)];
     }
 
     let firstNonPreambleMacro=content.findIndex(node=>{
@@ -19,10 +19,8 @@ export function verifyEnvironmentWrap(ast: LatexAbstractSyntaxTree):Node[]{
         return node.content.match(/^(documentclass|usepackage|usetikzlibrary|include|bibliography)$/)===null;
     });
     if(firstNonPreambleMacro===-1)return content;
-    const envContent = content.splice(firstNonPreambleMacro);
-    const doc = createDocEnvironment(ast,envContent,arg);
-    content.splice(firstNonPreambleMacro, 0, ...doc);
-    return content;
+    const doc = createDocEnvironment(ast,content,arg);
+    return doc;
 
 }
 function findEnvIndexs(content: Node[]){
@@ -31,6 +29,7 @@ function findEnvIndexs(content: Node[]){
 
 
 function createDocEnvironment(ast: LatexAbstractSyntaxTree,content: Node[],args?:Argument[]){
+    
     const preambleEndIndex=content.findIndex(node=>{
         if(node.isMacro()){
             if(/(documentclass|usetikzlibrary|usepackage)/.test(node.content))return false;
@@ -39,14 +38,16 @@ function createDocEnvironment(ast: LatexAbstractSyntaxTree,content: Node[],args?
         return true;
     })
     const index=preambleEndIndex===-1?0:preambleEndIndex;
-    const preamble=ast.content.splice(0,index);
+    const preamble=ast.content.slice(0,index);
+    const envContent=ast.content.slice(index);
     const doc=[...preamble,new Environment(
         "environment",
         "document",
         [
-            new Environment("environment","tikzpicture",ast.content,args)
+            new Environment("environment","tikzpicture",envContent,args)
         ],
     )];
+    console.log("doc",doc,preamble)
     return doc;
 }
 
@@ -100,4 +101,14 @@ function findMatchingBracket(content: Node[],index: number){
         if(count===0)return i+index;
     }
     throw new Error("No matching bracket found");
+}
+
+/**
+ * Maps LaTeX environment names to their required parent environments.
+ * Null if root level.
+ */
+const envDepthStructure: Record<string,null|string> = {
+    "document": null,
+    "tikzpicture": "document",
+    "axis": "tikzpicture",
 }

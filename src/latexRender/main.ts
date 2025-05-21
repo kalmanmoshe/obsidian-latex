@@ -7,7 +7,7 @@ import PdfTeXEngine,{CompileResult} from './PdfTeXEngine';
 import Moshe from '../main';
 import { StringMap } from 'src/settings/settings.js';
 import async from 'async';
-import { LatexAbstractSyntaxTree } from './parse/parse';
+import { createDpendency, isExtensionTex, LatexAbstractSyntaxTree } from './parse/parse';
 import { pdfToHtml, pdfToSVG } from './pdfToHtml/pdfToHtml';
 import parseLatexLog, {createErrorDisplay, errorDiv} from './log-parser/HumanReadableLogs';
 import { String as StringClass } from './parse/typs/ast-types-post';
@@ -21,7 +21,7 @@ import { Extension, StateEffect, StateField, Transaction } from "@codemirror/sta
 import { EditorView } from "@codemirror/view";
 import { getSectionFromMatching, getSectionFromTransaction } from './cache/findSection';
 import { ProcessedLog } from './log-parser/latex-log-parser';
-
+import { LatexDependency } from "./parse/parse"
 export const waitFor = async (condFunc: () => boolean) => {
 	return new Promise<void>((resolve) => {
 		if (condFunc()) {
@@ -65,6 +65,7 @@ type InputFile = {
   	content: string;
   	dependencies: InputFile[];
 }
+type VFSLatexDependency = (LatexDependency&{inVFS: boolean})
 /**
  * add option for Persistent preamble.so it won't get deleted.after use Instead, saved until overwritten
  */
@@ -190,7 +191,8 @@ export class SwiftlatexRender {
 		if(!target)err();
 		return target!.content.split("\n").slice(1,-1).join("\n");
 	}
-	private async processInputFiles(ast: LatexAbstractSyntaxTree, basePath: string): Promise<void> {
+	private async processInputFiles(ast: LatexAbstractSyntaxTree, basePath: string): Promise<VFSLatexDependency[]> {
+		const usedFiles: VFSLatexDependency[] = [];
 		const inputFilesMacros = ast.usdInputFiles().filter((macro) => macro.args && macro.args.length === 1);
 		for (const macro of inputFilesMacros) {
 			const args = macro.args!;
@@ -210,42 +212,75 @@ export class SwiftlatexRender {
 			}catch(e){
 				return e;
 			}
+			const ext = path.extname(name);
+			const baseDependency: Partial<VFSLatexDependency> & { name: string; extension: string; isTex: boolean } = {
+				name,
+				extension: ext,
+				isTex: isExtensionTex(ext)
+			};
 
-			// Recursively process the content
-			const nestedAst = LatexAbstractSyntaxTree.parse(content);
-			await this.processInputFiles(nestedAst, dir.file.path);
-			ast.addDependency(filePath, name, path.extname(name), { isTex: true, ast: nestedAst },);
-			this.virtualFileSystem.addVirtualFileSystemFile({ name, content: nestedAst.toString() });
+			if (baseDependency.isTex) {
+				// Recursively process the content
+				const nestedAst = LatexAbstractSyntaxTree.parse(content);
+				usedFiles.push(...await this.processInputFiles(nestedAst, dir.file.path));
+				baseDependency.ast = nestedAst;
+				baseDependency.source = nestedAst.toString();
+			}else{
+				baseDependency.source = content;
+			}
+
+			const dependency = {...createDpendency(baseDependency.source, baseDependency.name, baseDependency.extension, baseDependency),inVFS:false};
+			usedFiles.push(dependency);
+			ast.addDependency(content,dependency.name, dependency.extension, dependency);
 		}
-	}
-	async processTask(task: ProcessableTask): Promise<boolean> {
+		return usedFiles;
+	}/**
+	 * They're somewhere a bug over here that infinitely adds document Environments
+	 */
+	async processTaskSource(source: string,sourcePath: string) {
+		const usedFiles: VFSLatexDependency[] = []
 		const startTime = performance.now();
 		try {
-			const ast = LatexAbstractSyntaxTree.parse(task.source);
-			await this.processInputFiles(ast, task.sourcePath);
+			const ast = LatexAbstractSyntaxTree.parse(source);
+			usedFiles.push(...await this.processInputFiles(ast, sourcePath));
+			
 			this.virtualFileSystem.getAutoUseFileNames().forEach((name) => {
 				ast.addInputFileToPramble(name);
 				const file = this.virtualFileSystem.getFile(name).content;
-				ast.addDependency(file, name, path.extname(name), { isTex: true, autoUse: true });
+				const dependency = {...createDpendency(file, name, path.extname(name), { isTex: true, autoUse: true }),inVFS:true};
+				usedFiles.push(dependency);
+				ast.addDependency(file,dependency.name, dependency.extension, dependency);
 			});
 			ast.verifyProperDocumentStructure();
+			const totalDuration = performance.now() - startTime;
+			console.log(`[TIMER] Total processing time: ${totalDuration.toFixed(2)} ms`);
 			// ── Final task update ────────────────────────
-			task.source = ast.toString();
-			console.log("task.source", this.virtualFileSystem, ast, task.source.split('\n'));
-		}
-		catch (e) {
+			return {isError: false, source: ast.toString(), usedFiles, ast};
+		}catch(e) {
 			let abort = false;
 			if (typeof e !== "string"&&"abort" in e) {
 				abort = e.abort;
 				e = e.message;
 			}
 			const err = "Error processing task: " + e;
-			this.handleError(task.el, err,{hash: task.md5Hash});
-			if (abort) return true;
+			return {isError: true,err,usedFiles,abort};
 		}
-		const totalDuration = performance.now() - startTime;
-		console.log(`[TIMER] Total processing time: ${totalDuration.toFixed(2)} ms`);
-		return false;
+	}
+	async processTask(task: ProcessableTask): Promise<boolean> {
+		const {isError,err,usedFiles,abort,source,ast} = await this.processTaskSource(task.source, task.sourcePath);
+		if(isError){
+			console.error("Error processing task:", err);
+			this.handleError(task.el, err as string,{hash: task.md5Hash});
+			return !!abort;
+		}
+		//this is just for ts types
+		if(!source)throw new Error("Unexpected error: source is undefined");
+		for (const dep of usedFiles) {
+			if (!dep.inVFS) this.virtualFileSystem.addVirtualFileSystemFile({ name: dep.name, content: dep.source });
+		}
+		task.source = source;
+		console.log("task.source", this.virtualFileSystem, ast, task.source.split('\n'));
+		return !!isError;
 	};
 	
 	configQueue() {
