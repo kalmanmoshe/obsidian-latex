@@ -80,7 +80,13 @@ export default class Moshe extends Plugin {
     // needs to be loaded before the codeBlocks are processed
     await this.loadSwiftLatexRender()
     // processing of the code blocks have layout dependencies
-    this.setCodeblocks();
+    try{
+      this.setCodeblocks();
+    }
+    catch(e){
+      console.error("Error setting code blocks:", e);
+      new Notice("Error setting code blocks. Please check the console for more details.");
+    }
     this.watchFiles()
   }
 
