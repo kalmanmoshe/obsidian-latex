@@ -94,6 +94,7 @@ export class VirtualFileSystem{
      * @param file 
      */
     addVirtualFileSystemFile(file: VirtualFile){
+        console.log("Adding virtual file system file", file);
         this.files = this.files.filter(f => f.name !== file.name);
         this.files.push(file);
         this.status=VirtualFileSystemFilesStatus.outdated;
