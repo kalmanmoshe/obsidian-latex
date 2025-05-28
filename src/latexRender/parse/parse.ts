@@ -2,7 +2,7 @@
 import { Root,String, Whitespace,Parbreak,Comment, Macro,Environment, Argument,Path, DisplayMath, Group, InlineMath, Verb, VerbatimEnvironment, Ast,Node, ContentNode, BaseNode } from './typs/ast-types-post';
 import { migrateToClassStructure, parse } from './autoParse/ast-types-pre';
 import { claenUpPaths } from './cleanUpAst';
-import { verifyEnvironmentWrap } from './verifyEnvironmentWrap';
+import { EnvironmentWrap } from './verifyEnvironmentWrap';
 
 
 /**
@@ -39,7 +39,7 @@ export class LatexAbstractSyntaxTree{
 
     }
     verifyProperDocumentStructure(){
-        this.content = verifyEnvironmentWrap(this);
+        this.content = new EnvironmentWrap(this).verify();
         this.verifyDocumentclass();
         this.cleanUp();
     }

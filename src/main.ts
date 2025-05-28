@@ -50,7 +50,6 @@ interface MosheMathTypingApi {
   addTextSetting:any;
 }
 
-export let staticMosheMathTypingApi: null|MosheMathTypingApi= null;
 export let staticMoshe: null|Moshe= null;
 
 export default class Moshe extends Plugin {
@@ -63,7 +62,6 @@ export default class Moshe extends Plugin {
     await this.loadSettings();
 		
     this.addEditorCommands();
-    this.updateApiHooks();
     this.addSyntaxHighlighting();
     this.app.workspace.onLayoutReady(async () => await this.loadLayoutReadyDependencies());
     this.addSettingTab(new MosheMathSettingTab(this.app, this));
@@ -89,31 +87,6 @@ export default class Moshe extends Plugin {
     }
     this.watchFiles()
   }
-
-
-  private updateApiHooks(){
-    try{
-      //@ts-ignore
-      const plugins = this.app.plugins
-      if(plugins.enabledPlugins.has("moshe-math-typing")){
-        staticMosheMathTypingApi = plugins.plugins["moshe-math-typing"].getAPI();
-      }
-      else{
-        const observerId = observeSet(plugins.enabledPlugins, (added, removed,) => {
-          if (added.length && plugins.enabledPlugins.has("moshe-math-typing")) {
-            staticMosheMathTypingApi = plugins.plugins["moshe-math-typing"].getAPI();
-            console.log("updateApiHooks staticMosheMathTypingApi",staticMosheMathTypingApi)
-            clearInterval(observerId);
-          }
-        });
-      }
-    }catch(e){
-      console.error(e);
-      new Notice("Could not find moshe-math-typing plugin. Please install and/or activate it");
-    }
-      staticMoshe=this;
-  }
-  
 
   private setCodeblocks(){
     this.registerMarkdownCodeBlockProcessor("math", processMathBlock.bind(this));
@@ -217,7 +190,6 @@ export default class Moshe extends Plugin {
   }
 
   async saveSettings(didFileLocationChange = false) {
-    await this.loadData();
 		await this.saveData(this.settings);
     if(didFileLocationChange){
       await this.swiftlatexRender.virtualFileSystem.setEnabled(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled);
@@ -279,43 +251,3 @@ export default class Moshe extends Plugin {
   }
 }
 
-
-/**
- * Observes a set for changes by polling at a specified interval.
- * @param observedSet The set to observe.
- * @param callback Called with arrays of added and removed items when a change is detected.
- * @param interval Polling interval in milliseconds (default is 100ms).
- * @returns The interval ID so you can clear it later if needed.
- */
-function observeSet<T>(
-  observedSet: Set<T>,
-  callback: (added: T[], removed: T[]) => void,
-  interval: number = 1000
-): NodeJS.Timer {
-  let previousSnapshot = new Set(observedSet);
-  return setInterval(() => {
-    const added: T[] = [];
-    const removed: T[] = [];
-
-    // Check for new items (added)
-    observedSet.forEach(item => {
-      if (!previousSnapshot.has(item)) {
-        added.push(item);
-      }
-    });
-
-    // Check for missing items (removed)
-    previousSnapshot.forEach(item => {
-      if (!observedSet.has(item)) {
-        removed.push(item);
-      }
-    });
-
-    if (added.length || removed.length) {
-      // Report the changes
-      callback(added, removed);
-      // Update the snapshot
-      previousSnapshot = new Set(observedSet);
-    }
-  }, interval);
-}

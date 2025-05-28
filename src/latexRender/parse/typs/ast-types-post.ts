@@ -32,7 +32,26 @@ export class BaseNode {
     }
     isMacro(): this is Macro { return this instanceof Macro; }
     isString(): this is String { return this instanceof String; }
+    isWhitespaceLike(): this is Whitespace | Parbreak | Comment {
+        return this instanceof Whitespace || this instanceof Parbreak || this instanceof Comment;
+    }
     isContentNode(): this is ContentNode{ return this instanceof ContentNode;}
+    hasChildren(): boolean {return this.isMacro()||this.isContentNode(); }
+    getNodeChildren(): Node[] {
+        const children = this.getChildren();
+        if(children[0] instanceof Argument){
+            return children.map(child => child instanceof Argument ? child.content : child).flat();
+        }
+        return children as Node[];
+    }
+    getChildren(): Node[]|Argument[] {
+        if (this.isMacro() && this.args) {
+            return this.args;
+        } else if (this.isContentNode()) {
+            return this.content;
+        }
+        return [];
+    }
     getMacroDef():null|any {
         if (!this.isMacro()) return null;
         if(this.content!=="def")return null;
@@ -207,7 +226,7 @@ export class Environment extends ContentNode {
             string += this.args.map(arg => arg.toString()).join("");
         }
         string +="\n"+indentString(this.content.map(node => node.toString()).join(""))+"\n";
-        string += `\\end{${this.env}}`;
+        string += `\\end{${this.env}}\n`;
         return string;
     }
 }
@@ -305,3 +324,4 @@ export type Node =
     | Verb;
 
 export type Ast = Node | Argument | Node[];
+

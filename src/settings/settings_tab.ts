@@ -1,8 +1,9 @@
 
 import { EditorView, ViewUpdate } from "@codemirror/view";
 import { App,Notice, PluginSettingTab, Setting,  setIcon, ToggleComponent, debounce} from "obsidian";
-import MosheMathPlugin, {staticMosheMathTypingApi} from "../main";
+import MosheMathPlugin from "../main";
 import { DEFAULT_SETTINGS } from "./settings";
+import { addDropdownSetting, addToggleSetting, setPluginInstance,FileSuggest, addTextSetting } from "obsidian-dev-utils";
 
 
 interface Appearance{
@@ -24,6 +25,7 @@ export class MosheMathSettingTab extends PluginSettingTab {
 	constructor(app: App, plugin: MosheMathPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
+		setPluginInstance(plugin);
 	}
 
 	addHeading(containerEl: HTMLElement, name: string, icon = "math") {
@@ -36,10 +38,6 @@ export class MosheMathSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
-		if(staticMosheMathTypingApi===null){
-			new Notice("Could not find moshe-math-typing plugin. Please install and/or activate it");
-			return;
-		}
 		const { containerEl } = this;
 		containerEl.empty();
 		this.displayGraphSettings();
@@ -50,13 +48,30 @@ export class MosheMathSettingTab extends PluginSettingTab {
 	private displayGraphSettings(){
 		const containerEl = this.containerEl;
 		this.addHeading(containerEl, "graph", "ballpen");
-		staticMosheMathTypingApi!.addToggleSetting(
-			containerEl,this.plugin,
+		addToggleSetting(
+			containerEl,
 			(value: boolean)=>{this.plugin.settings.invertColorsInDarkMode=value,this.plugin.saveSettings()},
 			{
 				name: "Invert colors in dark mode",
 				description: "Invert colors in diagrams (e.g. axes, arrows) when in dark mode, so that they are visible.",
 				defValue: this.plugin.settings.invertColorsInDarkMode
+			}
+		);
+		addDropdownSetting(
+			containerEl,
+			(value: string) => {
+				this.plugin.settings.overflowStrategy = value as "downscale" | "scroll" | "hidden";
+				this.plugin.saveSettings();
+			},
+			{
+				name: "Overflow strategy",
+				description: "What to do when the content overflows the container. 'downscale' - downscale the content, 'scroll' - add a scrollbar, 'hidden' - do nothing, content will overflow.",
+				dropDownOptions: {
+					"downscale": "Downscale",
+					"scroll": "Scroll",
+					"hidden": "Hidden"
+				},
+				defValue: this.plugin.settings.overflowStrategy
 			}
 		);
 		const setting = createSetting(
@@ -76,8 +91,8 @@ export class MosheMathSettingTab extends PluginSettingTab {
 			});
 		});
 
-		staticMosheMathTypingApi!.addToggleSetting(
-			containerEl,this.plugin,
+		addToggleSetting(
+			containerEl,
 			(value: boolean)=>{this.plugin.settings.saveLogs=value,this.plugin.saveSettings()},
 			{
 				name: "Save latex logs",
@@ -104,8 +119,8 @@ export class MosheMathSettingTab extends PluginSettingTab {
 	private displayPreambleSettings(){
 		const containerEl = this.containerEl;
 		this.addHeading(containerEl, "Preamble", "pencil");
-		staticMosheMathTypingApi!.addToggleSetting(
-			containerEl,this.plugin,
+		addToggleSetting(
+			containerEl,
 			(value: boolean)=>{this.plugin.settings.mathjaxPreamblePreambleEnabled=value,this.plugin.saveSettings();},
 			{
 				name: "Mathjax preamble enabled.",
@@ -140,7 +155,7 @@ export class MosheMathSettingTab extends PluginSettingTab {
 		// Ensure inputEl is defined before passing to FileSuggest
 		if (inputEl1) {
 			this.snippetsFileLocEl = mathjaxPreambleFileLoc.settingEl;
-			new staticMosheMathTypingApi!.fileSuggest(this.app, inputEl1);
+			new FileSuggest(this.app, inputEl1);
 		} else {
 			console.error("Input element is undefined.");
 		}
@@ -155,8 +170,8 @@ export class MosheMathSettingTab extends PluginSettingTab {
 
 		virtualFilesDescription.appendChild(description);
 
-		staticMosheMathTypingApi!.addToggleSetting(
-			containerEl,this.plugin,
+		addToggleSetting(
+			containerEl,
 			(value: boolean)=>{this.plugin.settings.pdfTexEnginevirtualFileSystemFilesEnabled=value;},
 			{
 				name: "Enable virtual files",
@@ -192,7 +207,7 @@ export class MosheMathSettingTab extends PluginSettingTab {
 		// Ensure inputEl is defined before passing to FileSuggest
 		if (inputEl2) {
 			this.snippetsFileLocEl = virtualFilesFileLoc.settingEl;
-			new staticMosheMathTypingApi!.fileSuggest(this.app, inputEl2);
+			new FileSuggest(this.app, inputEl2);
 		} else {
 			console.error("Input element is undefined.");
 		}
@@ -206,8 +221,8 @@ export class MosheMathSettingTab extends PluginSettingTab {
 			"Note: the default file extension is '.tex', unless explicitly specified.";
 		descriptionFragment.appendChild(descriptionDetails);
 
-		staticMosheMathTypingApi!.addToggleSetting(
-			containerEl,this.plugin,
+		addToggleSetting(
+			containerEl,
 			(value: boolean)=>{this.plugin.settings.virtualFilesFromCodeBlocks=value},
 			{
 				name: "Enable virtual files from code blocks",
@@ -217,8 +232,8 @@ export class MosheMathSettingTab extends PluginSettingTab {
 			}
 		);
 
-		staticMosheMathTypingApi!.addTextSetting(
-			containerEl,this.plugin,
+		addTextSetting(
+			containerEl,
 			(value: string)=>{this.plugin.settings.autoloadedVirtualFileSystemFiles=strToArray(value);this.plugin.updateCoorVirtualFiles()},
 			{
 				name: "Autoloaded virtual files",

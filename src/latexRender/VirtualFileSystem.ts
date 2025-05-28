@@ -94,7 +94,6 @@ export class VirtualFileSystem{
      * @param file 
      */
     addVirtualFileSystemFile(file: VirtualFile){
-        console.log("Adding virtual file system file", file);
         this.files = this.files.filter(f => f.name !== file.name);
         this.files.push(file);
         this.status=VirtualFileSystemFilesStatus.outdated;
@@ -105,7 +104,6 @@ export class VirtualFileSystem{
      */
     async loadVirtualFileSystemFiles() {
         if(this.enabled===false||this.status === VirtualFileSystemFilesStatus.uptodate)return;
-        //console.log("Loading virtual filesystem files", this.files);
         if (this.status === VirtualFileSystemFilesStatus.undefined){
             await nonBlockingWaitUntil(() => 
                 this.status === VirtualFileSystemFilesStatus.outdated
