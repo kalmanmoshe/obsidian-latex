@@ -19,6 +19,7 @@ export class SvgContextMenu extends Menu {
 	sourcePath: string;
 	isError: boolean;
 	source: string;
+	codeBlockLanguage: "tikz"|"latex";
 	private sourceAssignmentPromise: Promise<boolean> | null = null;
 	constructor(plugin: Moshe,trigeringElement: HTMLElement,sourcePath: string) {
 		super();
@@ -94,7 +95,7 @@ export class SvgContextMenu extends Menu {
 			});
 		});
 	}
-	private codeBlockLanguage(){
+	private getCodeBlockLanguage(){
 		if (!this.source) return undefined;
 
 	}
@@ -162,6 +163,23 @@ export class SvgContextMenu extends Menu {
 		if(!(file instanceof TFile))throw new Error("File is not a TFile");
 		return file;
 	}
+	async getSectionCache() {
+		const file=await this.getFile();
+		if(!file)throw new Error("No file found");
+
+		const sections=await getFileSections(file,this.plugin.app,true);
+		if(!sections)throw new Error("No sections found in metadata");
+		const fileText = await this.plugin.app.vault.read(file);
+		await this.assignLatexSource();
+		const sectionCache=getSectionFromMatching(sections,fileText,this.source);
+		if(!sectionCache)throw new Error("Section cache not found");
+		const lang = fileText.split("\n")[sectionCache.lineStart].match(latexCodeBlockNamesRegex)?.[2];
+		if (lang !== "tikz" && lang !== "latex") {
+			throw new Error("Code block is not a tikz or latex code block");
+		}
+		this.codeBlockLanguage = lang;
+		return sectionCache;
+	}
 	/**
 	 * Can't be saved as contains dynamic content.
 	 */
@@ -178,45 +196,40 @@ export class SvgContextMenu extends Menu {
 		parentEl.removeChild(this.triggeringElement);
 
 		this.assignLatexSource()
-		const file=await this.getFile();
-		if(!file)throw new Error("No file found");
-
-		const sections=await getFileSections(file,this.plugin.app,true);
-		if(!sections)throw new Error("No sections found in metadata");
+		
 
 
 		addMenu(this.plugin,parentEl,this.sourcePath)
+		const sectionCache = await this.getSectionCache();
 		
-		const fileText = await this.plugin.app.vault.read(file);
-		
-		await this.assignLatexSource();
-		const sectionCache=getSectionFromMatching(sections,fileText,this.source);
-		if(!sectionCache)throw new Error("Section cache not found");
 
 		const blockId = getBlockId(this.sourcePath,sectionCache.lineStart);
 		const queue=this.plugin.swiftlatexRender.queue;
 		queue.remove(node => node.data.blockId === blockId);
 		parentEl.appendChild(createWaitingCountdown(queue.length()));
-		console.log("parentEl",parentEl)
 		this.plugin.swiftlatexRender.queue.push({
 			source: this.source,
 			el: parentEl,
 			md5Hash: hash??hashLatexSource(this.source),
 			sourcePath: this.sourcePath,
 			blockId,
-			process: true
+			process: this.codeBlockLanguage==="tikz"
 		})
 		new Notice("SVG removed from cache. Re-rendering...");
 	}
 	
 	async open(event: MouseEvent) {
-		console.log("open")
 		this.showAtPosition({ x: event.pageX, y: event.pageY });
 	}
 	private async getparsedSource() {
 		await this.assignLatexSource()
-		const result = await this.plugin.swiftlatexRender.processTaskSource(this.source,this.sourcePath);
-		console.log("result",result)
-		return result.source||"";
+		if(this.codeBlockLanguage===undefined)
+			await this.getSectionCache();
+		let source = this.source;
+		if(this.codeBlockLanguage==="tikz"){
+			const result = await this.plugin.swiftlatexRender.processTaskSource(this.source,this.sourcePath);
+			source = result.source||"";
+		}
+		return source;
 	}
 }

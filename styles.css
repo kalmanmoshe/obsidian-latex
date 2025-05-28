@@ -33,22 +33,154 @@
   100% { transform: rotate(360deg); }
 }
 
-/*
-  latex render Rendered block
-*/
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Base (shared) styles */
 .block-language-latexsvg {
-  display: flex;
-  justify-content: center;  /* centers horizontally */
-  align-items: center;      /* centers vertically */
-  width: fit-content;       /* container wraps SVG */
+  margin: auto;
   height: fit-content;
-  margin: auto;   
 }
 
-.block-language-latexsvg svg {
+/* DOWNscale: center using flex */
+.block-language-latexsvg.overflow-downscale {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.block-language-latexsvg.overflow-downscale svg {
+  width: auto;              /* ✅ don’t force full width */
+  height: auto;
+  max-width: 100%;          /* ✅ only downscale */
+  object-fit: contain;
   display: block;
 }
+
+.block-language-latexsvg.overflow-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-align: center;    
+  white-space: nowrap;    
+}
+
+.block-language-latexsvg.overflow-scroll svg {
+  display: inline-block;
+  width: auto;
+  height: auto;
+  max-width: none;        
+  vertical-align: middle;  
+}
+
+/* HIDDEN: just let it overflow */
+.block-language-latexsvg.overflow-hidden {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: fit-content;
+  overflow: hidden;
+}
+.block-language-latexsvg.overflow-hidden svg {
+  display: block;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

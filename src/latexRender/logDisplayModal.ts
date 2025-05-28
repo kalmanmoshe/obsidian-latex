@@ -145,9 +145,24 @@ export class LogDisplayModal extends Modal {
 	
 	
 	private renderRaw(container: HTMLElement) {
-		const rawPre = container.createEl("pre", { text: this.log.raw });
-		rawPre.setAttribute("style", "white-space: pre-wrap; word-wrap: break-word;");
-	}
+	const wrapper = container.createDiv();
+	const rawPre = wrapper.createEl("pre", { text: this.log.raw });
+	rawPre.setAttribute("style", "white-space: pre-wrap; word-wrap: break-word;");
+
+	const copyButton = wrapper.createEl("button", { text: "Copy" });
+	copyButton.setAttribute("style", "margin-top: 5px;");
+
+	copyButton.addEventListener("click", () => {
+		navigator.clipboard.writeText(this.log.raw).then(() => {
+			copyButton.textContent = "Copied!";
+			setTimeout(() => copyButton.textContent = "Copy", 1500);
+		}).catch(() => {
+			copyButton.textContent = "Failed";
+			setTimeout(() => copyButton.textContent = "Copy", 1500);
+		});
+	});
+}
+
 	
 	
 	onClose() {

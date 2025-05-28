@@ -27,6 +27,13 @@ interface MosheMathBasicSettings {
 	packageCache: Array<StringMap>;
 	pdfEngineCooldown: number;
 	saveLogs: boolean;
+	/**
+	 * What to do when the content overflows the container.
+	 * "auto" - downscale the content.
+	 * "scroll" - add a scrollbar.
+	 * "hidden" - do nothing, content will overflow.
+	 */
+	overflowStrategy: "downscale" | "scroll" | "hidden";
 }
 
 /**
@@ -59,6 +66,7 @@ export const DEFAULT_SETTINGS: MosheMathPluginSettings = {
 	packageCache: [{},{},{},{}],
 	pdfEngineCooldown: 1000,
 	saveLogs: false,
+	overflowStrategy: "downscale",
 }
 
 export function processMosheMathSettings(settings: MosheMathPluginSettings):MosheMathettings {

@@ -1,11 +1,11 @@
 import { Command, Editor, EditorPosition, HeadingCache, Notice } from "obsidian";
 import { getCurrentCursorLocationSection } from "src/latexRender/cache/findSection";
-import Moshe, { staticMosheMathTypingApi } from "src/main";
+import Moshe from "src/main";
 import { MathPraiser } from "src/mathParser/mathEngine";
 const Hebcal = require('hebcal');
 const { HDate } = require('hebcal');
 function getTranslateFromMathjaxToLatex(plugin: Moshe) {
-	if (!staticMosheMathTypingApi) return;
+	//if (!staticMosheMathTypingApi) return;
 	return {
 		id: "moshe-translate-from-mathjax-to-latex",
 		name: "Translate from MathJax to LaTeX",

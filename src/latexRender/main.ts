@@ -122,6 +122,7 @@ export class SwiftlatexRender {
 		el.classList.remove("block-language-tikz");
 		el.classList.remove("block-language-latex");
 		el.classList.add("block-language-latexsvg");
+		el.classList.add(`overflow-${this.plugin.settings.overflowStrategy}`);
 		const md5Hash = hashLatexSource(source);
 		addMenu(this.plugin,el,ctx.sourcePath)
 		
@@ -288,6 +289,7 @@ export class SwiftlatexRender {
 			try {
 				let abort;
 				if (task.process) abort = await this.processTask(task);
+				console.warn("task.source",task.source)
 				if(abort) return done();
 			 	await this.renderLatexToElement(task.source, task.el, task.md5Hash, task.sourcePath);
 			} catch (err) {
@@ -295,7 +297,6 @@ export class SwiftlatexRender {
 			  //this.handleError(task.el, "Render error: " + err);
 			} finally {
 			  setTimeout(() => {
-				console.log("Task completed:", task.el);
 				updateQueueCountdown(this.queue);
 				done();
 			  }, this.plugin.settings.pdfEngineCooldown);
@@ -491,6 +492,7 @@ export class SwiftlatexRender {
 const updateQueueCountdown = (queue: async.QueueObject<Task>) => {
 	//@ts-ignore
 	let taskNode = queue._tasks.head;
+	let temp =taskNode;
 	let index = 0;
 	while (taskNode) {
 		const task = taskNode.data;
@@ -500,6 +502,16 @@ const updateQueueCountdown = (queue: async.QueueObject<Task>) => {
 		else 
 			console.warn(`Countdown not found for task ${index}`);
 		taskNode = taskNode.next;
+		index++;
+	}
+	index=0;
+	while (temp) {
+		const task = temp.data;
+		const countdown = task.el.querySelector(".moshe-latex-render-countdown");
+		if (!countdown) throw new Error("Countdown not found for task " + index);
+		if(countdown.textContent !== index.toString())
+			throw new Error(`Countdown text content mismatch for task ${index}: expected ${index}, got ${countdown.textContent}`);
+		temp = temp.next;
 		index++;
 	}
 };
