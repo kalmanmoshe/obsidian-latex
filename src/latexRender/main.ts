@@ -48,7 +48,19 @@ export const waitFor = async (condFunc: () => boolean) => {
 export const latexCodeBlockNamesRegex = /(`|~){3,} *(latex|tikz)/;
 type Task = { source: string, el: HTMLElement,md5Hash:string, sourcePath: string , blockId: string,process: boolean};
 type ProcessableTask = Partial<Omit<Task, "source" | "sourcePath"|"el">> & Pick<Task, "source" | "sourcePath"|"el">;
-
+type InternalTask<T> = {
+	data: T;
+	callback: Function;
+	next: InternalTask<T> | null;
+};
+type QueueObject<T> = async.QueueObject<T> &{
+	_tasks: {
+		head: InternalTask<T> | null;
+		tail: InternalTask<T> | null;
+		length: number;
+		remove: (testFn: (node: InternalTask<T>) => boolean) => void;
+	};
+}
 export function clearFolder(folderPath: string){
 	if (fs.existsSync(folderPath)) {
 		const packageFiles = fs.readdirSync(folderPath);
@@ -82,7 +94,7 @@ export class SwiftlatexRender {
 	engine: LatexEngine;
 	cache: SvgCache;
 	private logCache: Map<string, ProcessedLog>|undefined;
-	queue: async.QueueObject<Task>;
+	queue: QueueObject<Task>;
 	logger = createTransactionLogger();
 	async onload(plugin: Moshe) {
 		this.plugin = plugin;
@@ -293,21 +305,41 @@ export class SwiftlatexRender {
 	
 	configQueue() {
 		this.queue = async.queue(async (task, done) => {
+			let cooldown = true;
 			try {
 				let abort;
 				if (task.process) abort = await this.processTask(task);
-				if(abort) return done();
+				if(abort) {cooldown=false;return done()};
 			 	await this.renderLatexToElement(task.source, task.el, task.md5Hash, task.sourcePath);
+				this.reCheckQueue(); // only re-check the queue after a valide rendering
 			} catch (err) {
 			  console.error("Error rendering/compiling:", typeof err === "string" ? [err.split("\n")] : err);
 			  //this.handleError(task.el, "Render error: " + err);
 			} finally {
-			  setTimeout(() => {
 				updateQueueCountdown(this.queue);
-				done();
-			  }, this.plugin.settings.pdfEngineCooldown);
+				if(cooldown) 
+					setTimeout(() => done(), this.plugin.settings.pdfEngineCooldown);
 			}
-		  }, 1);// Concurrency is set to 1, so tasks run one at a time
+		  }, 1) as QueueObject<Task>;// Concurrency is set to 1, so tasks run one at a time
+	}
+	/**
+	 * Re-checks the queue to see if any tasks can be removed based on whether their PDF has been restored from cache.
+	 * If a task's PDF cannot be restored, it is removed from the queue.
+	 * solves edge case where head is in the processing state.when a similar task is registered to the universal method 
+	 */
+	private reCheckQueue() {
+		const blockIdsToRemove = new Set<string>();
+		let taskNode = this.queue._tasks.head;
+
+		while (taskNode) {
+			const task = taskNode.data;
+			if (!this.restoreFromCache(task.el, task.md5Hash)) {
+				blockIdsToRemove.add(task.blockId);
+			}
+			taskNode = taskNode.next;
+		}
+
+		this.queue._tasks.remove(node => blockIdsToRemove.has(node.data.blockId));
 	}
 	
 	private validateCatchDirectory(){
@@ -495,10 +527,9 @@ export class SwiftlatexRender {
 }
 
 
-const updateQueueCountdown = (queue: async.QueueObject<Task>) => {
-	//@ts-ignore
+const updateQueueCountdown = (queue: QueueObject<Task>) => {
 	let taskNode = queue._tasks.head;
-	let temp =taskNode;
+	let temp = taskNode;
 	let index = 0;
 	while (taskNode) {
 		const task = taskNode.data;
@@ -508,16 +539,6 @@ const updateQueueCountdown = (queue: async.QueueObject<Task>) => {
 		else 
 			console.warn(`Countdown not found for task ${index}`);
 		taskNode = taskNode.next;
-		index++;
-	}
-	index=0;
-	while (temp) {
-		const task = temp.data;
-		const countdown = task.el.querySelector(".moshe-latex-render-countdown");
-		if (!countdown) throw new Error("Countdown not found for task " + index);
-		if(countdown.textContent !== index.toString())
-			throw new Error(`Countdown text content mismatch for task ${index}: expected ${index}, got ${countdown.textContent}`);
-		temp = temp.next;
 		index++;
 	}
 };
