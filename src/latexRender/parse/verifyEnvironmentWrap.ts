@@ -14,7 +14,6 @@ export class EnvironmentWrap{
     verify(){
         this.envs=this.getEnvironments(this.content);
         if(this.envs.some(env=>env.env==="document"))return this.content;
-        console.log("Environments",this.envs);
         this.args=this.findEnvironmentArgs()||[];
 
         //if no envs
@@ -77,7 +76,6 @@ export class EnvironmentWrap{
         envs = envs.content[0] as Environment;
         
         const doc = [...preamble, envs];
-        console.log("doc", doc, preamble);
         return doc;
     }
     findEnvironmentArgs(): Argument[]|undefined {
@@ -134,11 +132,14 @@ export class EnvironmentWrap{
         const envs= this.envs.map(env => env.env);
         const sortedEnvs: {parent: string|null, value: string,inAst: boolean}[] = [];
         for(const env of envs){
-            const parent = envDepthStructure[env]||null;
-            sortedEnvs.push({parent, value: env,inAst: true});
+            let parent = envDepthStructure[env];
             if (parent === undefined) {
                 console.warn(`Environment ${env} not found in envDepthStructure, assuming root level`);
             }
+            parent = !parent&&env!="document"?"document": (parent|| null);
+
+            sortedEnvs.push({parent, value: env,inAst: true});
+            
         }
         if(sortedEnvs.length === 0) {
             sortedEnvs.push({parent: "document",value: "tikzpicture", inAst: false}); // Default environment if none found
@@ -157,7 +158,6 @@ export class EnvironmentWrap{
                 sortedEnvs.push({parent: parentEnv, value: unknownEnv,inAst: false});
             }
         }while(unknownEnv!==null);
-
         sortedEnvs.sort((a, b) => {
             if (a.parent === null && b.parent !== null) return -1;
             if (a.parent !== null && b.parent === null) return 1;
@@ -202,4 +202,5 @@ const envDepthStructure: Record<string,null|string> = {
     "document": null,
     "tikzpicture": "document",
     "axis": "tikzpicture",
+    "scope": "tikzpicture",
 }

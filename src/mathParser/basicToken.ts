@@ -1,4 +1,4 @@
-import { isOperatorWithAssociativity, mahtjaxAssociativitymetadata, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchTikzComponents } from "../staticData/dataManager";
+import { isOperatorWithAssociativity, mahtjaxAssociativitymetadata, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchTikzComponents } from "./staticData/dataManager";
 
 class BasicToken {
     protected type: string;

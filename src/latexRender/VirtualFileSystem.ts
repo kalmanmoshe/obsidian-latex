@@ -1,5 +1,5 @@
 
-import PdfTeXEngine from "./PdfTeXEngine";
+import LatexEngine from "./engine";
 
 export enum VirtualFileSystemFilesStatus{
     undefined,
@@ -30,7 +30,7 @@ export class VirtualFileSystem{
      * whether the virtual file system is enabled. If disabled, the virtual file system will flush the pdf engine and no longer update the files in said engine.
      */
     private enabled: boolean;
-    private pdfEngine: PdfTeXEngine;
+    private pdfEngine: LatexEngine;
     constructor(){
         this.enabled=false;
         this.status=VirtualFileSystemFilesStatus.undefined;
@@ -40,7 +40,7 @@ export class VirtualFileSystem{
      * update the pointer to the PDF engine
      * @param pdfEngine 
      */
-    setPdfEngine(pdfEngine: PdfTeXEngine){
+    setPdfEngine(pdfEngine: LatexEngine){
         this.pdfEngine=pdfEngine;
     }
     /**

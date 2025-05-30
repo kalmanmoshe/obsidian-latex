@@ -1,5 +1,5 @@
 import { BasicMathJaxToken, BasicTikzToken } from "src/mathParser/basicToken";
-import { BracketState, BracketType } from "src/staticData/encasings";
+import { BracketState, BracketType } from "src/mathParser/staticData/encasings";
 export class Paren{
     type: BracketType;
     state: BracketState;

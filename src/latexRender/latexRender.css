@@ -1,0 +1,169 @@
+
+/*
+  latex render elements loder
+*/
+.moshe-latex-render-loader-parent-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+.moshe-latex-render-loader {
+  border: 8px solid #f3f3f3; /* Light grey */
+  border-top: 8px solid #3498db; /* Blue */
+  border-radius: 50%;
+  width: 80px;
+  height: 80px;
+  animation: spin 2s linear infinite;
+  position: relative; /* Needed for absolute positioning of the countdown */
+}
+.moshe-latex-render-countdown {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 20px;
+  font-weight: bold;
+  color: black;
+  text-align: center;
+  z-index: 10;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Base (shared) styles */
+.block-language-latexsvg {
+  margin: auto;
+  height: fit-content;
+}
+
+/* DOWNscale: center using flex */
+.block-language-latexsvg.overflow-downscale {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.block-language-latexsvg.overflow-downscale svg {
+  width: auto;              /* ✅ don’t force full width */
+  height: auto;
+  max-width: 100%;          /* ✅ only downscale */
+  object-fit: contain;
+  display: block;
+}
+
+.block-language-latexsvg.overflow-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-align: center;    
+  white-space: nowrap;    
+}
+
+.block-language-latexsvg.overflow-scroll svg {
+  display: inline-block;
+  width: auto;
+  height: auto;
+  max-width: none;        
+  vertical-align: middle;  
+}
+
+/* HIDDEN: just let it overflow */
+.block-language-latexsvg.overflow-hidden {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: fit-content;
+  overflow: hidden;
+}
+.block-language-latexsvg.overflow-hidden svg {
+  display: block;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+.block-latex-error {
+  /* filter: invert(100%); */
+  justify-content: center;
+  display: block;
+  width: 100%;
+  background-color: white;
+  color: black;
+}
+
+
+.moshe-swift-latex-error-container {
+  background: #ffe6e6;
+  color: #a94442;
+  border-left: 5px solid #d9534f;
+  padding: 12px 16px;
+  margin: 10px auto; /* Centers the element */
+  font-family: "Courier New", Courier, monospace;
+  border-radius: 6px;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  position: relative;
+  width: 80%; /* Makes it take most of the available width */
+  max-width: 600px; /* Prevents it from becoming too wide on larger screens */
+}
+
+
+.moshe-swift-latex-error-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.moshe-swift-latex-error-title {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.moshe-swift-latex-error-cause {
+  font-size: 13px;
+  color: #8b3c3a;
+  margin-top: 4px;
+}
+
+.moshe-swift-latex-error-line{
+  font-size: 12px;
+  font-weight: bold;
+  color: #721c24;
+  margin-top: 6px;
+}
+

@@ -1,5 +1,5 @@
 import { Plugin, MarkdownView, MarkdownRenderer, PluginSettingTab, App, Setting, Modal, Notice, Component, Editor, EditorPosition, renderMath } from "obsidian";
-import { MathInfo } from "./mathParser/mathEngine.js";
+import { MathInfo } from "./mathEngine.js";
 
 export class InfoModal extends Modal {
     mathInfo: string[];

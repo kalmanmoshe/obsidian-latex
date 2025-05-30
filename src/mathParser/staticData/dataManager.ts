@@ -1,4 +1,3 @@
-import { regExp } from "src/tikzjax/tikzjax";
 import { MathJaxOperatorMetadata, mathJaxOperatorsMetadata, operatorsWithImplicitMultiplication,OperatorType, operatorNames, AssociativityFormatType, AssociativityValue, PositionValue, Positions } from "./mathParserStaticData";
 import { BracketType } from "./encasings";
 import { brackets, LatexMetadata } from "./latexStaticData";
@@ -85,7 +84,7 @@ export function getMathJaxOperatorsByPriority(priorityLevel: number, toRegex = f
     const prioritized = mathJaxOperatorsMetadata
         .filter((operator) => operator.priority === priorityLevel)
         .map((operator) => operator.name);
-    return toRegex ? regExp(prioritized) : prioritized;
+    return toRegex ? prioritized.map(name => new RegExp(escapeForRegex(name))) : prioritized;
 }
 
 /**

@@ -1,16 +1,13 @@
 import * as fs from "fs";
 import * as path from "path";
 
-import Worker from "./swiftlatexpdftex/mainSwiftlatex.worker";
-import { StringMap } from "src/settings/settings";
 export enum EngineStatus {
     Init,
     Ready,
     Busy,
     Error,
 }
-  
-  
+
 export class CompileResult {
     pdf: Buffer<ArrayBufferLike>;
     status: number = -254;
@@ -40,40 +37,19 @@ export enum LatexWorkerCommands {
     Removefile = "removefile",
 }
 
-export default class PdfTeXEngine {
-    private latexWorker: Worker | undefined = undefined
-    private latexWorkerStatus: EngineStatus = EngineStatus.Init;
+export default abstract class LatexEngine {
+    
+    protected latexWorker: Worker | undefined = undefined
+    protected latexWorkerStatus: EngineStatus = EngineStatus.Init;
 
-    async loadEngine(): Promise<void> {
-        if (this.latexWorker) {throw new Error("Other instance is running, abort()");}
-
-        this.latexWorkerStatus = EngineStatus.Init;
-
-        await new Promise<void>((resolve, reject) => {
-            //@ts-expect-error
-            this.latexWorker = new Worker(Worker);
-            this.latexWorker!.onmessage = (ev:MessageEvent<any>) => {
-                const data = ev.data;
-                if (data.result === "ok") {
-                    this.latexWorkerStatus = EngineStatus.Ready;
-                    resolve();
-                } else {
-                    this.latexWorkerStatus = EngineStatus.Error;
-                    reject();
-                }
-            };
-        });
-
-        this.latexWorker!.onmessage = () => {};
-        this.latexWorker!.onerror = () => {};
-    }
+    abstract loadEngine(): Promise<void>
 
     isReady(): boolean {
         return this.latexWorkerStatus === EngineStatus.Ready;
     }
     getEngineStatus(): EngineStatus {return this.latexWorkerStatus;}
 
-    private checkEngineStatus(): void {
+    protected checkEngineStatus(): void {
         if (!this.isReady()) {
             throw new Error("Engine is still spinning or not ready yet! engineStatus: " + EngineStatus[this.latexWorkerStatus]);
         }
@@ -103,6 +79,7 @@ export default class PdfTeXEngine {
         const formatBlob = new Blob([data.pdf], { type: "application/octet-stream" });
         const formatURL = URL.createObjectURL(formatBlob);
         setTimeout(() => URL.revokeObjectURL(formatURL), 30000);
+        console.log('Download format file via ' + formatURL);
     }
 
     async fetchCacheData() {
@@ -145,7 +122,7 @@ export default class PdfTeXEngine {
     }
     
     
-    private task<T = void>(task: any): Promise<T> {
+    protected task<T = void>(task: any): Promise<T> {
         const command = task.cmd;
         this.checkEngineStatus();
         this.latexWorkerStatus = EngineStatus.Busy;
