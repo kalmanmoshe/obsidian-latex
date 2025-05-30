@@ -56,7 +56,6 @@ const shouldRefreshFile = (match: { enabled: any; isFile: any; isInFolder: any; 
 	match.enabled && (match.isFile || match.isInFolder);
 
 export const onFileChange = async (plugin: Moshe, file: TAbstractFile) => {
-	console.debug(`File change detected: ${file.path}`);
 	if (!(file instanceof TFile)) return;
 	const fileMatches = Object.values(filePathMatch(plugin, file));
 	if (fileMatches.some(shouldRefreshFile)) {

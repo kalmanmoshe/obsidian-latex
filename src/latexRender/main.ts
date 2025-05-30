@@ -308,6 +308,7 @@ export class SwiftlatexRender {
 			let cooldown = true;
 			try {
 				let abort;
+				if (this.restoreFromCache(task.el, task.md5Hash)) {cooldown=false;return done()};
 				if (task.process) abort = await this.processTask(task);
 				if(abort) {cooldown=false;return done()};
 			 	await this.renderLatexToElement(task.source, task.el, task.md5Hash, task.sourcePath);
@@ -660,4 +661,15 @@ export function createWaitingCountdown(index: number){
 	parentContainer.appendChild(loader);
 	parentContainer.appendChild(countdown);
 	return parentContainer;
+}
+
+
+class LatexTask {
+	source: string;
+	el: HTMLElement;
+	md5Hash: string;
+	sourcePath: string;
+	blockId: string;
+	process: boolean;
+	
 }
