@@ -20,7 +20,6 @@ import { readAndParseSVG } from "./latexRender/svg2latex/temp";
 import { MathJaxAbstractSyntaxTree } from "./latexRender/parse/mathJaxAbstractSyntaxTree";
 import { getFileSets, getPreambleFromFiles, onFileChange, onFileCreate, onFileDelete } from "./obsidian/file_watch";
 import { temp } from "./LaTeX_js/latex";
-
 /**
  * Assignments:
  * - Create code that will auto-insert metadata into files. You can use this:

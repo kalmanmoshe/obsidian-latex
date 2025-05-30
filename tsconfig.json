@@ -28,7 +28,7 @@
   },
   "include": [
     "**/*.ts"
-, "src/latexRender/PdfTeXEngine.ts", "src/latexRender/swiftlatexpdftex.worker.js", "src/latexRender/log-parser/HumanReadableLogsRules.tsx", "src/latexRender/parse/autoParse"  ],
+, "src/latexRender/PdfTeXEngine.ts", "src/latexRender/swiftlatexpdftex.worker.js", "src/latexRender/logs/HumanReadableLogsRules.tsx", "src/latexRender/parse/autoParse"  ],
   "exclude": [
     "node_modules",
     "dist" 

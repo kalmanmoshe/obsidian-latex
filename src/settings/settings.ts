@@ -1,6 +1,11 @@
 
 export type StringMap = Record<string,string|number>;
 
+enum CompilerType {
+	PdfTeX,
+	XeTeX
+}
+
 interface MosheMathBasicSettings {
 	mathjaxPreamblePreambleEnabled: boolean;
 	mathjaxPreambleFileLocation: string;
@@ -34,6 +39,7 @@ interface MosheMathBasicSettings {
 	 * "hidden" - do nothing, content will overflow.
 	 */
 	overflowStrategy: "downscale" | "scroll" | "hidden";
+	compiler: CompilerType
 }
 
 /**
@@ -67,6 +73,7 @@ export const DEFAULT_SETTINGS: MosheMathPluginSettings = {
 	pdfEngineCooldown: 1000,
 	saveLogs: false,
 	overflowStrategy: "downscale",
+	compiler: CompilerType.PdfTeX,
 }
 
 export function processMosheMathSettings(settings: MosheMathPluginSettings):MosheMathettings {

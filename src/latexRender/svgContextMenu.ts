@@ -4,9 +4,9 @@ import Moshe from "src/main";
 import { getLatexSourceFromHash } from "./cache/latexSourceFromFile";
 import { getFileSections, } from "./cache/sectionCache";
 import { addMenu, createWaitingCountdown, getBlockId, getFileSectionsFromPath, hashLatexSource, latexCodeBlockNamesRegex } from "./main";
-import parseLatexLog from "./log-parser/HumanReadableLogs";
+import parseLatexLog from "./logs/HumanReadableLogs";
 import { getSectionFromMatching } from "./cache/findSection";
-import { LogDisplayModal } from "./logDisplayModal";
+import { LogDisplayModal } from "./logs/logDisplayModal";
 /**add:
  * - Reveal in file explorer
  * - show log

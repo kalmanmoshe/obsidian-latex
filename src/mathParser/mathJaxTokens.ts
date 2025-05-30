@@ -1,12 +1,11 @@
 
-import { arrToRegexString, Axis, regExp } from "../tikzjax/tikzjax";
-import { BracketType } from "../staticData/encasings";
-import { findParenIndex, Paren,idParentheses, parenState,  } from "../ParenUtensils";
-import { associativitymetadataByType, getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, mahtjaxAssociativitymetadata, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchSymbols } from "../staticData/dataManager";
+import { BracketType } from "./staticData/encasings";
+import { findParenIndex, Paren,idParentheses, parenState,  } from "./ParenUtensils";
+import { associativitymetadataByType, getAllMathJaxReferences, getMathJaxOperatorsByPriority, getOperatorsByAssociativity, getValuesWithKeysBySide, hasImplicitMultiplication, isOperatorWithAssociativity, mahtjaxAssociativitymetadata, searchAllMathJaxOperatorsAndSymbols, searchMathJaxOperators, searchSymbols } from "./staticData/dataManager";
 
 import { parseOperator } from "./mathEngine";
 import { BasicMathJaxToken } from "src/mathParser/basicToken";
-import { AssociativityFormatType, PositionValue } from "src/staticData/mathParserStaticData";
+import { AssociativityFormatType, PositionValue } from "src/mathParser/staticData/mathParserStaticData";
 
 function groupBracketType(group: MathGroup,pos:PositionValue={ bracketType: BracketType.Parentheses, isBracketOptional: true },){
     if(!pos.isBracketOptional)return pos.bracketType
@@ -764,11 +763,16 @@ export function stringToBasicMathJaxTokens(string: String):Array<BasicMathJaxTok
     return tokens;
 }
 
+function arrToRegexString(arr: string[]): string {
+    // Escapes special regex characters and joins array items with '|'
+    return arr.map(op => op.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+}
+
 function tokenizeToBasicMathJaxTokens(math: String):Array<BasicMathJaxToken|Paren>{
     const tokens: Array<BasicMathJaxToken|Paren>=[];
     const operators=arrToRegexString(getAllMathJaxReferences())
     for (let i = 0; i < math.length; i++) {
-        let match = math.slice(i).match(regExp('^' + operators));
+        let match = math.slice(i).match(new RegExp('^' + operators));
         if (!!match) {
             tokens.push(BasicMathJaxToken.create(match[0]));
             i+=match[0].length-1;

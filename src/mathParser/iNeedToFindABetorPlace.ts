@@ -1,9 +1,7 @@
 import { App, Component, MarkdownRenderer, Modal, Notice, renderMath } from "obsidian";
 import { calculateBinom, findAngleByCosineRule, getUsableDegrees, roundBySettings } from "./mathUtilities";
-import { DebugModal, InfoModal } from "src/desplyModals";
+import { DebugModal, InfoModal } from "src/mathParser/desplyModals";
 import { MathInfo, MathPraiser } from "./mathEngine";
-import { Axis } from "src/tikzjax/tikzjax";
-import { FormatTikzjax } from "src/tikzjax/interpret/tokenizeTikzjax";
 import { Token } from "./mathJaxTokens";
 
 export function processMathBlock(source: string, mainContainer: HTMLElement): void {
@@ -202,107 +200,7 @@ export function processMathBlock(source: string, mainContainer: HTMLElement): vo
   }
   
   
-  class VecProcessor {
-    userInput: any;
-    environment: { X: string; Y: string };
-    vecInfo = new MathInfo();
-    axis: Axis;
-    modifier: number;
-    result: string;
-    graph?: any;
   
-    constructor(environment: string, mathInput: string, modifier: string) {
-      this.userInput=mathInput;
-      const match = environment.match(/([+-]?)([+-]?)/);
-      this.environment = { X: match?.[1] ?? "+", Y: match?.[2] ?? "+" };
-  
-      this.modifier = modifier.length > 0 ? getUsableDegrees(Number(modifier)) : 0;
-  
-      this.axis=new Axis().universal(this.userInput)
-      if (!this.axis.polarAngle)
-        this.axis.cartesianToPolar();
-      this.vecInfo.addDebugInfo("axis",this.axis);
-      this.addResult();
-      this.addGraph();
-    }
-    addResult(){
-      if (this.userInput.includes(":"))
-        this.result=`x = ${this.axis.cartesianX}\\quad,y = ${this.axis.cartesianY}`
-      else
-        this.result=`angle = ${this.axis.polarAngle}\\quad,length = ${this.axis.polarLength}`
-    }
-    addGraph() {
-      const targetSize = 10;
-      const maxComponent = Math.max(Math.abs(this.axis.cartesianX), Math.abs(this.axis.cartesianY));
-  
-      // Determine scaling factor
-      let scale = 1;
-      if (maxComponent < targetSize) {
-        scale = targetSize / maxComponent;
-      } else if (maxComponent > targetSize) {
-        scale = targetSize / maxComponent;
-      }
-      // i need to make it "to X axis"
-      //const vectorAngle = getUsableDegrees(radiansToDegrees(Math.atan2(scaledY, scaledX)));
-      
-      const ancer=new Axis(0,0);
-  
-  
-     // const draw= [ancer,'--',new Coordinate({mode:"node-inline",label: this.axis.polarLength.toString()}),this.axis];
-      //const drawX= [ancer,'--',new Coordinate({mode:"node-inline",label: this.axis.cartesianX.toString()}),new Axis(this.axis.cartesianX,0)];
-      //const drawY= [ancer,'--',new Coordinate({mode:"node-inline",label: this.axis.cartesianY.toString()}),new Axis(0,this.axis.cartesianY)];
-  
-      this.graph=[
-        //new Formatting("globol",{color: "white",scale: 1,}),
-        //new Draw({drawArr: draw,formattingObj: {lineWidth: 1,draw: "red",arror: "-{Stealth}"}}),
-        //new Draw({drawArr: drawX,formattingObj: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}}),
-        //new Draw({drawArr: drawY,formattingObj: {lineWidth: 1,draw: "yellow",arror: "-{Stealth}"}}),
-      ]
-      
-      
-      this.vecInfo.addDebugInfo("this.graph",JSON.stringify(this.graph.tokens,null,1));
-      this.vecInfo.addDebugInfo("this.graph.toString()\n",JSON.stringify(this.graph.toString()));
-      /* Generate LaTeX code for vector components and main vector
-      const t = String.raw`
-  
-        % Angle Annotation
-        %\ang{X}{anc}{vec}{}{${roundBySettings(vectorAngle)}$^{\circ}$}
-      `.replace(/^\s+/gm, "");*/
-      this.vecInfo.addDebugInfo("Scaling factor", scale);
-    }
-  }
-  
-  
-  
-  
-  
-  class tikzGraph extends Modal {
-    tikz: FormatTikzjax;
-    constructor(app: App,tikzCode: any){
-      super(app);
-      this.tikz=new FormatTikzjax(tikzCode);
-    }
-  
-    onOpen() {
-      const { contentEl } = this;
-      const code=this.tikz;
-      const script = contentEl.createEl("script");
-      script.setAttribute("type", "text/tikz");
-      script.setAttribute("data-show-console", "true");
-      script.setText(code.getCode(this.app));
-      
-      const actionButton = contentEl.createEl("button", { text: "Copy graph", cls: "info-modal-Copy-button" });
-  
-      actionButton.addEventListener("click", () => {
-        navigator.clipboard.writeText(this.tikz.getCode(this.app));
-        new Notice("Graph copied to clipboard!");
-      });
-    }
-    onClose(): void {
-      const { contentEl } = this;
-        contentEl.empty();
-    }
-  }
   
   
   
