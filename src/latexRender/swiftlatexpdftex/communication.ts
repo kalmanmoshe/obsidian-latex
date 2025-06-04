@@ -12,7 +12,7 @@ import {
     transferTexFileToHost,
  } from "./mainSwiftlatex.worker";
 
-import {LatexWorkerCommands as Commands} from "../engine";
+import {EngineCommands as Commands} from "../engine";
 
 export function onmessage(eventData: MessageEvent<any>) {
   let data = eventData.data;

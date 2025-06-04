@@ -2,8 +2,9 @@
 import { EditorView, ViewUpdate } from "@codemirror/view";
 import { App,Notice, PluginSettingTab, Setting,  setIcon, ToggleComponent, debounce} from "obsidian";
 import MosheMathPlugin from "../main";
-import { DEFAULT_SETTINGS } from "./settings";
-import { addDropdownSetting, addToggleSetting, setPluginInstance,FileSuggest, addTextSetting } from "obsidian-dev-utils";
+import { CompilerType, DEFAULT_SETTINGS } from "./settings";
+import { addDropdownSetting, addToggleSetting, setPluginInstance,FileSuggest, addTextSetting, createSetting, addButtonSetting } from "obsidian-dev-utils";
+import { any } from "async";
 
 
 interface Appearance{
@@ -90,6 +91,22 @@ export class MosheMathSettingTab extends PluginSettingTab {
 			  this.plugin.saveSettings();
 			});
 		});
+		addDropdownSetting(
+			containerEl,
+			(value: string) => {
+				this.plugin.settings.compiler = value as CompilerType;
+				this.plugin.saveSettings();
+			},
+			{
+				name: "Compiler",
+				description: "Choose the LaTeX compiler for rendering diagrams. 'TeX' is the classic engine, while 'XeTeX' offers better Unicode and modern font support. Changing this may affect compatibility and output.",
+				dropDownOptions: {
+					"tex": "TeX",
+					"xetex": "XeTeX"
+				},
+				defValue: this.plugin.settings.compiler
+			}
+		)
 
 		addToggleSetting(
 			containerEl,
@@ -100,7 +117,7 @@ export class MosheMathSettingTab extends PluginSettingTab {
 				defValue: this.plugin.settings.saveLogs
 			}
 		)
-		this.addButtonSetting(
+		addButtonSetting(
 			containerEl,
 			() =>{
 				this.plugin.swiftlatexRender.cache.removeAllCachedSvgs();
@@ -250,8 +267,12 @@ export class MosheMathSettingTab extends PluginSettingTab {
 	private displayMathBlockSettings(){
 		const containerEl = this.containerEl;
 		this.addHeading(containerEl, "Math blocks", "math");
-		this.addDropdownSetting(
-			containerEl, 
+		addDropdownSetting(
+			containerEl,
+			(value: string) => {
+				const number=parseInt(value);
+				this.plugin.settings.numberFormatting=number;
+			},
 			{
 				name: "Math block language",
 				description: "The language to use for rendering math blocks.",
@@ -260,51 +281,11 @@ export class MosheMathSettingTab extends PluginSettingTab {
 					"10000": "formatted .0000",
 					'100000': "formatted .00000",
 				}
-			},
-			(value: string) => {
-				const number=parseInt(value);
-				this.plugin.settings.numberFormatting=number;
 			}
 		)
 	}
-
-  private addDropdownSetting(containerEl: HTMLElement, appearance:Appearance,callback: any){
-	const setting = createSetting(containerEl, appearance);
-	const { dropDownOptions} = appearance;
-	setting.addDropdown(dropdown => {
-		dropDownOptions&&dropdown.addOptions(dropDownOptions);
-		dropdown.onChange(async (value) => {
-			callback(value);
-			await this.plugin.saveSettings();
-		});
-	})
-  }
-
-  private addButtonSetting(containerEl: HTMLElement,action: any, appearance: Appearance){
-	const setting = createSetting(containerEl, appearance);
-	const { elText, icon, tooltip } = appearance;
-	setting.addButton(button => {
-		elText && button.setButtonText(elText);
-		icon && button.setIcon(icon);
-		tooltip && button.setTooltip(tooltip);
-		button.onClick(async () => {
-			action();
-			await this.plugin.saveSettings();
-		});
-	});
-
-  }
-
 }
 
 function strToArray(str: string) {
 	return str.replace(/\s/g,"").split(",").filter((s)=>s.length>0);
-}
-
-function createSetting(containerEl: HTMLElement, basicAppearance:{name?: string, description?: string}) {
-	const setting = new Setting(containerEl);
-	const { name, description } = basicAppearance;
-	name && setting.setName(name);
-	description && setting.setDesc(description);
-	return setting;
 }

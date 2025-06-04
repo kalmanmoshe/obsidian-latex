@@ -13,24 +13,24 @@ export class MathJaxAbstractSyntaxTree{
         }
     }
     reverseRtl() {
-        const args = findTextMacros(this.ast);
-        for (const arg of args) {
-          const text = arg.toString();
-          let tokens = text.match(/([א-ת]+|\s+|[^א-ת\s]+)/g)as string[]|null;
-          if (!tokens) continue;
-          tokens = mergeHebrewTokens(tokens);
-          const newNodeArr = migrateToClassStructure(parseMath(
-          tokens
-              .map((t) => /[א-ת]/.test(t) ? [...t].reverse().join('') : t)
-              .join('')
-          ));
-          if (newNodeArr instanceof Array) {
-            arg.content = newNodeArr;
-          }
-          else{
-            throw new Error("Root not found it is not in Array, got: "+newNodeArr);
-          }
+      const args = findTextMacros(this.ast);
+      for (const arg of args) {
+        const text = arg.toString();
+        let tokens = text.match(/([א-ת]+|\s+|[^א-ת\s]+)/g)as string[]|null;
+        if (!tokens) continue;
+        tokens = mergeHebrewTokens(tokens);
+        const newNodeArr = migrateToClassStructure(parseMath(
+        tokens
+            .map((t) => /[א-ת]/.test(t) ? [...t].reverse().join('') : t)
+            .join('')
+        ));
+        if (newNodeArr instanceof Array) {
+          arg.content = newNodeArr;
         }
+        else{
+          throw new Error("Root not found it is not in Array, got: "+newNodeArr);
+        }
+      }
     }
     
   toString(): string {

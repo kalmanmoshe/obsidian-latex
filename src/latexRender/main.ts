@@ -1,29 +1,28 @@
-import { MarkdownPostProcessorContext, TFile, Modal, App, Menu,  Notice, MarkdownSectionInformation, SectionCache, MarkdownView, Editor,} from 'obsidian';
+import { MarkdownPostProcessorContext, TFile, App, MarkdownSectionInformation, MarkdownView,} from 'obsidian';
 import { Md5 } from 'ts-md5';
 import * as fs from 'fs';
 import * as temp from 'temp';
 import * as path from 'path';
 import LatexEngine,{CompileResult} from './engine';
 import Moshe from '../main';
-import { StringMap } from 'src/settings/settings.js';
+import { CompilerType, StringMap } from 'src/settings/settings.js';
 import async from 'async';
-import { createDpendency, isExtensionTex, LatexAbstractSyntaxTree } from './parse/parse';
 import { pdfToHtml, pdfToSVG } from './pdfToHtml/pdfToHtml';
 import parseLatexLog, {createErrorDisplay, errorDiv} from './logs/HumanReadableLogs';
-import { String as StringClass } from './parse/typs/ast-types-post';
 import { VirtualFileSystem } from './VirtualFileSystem';
-import { findRelativeFile, getLatexCodeBlocksFromString, } from './cache/latexSourceFromFile';
 import { getFileSections,} from './cache/sectionCache';
 import { SvgContextMenu } from './svgContextMenu';
 import { cacheFileFormat, SvgCache } from './cache/svgCache';
 import { createTransactionLogger } from './cache/transactionLogger';
-import { Extension, StateEffect, StateField, Transaction } from "@codemirror/state";
+import { StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { getSectionFromMatching, getSectionFromTransaction } from './cache/findSection';
 import { ProcessedLog } from './logs/latex-log-parser';
-import { LatexDependency } from "./parse/parse"
-import XeTeXEngine from './swiftlatexxetex/XeTeXEngine';
 import PdfTeXEngine from './swiftlatexpdftex/PdfTeXEngine';
+import { svgDisplayModule } from './utils/svgDisplayModule';
+import { LatexTask } from './utils/latexTask';
+import { PdfXeTeXEngine } from './swiftlatexxetex/pdfXeTeXEngine';
+
 export const waitFor = async (condFunc: () => boolean) => {
 	return new Promise<void>((resolve) => {
 		if (condFunc()) {
@@ -46,8 +45,7 @@ export const waitFor = async (condFunc: () => boolean) => {
  */
 
 export const latexCodeBlockNamesRegex = /(`|~){3,} *(latex|tikz)/;
-type Task = { source: string, el: HTMLElement,md5Hash:string, sourcePath: string , blockId: string,process: boolean};
-type ProcessableTask = Partial<Omit<Task, "source" | "sourcePath"|"el">> & Pick<Task, "source" | "sourcePath"|"el">;
+export type Task = { source: string, el: HTMLElement,md5Hash:string, sourcePath: string , blockId: string,process: boolean};
 type InternalTask<T> = {
 	data: T;
 	callback: Function;
@@ -74,12 +72,7 @@ export function clearFolder(folderPath: string){
 		}
 	}
 }
-type InputFile = {
-	name: string;
-  	content: string;
-  	dependencies: InputFile[];
-}
-type VFSLatexDependency = (LatexDependency&{inVFS: boolean})
+
 /**
  * add option for Persistent preamble.so it won't get deleted.after use Instead, saved until overwritten
  */
@@ -89,8 +82,8 @@ export class SwiftlatexRender {
 	cacheFolderPath: string;
 	packageCacheFolderPath: string;
 	virtualFileSystem: VirtualFileSystem=new VirtualFileSystem();
-	pdfEngine: PdfTeXEngine;
-	xetexEngine: XeTeXEngine;
+	pdfTexEngine: PdfTeXEngine;
+	pdfXetexEngine: PdfTeXEngine;
 	engine: LatexEngine;
 	cache: SvgCache;
 	private logCache: Map<string, ProcessedLog>|undefined;
@@ -101,11 +94,7 @@ export class SwiftlatexRender {
 		this.bindTransactionLogger();
 		this.validateCatchDirectory();
 		this.loadCache();
-		// initialize the latex compiler
-		this.initializePDfEngine();
-		await this.engine.loadEngine();
-		await this.loadPackageCache();
-		await this.engine.setTexliveEndpoint(this.plugin.settings.package_url);
+		await this.loadEngine();
 		this.configQueue();
 		this.plugin.addRibbonIcon("dice", "Moshe Math", () => {
 			new svgDisplayModule(this.plugin.app, this.cacheFolderPath,this.cache.getCache()).open();
@@ -122,13 +111,35 @@ export class SwiftlatexRender {
 			effects: StateEffect.appendConfig.of([this.logger.extension])
 		});
 	}
-	private initializePDfEngine(){
-		this.pdfEngine = new PdfTeXEngine();
-		this.engine = this.pdfEngine;
-		//this.xetexEngine = new XeTeXEngine();
-		//this.engine = this.xetexEngine;
-		this.virtualFileSystem.setPdfEngine(this.engine);
+	switchEngine():Promise<void> {
+		if (this.engine===undefined) return this.loadEngine();
+		const isTex = this.engine instanceof PdfTeXEngine&&this.plugin.settings.compiler === CompilerType.TeX;
+		const isXeTeX = this.engine instanceof PdfXeTeXEngine&&this.plugin.settings.compiler === CompilerType.XeTeX;
+		if(isTex||isXeTeX) return Promise.resolve();
+		this.engine.closeWorker();
+		this.engine = (undefined as any);
+		this.pdfTexEngine = (undefined as any);
+		this.pdfXetexEngine = (undefined as any);
+		return this.loadEngine()
 	}
+	async loadEngine(){
+		if (this.plugin.settings.compiler === CompilerType.TeX) {
+			this.engine = this.pdfTexEngine = new PdfTeXEngine();
+		}else{
+			this.engine = this.pdfXetexEngine = new PdfXeTeXEngine();
+		}
+		this.virtualFileSystem.setPdfEngine(this.engine);
+		await this.engine.loadEngine();
+		await this.loadPackageCache();
+		await this.engine.setTexliveEndpoint(this.plugin.settings.package_url);
+	}
+	/**
+	 * Restores the cached HTML content for a given hash and sets it as the innerHTML of the provided element.
+	 *
+	 * @param el - The HTML element to restore the cached content into.
+	 * @param hash - The unique hash identifying the cached content file.
+	 * @returns `true` if the cache was successfully restored and applied to the element, `false` otherwise.
+	 */
 	private restoreFromCache(el: HTMLElement,hash: string){
 		const dataPath = path.join(this.cacheFolderPath, `${hash}.${cacheFileFormat}`);
 		if(!this.cache.hasFile(hash,dataPath))return false;
@@ -195,121 +206,15 @@ export class SwiftlatexRender {
 			text: fileText,
 		};
 	}	
-	async getFileContent(file: TFile,remainingPath?: string): Promise<string> {
-		const fileContent = await this.plugin.app.vault.read(file);
-		if(!remainingPath)return fileContent;
-		const sections = await getFileSections(file,this.plugin.app,true);
-		const err= ()=>{throw new Error("No code block found with name: "+remainingPath+" in file: "+file.path)};
-		if(!sections)err();
-		const codeBlocks = await getLatexCodeBlocksFromString(fileContent,sections!,true);
-		const target = codeBlocks.find((block) => 
-			block.content
-			.split("\n")[0]
-			.replace(latexCodeBlockNamesRegex,"").trim()
-			.match(new RegExp("name: *"+remainingPath))
-		);
-		if(!target)err();
-		return target!.content.split("\n").slice(1,-1).join("\n");
-	}
-	private async processInputFiles(ast: LatexAbstractSyntaxTree, basePath: string): Promise<VFSLatexDependency[]> {
-		const usedFiles: VFSLatexDependency[] = [];
-		const inputFilesMacros = ast.usdInputFiles().filter((macro) => macro.args && macro.args.length === 1);
-		for (const macro of inputFilesMacros) {
-			const args = macro.args!;
-			const filePath = args[0].content.map(node => node.toString()).join("");
-			const dir = findRelativeFile(filePath, this.plugin.app.vault.getAbstractFileByPath(basePath));
-			const name = (dir.remainingPath || dir.file.basename) + ".tex";
-
-			// Replace the macro argument with normalized name
-			args[0].content = [new StringClass(name)];
-
-			// Avoid circular includes
-			if (this.virtualFileSystem.hasFile(name)) continue;
-
-			let content=""
-			try{
-				content = await this.getFileContent(dir.file, dir.remainingPath);
-			}catch(e){
-				return e;
-			}
-			const ext = path.extname(name);
-			const baseDependency: Partial<VFSLatexDependency> & { name: string; extension: string; isTex: boolean } = {
-				name,
-				extension: ext,
-				isTex: isExtensionTex(ext)
-			};
-
-			if (baseDependency.isTex) {
-				// Recursively process the content
-				const nestedAst = LatexAbstractSyntaxTree.parse(content);
-				usedFiles.push(...await this.processInputFiles(nestedAst, dir.file.path));
-				baseDependency.ast = nestedAst;
-				baseDependency.source = nestedAst.toString();
-			}else{
-				baseDependency.source = content;
-			}
-
-			const dependency = {...createDpendency(baseDependency.source, baseDependency.name, baseDependency.extension, baseDependency),inVFS:false};
-			usedFiles.push(dependency);
-			ast.addDependency(content,dependency.name, dependency.extension, dependency);
-		}
-		return usedFiles;
-	}/**
-	 * They're somewhere a bug over here that infinitely adds document Environments
-	 */
-	async processTaskSource(source: string,sourcePath: string) {
-		const usedFiles: VFSLatexDependency[] = []
-		const startTime = performance.now();
-		try {
-			const ast = LatexAbstractSyntaxTree.parse(source);
-			usedFiles.push(...await this.processInputFiles(ast, sourcePath));
-			
-			this.virtualFileSystem.getAutoUseFileNames().forEach((name) => {
-				ast.addInputFileToPramble(name);
-				const file = this.virtualFileSystem.getFile(name).content;
-				const dependency = {...createDpendency(file, name, path.extname(name), { isTex: true, autoUse: true }),inVFS:true};
-				usedFiles.push(dependency);
-				ast.addDependency(file,dependency.name, dependency.extension, dependency);
-			});
-			ast.verifyProperDocumentStructure();
-			const totalDuration = performance.now() - startTime;
-			console.log(`[TIMER] Total processing time: ${totalDuration.toFixed(2)} ms`);
-			// ── Final task update ────────────────────────
-			return {isError: false, source: ast.toString(), usedFiles, ast};
-		}catch(e) {
-			let abort = false;
-			if (typeof e !== "string"&&"abort" in e) {
-				abort = e.abort;
-				e = e.message;
-			}
-			const err = "Error processing task: " + e;
-			return {isError: true,err,usedFiles,abort};
-		}
-	}
-	async processTask(task: ProcessableTask): Promise<boolean> {
-		const {isError,err,usedFiles,abort,source,ast} = await this.processTaskSource(task.source, task.sourcePath);
-		if(isError){
-			console.error("Error processing task:", err);
-			this.handleError(task.el, err as string,{hash: task.md5Hash});
-			return !!abort;
-		}
-		//this is just for ts types
-		if(!source)throw new Error("Unexpected error: source is undefined");
-		for (const dep of usedFiles) {
-			if (!dep.inVFS) this.virtualFileSystem.addVirtualFileSystemFile({ name: dep.name, content: dep.source });
-		}
-		task.source = source;
-		console.log("task.source", this.virtualFileSystem, ast, task.source.split('\n'));
-		return !!isError;
-	};
+	
 	
 	configQueue() {
 		this.queue = async.queue(async (task, done) => {
 			let cooldown = true;
 			try {
 				let abort;
-				if (this.restoreFromCache(task.el, task.md5Hash)) {cooldown=false;return done()};
-				if (task.process) abort = await this.processTask(task);
+				if (this.restoreFromCache(task.el, task.md5Hash)) {cooldown=false;console.log("fund in cahtch for",task.blockId);return done()};
+				if (task.process) abort = await LatexTask.create(this.plugin,task).processTask();
 				if(abort) {cooldown=false;return done()};
 			 	await this.renderLatexToElement(task.source, task.el, task.md5Hash, task.sourcePath);
 				this.reCheckQueue(); // only re-check the queue after a valide rendering
@@ -334,13 +239,15 @@ export class SwiftlatexRender {
 
 		while (taskNode) {
 			const task = taskNode.data;
-			if (!this.restoreFromCache(task.el, task.md5Hash)) {
+			if (this.restoreFromCache(task.el, task.md5Hash)) {
 				blockIdsToRemove.add(task.blockId);
 			}
 			taskNode = taskNode.next;
 		}
-
+		if(blockIdsToRemove.size === 0) return;
+		console.log("Removing tasks from queue:", blockIdsToRemove);
 		this.queue._tasks.remove(node => blockIdsToRemove.has(node.data.blockId));
+		console.log("Queue after removal:", this.queue._tasks.length);
 	}
 	
 	private validateCatchDirectory(){
@@ -407,7 +314,7 @@ export class SwiftlatexRender {
 		fs.rmdirSync(this.cacheFolderPath, { recursive: true });
 	}
 
-	private handleError(el: HTMLElement, err: string,options: {parseErr?:boolean,hash?:string,throw?: boolean}={}): void {
+	handleError(el: HTMLElement, err: string,options: {parseErr?:boolean,hash?:string,throw?: boolean}={}): void {
 		el.innerHTML = "";
 		let child: HTMLElement;
 		if(options.parseErr){
@@ -530,7 +437,6 @@ export class SwiftlatexRender {
 
 const updateQueueCountdown = (queue: QueueObject<Task>) => {
 	let taskNode = queue._tasks.head;
-	let temp = taskNode;
 	let index = 0;
 	while (taskNode) {
 		const task = taskNode.data;
@@ -590,62 +496,7 @@ export function addMenu(plugin: Moshe,el: HTMLElement,filePath: string) {
 
 
 
-class svgDisplayModule extends Modal {
-	cacheFolderPath: string;
-	cache: Map<string, Set<string>>;
 
-	constructor(app: App, cacheFolderPath: string, cache: Map<string, Set<string>>) {
-		super(app);
-		this.cacheFolderPath = cacheFolderPath;
-		this.cache = cache;
-	}
-
-	onOpen(): void {
-		const { contentEl } = this;
-		contentEl.createEl("h2", { text: "Cached SVGs", cls: "info-modal-title" });
-		const svgContainer = contentEl.createDiv({ cls: "info-modal-main-container" });
-
-		// Iterate through each cached SVG entry
-		for (const [hash, fileSet] of this.cache.entries()) {
-			// Create a container for each SVG entry
-			const entryContainer = svgContainer.createDiv({ cls: "svg-entry" });
-
-			// Display the hash for identification
-			entryContainer.createEl("h3", { text: `SVG Hash: ${hash}` });
-
-			// Check if there is a conflict (i.e. the same hash appears in multiple files)
-			if (fileSet.size > 1) {
-				entryContainer.createEl("p", { text: "Conflict detected: SVG found in multiple files:" });
-				const fileList = entryContainer.createEl("ul");
-				fileSet.forEach(fileName => {
-					fileList.createEl("li", { text: fileName });
-				});
-			} else {
-				// Only one file in which the SVG is referenced
-				const [fileName] = Array.from(fileSet);
-				entryContainer.createEl("p", { text: `Found in file: ${fileName}` });
-			}
-
-			// Construct the SVG file path from the hash
-			const svgPath = path.join(this.cacheFolderPath, `${hash}.svg`);
-
-			// Check if the SVG file exists
-			if (fs.existsSync(svgPath)) {
-				try {
-					// Read and display the SVG content
-					const svg = fs.readFileSync(svgPath, 'utf8');
-					const svgEl = entryContainer.createDiv({ cls: "svg-display" });
-					svgEl.innerHTML = svg;
-				} catch (err) {
-					entryContainer.createEl("p", { text: "Error reading SVG file." });
-				}
-			} else {
-				// Inform the user that the SVG file is not found in the cache folder
-				entryContainer.createEl("p", { text: "SVG file not found in cache." });
-			}
-		}
-	}
-}
 
 export function createWaitingCountdown(index: number){
 	const parentContainer = Object.assign(document.createElement("div"), { 
@@ -664,12 +515,3 @@ export function createWaitingCountdown(index: number){
 }
 
 
-class LatexTask {
-	source: string;
-	el: HTMLElement;
-	md5Hash: string;
-	sourcePath: string;
-	blockId: string;
-	process: boolean;
-	
-}

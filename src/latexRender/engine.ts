@@ -19,7 +19,7 @@ export class CompileResult {
     }
 }
 
-export enum LatexWorkerCommands {
+export enum EngineCommands {
     Compilelatex = "compilelatex",
     Grace = "grace",
     Settexliveurl = "settexliveurl",
@@ -35,6 +35,7 @@ export enum LatexWorkerCommands {
     Flushcatche = "flushcache",
     FlushWorkDirectory="flushworkcache",
     Removefile = "removefile",
+    Compilepdf = "compilepdf",
 }
 
 export default abstract class LatexEngine {
@@ -57,24 +58,21 @@ export default abstract class LatexEngine {
 
     async compileLaTeX(): Promise<CompileResult> {
         const startCompileTime = performance.now();
-    
-        const data = await this.task<{pdf?: Uint8Array;status: number;log: string;cmd: string;}>({
-            cmd: LatexWorkerCommands.Compilelatex,
+        const data = await this.task<{pdf?: Uint8Array;status: number;log: string}>({
+            cmd: EngineCommands.Compilelatex,
         });
-    
         console.log(`Engine compilation finished in ${performance.now() - startCompileTime} ms`);
         return new CompileResult(
             data.pdf ? Buffer.from(new Uint8Array(data.pdf)) : undefined,
             data.status,
             data.log
         );
-
     }
     
 
     async compileFormat(): Promise<void> {
         const data = await this.task<{ pdf: Uint8Array, log?: string }>({
-            cmd: LatexWorkerCommands.Compileformat,
+            cmd: EngineCommands.Compileformat,
         });
         const formatBlob = new Blob([data.pdf], { type: "application/octet-stream" });
         const formatURL = URL.createObjectURL(formatBlob);
@@ -89,7 +87,7 @@ export default abstract class LatexEngine {
             );
         };
         return this.task<{texlive404: Record<string,number>,texlive200: Record<string,string>,pk404: Record<string,number>,pk200: Record<string,string>}>(
-            { cmd: LatexWorkerCommands.FetchCache, texlive404_cache: [], texlive200_cache: [], pk404_cache: [], pk200_cache: [] }
+            { cmd: EngineCommands.FetchCache, texlive404_cache: [], texlive200_cache: [], pk404_cache: [], pk200_cache: [] }
         ).then(data =>[
             recordToString(data.texlive404),
             data.texlive200,
@@ -100,11 +98,11 @@ export default abstract class LatexEngine {
     
 
     writeCacheData(texlive404_cache: any, texlive200_cache: any, pk404_cache: any, pk200_cache: any) {
-        return this.task({ cmd: LatexWorkerCommands.writecache, texlive404_cache, texlive200_cache, pk404_cache, pk200_cache });
+        return this.task({ cmd: EngineCommands.writecache, texlive404_cache, texlive200_cache, pk404_cache, pk200_cache });
     }
 
     async fetchWorkFiles() {
-        return this.task<{ file: String[] }>({ cmd: LatexWorkerCommands.FetchWorkFiles });
+        return this.task<{ file: String[] }>({ cmd: EngineCommands.FetchWorkFiles });
     }
     
     /**
@@ -122,10 +120,11 @@ export default abstract class LatexEngine {
     }
     
     
-    protected task<T = void>(task: any): Promise<T> {
+    task<T = void>(task: any): Promise<T> {
         const command = task.cmd;
         this.checkEngineStatus();
         this.latexWorkerStatus = EngineStatus.Busy;
+        //console.debug("Task started:", command);
         return new Promise<T>((resolve, reject) => {
             this.latexWorker!.onmessage = (ev: MessageEvent<any>) => {
                 try {
@@ -136,6 +135,7 @@ export default abstract class LatexEngine {
                     this.latexWorker!.onmessage = null;
                     this.latexWorker!.onerror = null;
                     const data = ev.data; delete data.result;delete data.cmd;
+                    //console.debug("Task completed:", command);
                     if (Array.from(Object.keys(data)).length > 0) {
                         resolve(data as T);
                     } else {
@@ -160,16 +160,15 @@ export default abstract class LatexEngine {
         });
     }
     
-    
     /**
      * 
      */
     writeTexFSFile(filename: string, srcCode: Buffer<ArrayBufferLike>) {
-        return this.task({ cmd: LatexWorkerCommands.Writetexfile, url: filename, src: srcCode });
+        return this.task({ cmd: EngineCommands.Writetexfile, url: filename, src: srcCode });
     }
 
     setEngineMainFile(filename: string) {
-        return this.task({ cmd: LatexWorkerCommands.Setmainfile, url: filename });
+        return this.task({ cmd: EngineCommands.Setmainfile, url: filename });
     }
     /**
      * Writes a file to the in-memory filesystem managed by the LaTeX worker.
@@ -177,8 +176,9 @@ export default abstract class LatexEngine {
      * @param filename - The name (or URL path) of the file to be written.
      * @param srcCode - The source code or content to write into the file.
      */
-    writeMemFSFile(filename: string, srcCode: string) {
-        return this.task({ cmd: LatexWorkerCommands.Writefile, url: filename, src: srcCode });
+    writeMemFSFile(filename: string, srcCode: string|Buffer<ArrayBufferLike>
+    ) {
+        return this.task({ cmd: EngineCommands.Writefile, url: filename, src: srcCode });
     }
 
     /**
@@ -187,7 +187,7 @@ export default abstract class LatexEngine {
      * @param filename - The name (or URL path) of the file to be removed.
      */
     removeMemFSFile(filename: string) {
-        return this.task({ cmd: LatexWorkerCommands.Removefile, url: filename });
+        return this.task({ cmd: EngineCommands.Removefile, url: filename });
     }
 
     makeMemFSFolder(folder: string) {
@@ -197,16 +197,16 @@ export default abstract class LatexEngine {
     
 
     flushWorkCache(): Promise<void> {
-        return this.task({ cmd: LatexWorkerCommands.FlushWorkDirectory });
+        return this.task({ cmd: EngineCommands.FlushWorkDirectory });
     }
     
     flushCache(): Promise<void> {
-        return this.task({ cmd: LatexWorkerCommands.Flushcatche });
+        return this.task({ cmd: EngineCommands.Flushcatche });
     }
     
 
     setTexliveEndpoint(url: string): Promise<void> {
-        return this.task({ cmd: LatexWorkerCommands.Settexliveurl, url });
+        return this.task({ cmd: EngineCommands.Settexliveurl, url });
     }
 
 
