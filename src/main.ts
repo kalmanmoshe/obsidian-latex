@@ -6,7 +6,7 @@
 //git pull --all#Pull all branches
 //git push --all#Push all branches
 
-import {Plugin,addIcon ,Notice,loadMathJax, htmlToMarkdown, FileSystemAdapter, ViewState, MarkdownView,} from "obsidian";
+import {Plugin,Notice, FileSystemAdapter, MarkdownView,} from "obsidian";
 
 
 import {MosheMathPluginSettings, DEFAULT_SETTINGS, processMosheMathSettings} from "./settings/settings";
@@ -168,6 +168,7 @@ export default class Moshe extends Plugin {
   }
 
   private processMathJax(input: string): string {
+    //return input
     if(!/[א-ת]/.test(input))return input;
     const ast = new MathJaxAbstractSyntaxTree();
     ast.parse(input);

@@ -1,9 +1,9 @@
 
 export type StringMap = Record<string,string|number>;
 
-enum CompilerType {
-	PdfTeX,
-	XeTeX
+export enum CompilerType {
+	TeX = "tex",
+	XeTeX = "xetex",
 }
 
 interface MosheMathBasicSettings {
@@ -73,7 +73,7 @@ export const DEFAULT_SETTINGS: MosheMathPluginSettings = {
 	pdfEngineCooldown: 1000,
 	saveLogs: false,
 	overflowStrategy: "downscale",
-	compiler: CompilerType.PdfTeX,
+	compiler: CompilerType.TeX,
 }
 
 export function processMosheMathSettings(settings: MosheMathPluginSettings):MosheMathettings {
