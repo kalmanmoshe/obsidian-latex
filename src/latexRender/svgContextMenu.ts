@@ -7,6 +7,7 @@ import { addMenu, createWaitingCountdown, getBlockId, getFileSectionsFromPath, h
 import parseLatexLog from "./logs/HumanReadableLogs";
 import { getSectionFromMatching } from "./cache/findSection";
 import { LogDisplayModal } from "./logs/logDisplayModal";
+import { LatexTask } from "./utils/latexTask";
 /**add:
  * - Reveal in file explorer
  * - show log
@@ -125,7 +126,7 @@ export class SvgContextMenu extends Menu {
 			const el = document.createElement("div");
 			const task = {md5Hash: hash, source: this.source, el: el, sourcePath: this.sourcePath}
 			if(shouldProcess){
-				this.plugin.swiftlatexRender.processTask(task);
+				const result = LatexTask.processTask(this.plugin, task);
 			}
 			try{
 				const newCompile = await this.plugin.swiftlatexRender.renderLatexToPDF(task.source,task.md5Hash);
@@ -196,8 +197,6 @@ export class SvgContextMenu extends Menu {
 		parentEl.removeChild(this.triggeringElement);
 
 		this.assignLatexSource()
-		
-
 
 		addMenu(this.plugin,parentEl,this.sourcePath)
 		const sectionCache = await this.getSectionCache();
@@ -225,10 +224,13 @@ export class SvgContextMenu extends Menu {
 		await this.assignLatexSource()
 		if(this.codeBlockLanguage===undefined)
 			await this.getSectionCache();
+		const task ={ source: this.source, sourcePath: this.sourcePath };
 		let source = this.source;
 		if(this.codeBlockLanguage==="tikz"){
-			const result = await this.plugin.swiftlatexRender.processTaskSource(this.source,this.sourcePath);
-			source = result.source||"";
+
+			const result = await LatexTask.processTask(this.plugin, task);
+			if(!result.task.source)throw new Error("No result found for tikz source");
+			source = result.task.source||"";
 		}
 		return source;
 	}

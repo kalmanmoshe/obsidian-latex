@@ -65,16 +65,33 @@ export const lengthBytesUTF8: LengthBytesUTF8 = (str: string): number => {
 };
 
 
-
+/**
+ * Given a pointer 'idx' to a null-terminated UTF8-encoded string in the given
+ * array that contains uint8 values, returns a copy of that string as a
+ * Javascript String object.
+ * heapOrArray is either a regular array, or a JavaScript typed array view.
+ * @param {number} idx
+ * @param {number=} maxBytesToRead
+ * @return {string}
+ */
 export const UTF8ArrayToString = (heapOrArray: number[] | Uint8Array<any>, idx:number, maxBytesToRead?: any) => {
     var endIdx = idx + maxBytesToRead;
     var endPtr = idx;
+    // TextDecoder needs to know the byte length in advance, it doesn't stop on
+    // null terminator by itself.  Also, use the length info to avoid running tiny
+    // strings through TextDecoder, since .subarray() allocates garbage.
+    // (As a tiny code save trick, compare endPtr against endIdx using a negation,
+    // so that undefined means Infinity)
     while (heapOrArray[endPtr] && !(endPtr >= endIdx)) ++endPtr;
     if (endPtr - idx > 16 && heapOrArray.buffer && UTF8Decoder) {
       return UTF8Decoder.decode(heapOrArray.subarray(idx, endPtr));
     }
     var str = "";
     while (idx < endPtr) {
+      // For UTF8 byte structure, see:
+      // http://en.wikipedia.org/wiki/UTF-8#Description
+      // https://www.ietf.org/rfc/rfc2279.txt
+      // https://tools.ietf.org/html/rfc3629
       var u0 = heapOrArray[idx++];
       if (!(u0 & 128)) {
         str += String.fromCharCode(u0);
@@ -102,6 +119,6 @@ export const UTF8ArrayToString = (heapOrArray: number[] | Uint8Array<any>, idx:n
     return str;
 };
 
-var UTF8Decoder =
+export var UTF8Decoder =
   typeof TextDecoder != "undefined" ? new TextDecoder("utf8") : undefined;
 

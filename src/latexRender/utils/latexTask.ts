@@ -9,6 +9,8 @@ import { String as StringClass } from '../parse/typs/ast-types-post';
 import path from "path";
 
 type ProcessableTask = Partial<Omit<Task, "source" | "sourcePath"|"el">> & Pick<Task, "source" | "sourcePath"|"el">;
+type MinProcessableTask = Partial<Omit<Task, "source" | "sourcePath">> & Pick<Task, "source" | "sourcePath">;
+
 type InputFile = {
     name: string;
     content: string;
@@ -16,11 +18,12 @@ type InputFile = {
 }
 type VFSLatexDependency = (LatexDependency&{inVFS: boolean})
 export class LatexTask {
-	task: ProcessableTask;
+	task: MinProcessableTask;
 	plugin: Moshe;
 	vfs: VirtualFileSystem;
 	abort: boolean = false;
-	static create(plugin: Moshe, task: ProcessableTask) {
+	err: string | null = null;
+	static create(plugin: Moshe, task: MinProcessableTask) {
 		const latexTask = new LatexTask();
 		latexTask.task = task;
 		latexTask.plugin = plugin;
@@ -92,6 +95,7 @@ export class LatexTask {
 	async processTaskSource() {
 		const usedFiles: VFSLatexDependency[] = []
 		const startTime = performance.now();
+		const process = {abort: false, source: undefined as string|undefined, usedFiles, ast: null as LatexAbstractSyntaxTree|null};
 		try {
 			const ast = LatexAbstractSyntaxTree.parse(this.task.source);
 			usedFiles.push(...await this.processInputFiles(ast, this.task.sourcePath));
@@ -107,22 +111,22 @@ export class LatexTask {
 			const totalDuration = performance.now() - startTime;
 			console.log(`[TIMER] Total processing time: ${totalDuration.toFixed(2)} ms`);
 			// ── Final task update ────────────────────────
-			return {isError: false, source: ast.toString(), usedFiles, ast};
+			return {...process, source: ast.toString(), ast};
 		}catch(e) {
 			let abort = false;
 			if (typeof e !== "string"&&"abort" in e) {
 				abort = e.abort;
 				e = e.message;
 			}
-			const err = "Error processing task: " + e;
-			return {isError: true,err,usedFiles,abort};
+			this.err = "Error processing task: " + e;
+			return {...process, abort};
 		}
 	}
 	async processTask(): Promise<boolean> {
-		const {isError,err,usedFiles,abort,source,ast} = await this.processTaskSource();
-		if(isError){
-			console.error("Error processing task:", err);
-			this.plugin.swiftlatexRender.handleError(this.task.el, err as string,{hash: this.task.md5Hash});
+		const {usedFiles,abort,source,ast} = await this.processTaskSource();;
+		if(this.err){
+			console.error("Error processing task:", this.err);
+			this.task.el&&this.plugin.swiftlatexRender.handleError(this.task.el, this.err ,{hash: this.task.md5Hash});
 			return !!abort;
 		}
 		//this is just for ts types
@@ -132,7 +136,12 @@ export class LatexTask {
 		}
 		this.task.source = source;
 		console.log("task.source", this.vfs, ast, this.task.source.split('\n'));
-		return !!isError;
+		return !!this.err;
 	};
+	static async processTask(plugin: Moshe,task: MinProcessableTask) {
+		const latexTask = LatexTask.create(plugin, task);
+		await latexTask.processTask();
+		return latexTask
+	}
 	
 }

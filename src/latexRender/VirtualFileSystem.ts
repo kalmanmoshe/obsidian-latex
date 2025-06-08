@@ -1,5 +1,5 @@
+import LatexCompiler from "./compiler/base/compilerBase/compiler";
 
-import LatexEngine from "./engine";
 
 export enum VirtualFileSystemFilesStatus{
     undefined,
@@ -24,24 +24,20 @@ async function nonBlockingWaitUntil(condition: () => boolean, timeoutMs = 10000,
 }
 type VirtualFile={name: string,content: string,autoUse?: boolean};
 export class VirtualFileSystem{
-    private files: VirtualFile[]
+    private files: VirtualFile[]=[]
     private status: VirtualFileSystemFilesStatus=VirtualFileSystemFilesStatus.undefined;
     /**
      * whether the virtual file system is enabled. If disabled, the virtual file system will flush the pdf engine and no longer update the files in said engine.
      */
-    private enabled: boolean;
-    private pdfEngine: LatexEngine;
-    constructor(){
-        this.enabled=false;
-        this.status=VirtualFileSystemFilesStatus.undefined;
-        this.files=[];
-    }
+    private enabled: boolean=false;
+    private compiler: LatexCompiler;
+    constructor(){}
     /**
      * update the pointer to the PDF engine
      * @param pdfEngine 
      */
-    setPdfEngine(pdfEngine: LatexEngine){
-        this.pdfEngine=pdfEngine;
+    setPdfCompiler(compiler: LatexCompiler){
+        this.compiler=compiler;
     }
     /**
      * enable or disable the virtual file system
@@ -51,7 +47,7 @@ export class VirtualFileSystem{
         if(this.enabled&&!enabled){
             this.files=[];
             this.status=VirtualFileSystemFilesStatus.undefined;
-            await this.pdfEngine.flushWorkCache()
+            await this.compiler.flushWorkCache()
         }
         this.enabled=enabled
     }
@@ -110,9 +106,10 @@ export class VirtualFileSystem{
             );
         }
         try {
-            await this.pdfEngine.flushWorkCache();
+            await this.compiler.flushWorkCache();
             for (const file of [this.files].flat()) {
-                await this.pdfEngine.writeMemFSFile(file.name, file.content);
+                console.debug("Loading virtual file system file:", file.name);
+                await this.compiler.writeMemFSFile(file.name, file.content);
             }
             this.status = VirtualFileSystemFilesStatus.uptodate;
         } catch (err) {
@@ -128,7 +125,7 @@ export class VirtualFileSystem{
         });
         this.status = VirtualFileSystemFilesStatus.outdated;
         for (const file of remove) {
-            await this.pdfEngine.removeMemFSFile(file);
+            await this.compiler.removeMemFSFile(file);
         }
     }
 }
