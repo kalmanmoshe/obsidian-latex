@@ -96,6 +96,7 @@ export class MosheMathSettingTab extends PluginSettingTab {
 			(value: string) => {
 				this.plugin.settings.compiler = value as CompilerType;
 				this.plugin.saveSettings();
+				this.plugin.swiftlatexRender.switchCompiler();
 			},
 			{
 				name: "Compiler",

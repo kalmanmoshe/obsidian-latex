@@ -1,55 +1,56 @@
 ////@ts-nocheck
-import { intArrayFromString, lengthBytesUTF8, stringToUTF8Array, UTF8ArrayToString } from './encodingDecoding.';
+import { intArrayFromString, lengthBytesUTF8, stringToUTF8Array, UTF8ArrayToString } from '../base/workerBase/encodingDecoding.';
 import { wasmBinaryFileImport } from './wasmBinaryStaticImport';
-import { onmessage } from './communication';
-import Fs from "fs";
-import { FS } from "./FS";
+import { Communicator } from '../base/workerBase/communication';
+import { FS as FSClass } from "../base/workerBase/FS";
+import { MEMFS as MEMFSClass } from '../base/workerBase/MEMFS';
+import { FSNode } from '../base/workerBase/FSNode';
+import { DefaultWorkerValues, WorkerWindow } from '../base/workerBase/self';
+
+const FS = new FSClass();
+export const memfs = new MEMFSClass(FS);
+FS.memfs = memfs;
+
+const handlers = {
+  compileLaTeXRoutine,
+  compileFormatRoutine,
+  transferWorkFilesToHost,
+  removeFileRoutine,
+  setTexliveEndpoint,
+  mkdirRoutine,
+  writeFileRoutine,
+  close,
+  transferCacheDataToHost,
+  writeTexFileRoutine,
+  cleanDir,
+  transferTexFileToHost,
+}
+DefaultWorkerValues.assign();
+self.onmessage = new Communicator(handlers).onmessage;
 
 declare global {
-  interface Window {
-    memlog: string;
-    initmem?: any;
-    mainfile: string;
-    texlive_endpoint: string;
-    constants: {
-      TEXCACHEROOT: "/tex";
-      WORKROOT: "/work";
-    }
-    cacheRecord: {
-      texlive404: Record<string, number>,
-      texlive200: Record<string, string>,
-      pk404: Record<string, number>,
-      pk200: Record<string, string>,
-    }
+  interface Window extends WorkerWindow {
   }
 }
 
-self.memlog = "";
-self.initmem = undefined;
-self.mainfile = "main.tex";
-self.texlive_endpoint = "https://texlive2.swiftlatex.com/";
-self.constants = {
-  TEXCACHEROOT: "/tex",
-  WORKROOT: "/work"
-}
-self.cacheRecord = {
-  texlive404: {},
-  texlive200: {},
-  pk404: {},
-  pk200: {},
-}
 
 interface Log{
   regular: string[];
   errors: string[];
 }
-
-var log: Log={
+const log: Log={
   regular: [],
   errors: []
 }
-
-var Module = {
+interface Module {
+  print: (text: string) => void;
+  printErr: (text: string) => void;
+  preRun: () => void;
+  postRun: () => void;
+  onAbort: () => void;
+  [key: string]: any; // <-- Allow arbitrary properties
+}
+var Module: Module = {
   print: function (text: string) {
     self.memlog += text + "\n";
     log.regular.push(text);
@@ -72,9 +73,7 @@ var Module = {
     self.postMessage({
       result: "failed",
       status: -254,
-      log: self.memlog,
-      myLog: log,
-      cmd: "compilelatex",
+      log: self.memlog,      cmd: "compilelatex",
     });
     return;
   }
@@ -158,6 +157,7 @@ export function compileLaTeXRoutine() {
   prepareExecutionContext();
   const setMainFunction = cwrap("setMainEntry", "number", ["string"]);
   setMainFunction(self.mainfile);
+  console.log(FS.root.contents.work.contents["coorPreamble.tex"],FS.root.contents.tex.contents["coorPreamble.tex"])
   let status = _compileLaTeX();
   if (status === 0) {
     let pdfArrayBuffer = null;
@@ -176,8 +176,7 @@ export function compileLaTeXRoutine() {
       self.postMessage({
         result: "failed",
         status: status,
-        log: self.memlog,
-        myLog: log,
+        log: self.memlog,        
         cmd: "compilelatex",
       });
       return;
@@ -186,8 +185,7 @@ export function compileLaTeXRoutine() {
       {
         result: "ok",
         status: status,
-        log: self.memlog,
-        myLog: log,
+        log: self.memlog,        
         pdf: pdfArrayBuffer.buffer,
         cmd: "compilelatex",
       },
@@ -198,8 +196,7 @@ export function compileLaTeXRoutine() {
     self.postMessage({
       result: "failed",
       status: status,
-      log: self.memlog,
-      myLog: log,
+      log: self.memlog,      
       cmd: "compilelatex",
     });
   }
@@ -219,8 +216,7 @@ export function compileFormatRoutine() {
       self.postMessage({
         result: "failed",
         status: status,
-        log: self.memlog,
-        myLog: log,
+        log: self.memlog,        
         cmd: "compilelatex",
       });
       return;
@@ -229,8 +225,7 @@ export function compileFormatRoutine() {
       {
         result: "ok",
         status: status,
-        log: self.memlog,
-        myLog: log,
+        log: self.memlog,        
         pdf: pdfArrayBuffer.buffer,
         cmd: "compilelatex",
       },
@@ -241,9 +236,7 @@ export function compileFormatRoutine() {
     self.postMessage({
       result: "failed",
       status: status,
-      log: self.memlog,
-      myLog: log,
-      cmd: "compilelatex",
+      log: self.memlog,      cmd: "compilelatex",
     });
   }
 }
@@ -277,6 +270,7 @@ export function removeFileRoutine(filename:string) {
 export function writeTexFileRoutine(filename: string, content: string) {
   try {
     FS.writeFile(self.constants.TEXCACHEROOT + "/" + filename, content);
+    console.log("Wrote mem tex file " + filename);
     self.postMessage({ result: "ok", cmd: "writetexfile" });
   } catch (err) {
     console.error("Unable to write mem tex file " + filename);
@@ -346,14 +340,14 @@ export function transferTexFileToHost(filename: string) {
 
 export function transferCacheDataToHost() {
   try {
-    const {texlive404,texlive200,pk404,pk200} = self.cacheRecord;
+    const {texlive404,texlive200,font404,font200} = self.cacheRecord;
     self.postMessage({
       result: "ok",
       cmd: "fetchcache",
       texlive404,
       texlive200,
-      pk404,
-      pk200,
+      font404,
+      font200,
     });
   } catch (err) {
     self.postMessage({ result: "failed", cmd: "fetchcache",error: err });
@@ -366,9 +360,8 @@ export function setTexliveEndpoint(url: string) {
     }
     self.texlive_endpoint = url;
   }
-  self.postMessage({ result: "ok", cmd: "settexliveurl" });
 }
-self.onmessage = onmessage
+
 
 /**
  * This will download all files needed for the project. The texlive404_cache will always have to be retried because we can't pass it along as the VFS will cause issues when switching between texlive sources.
@@ -417,9 +410,6 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
   }
   return 0;
 }
-let pk404_cache:Record<string, number> = {};
-let pk200_cache:Record<string, string> = {};
-
 function kpse_find_pk_impl(nameptr, dpi) {
   const reqname = UTF8ToString(nameptr);
   if (reqname.includes("/")) {
@@ -1050,316 +1040,11 @@ export var TTY = {
     },
   },
 };
-export var mmapAlloc = (size) => {
+
+export var mmapAlloc = (size?: number): any => {
   abort();
 };
-export var MEMFS = {
-  ops_table: null,
-  mount(mount) {
-    return MEMFS.createNode(null, "/", 16384 | 511, 0);
-  },
-  createNode(parent: FSNode, name, mode, dev) {
-    if (FS.isBlkdev(mode) || FS.isFIFO(mode)) {
-      throw new FS.ErrnoError(63);
-    }
-    MEMFS.ops_table ||= {
-      dir: {
-        node: {
-          getattr: MEMFS.node_ops.getattr,
-          setattr: MEMFS.node_ops.setattr,
-          lookup: MEMFS.node_ops.lookup,
-          mknod: MEMFS.node_ops.mknod,
-          rename: MEMFS.node_ops.rename,
-          unlink: MEMFS.node_ops.unlink,
-          rmdir: MEMFS.node_ops.rmdir,
-          readdir: MEMFS.node_ops.readdir,
-          symlink: MEMFS.node_ops.symlink,
-        },
-        stream: { llseek: MEMFS.stream_ops.llseek },
-      },
-      file: {
-        node: {
-          getattr: MEMFS.node_ops.getattr,
-          setattr: MEMFS.node_ops.setattr,
-        },
-        stream: {
-          llseek: MEMFS.stream_ops.llseek,
-          read: MEMFS.stream_ops.read,
-          write: MEMFS.stream_ops.write,
-          allocate: MEMFS.stream_ops.allocate,
-          mmap: MEMFS.stream_ops.mmap,
-          msync: MEMFS.stream_ops.msync,
-        },
-      },
-      link: {
-        node: {
-          getattr: MEMFS.node_ops.getattr,
-          setattr: MEMFS.node_ops.setattr,
-          readlink: MEMFS.node_ops.readlink,
-        },
-        stream: {},
-      },
-      chrdev: {
-        node: {
-          getattr: MEMFS.node_ops.getattr,
-          setattr: MEMFS.node_ops.setattr,
-        },
-        stream: FS.chrdev_stream_ops,
-      },
-    };
-    var node = FS.createNode(parent, name, mode, dev);
-    if (FS.isDir(node.mode)) {
-      node.node_ops = MEMFS.ops_table.dir.node;
-      node.stream_ops = MEMFS.ops_table.dir.stream;
-      node.contents = {};
-    } else if (FS.isFile(node.mode)) {
-      node.node_ops = MEMFS.ops_table.file.node;
-      node.stream_ops = MEMFS.ops_table.file.stream;
-      node.usedBytes = 0;
-      node.contents = null;
-    } else if (FS.isLink(node.mode)) {
-      node.node_ops = MEMFS.ops_table.link.node;
-      node.stream_ops = MEMFS.ops_table.link.stream;
-    } else if (FS.isChrdev(node.mode)) {
-      node.node_ops = MEMFS.ops_table.chrdev.node;
-      node.stream_ops = MEMFS.ops_table.chrdev.stream;
-    }
-    node.timestamp = Date.now();
-    if (parent) {
-      parent.contents[name] = node;
-      parent.timestamp = node.timestamp;
-    }
-    return node;
-  },
-  getFileDataAsTypedArray(node) {
-    if (!node.contents) return new Uint8Array(0);
-    if (node.contents.subarray)
-      return node.contents.subarray(0, node.usedBytes);
-    return new Uint8Array(node.contents);
-  },
-  expandFileStorage(node, newCapacity) {
-    var prevCapacity = node.contents ? node.contents.length : 0;
-    if (prevCapacity >= newCapacity) return;
-    var CAPACITY_DOUBLING_MAX = 1024 * 1024;
-    newCapacity = Math.max(
-      newCapacity,
-      (prevCapacity * (prevCapacity < CAPACITY_DOUBLING_MAX ? 2 : 1.125)) >>> 0,
-    );
-    if (prevCapacity != 0) newCapacity = Math.max(newCapacity, 256);
-    var oldContents = node.contents;
-    node.contents = new Uint8Array(newCapacity);
-    if (node.usedBytes > 0)
-      node.contents.set(oldContents.subarray(0, node.usedBytes), 0);
-  },
-  resizeFileStorage(node, newSize) {
-    if (node.usedBytes == newSize) return;
-    if (newSize == 0) {
-      node.contents = null;
-      node.usedBytes = 0;
-    } else {
-      var oldContents = node.contents;
-      node.contents = new Uint8Array(newSize);
-      if (oldContents) {
-        node.contents.set(
-          oldContents.subarray(0, Math.min(newSize, node.usedBytes)),
-        );
-      }
-      node.usedBytes = newSize;
-    }
-  },
-  node_ops: {
-    getattr(node) {
-      var attr = {};
-      attr.dev = FS.isChrdev(node.mode) ? node.id : 1;
-      attr.ino = node.id;
-      attr.mode = node.mode;
-      attr.nlink = 1;
-      attr.uid = 0;
-      attr.gid = 0;
-      attr.rdev = node.rdev;
-      if (FS.isDir(node.mode)) {
-        attr.size = 4096;
-      } else if (FS.isFile(node.mode)) {
-        attr.size = node.usedBytes;
-      } else if (FS.isLink(node.mode)) {
-        attr.size = node.link.length;
-      } else {
-        attr.size = 0;
-      }
-      attr.atime = new Date(node.timestamp);
-      attr.mtime = new Date(node.timestamp);
-      attr.ctime = new Date(node.timestamp);
-      attr.blksize = 4096;
-      attr.blocks = Math.ceil(attr.size / attr.blksize);
-      return attr;
-    },
-    setattr(node, attr) {
-      if (attr.mode !== undefined) {
-        node.mode = attr.mode;
-      }
-      if (attr.timestamp !== undefined) {
-        node.timestamp = attr.timestamp;
-      }
-      if (attr.size !== undefined) {
-        MEMFS.resizeFileStorage(node, attr.size);
-      }
-    },
-    lookup(parent: FSNode, name) {
-      throw FS.genericErrors[44];
-    },
-    mknod(parent:FSNode, name, mode, dev) {
-      return MEMFS.createNode(parent, name, mode, dev);
-    },
-    rename(old_node, new_dir, new_name) {
-      if (FS.isDir(old_node.mode)) {
-        var new_node;
-        try {
-          new_node = FS.lookupNode(new_dir, new_name);
-        } catch (e) {}
-        if (new_node) {
-          for (var i in new_node.contents) {
-            throw new FS.ErrnoError(55);
-          }
-        }
-      }
-      delete old_node.parent.contents[old_node.name];
-      old_node.parent.timestamp = Date.now();
-      old_node.name = new_name;
-      new_dir.contents[new_name] = old_node;
-      new_dir.timestamp = old_node.parent.timestamp;
-      old_node.parent = new_dir;
-    },
-    unlink(parent: { contents: { [x: string]: any; }; timestamp: number; }, name: string | number) {
-      delete parent.contents[name];
-      parent.timestamp = Date.now();
-    },
-    rmdir(parent: { contents: { [x: string]: any; }; timestamp: number; }, name: string) {
-      var node = FS.lookupNode(parent, name);
-      for (var i in node.contents) {
-        throw new FS.ErrnoError(55);
-      }
-      delete parent.contents[name];
-      parent.timestamp = Date.now();
-    },
-    readdir(node: { contents: {}; }) {
-      var entries = [".", ".."];
-      for (var key of Object.keys(node.contents)) {
-        entries.push(key);
-      }
-      return entries;
-    },
-    symlink(parent: FSNode, newname: any, oldpath: any) {
-      var node = MEMFS.createNode(parent, newname, 511 | 40960, 0);
-      node.link = oldpath;
-      return node;
-    },
-    readlink(node) {
-      if (!FS.isLink(node.mode)) {
-        throw new FS.ErrnoError(28);
-      }
-      return node.link;
-    },
-  },
-  stream_ops: {
-    read(stream, buffer, offset, length, position) {
-      var contents = stream.node.contents;
-      if (position >= stream.node.usedBytes) return 0;
-      var size = Math.min(stream.node.usedBytes - position, length);
-      if (size > 8 && contents.subarray) {
-        buffer.set(contents.subarray(position, position + size), offset);
-      } else {
-        for (var i = 0; i < size; i++)
-          buffer[offset + i] = contents[position + i];
-      }
-      return size;
-    },
-    write(stream, buffer, offset, length, position, canOwn) {
-      if (buffer.buffer === HEAP8.buffer) {
-        canOwn = false;
-      }
-      if (!length) return 0;
-      var node = stream.node;
-      node.timestamp = Date.now();
-      if (buffer.subarray && (!node.contents || node.contents.subarray)) {
-        if (canOwn) {
-          node.contents = buffer.subarray(offset, offset + length);
-          node.usedBytes = length;
-          return length;
-        } else if (node.usedBytes === 0 && position === 0) {
-          node.contents = buffer.slice(offset, offset + length);
-          node.usedBytes = length;
-          return length;
-        } else if (position + length <= node.usedBytes) {
-          node.contents.set(buffer.subarray(offset, offset + length), position);
-          return length;
-        }
-      }
-      MEMFS.expandFileStorage(node, position + length);
-      if (node.contents.subarray && buffer.subarray) {
-        node.contents.set(buffer.subarray(offset, offset + length), position);
-      } else {
-        for (var i = 0; i < length; i++) {
-          node.contents[position + i] = buffer[offset + i];
-        }
-      }
-      node.usedBytes = Math.max(node.usedBytes, position + length);
-      return length;
-    },
-    llseek(stream, offset, whence) {
-      var position = offset;
-      if (whence === 1) {
-        position += stream.position;
-      } else if (whence === 2) {
-        if (FS.isFile(stream.node.mode)) {
-          position += stream.node.usedBytes;
-        }
-      }
-      if (position < 0) {
-        throw new FS.ErrnoError(28);
-      }
-      return position;
-    },
-    allocate(stream, offset, length) {
-      MEMFS.expandFileStorage(stream.node, offset + length);
-      stream.node.usedBytes = Math.max(stream.node.usedBytes, offset + length);
-    },
-    mmap(stream, length, position, prot, flags) {
-      if (!FS.isFile(stream.node.mode)) {
-        throw new FS.ErrnoError(43);
-      }
-      var ptr;
-      var allocated;
-      var contents = stream.node.contents;
-      if (!(flags & 2) && contents.buffer === HEAP8.buffer) {
-        allocated = false;
-        ptr = contents.byteOffset;
-      } else {
-        if (position > 0 || position + length < contents.length) {
-          if (contents.subarray) {
-            contents = contents.subarray(position, position + length);
-          } else {
-            contents = Array.prototype.slice.call(
-              contents,
-              position,
-              position + length,
-            );
-          }
-        }
-        allocated = true;
-        ptr = mmapAlloc(length);
-        if (!ptr) {
-          throw new FS.ErrnoError(48);
-        }
-        HEAP8.set(contents, ptr);
-      }
-      return { ptr: ptr, allocated: allocated };
-    },
-    msync(stream, buffer, offset, length, mmapFlags) {
-      MEMFS.stream_ops.write(stream, buffer, 0, length, offset, false);
-      return 0;
-    },
-  },
-};
+
 
 var asyncLoad = (url, onload, onerror, noRunDep?: any) => {
   var dep = !noRunDep ? getUniqueRunDependency(`al ${url}`) : "";
@@ -1450,6 +1135,7 @@ export var FS_modeStringToFlags = (str) => {
   }
   return flags;
 };
+
 export var FS_getMode = (canRead, canWrite) => {
   var mode = 0;
   if (canRead) mode |= 292 | 73;
@@ -2439,71 +2125,11 @@ var cwrap = (ident:string, returnType:string, argTypes:string[], opts?: any) => 
 
 
 
-// Constants for mode operations
-const readMode = 292 | 73;
-const writeMode = 146;
 
-export class FSNode {
-  parent: FSNode;
-  mount: any; // Replace 'any' with a more specific type if available
-  mounted: any;
-  id: number;
-  name: string;
-  mode: number;
-  node_ops: { [key: string]: any };
-  stream_ops: { [key: string]: any };
-  rdev: number;
 
-  constructor(parent: FSNode | undefined, name: string, mode: number, rdev: number) {
-    // If no parent is provided, default to this instance.
-    if (!parent) {
-      parent = this;
-    }
-    this.parent = parent;
-    this.mount = parent.mount;
-    this.mounted = null;
-    this.id = FS.nextInode++;
-    this.name = name;
-    this.mode = mode;
-    this.node_ops = {};
-    this.stream_ops = {};
-    this.rdev = rdev;
-  }
 
-  get read(): boolean {
-    return (this.mode & readMode) === readMode;
-  }
 
-  set read(val: boolean) {
-    if (val) {
-      this.mode |= readMode;
-    } else {
-      this.mode &= ~readMode;
-    }
-  }
-
-  get write(): boolean {
-    return (this.mode & writeMode) === writeMode;
-  }
-
-  set write(val: boolean) {
-    if (val) {
-      this.mode |= writeMode;
-    } else {
-      this.mode &= ~writeMode;
-    }
-  }
-
-  get isFolder(): boolean {
-    return FS.isDir(this.mode);
-  }
-
-  get isDevice(): boolean {
-    return FS.isChrdev(this.mode);
-  }
-}
-
-FS.FSNode = FSNode;
+//FS.FSNode = FSNode;
 
 FS.createPreloadedFile = FS_createPreloadedFile;
 FS.staticInit();
@@ -2545,22 +2171,21 @@ var wasmImports = {
   k: _strftime,
 };
 var wasmExports = createWasm();
-var ___wasm_call_ctors = () => (___wasm_call_ctors = wasmExports["K"])();
-var _malloc = (a0) => (_malloc = wasmExports["L"])(a0);
-var _compileLaTeX = (Module["_compileLaTeX"] = () =>
-  (_compileLaTeX = Module["_compileLaTeX"] = wasmExports["M"])());
-var _compileFormat = (Module["_compileFormat"] = () =>
-  (_compileFormat = Module["_compileFormat"] = wasmExports["N"])());
-var _compileBibtex = (Module["_compileBibtex"] = () =>
-  (_compileBibtex = Module["_compileBibtex"] = wasmExports["O"])());
-var _setMainEntry = (Module["_setMainEntry"] = (a0) =>
-  (_setMainEntry = Module["_setMainEntry"] = wasmExports["P"])(a0));
-var _main = (Module["_main"] = (a0, a1) =>
-  (_main = Module["_main"] = wasmExports["Q"])(a0, a1));
-var _setThrew = (a0, a1) => (_setThrew = wasmExports["S"])(a0, a1);
-var stackSave = () => (stackSave = wasmExports["T"])();
-var stackRestore = (a0) => (stackRestore = wasmExports["U"])(a0);
-var stackAlloc = (a0) => (stackAlloc = wasmExports["V"])(a0);
+
+
+var ___wasm_call_ctors = (...args: any[]) => wasmExports["K"](...args);
+var _malloc = (...args: any[]) => wasmExports["L"](...args);
+var _compileLaTeX = Module["_compileLaTeX"] = (...args: any[]) => wasmExports["M"](...args);
+var _compileFormat = Module["_compileFormat"] = (...args: any[]) => wasmExports["N"](...args);
+var _compileBibtex = Module["_compileBibtex"] = (...args: any[]) => wasmExports["O"](...args);
+var _setMainEntry = Module["_setMainEntry"] = (...args: any[]) => wasmExports["P"](...args);
+var _main = Module["_main"] = (...args: any[]) => wasmExports["Q"](...args);
+var _setThrew = (...args: any[]) => wasmExports["S"](...args);
+var stackSave = (...args: any[]) => wasmExports["T"](...args);
+var stackRestore = (...args: any[]) => wasmExports["U"](...args);
+var stackAlloc = (...args: any[]) => wasmExports["V"](...args);
+
+
 function invoke_ii(index, a1) {
   var sp = stackSave();
   try {

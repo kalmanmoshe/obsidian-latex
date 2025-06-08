@@ -12,20 +12,34 @@
 // after the generated code, you will need to define   var Module = {};
 // before the code. Then that object will be used in the code, and you
 
+import { DefaultWorkerValues, WorkerWindow } from "../base/workerBase/self";
+import { Communicator } from "../base/workerBase/communication";
 import { wasmBinaryFileImport } from "./wasmBinaryStaticImport";
-
+declare global {
+  interface Window extends WorkerWindow {
+  }
+}
+DefaultWorkerValues.assign();
+const handlers = {
+  compileLaTeXRoutine,
+  compileFormatRoutine,
+  setTexliveEndpoint,
+  mkdirRoutine,
+  writeFileRoutine,
+  close,
+  transferCacheDataToHost,
+  writeTexFileRoutine,
+  cleanDir,
+  transferTexFileToHost,
+}
+self.onmessage = new Communicator(handlers).onmessage
 // can continue to use Module afterwards as well.
 var Module = typeof Module != 'undefined' ? Module : {};
+export default Module;
 
 // --pre-jses are emitted after the Module integration code, so that they can
 // refer to Module (if they choose; they can also define Module)
-const TEXCACHEROOT = "/tex";
-const WORKROOT = "/work";
-var Module = {};
-self.memlog = "";
-self.initmem = undefined;
-self.mainfile = "main.tex";
-self.texlive_endpoint = "https://texlive2.swiftlatex.com/";
+
 Module['print'] = function(a) {
     self.memlog += (a + "\n");
 };
@@ -42,8 +56,8 @@ function _allocate(content) {
 }
 
 Module['preRun'] = function() {
-    FS.mkdir(TEXCACHEROOT);
-    FS.mkdir(WORKROOT);
+    FS.mkdir(self.constants.TEXCACHEROOT);
+    FS.mkdir(self.constants.WORKROOT);
 };
 
 function dumpHeapMemory() {
@@ -75,7 +89,7 @@ function prepareExecutionContext() {
     self.memlog = '';
     restoreHeapMemory();
     closeFSStreams();
-    FS.chdir(WORKROOT);
+    FS.chdir(self.constants.WORKROOT);
 }
 
 Module['postRun'] = function() {
@@ -111,7 +125,7 @@ function cleanDir(dir) {
         }
     }
 
-    if (dir !== WORKROOT) {
+    if (dir !== self.constants.WORKROOT) {
         try {
             FS.rmdir(dir);
         } catch (err) {
@@ -137,12 +151,11 @@ function compileLaTeXRoutine() {
     prepareExecutionContext();
     const setMainFunction = cwrap('setMainEntry', 'number', ['string']);
     setMainFunction(self.mainfile);
-    
     let status = _compileLaTeX();
     if (status === 0) {
         let pdfArrayBuffer = null;
         _compileBibtex();
-        let pdfurl = WORKROOT + "/" + self.mainfile.substr(0, self.mainfile.length - 4) + ".xdv";
+        let pdfurl = self.constants.WORKROOT + "/" + self.mainfile.substr(0, self.mainfile.length - 4) + ".xdv";
         try {
             pdfArrayBuffer = FS.readFile(pdfurl, {
                 encoding: 'binary'
@@ -166,6 +179,7 @@ function compileLaTeXRoutine() {
             'cmd': 'compilelatex'
         }, [pdfArrayBuffer.buffer]);
     } else {
+      console.log()
         console.error("xet Compilation failed, with status code " + status);
         self.postMessage({
             'result': 'failed',
@@ -182,7 +196,7 @@ function compileFormatRoutine() {
     if (status === 0) {
         let pdfArrayBuffer = null;
         try {
-            let pdfurl = WORKROOT + "/xelatex.fmt";
+            let pdfurl = self.constants.WORKROOT + "/xelatex.fmt";
             pdfArrayBuffer = FS.readFile(pdfurl, {
                 encoding: 'binary'
             });
@@ -218,7 +232,7 @@ function compileFormatRoutine() {
 function mkdirRoutine(dirname) {
     try {
         //console.log("removing " + item);
-        FS.mkdir(WORKROOT + "/" + dirname);
+        FS.mkdir(self.constants.WORKROOT + "/" + dirname);
         self.postMessage({
             'result': 'ok',
             'cmd': 'mkdir'
@@ -232,25 +246,25 @@ function mkdirRoutine(dirname) {
     }
 }
 
-function writeFileRoutine(filename, content) {
-    try {
-        FS.writeFile(WORKROOT + "/" + filename, content);
-        self.postMessage({
-            'result': 'ok',
-            'cmd': 'writefile'
-        });
-    } catch (err) {
-        console.error("Unable to write mem file");
-        self.postMessage({
-            'result': 'failed',
-            'cmd': 'writefile'
-        });
-    }
+function writeFileRoutine(filename: string, content: string | Buffer<ArrayBufferLike>) {
+  try {
+      FS.writeFile(self.constants.WORKROOT + "/" + filename, content);
+      self.postMessage({
+          'result': 'ok',
+          'cmd': 'writefile'
+      });
+  } catch (err) {
+      console.error("Unable to write mem file");
+      self.postMessage({
+          'result': 'failed',
+          'cmd': 'writefile'
+      });
+  }
 }
 
 function writeTexFileRoutine(filename, content) {
     try {
-        FS.writeFile(TEXCACHEROOT + "/" + filename, content);
+        FS.writeFile(self.constants.TEXCACHEROOT + "/" + filename, content);
         self.postMessage({
             'result': 'ok',
             'cmd': 'writetexfile'
@@ -266,7 +280,7 @@ function writeTexFileRoutine(filename, content) {
 
 function transferTexFileToHost(filename) {
     try { 
-        let content = FS.readFile(TEXCACHEROOT + "/" + filename, {
+        let content = FS.readFile(self.constants.TEXCACHEROOT + "/" + filename, {
             encoding: 'binary'
         });
         self.postMessage({
@@ -289,10 +303,10 @@ function transferCacheDataToHost() {
     self.postMessage({
         'result': 'ok',
         'cmd': 'fetchcache',
-        'texlive404_cache': texlive404_cache,
-        'texlive200_cache': texlive200_cache,
-        'font404_cache': font404_cache,
-        'font200_cache': font200_cache,
+        texlive404: self.cacheRecord.texlive404,
+        texlive200: self.cacheRecord.texlive200,
+        font404: self.cacheRecord.font404,
+        font200: self.cacheRecord.font200,
     });
     } catch (err) {
         console.error("Unable to fetch cache");
@@ -310,59 +324,9 @@ function setTexliveEndpoint(url) {
         }
         self.texlive_endpoint = url;
     }
+  
 }
 
-self['onmessage'] = function(ev) {
-    let data = ev['data'];
-    let cmd = data['cmd'];
-    if (cmd === 'compilelatex') {
-    	compileLaTeXRoutine();
-    } else if (cmd === 'compileformat') {
-        compileFormatRoutine();
-    } else if (cmd === "settexliveurl") {
-        setTexliveEndpoint(data['url']);
-        self.postMessage({cmd: 'settexliveurl', result: 'ok'});
-    } else if (cmd === "mkdir") {
-        mkdirRoutine(data['url']);
-    } else if (cmd === "writefile") {
-        writeFileRoutine(data['url'], data['src']);
-    } else if (cmd === "setmainfile") {
-        self.mainfile = data['url'];
-        self.postMessage({cmd: 'setmainfile', result: 'ok'});
-    } else if (cmd === "grace") {
-        console.error("Gracefully Close");
-        self.postMessage({cmd: 'grace', result: 'ok'});
-        self.close();
-    } else if (cmd === "flushcache") {
-        cleanDir(WORKROOT);
-    } else if (cmd === "fetchfile") {
-        transferTexFileToHost(data['filename']);
-    } else if (cmd === "fetchcache") {
-        transferCacheDataToHost();
-    } else if (cmd === "writetexfile") {
-        writeTexFileRoutine(data['url'], data['src']); 
-    } else if (cmd === "writecache") {
-        texlive404_cache = data['texlive404_cache'];
-        texlive200_cache = data['texlive200_cache'];
-        font404_cache = data['font404_cache'];
-        font200_cache = data['font200_cache'];
-        self.postMessage({cmd: 'writecache', result: 'ok'});
-    } else if(cmd=== "flushworkcache"){
-      cleanDir(WORKROOT);
-      self.postMessage({ result: "ok", cmd });
-    } else {
-        console.error("Unknown command " + cmd);
-        self.postMessage({
-            'result': 'failed',
-            'status': -255,
-            'log': self.memlog,
-            'cmd': cmd
-        });
-    }
-};
-
-let texlive404_cache = {};
-let texlive200_cache = {};
 
 function kpse_find_file_impl(nameptr, format, _mustexist) {
 
@@ -374,12 +338,12 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
 
     const cacheKey = format + "/" + reqname ;
 
-    if (cacheKey in texlive404_cache) {
+    if (cacheKey in self.cacheRecord.texlive404) {
         return 0;
     }
 
-    if (cacheKey in texlive200_cache) {
-        const savepath = texlive200_cache[cacheKey];
+    if (cacheKey in self.cacheRecord.texlive200) {
+        const savepath = self.cacheRecord.texlive200[cacheKey];
         return _allocate(intArrayFromString(savepath));
     }
 
@@ -389,7 +353,7 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
     xhr.open("GET", remote_url, false);
     xhr.timeout = 150000;
     xhr.responseType = "arraybuffer";
-    console.log("Start downloading texlive file " + remote_url);
+    console.log("XeTex start downloading texlive file " + remote_url);
     try {
         xhr.send();
     } catch (err) {
@@ -400,21 +364,19 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
     if (xhr.status === 200) {
         let arraybuffer = xhr.response;
         const fileid = xhr.getResponseHeader('fileid');
-        const savepath = TEXCACHEROOT + "/" + fileid;
+        const savepath = self.constants.TEXCACHEROOT + "/" + fileid;
         FS.writeFile(savepath, new Uint8Array(arraybuffer));
-        texlive200_cache[cacheKey] = savepath;
+        self.cacheRecord.texlive200[cacheKey] = savepath;
         return _allocate(intArrayFromString(savepath));
 
     } else if (xhr.status === 301) {
         console.log("TexLive File not exists " + remote_url);
-        texlive404_cache[cacheKey] = 1;
+        self.cacheRecord.texlive404[cacheKey] = 1;
         return 0;
     } 
     return 0;
 }
 
-let font200_cache = {};
-let font404_cache = {};
 function fontconfig_search_font_impl(fontnamePtr, varStringPtr) {
     const fontname = UTF8ToString(fontnamePtr);
     let variant = UTF8ToString(varStringPtr);
@@ -425,12 +387,12 @@ function fontconfig_search_font_impl(fontnamePtr, varStringPtr) {
 
     const cacheKey = variant + '/' + fontname;
     
-    if (cacheKey in font200_cache) {
-        const savepath = font200_cache[cacheKey];
+    if (cacheKey in self.cacheRecord.font200) {
+        const savepath = self.cacheRecord.font200[cacheKey];
         return _allocate(intArrayFromString(savepath));
     }
     
-    if (cacheKey in font404_cache) {
+    if (cacheKey in self.cacheRecord.font404) {
         return 0;
     }
 
@@ -449,15 +411,15 @@ function fontconfig_search_font_impl(fontnamePtr, varStringPtr) {
     if (xhr.status === 200) {
         let arraybuffer = xhr.response;
         const fontID = xhr.getResponseHeader('fontid');
-        const savepath = TEXCACHEROOT + "/" + fontID;
+        const savepath = self.constants.TEXCACHEROOT + "/" + fontID;
 
         FS.writeFile(savepath, new Uint8Array(arraybuffer));
-        font200_cache[cacheKey] = savepath;
+        self.cacheRecord.font200[cacheKey] = savepath;
         return _allocate(intArrayFromString(savepath));
 
     } else if (xhr.status === 301 || xhr.status === 404) {
         console.log("Font File not exists " + remote_url);
-        font404_cache[cacheKey] = 1;
+        self.cacheRecord.font404[cacheKey] = 1;
         return 0;
     }
     
@@ -561,9 +523,7 @@ readAsync = (filename, onload, onerror, binary = true) => {
 
   arguments_ = process.argv.slice(2);
 
-  if (typeof module != 'undefined') {
-    module['exports'] = Module;
-  }
+  
 
   process.on('uncaughtException', (ex) => {
     // suppress ExitStatus exceptions from showing an error
@@ -2662,11 +2622,11 @@ function dbg(...args) {
       'EOWNERDEAD': 62,
       'ESTRPIPE': 135,
     };
+    
   var FS = {
   root:null,
   mounts:[],
-  devices:{
-  },
+  devices:{ },
   streams:[],
   nextInode:1,
   nameTable:null,
@@ -3503,6 +3463,7 @@ function dbg(...args) {
           if (node) {
             // if O_CREAT and O_EXCL are set, error out if the node already exists
             if ((flags & 128)) {
+              console.log(`FS.open: File "${path}" exists, but flags indicate it should not.`);
               throw new FS.ErrnoError(20);
             }
           } else {

@@ -3,7 +3,7 @@ import { Md5 } from 'ts-md5';
 import * as fs from 'fs';
 import * as temp from 'temp';
 import * as path from 'path';
-import LatexEngine,{CompileResult} from './engine';
+import {CompileResult} from './compiler/base/compilerBase/engine';
 import Moshe from '../main';
 import { CompilerType, StringMap } from 'src/settings/settings.js';
 import async from 'async';
@@ -18,10 +18,11 @@ import { StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { getSectionFromMatching, getSectionFromTransaction } from './cache/findSection';
 import { ProcessedLog } from './logs/latex-log-parser';
-import PdfTeXEngine from './swiftlatexpdftex/PdfTeXEngine';
+import PdfTeXCompiler from './compiler/swiftlatexpdftex/PdfTeXEngine';
 import { svgDisplayModule } from './utils/svgDisplayModule';
 import { LatexTask } from './utils/latexTask';
-import { PdfXeTeXEngine } from './swiftlatexxetex/pdfXeTeXEngine';
+import { PdfXeTeXCompiler } from './compiler/swiftlatexxetex/pdfXeTeXCompiler';
+import LatexCompiler from './compiler/base/compilerBase/compiler';
 
 export const waitFor = async (condFunc: () => boolean) => {
 	return new Promise<void>((resolve) => {
@@ -82,9 +83,9 @@ export class SwiftlatexRender {
 	cacheFolderPath: string;
 	packageCacheFolderPath: string;
 	virtualFileSystem: VirtualFileSystem=new VirtualFileSystem();
-	pdfTexEngine: PdfTeXEngine;
-	pdfXetexEngine: PdfTeXEngine;
-	engine: LatexEngine;
+	pdfTexCompiler: PdfTeXCompiler;
+	pdfXetexCompiler: PdfXeTeXCompiler;
+	compiler: LatexCompiler;
 	cache: SvgCache;
 	private logCache: Map<string, ProcessedLog>|undefined;
 	queue: QueueObject<Task>;
@@ -94,7 +95,7 @@ export class SwiftlatexRender {
 		this.bindTransactionLogger();
 		this.validateCatchDirectory();
 		this.loadCache();
-		await this.loadEngine();
+		await this.loadCompiler();
 		this.configQueue();
 		this.plugin.addRibbonIcon("dice", "Moshe Math", () => {
 			new svgDisplayModule(this.plugin.app, this.cacheFolderPath,this.cache.getCache()).open();
@@ -111,27 +112,29 @@ export class SwiftlatexRender {
 			effects: StateEffect.appendConfig.of([this.logger.extension])
 		});
 	}
-	switchEngine():Promise<void> {
-		if (this.engine===undefined) return this.loadEngine();
-		const isTex = this.engine instanceof PdfTeXEngine&&this.plugin.settings.compiler === CompilerType.TeX;
-		const isXeTeX = this.engine instanceof PdfXeTeXEngine&&this.plugin.settings.compiler === CompilerType.XeTeX;
+	switchCompiler():Promise<void> {
+		if (this.compiler===undefined) return this.loadCompiler();
+		const isTex = this.compiler instanceof PdfTeXCompiler&&this.plugin.settings.compiler === CompilerType.TeX;
+		const isXeTeX = this.compiler instanceof PdfXeTeXCompiler&&this.plugin.settings.compiler === CompilerType.XeTeX;
 		if(isTex||isXeTeX) return Promise.resolve();
-		this.engine.closeWorker();
-		this.engine = (undefined as any);
-		this.pdfTexEngine = (undefined as any);
-		this.pdfXetexEngine = (undefined as any);
-		return this.loadEngine()
+		this.compiler.closeWorker();
+		this.compiler = (undefined as any);
+		this.pdfTexCompiler = (undefined as any);
+		this.pdfXetexCompiler = (undefined as any);
+		return this.loadCompiler()
 	}
-	async loadEngine(){
+	async loadCompiler(){
 		if (this.plugin.settings.compiler === CompilerType.TeX) {
-			this.engine = this.pdfTexEngine = new PdfTeXEngine();
+			this.compiler = this.pdfTexCompiler = new PdfTeXCompiler();
 		}else{
-			this.engine = this.pdfXetexEngine = new PdfXeTeXEngine();
+			this.compiler = this.pdfXetexCompiler = new PdfXeTeXCompiler();
 		}
-		this.virtualFileSystem.setPdfEngine(this.engine);
-		await this.engine.loadEngine();
+		//console.log("Loading compiler:", this.compiler.constructor.name);
+		this.virtualFileSystem.setPdfCompiler(this.compiler);
+		await this.compiler.loadEngine();
 		await this.loadPackageCache();
-		await this.engine.setTexliveEndpoint(this.plugin.settings.package_url);
+		await this.compiler.setTexliveEndpoint(this.plugin.settings.package_url);
+		//console.log("compiler loaded:", this.compiler.constructor.name);
 	}
 	/**
 	 * Restores the cached HTML content for a given hash and sets it as the innerHTML of the provided element.
@@ -212,9 +215,9 @@ export class SwiftlatexRender {
 		this.queue = async.queue(async (task, done) => {
 			let cooldown = true;
 			try {
-				let abort;
-				if (this.restoreFromCache(task.el, task.md5Hash)) {cooldown=false;console.log("fund in cahtch for",task.blockId);return done()};
-				if (task.process) abort = await LatexTask.create(this.plugin,task).processTask();
+				let abort = false;
+				if (this.restoreFromCache(task.el, task.md5Hash)) {cooldown=false;console.log("fund in catch for",task.blockId);return done()};
+				if (task.process) abort = (await LatexTask.processTask(this.plugin,task)).abort;
 				if(abort) {cooldown=false;return done()};
 			 	await this.renderLatexToElement(task.source, task.el, task.md5Hash, task.sourcePath);
 				this.reCheckQueue(); // only re-check the queue after a valide rendering
@@ -288,17 +291,17 @@ export class SwiftlatexRender {
 			//const read_success = false;
 			try {
 				const srccode = fs.readFileSync(path.join(this.packageCacheFolderPath, filename));
-				await this.engine.writeTexFSFile(filename, srccode);
+				await this.compiler.writeTexFSFile(filename, srccode);
 			} catch (e) {
 				// when unable to read file, remove this from the cache
-				console.warn(`Unable to read file ${filename} from package cache`,e)
+				//nsole.warn(`Unable to read file ${filename} from package cache`,e)
 				delete this.plugin.settings.packageCache[1][key];
 			}
 		}
 		await this.plugin.saveSettings()
 
 		// write cache data to the VFS, except don't write the texlive404_cache because this will cause problems when switching between texlive sources
-		await this.engine.writeCacheData(
+		await this.compiler.writeCacheData(
 			{},
 			this.plugin.settings.packageCache[1],
 			this.plugin.settings.packageCache[2],
@@ -306,11 +309,10 @@ export class SwiftlatexRender {
 		)
 	}
 	async onunload() {
-		await this.engine.flushWorkCache();
-		this.engine.closeWorker();
+		this.compiler.closeWorker();
 	}
 	private async unloadCache() {
-		await this.engine.flushCache();
+		await this.compiler.flushCache();
 		fs.rmdirSync(this.cacheFolderPath, { recursive: true });
 	}
 
@@ -336,7 +338,7 @@ export class SwiftlatexRender {
 		} catch (err) {
 			this.handleError(el, err as string,{parseErr: true,hash: md5Hash});
 		} finally {
-			await waitFor(() => this.engine.isReady());
+			await waitFor(() => this.compiler.isReady());
 			await this.cache.afterRenderCleanUp();
 		}
 	}
@@ -358,16 +360,16 @@ export class SwiftlatexRender {
 		return new Promise(async (resolve, reject) => {
 			temp.mkdir("obsidian-swiftlatex-renderer", async (err: any, dirPath: any) => {
 				try {
-					await waitFor(() => this.engine.isReady());
+					await waitFor(() => this.compiler.isReady());
 				} catch (err) {
 					reject(err);
 					return;
 				}
 				if (err) reject(err);
 				await this.virtualFileSystem.loadVirtualFileSystemFiles();
-				await this.engine.writeMemFSFile("main.tex", source);
-				await this.engine.setEngineMainFile("main.tex");
-				await this.engine.compileLaTeX().then(async (result: CompileResult) => {
+				await this.compiler.writeMemFSFile("main.tex", source);
+				await this.compiler.setEngineMainFile("main.tex");
+				await this.compiler.compileLaTeX().then(async (result: CompileResult) => {
 					this.virtualFileSystem.removeVirtualFileSystemFiles();
 					this.addLog(result.log,md5Hash);
 					if (result.status != 0) {
@@ -391,14 +393,14 @@ export class SwiftlatexRender {
 	 */
 	async fetchPackageCacheData(): Promise<void> {
 		try {
-			const cacheData: StringMap[] = await this.engine.fetchCacheData();
+			const cacheData: StringMap[] = await this.compiler.fetchCacheData();
 			console.log("Cache data fetched:", cacheData);
 			
 			const newFileNames = getNewPackageFileNames(
 				this.plugin.settings.packageCache[1] as Record<string,string>,
 				cacheData[1] as Record<string,string>
 			);
-			await this.engine.fetchTexFiles(newFileNames, this.packageCacheFolderPath);
+			await this.compiler.fetchTexFiles(newFileNames, this.packageCacheFolderPath);
 			this.plugin.settings.packageCache = cacheData;
 			await this.plugin.saveSettings();
 	

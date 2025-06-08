@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { StringMap } from "src/settings/settings";
 
 export enum EngineStatus {
     Init,
@@ -40,22 +41,25 @@ export enum EngineCommands {
 
 export default abstract class LatexEngine {
     
-    protected latexWorker: Worker | undefined = undefined
-    protected latexWorkerStatus: EngineStatus = EngineStatus.Init;
-
+    protected compiler: Worker | undefined;
+    protected compilerStatus: EngineStatus = EngineStatus.Init;
     abstract loadEngine(): Promise<void>
 
     isReady(): boolean {
-        return this.latexWorkerStatus === EngineStatus.Ready;
+        return this.compilerStatus === EngineStatus.Ready;
     }
-    getEngineStatus(): EngineStatus {return this.latexWorkerStatus;}
-
-    protected checkEngineStatus(): void {
+    getEngineStatus(): EngineStatus {return this.compilerStatus;}
+    tasks: string[]=[];
+    protected checkEngineStatus(): this is {compiler: Worker} {
         if (!this.isReady()) {
-            throw new Error("Engine is still spinning or not ready yet! engineStatus: " + EngineStatus[this.latexWorkerStatus]);
+            console.log("last task", this.tasks[this.tasks.length - 1]);
+            throw new Error("Engine is still spinning or not ready yet! engineStatus: " + EngineStatus[this.compilerStatus]);
         }
+        if(this.compiler===undefined){
+            throw new Error("Engine is not initialized! Please call loadEngine() first.");
+        }
+        return true;
     }
-
     async compileLaTeX(): Promise<CompileResult> {
         const startCompileTime = performance.now();
         const data = await this.task<{pdf?: Uint8Array;status: number;log: string}>({
@@ -68,7 +72,17 @@ export default abstract class LatexEngine {
             data.log
         );
     }
-    
+    async compilePDF(): Promise<CompileResult> {
+        const startCompileTime = performance.now();
+        const data = await this.task<{pdf?: Uint8Array;status: number;log: string}>({cmd: EngineCommands.Compilepdf});
+        console.log('Engine compilation finish ' + (performance.now() - startCompileTime));
+        return new CompileResult(
+            data.pdf ? Buffer.from(new Uint8Array(data.pdf)) : undefined,
+            data.status,
+            data.log
+        );
+    }
+    getCompiler() {return this.compiler;}
 
     async compileFormat(): Promise<void> {
         const data = await this.task<{ pdf: Uint8Array, log?: string }>({
@@ -86,19 +100,24 @@ export default abstract class LatexEngine {
                 Object.entries(record).map(([key, value]) => [key, String(value)])
             );
         };
-        return this.task<{texlive404: Record<string,number>,texlive200: Record<string,string>,pk404: Record<string,number>,pk200: Record<string,string>}>(
-            { cmd: EngineCommands.FetchCache, texlive404_cache: [], texlive200_cache: [], pk404_cache: [], pk200_cache: [] }
-        ).then(data =>[
-            recordToString(data.texlive404),
-            data.texlive200,
-            recordToString(data.pk404),
-            data.pk200,
-        ])
+        return this.task<{texlive404: Record<string,number>,texlive200: Record<string,string>,font404: Record<string,number>,font200: Record<string,string>}>(
+            { cmd: EngineCommands.FetchCache }
+        ).then(data =>{
+            if(!data) {
+                throw new Error("No cache data received from the worker.");
+            }
+            return [
+                recordToString(data.texlive404),
+                data.texlive200,
+                recordToString(data.font404),
+                data.font200,
+            ]
+        })
     }
     
 
-    writeCacheData(texlive404_cache: any, texlive200_cache: any, pk404_cache: any, pk200_cache: any) {
-        return this.task({ cmd: EngineCommands.writecache, texlive404_cache, texlive200_cache, pk404_cache, pk200_cache });
+    writeCacheData(texlive404_cache: any, texlive200_cache: any, font404_cache: any, font200_cache: any) {
+        return this.task({ cmd: EngineCommands.writecache, texlive404_cache, texlive200_cache, font404_cache, font200_cache });
     }
 
     async fetchWorkFiles() {
@@ -113,7 +132,7 @@ export default abstract class LatexEngine {
      */
     async fetchTexFiles(filenames: string[], hostDir: string): Promise<void> {
         for (const filename of filenames) {
-            const data = await this.task<{ content: Uint8Array<any> }>({ cmd: "fetchfile", filename });
+            const data = await this.task<{ content: Uint8Array<any> }>({ cmd: EngineCommands.Fetchfile, filename });
             const fileContent = new Uint8Array(data.content);
             await fs.promises.writeFile(path.join(hostDir, filename), fileContent);
         }
@@ -122,18 +141,19 @@ export default abstract class LatexEngine {
     
     task<T = void>(task: any): Promise<T> {
         const command = task.cmd;
-        this.checkEngineStatus();
-        this.latexWorkerStatus = EngineStatus.Busy;
-        //console.debug("Task started:", command);
+        if(!this.checkEngineStatus()) return Promise.reject();
+        this.compilerStatus = EngineStatus.Busy;
+        this.tasks.push(command);
         return new Promise<T>((resolve, reject) => {
-            this.latexWorker!.onmessage = (ev: MessageEvent<any>) => {
+            this.compiler.onmessage = (ev: MessageEvent<any>) => {
                 try {
                     if(ev.data.cmd!==command){
                         throw new Error(`Unexpected command: ${ev.data.cmd}, expected: ${command}`);
                     }
-                    this.latexWorkerStatus = EngineStatus.Ready;
-                    this.latexWorker!.onmessage = null;
-                    this.latexWorker!.onerror = null;
+                    //console.log("Task completed:", ev.data);
+                    this.compilerStatus = EngineStatus.Ready;
+                    this.compiler.onmessage = null;
+                    this.compiler.onerror = null;
                     const data = ev.data; delete data.result;delete data.cmd;
                     //console.debug("Task completed:", command);
                     if (Array.from(Object.keys(data)).length > 0) {
@@ -143,20 +163,20 @@ export default abstract class LatexEngine {
                     }
                 } catch (err) {
                     console.error("Error in task", err);
-                    this.latexWorkerStatus = EngineStatus.Error;
-                    this.latexWorker!.onmessage = null;
-                    this.latexWorker!.onerror = null;
+                    this.compilerStatus = EngineStatus.Error;
+                    this.compiler.onmessage = null;
+                    this.compiler.onerror = null;
                     reject(err);
                 }
             };
-            this.latexWorker!.onerror = (err: ErrorEvent) => {
-                this.latexWorkerStatus = EngineStatus.Error;
-                this.latexWorker!.onmessage = null;
-                this.latexWorker!.onerror = null;
+            this.compiler.onerror = (err: ErrorEvent) => {
+                this.compilerStatus = EngineStatus.Error;
+                this.compiler.onmessage = null;
+                this.compiler.onerror = null;
                 console.error("Worker error:", err);
                 reject(new Error(`Worker error: ${err.message}`));
             };
-            this.latexWorker!.postMessage(task);
+            this.compiler!.postMessage(task);
         });
     }
     
@@ -192,7 +212,7 @@ export default abstract class LatexEngine {
 
     makeMemFSFolder(folder: string) {
         if (!folder || folder === "/") return Promise.resolve();
-        return this.task({ cmd: "mkdir", url: folder });
+        return this.task({ cmd: EngineCommands.Mkdir, url: folder });
     }
     
 
@@ -208,12 +228,12 @@ export default abstract class LatexEngine {
     setTexliveEndpoint(url: string): Promise<void> {
         return this.task({ cmd: EngineCommands.Settexliveurl, url });
     }
-
-
     closeWorker(): void {
-        if (this.latexWorker) {
-            this.latexWorker.postMessage({ cmd: "grace" });
-            this.latexWorker=undefined;
+        if (this.compiler) {
+            this.compiler.postMessage({ cmd: EngineCommands.Grace });
+            this.compiler=undefined;
         }
+        this.compilerStatus = EngineStatus.Init;
     }
 }
+

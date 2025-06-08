@@ -18,7 +18,7 @@ export class EnvironmentWrap{
 
         //if no envs
         if(this.envs.length===0){
-            return [...this.createDocEnvironment()];
+            return this.createDocEnvironment();
         }
 
         let firstNonPreambleMacro=this.content.findIndex(node=>{
@@ -48,7 +48,7 @@ export class EnvironmentWrap{
             }
             return true;
         });
-        const index = preambleEndIndex === -1 ? 0 : preambleEndIndex;
+        const index = preambleEndIndex === -1 ? this.content.length : preambleEndIndex;
         const preamble = this.ast.content.slice(0, index);
         const envContent = this.ast.content.slice(index);
         const sortedEnvs = this.getEnvironmentStructure().filter(env => !env.inAst);
