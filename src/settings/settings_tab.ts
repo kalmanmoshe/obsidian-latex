@@ -4,7 +4,6 @@ import { App,Notice, PluginSettingTab, Setting,  setIcon, ToggleComponent, debou
 import MosheMathPlugin from "../main";
 import { CompilerType, DEFAULT_SETTINGS } from "./settings";
 import { addDropdownSetting, addToggleSetting, setPluginInstance,FileSuggest, addTextSetting, createSetting, addButtonSetting } from "obsidian-dev-utils";
-import { any } from "async";
 
 
 interface Appearance{
@@ -43,7 +42,6 @@ export class MosheMathSettingTab extends PluginSettingTab {
 		containerEl.empty();
 		this.displayGraphSettings();
 		this.displayPreambleSettings();
-		this.displayMathBlockSettings();
 	}
 	
 	private displayGraphSettings(){
@@ -263,27 +261,6 @@ export class MosheMathSettingTab extends PluginSettingTab {
 			}
 		)
 
-	}
-
-	private displayMathBlockSettings(){
-		const containerEl = this.containerEl;
-		this.addHeading(containerEl, "Math blocks", "math");
-		addDropdownSetting(
-			containerEl,
-			(value: string) => {
-				const number=parseInt(value);
-				this.plugin.settings.numberFormatting=number;
-			},
-			{
-				name: "Math block language",
-				description: "The language to use for rendering math blocks.",
-				dropDownOptions: {
-					'1000': "formatted .000",
-					"10000": "formatted .0000",
-					'100000': "formatted .00000",
-				}
-			}
-		)
 	}
 }
 
