@@ -16,7 +16,6 @@ interface MosheMathBasicSettings {
 	
 
     invertColorsInDarkMode: boolean;
-    numberFormatting: number;
 	
 	package_url: string,
 	cache: Array<[string, Set<string>]>;
@@ -42,19 +41,8 @@ interface MosheMathBasicSettings {
 	compiler: CompilerType
 }
 
-/**
- * Settings that require further processing (e.g. conversion to an array) before being used.
- */
-
-interface MosheMathRawSettings {
-}
-
-
-interface MosheMathParsedSettings {
-}
-
-export type MosheMathPluginSettings = MosheMathBasicSettings & MosheMathRawSettings;
-export type MosheMathettings = MosheMathBasicSettings & MosheMathParsedSettings;
+export type MosheMathPluginSettings = MosheMathBasicSettings;
+export type MosheMathettings = MosheMathBasicSettings;
 
 export const DEFAULT_SETTINGS: MosheMathPluginSettings = {
 	mathjaxPreamblePreambleEnabled: false,
@@ -65,7 +53,6 @@ export const DEFAULT_SETTINGS: MosheMathPluginSettings = {
 	virtualFilesFileLocation: "",
     // stile settings
     invertColorsInDarkMode: true,
-    numberFormatting: 3000,
 
 	package_url: `https://texlive2.swiftlatex.com/`,
 	cache: [],

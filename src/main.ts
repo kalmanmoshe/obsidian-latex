@@ -15,7 +15,6 @@ import { MosheMathSettingTab } from "./settings/settings_tab";
 
 import { getEditorCommands } from "./obsidian/editor_commands";
 import { SwiftlatexRender, waitFor } from "./latexRender/main";
-import { processMathBlock } from "./mathParser/iNeedToFindABetorPlace";
 import { readAndParseSVG } from "./latexRender/svg2latex/temp";
 import { MathJaxAbstractSyntaxTree } from "./latexRender/parse/mathJaxAbstractSyntaxTree";
 import { getFileSets, getPreambleFromFiles, onFileChange, onFileCreate, onFileDelete } from "./obsidian/file_watch";
@@ -88,7 +87,6 @@ export default class Moshe extends Plugin {
   }
 
   private setCodeblocks(){
-    this.registerMarkdownCodeBlockProcessor("math", processMathBlock.bind(this));
     this.registerMarkdownCodeBlockProcessor("tikz", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
 		this.registerMarkdownCodeBlockProcessor("latex", this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender));
   }
