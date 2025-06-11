@@ -178,7 +178,7 @@ export default class Moshe extends Plugin {
     let data = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
     await this.saveData(this.settings);
-    this.swiftlatexRender.virtualFileSystem.setEnabled(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled);
+    this.swiftlatexRender.vfs.setEnabled(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled);
     if (this.settings.pdfTexEnginevirtualFileSystemFilesEnabled) {
       this.app.workspace.onLayoutReady(async () => {
           await this.processLatexPreambles();
@@ -190,7 +190,7 @@ export default class Moshe extends Plugin {
   async saveSettings(didFileLocationChange = false) {
 		await this.saveData(this.settings);
     if(didFileLocationChange){
-      await this.swiftlatexRender.virtualFileSystem.setEnabled(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled);
+      await this.swiftlatexRender.vfs.setEnabled(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled);
       if(this.settings.pdfTexEnginevirtualFileSystemFilesEnabled){
         await this.processLatexPreambles(didFileLocationChange);
         this.updateCoorVirtualFiles();
@@ -199,13 +199,13 @@ export default class Moshe extends Plugin {
 	}
   async processLatexPreambles(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
     const preambles = await this.getlatexPreambleFiles(becauseFileLocationUpdated, becauseFileUpdated)
-    this.swiftlatexRender.virtualFileSystem.setVirtualFileSystemFiles(preambles.latexVirtualFiles);
+    this.swiftlatexRender.vfs.setVirtualFileSystemFiles(preambles.latexVirtualFiles);
     this.updateCoorVirtualFiles();
   }
   updateCoorVirtualFiles(){
     const coorFileSet=new Set<string>
     this.settings.autoloadedVirtualFileSystemFiles.forEach(file => coorFileSet.add(file));
-    this.swiftlatexRender.virtualFileSystem.setCoorVirtualFiles(coorFileSet);
+    this.swiftlatexRender.vfs.setCoorVirtualFiles(coorFileSet);
   }
   
   async getlatexPreambleFiles(becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean){

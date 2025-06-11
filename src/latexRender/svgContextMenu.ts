@@ -103,7 +103,7 @@ export class SvgContextMenu extends Menu {
 	private async showLogs() {
 		const hash = this.getHash();
 		this.assignLatexSource();
-		let log = this.plugin.swiftlatexRender.getLog(hash);
+		let log = this.plugin.swiftlatexRender.cache.getLog(hash);
 		if (!log) {
 			let cause = "This may be because ";
 			if (!this.plugin.settings.saveLogs) {
@@ -188,7 +188,7 @@ export class SvgContextMenu extends Menu {
 	private async removeAndReRender(){
 		let hash=this.getHash()
 		if(!this.isError&&hash){
-			await this.plugin.swiftlatexRender.cache.removePDFFromCache(hash);
+			await this.plugin.swiftlatexRender.cache.removeFile(hash);
 		}
 
 		const parentEl=this.triggeringElement.parentNode;

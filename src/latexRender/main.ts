@@ -12,7 +12,6 @@ import parseLatexLog, {createErrorDisplay, errorDiv} from './logs/HumanReadableL
 import { VirtualFileSystem } from './VirtualFileSystem';
 import { getFileSections,} from './cache/sectionCache';
 import { SvgContextMenu } from './svgContextMenu';
-import { cacheFileFormat, SvgCache } from './cache/svgCache';
 import { createTransactionLogger } from './cache/transactionLogger';
 import { StateEffect } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -23,6 +22,7 @@ import { svgDisplayModule } from './utils/svgDisplayModule';
 import { LatexTask } from './utils/latexTask';
 import { PdfXeTeXCompiler } from './compiler/swiftlatexxetex/pdfXeTeXCompiler';
 import LatexCompiler from './compiler/base/compilerBase/compiler';
+import CompilerCache from './cache/compilerCache';
 
 export const waitFor = async (condFunc: () => boolean) => {
 	return new Promise<void>((resolve) => {
@@ -60,19 +60,7 @@ type QueueObject<T> = async.QueueObject<T> &{
 		remove: (testFn: (node: InternalTask<T>) => boolean) => void;
 	};
 }
-export function clearFolder(folderPath: string){
-	if (fs.existsSync(folderPath)) {
-		const packageFiles = fs.readdirSync(folderPath);
-		for (const file of packageFiles) {
-			const fullPath = path.join(folderPath, file);
-			try {
-				fs.rmSync(fullPath, { recursive: true, force: true });
-			} catch (err) {
-				console.error(`Failed to remove file ${fullPath}:`, err);
-			}
-		}
-	}
-}
+
 
 /**
  * add option for Persistent preamble.so it won't get deleted.after use Instead, saved until overwritten
@@ -80,25 +68,22 @@ export function clearFolder(folderPath: string){
 
 export class SwiftlatexRender {
 	plugin: Moshe;
-	cacheFolderPath: string;
-	packageCacheFolderPath: string;
-	virtualFileSystem: VirtualFileSystem=new VirtualFileSystem();
+	vfs: VirtualFileSystem=new VirtualFileSystem();
 	pdfTexCompiler: PdfTeXCompiler;
 	pdfXetexCompiler: PdfXeTeXCompiler;
 	compiler: LatexCompiler;
-	cache: SvgCache;
-	private logCache: Map<string, ProcessedLog>|undefined;
+	cache: CompilerCache;
 	queue: QueueObject<Task>;
 	logger = createTransactionLogger();
 	async onload(plugin: Moshe) {
 		this.plugin = plugin;
 		this.bindTransactionLogger();
-		this.validateCatchDirectory();
-		this.loadCache();
+		this.cache = new CompilerCache(this.plugin);
 		await this.loadCompiler();
 		this.configQueue();
+		
 		this.plugin.addRibbonIcon("dice", "Moshe Math", () => {
-			new svgDisplayModule(this.plugin.app, this.cacheFolderPath,this.cache.getCache()).open();
+			new svgDisplayModule(this.plugin.app, this.cache.getCacheFolderPath(),this.cache.getCachedSvgs()).open();
 		})
 		console.log("SwiftlatexRender loaded");
 	}
@@ -130,26 +115,12 @@ export class SwiftlatexRender {
 			this.compiler = this.pdfXetexCompiler = new PdfXeTeXCompiler();
 		}
 		//console.log("Loading compiler:", this.compiler.constructor.name);
-		this.virtualFileSystem.setPdfCompiler(this.compiler);
+		this.vfs.setPdfCompiler(this.compiler);
 		await this.compiler.loadEngine();
-		await this.loadPackageCache();
+		await this.cache.loadPackageCache();
 		await this.compiler.setTexliveEndpoint(this.plugin.settings.package_url);
-		//console.log("compiler loaded:", this.compiler.constructor.name);
 	}
-	/**
-	 * Restores the cached HTML content for a given hash and sets it as the innerHTML of the provided element.
-	 *
-	 * @param el - The HTML element to restore the cached content into.
-	 * @param hash - The unique hash identifying the cached content file.
-	 * @returns `true` if the cache was successfully restored and applied to the element, `false` otherwise.
-	 */
-	private restoreFromCache(el: HTMLElement,hash: string){
-		const dataPath = path.join(this.cacheFolderPath, `${hash}.${cacheFileFormat}`);
-		if(!this.cache.hasFile(hash,dataPath))return false;
-		const data = fs.readFileSync(dataPath, 'utf8');
-		el.innerHTML = data
-		return true;
-	}
+	
 	universalCodeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
 		const isLangTikz = el.classList.contains("block-language-tikz");
 		el.classList.remove("block-language-tikz");
@@ -161,13 +132,13 @@ export class SwiftlatexRender {
 		
 		// PDF file has already been cached
 		// Could have a case where pdfCache has the key but the cached file has been deleted
-		if (!this.restoreFromCache(el,md5Hash)) {
+		if (!this.cache.restoreFromCache(el,md5Hash)) {
 			//Reliable enough for repeated entries
 			this.ensureContextSectionInfo(source, el, ctx).then((sectionInfo) => {
 				source = sectionInfo.source || source;
 
 				const finalHash = hashLatexSource(source);
-				if (md5Hash !== finalHash && this.restoreFromCache(el, finalHash)) return;
+				if (md5Hash !== finalHash && this.cache.restoreFromCache(el, finalHash)) return;
 
 				const blockId = getBlockId(ctx.sourcePath,sectionInfo.lineStart)
 				this.queue.remove(node => node.data.blockId === blockId);
@@ -216,7 +187,7 @@ export class SwiftlatexRender {
 			let cooldown = true;
 			try {
 				let abort = false;
-				if (this.restoreFromCache(task.el, task.md5Hash)) {cooldown=false;console.log("fund in catch for",task.blockId);return done()};
+				if (this.cache.restoreFromCache(task.el, task.md5Hash)) {cooldown=false;console.log("fund in catch for",task.blockId);return done()};
 				if (task.process) abort = (await LatexTask.processTask(this.plugin,task)).abort;
 				if(abort) {cooldown=false;return done()};
 			 	await this.renderLatexToElement(task.source, task.el, task.md5Hash, task.sourcePath);
@@ -242,7 +213,7 @@ export class SwiftlatexRender {
 
 		while (taskNode) {
 			const task = taskNode.data;
-			if (this.restoreFromCache(task.el, task.md5Hash)) {
+			if (this.cache.restoreFromCache(task.el, task.md5Hash)) {
 				blockIdsToRemove.add(task.blockId);
 			}
 			taskNode = taskNode.next;
@@ -253,74 +224,19 @@ export class SwiftlatexRender {
 		console.log("Queue after removal:", this.queue._tasks.length);
 	}
 	
-	private validateCatchDirectory(){
-		const cacheFolderParentPath = path.join(this.plugin.getVaultPath(), this.plugin.app.vault.configDir, "swiftlatex-render-cache");
-		this.packageCacheFolderPath = path.join(cacheFolderParentPath, "package-cache");
-		this.cacheFolderPath = path.join(cacheFolderParentPath, "pdf-cache");
-		for (const path of [cacheFolderParentPath,this.cacheFolderPath, this.packageCacheFolderPath]) {
-			if (!fs.existsSync(path)) {
-				fs.mkdirSync(path, { recursive: true });
-			}
-		}
-	}
+	
 
-	private loadCache() {
-		const cache = new Map(this.plugin.settings.cache);
-		// For some reason `this.cache` at this point is actually `Map<string, Array<string>>`
-		for (const [k, v] of cache) {
-			cache.set(k, new Set(v))
-		}
-		this.cache = new SvgCache(this.plugin,cache,this.cacheFolderPath);
-	}
-
-	private async loadPackageCache() {
-		// add files in the package cache folder to the cache list
-		const packageFiles = fs.readdirSync(this.packageCacheFolderPath);
-		for (const file of packageFiles) {
-			const filename = path.basename(file);
-			const value = "/tex/"+filename;
-			const packageValues = Object.values(this.plugin.settings.packageCache[1]);
-			if (!packageValues.includes(value)) {
-				const key = "26/" + filename
-				this.plugin.settings.packageCache[1][key] = value;
-			}
-		}
-		// move packages to the VFS
-		for (const [key, val] of Object.entries(this.plugin.settings.packageCache[1] as Record<string,string>)) {
-			const filename = path.basename(val);
-			//const read_success = false;
-			try {
-				const srccode = fs.readFileSync(path.join(this.packageCacheFolderPath, filename));
-				await this.compiler.writeTexFSFile(filename, srccode);
-			} catch (e) {
-				// when unable to read file, remove this from the cache
-				//nsole.warn(`Unable to read file ${filename} from package cache`,e)
-				delete this.plugin.settings.packageCache[1][key];
-			}
-		}
-		await this.plugin.saveSettings()
-
-		// write cache data to the VFS, except don't write the texlive404_cache because this will cause problems when switching between texlive sources
-		await this.compiler.writeCacheData(
-			{},
-			this.plugin.settings.packageCache[1],
-			this.plugin.settings.packageCache[2],
-			this.plugin.settings.packageCache[3]
-		)
-	}
+	
 	async onunload() {
 		this.compiler.closeWorker();
 	}
-	private async unloadCache() {
-		await this.compiler.flushCache();
-		fs.rmdirSync(this.cacheFolderPath, { recursive: true });
-	}
+	
 
 	handleError(el: HTMLElement, err: string,options: {parseErr?:boolean,hash?:string,throw?: boolean}={}): void {
 		el.innerHTML = "";
 		let child: HTMLElement;
 		if(options.parseErr){
-			const processedError:ProcessedLog = (options.hash&&this.getLog(options.hash))||parseLatexLog(err);
+			const processedError:ProcessedLog = (options.hash&&this.cache.getLog(options.hash))||parseLatexLog(err);
 			child = createErrorDisplay(processedError);
 		} else child = errorDiv({title: err});
 		if(options.hash) child.id = options.hash;
@@ -329,12 +245,10 @@ export class SwiftlatexRender {
 	}
 	private async renderLatexToElement(source: string, el: HTMLElement,md5Hash: string, sourcePath: string): Promise<void> {
 		try {
-			const dataPath = path.join(this.cacheFolderPath, `${md5Hash}.${cacheFileFormat}`);
 			const result = await this.renderLatexToPDF(source,md5Hash);
 			el.innerHTML = "";
 			await this.translatePDF(result.pdf, el,md5Hash);
-			await fs.promises.writeFile(dataPath, el.innerHTML, "utf8");
-			this.cache.addFile(md5Hash, sourcePath);
+			this.cache.addFile(el.innerHTML,md5Hash, sourcePath);
 		} catch (err) {
 			this.handleError(el, err as string,{parseErr: true,hash: md5Hash});
 		} finally {
@@ -366,74 +280,28 @@ export class SwiftlatexRender {
 					return;
 				}
 				if (err) reject(err);
-				await this.virtualFileSystem.loadVirtualFileSystemFiles();
+				await this.vfs.loadVirtualFileSystemFiles();
 				await this.compiler.writeMemFSFile("main.tex", source);
 				await this.compiler.setEngineMainFile("main.tex");
 				await this.compiler.compileLaTeX().then(async (result: CompileResult) => {
-					this.virtualFileSystem.removeVirtualFileSystemFiles();
-					this.addLog(result.log,md5Hash);
+					this.vfs.removeVirtualFileSystemFiles();
+					this.cache.addLog(result.log,md5Hash);
 					if (result.status != 0) {
 						// manage latex errors
 						reject(result.log);
 					}
 					// update the list of package files in the cache
-					await this.fetchPackageCacheData()
+					await this.cache.fetchPackageCacheData()
 					resolve(result);
 				});
 			})
 		});
 	}
-	/**
-	 * There are four catches:
-	 * 1. texlive404_cache - Not found files
-	 * 2. texlive200_cache
-	 * 3. pk404_cache - Not found files
-	 * 4. pk200_cache
-	 * currently only dealing with texlive200_cache
-	 */
-	async fetchPackageCacheData(): Promise<void> {
-		try {
-			const cacheData: StringMap[] = await this.compiler.fetchCacheData();
-			console.log("Cache data fetched:", cacheData);
-			
-			const newFileNames = getNewPackageFileNames(
-				this.plugin.settings.packageCache[1] as Record<string,string>,
-				cacheData[1] as Record<string,string>
-			);
-			await this.compiler.fetchTexFiles(newFileNames, this.packageCacheFolderPath);
-			this.plugin.settings.packageCache = cacheData;
-			await this.plugin.saveSettings();
-	
-		} catch (err) {
-			console.error("Error fetching package cache data:", err);
-		}
-	}
 	
 	
-	/**
-	 * Remove all cached package files from the file system and update the settings.
-	 */
-	public removeAllCachedPackages(): void {
-		clearFolder(this.packageCacheFolderPath);
-		this.plugin.settings.packageCache=[{}, {}, {}, {}];
-		this.plugin.saveSettings().then(() => {
-			console.log("Package cache settings updated.");
-		});
-	}
-	addLog(log: ProcessedLog|string,hash: string): void {
-		if (!this.plugin.settings.saveLogs) return this.logCache=undefined;
-		if (!this.logCache) this.logCache = new Map();
-		if (typeof log === "string") log = parseLatexLog(log);
-		this.logCache.set(hash, log);
-	}
-	getLog(hash: string): ProcessedLog | undefined {
-		if (!this.plugin.settings.saveLogs||!this.logCache) return undefined;
-		return this.logCache.get(hash);
-	}
-	removeLog(log: ProcessedLog,hash: string): void {
-		if (!this.plugin.settings.saveLogs||!this.logCache) return this.logCache=undefined;
-		this.logCache.delete(hash);
-	}
+	
+	
+	
 }
 
 
@@ -461,15 +329,6 @@ export function getBlockId(path: string,lineStart: number): string {
 	
 
 
-
-function getNewPackageFileNames(oldCacheData: Record<string,string>, newCacheData: Record<string,string>): string[] 
-{
-	// based on the old and new package files in package cache data,
-	// return the new package files
-	let newKeys = Object.keys(newCacheData).filter(key => !(key in oldCacheData));
-	let newPackageFiles = newKeys.map(key => path.basename(newCacheData[key]));		
-	return newPackageFiles;
-}
 
 
 

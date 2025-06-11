@@ -1,20 +1,88 @@
 import Moshe from "src/main";
 import * as fs from 'fs';
-import { TFile } from "obsidian";
+import { Notice, TFile } from "obsidian";
 import { getLatexHashesFromFile } from "./latexSourceFromFile";
 import * as path from 'path';
-import { clearFolder } from "../main";
+import { clearFolder } from "./compilerCache";
 export const cacheFileFormat="svg"
-export class SvgCache {
+export class FileCache {
     private plugin: Moshe;
-    private cacheFolderPath: string;
+    cacheFolderPath: string;
     private cache: Map<string, Set<string>>;
-    constructor(plugin: Moshe,cache: Map<string, Set<string>>,folderPath: string) {
+    constructor(plugin: Moshe) {
         this.plugin = plugin;
-        this.cache = cache;
+        this.validateDir();
+        this.loadCache();
+    }
+    validateDir(){
+        if (!this.plugin.settings.physicalCache) return;
+        this.cacheFolderPath = this.getCacheFolderPath();
+        if (!fs.existsSync(this.cacheFolderPath)) {
+            fs.mkdirSync(this.cacheFolderPath, { recursive: true });
+        }
+        
+    }
+    changeCacheDirectory(){
+        if (!this.plugin.settings.physicalCache) {
+            new Notice("Physical cache is not enabled, cannot change cache directory.");
+            return;
+        }
+
+        const oldCacheFiles = fs.readdirSync(this.cacheFolderPath);
+        for (const file of oldCacheFiles) {
+            if (!file.endsWith("."+cacheFileFormat)) {
+                new Notice(`File ${file} in cache directory is not a valid cache file.`);
+                return;
+            }
+        }
+
+        const oldCacheFolderPath = this.cacheFolderPath;
+        this.setCacheFolderPath();
+        const newCacheFolderPath = this.getCacheFolderPath();
+        
+        if (newCacheFolderPath === oldCacheFolderPath) {
+            new Notice("Cache directory is already set to the specified location.");
+            return;
+        }
+        if (!fs.existsSync(newCacheFolderPath)) {
+            fs.mkdirSync(newCacheFolderPath, { recursive: true });
+        }
+        for (const file of oldCacheFiles) {
+            const oldPath = path.join(oldCacheFolderPath, file);
+            const newPath = path.join(newCacheFolderPath, file);
+            try {
+                fs.renameSync(oldPath, newPath);
+            } catch (err) {
+                console.error(`Failed to move file ${file}:`, err);
+            }
+        }
+        fs.rmdirSync(oldCacheFolderPath, { recursive: true });
+    }
+    getCacheFolderPath(){
+        if (!this.cacheFolderPath)
+            this.setCacheFolderPath();
+        return this.cacheFolderPath;
+    }
+    private setCacheFolderPath() {
+        let folderPath = "";
+        const cacheDir = this.plugin.settings.physicalCacheLocation;
+        const basePath = this.plugin.getVaultPath();
+        if(cacheDir) 
+            folderPath = path.join(basePath, cacheDir==="/"?"":cacheDir);
+        else 
+            folderPath = path.join(basePath,this.plugin.app.vault.configDir, "swiftlatex-render-cache");
+
+        folderPath = path.join(folderPath, "pdf-cache");
         this.cacheFolderPath = folderPath;
     }
-
+    private loadCache() {
+        const cache = new Map(this.plugin.settings.cache);
+        // For some reason `this.cache` at this point is actually `Map<string, Array<string>>`
+        for (const [k, v] of cache) {
+            cache.set(k, new Set(v))
+        }
+        this.cache = cache;
+    }
     private async saveCache() {
         let temp = new Map();
         for (const [k, v] of this.cache) {
@@ -23,8 +91,10 @@ export class SvgCache {
         this.plugin.settings.cache = [...temp];
         await this.plugin.saveSettings();
     }
-    
-    addFile(hash: string, file_path: string) {
+
+    async addFile(content: string,hash: string, file_path: string) {
+        const dataPath = path.join(this.cacheFolderPath, `${hash}.${cacheFileFormat}`);
+        await fs.promises.writeFile(dataPath, content, "utf8");
         if (!this.cache.has(hash)) {
             this.cache.set(hash, new Set());
         }
@@ -145,7 +215,7 @@ export class SvgCache {
     /**
      * Remove all cached SVG files from the file system and update the settings.
      */
-    public removeAllCachedSvgs(): void {
+    public removeAllCached(): void {
         clearFolder(this.cacheFolderPath);
         for (const [hash, fileSet] of this.cache.entries()) {
             if(this.cache.delete(hash))

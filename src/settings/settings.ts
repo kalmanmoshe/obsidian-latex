@@ -18,6 +18,8 @@ interface MosheMathBasicSettings {
     invertColorsInDarkMode: boolean;
 	
 	package_url: string,
+	physicalCache: boolean;
+	physicalCacheLocation: string;
 	cache: Array<[string, Set<string>]>;
 	/**
 	 * There are four catches:
@@ -38,7 +40,7 @@ interface MosheMathBasicSettings {
 	 * "hidden" - do nothing, content will overflow.
 	 */
 	overflowStrategy: "downscale" | "scroll" | "hidden";
-	compiler: CompilerType
+	compiler: CompilerType;
 }
 
 export type MosheMathPluginSettings = MosheMathBasicSettings;
@@ -55,6 +57,8 @@ export const DEFAULT_SETTINGS: MosheMathPluginSettings = {
     invertColorsInDarkMode: true,
 
 	package_url: `https://texlive2.swiftlatex.com/`,
+	physicalCache: true,
+	physicalCacheLocation: "",
 	cache: [],
 	packageCache: [{},{},{},{}],
 	pdfEngineCooldown: 1000,
