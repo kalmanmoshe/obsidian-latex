@@ -27,7 +27,7 @@ export class LatexTask {
 		const latexTask = new LatexTask();
 		latexTask.task = task;
 		latexTask.plugin = plugin;
-		latexTask.vfs = plugin.swiftlatexRender.virtualFileSystem;
+		latexTask.vfs = plugin.swiftlatexRender.vfs;
 		return latexTask;
 	}
 	async getFileContent(file: TFile,remainingPath?: string): Promise<string> {

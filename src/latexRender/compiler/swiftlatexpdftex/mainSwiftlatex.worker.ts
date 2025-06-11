@@ -270,7 +270,6 @@ export function removeFileRoutine(filename:string) {
 export function writeTexFileRoutine(filename: string, content: string) {
   try {
     FS.writeFile(self.constants.TEXCACHEROOT + "/" + filename, content);
-    console.log("Wrote mem tex file " + filename);
     self.postMessage({ result: "ok", cmd: "writetexfile" });
   } catch (err) {
     console.error("Unable to write mem tex file " + filename);

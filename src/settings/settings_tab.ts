@@ -3,7 +3,7 @@ import { EditorView, ViewUpdate } from "@codemirror/view";
 import { App,Notice, PluginSettingTab, Setting,  setIcon, ToggleComponent, debounce} from "obsidian";
 import MosheMathPlugin from "../main";
 import { CompilerType, DEFAULT_SETTINGS } from "./settings";
-import { addDropdownSetting, addToggleSetting, setPluginInstance,FileSuggest, addTextSetting, createSetting, addButtonSetting } from "obsidian-dev-utils";
+import { addDropdownSetting, addToggleSetting, setPluginInstance,FileSuggest,FolderSuggest, addTextSetting, createSetting, addButtonSetting } from "obsidian-dev-utils";
 
 
 interface Appearance{
@@ -41,6 +41,7 @@ export class MosheMathSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 		this.displayGraphSettings();
+		this.displayCachedSettings();
 		this.displayPreambleSettings();
 	}
 	
@@ -116,22 +117,76 @@ export class MosheMathSettingTab extends PluginSettingTab {
 				defValue: this.plugin.settings.saveLogs
 			}
 		)
+
+
+	}
+	private displayCachedSettings() {
+		const containerEl = this.containerEl;
+		this.addHeading(containerEl, "cache", "database");
+
+		// 1️⃣ Physical cache toggle (should be first)
+		addToggleSetting(
+			containerEl,
+			(value: boolean) => {
+				this.plugin.settings.physicalCache = value;
+				this.plugin.saveSettings();
+				physicalCacheLocationSetting.settingEl.toggleClass("hidden", !value);
+			},
+			{
+				name: "Physical cache enabled",
+				description:
+					"Whether to use a physical cache for rendered diagrams. If enabled, rendered diagrams are stored on disk, improving performance for subsequent loads. When disabled, diagrams are cached in memory only, which may lead to slower performance on startup but reduces disk usage.",
+				defValue: this.plugin.settings.physicalCache,
+			}
+		);
+
+		const physicalCacheLocationSetting = createSetting(containerEl, {
+			name: "Physical cache location",
+			description: "The directory where rendered diagrams are stored. Empty for default, \"/\" for the vault root, or a specific path.",
+		});
+
+		let inputEl: HTMLInputElement | undefined;
+		physicalCacheLocationSetting.addSearch((component) => {
+			component
+				.setPlaceholder(DEFAULT_SETTINGS.physicalCacheLocation)
+				.setValue(this.plugin.settings.physicalCacheLocation)
+				.onChange(
+					debounce(async (value) => {
+						this.plugin.settings.physicalCacheLocation = value;
+						await this.plugin.saveSettings();
+						this.plugin.swiftlatexRender.cache.changeCacheDirectory();
+					}, 500, true)
+				);
+			inputEl = component.inputEl as HTMLInputElement;
+			inputEl.addClass("moshe-typing-location-input-el");
+		});
+		if (inputEl) {
+			this.snippetsFileLocEl = physicalCacheLocationSetting.settingEl;
+			new FolderSuggest(this.app, inputEl);
+		} else {
+			console.error("Input element is undefined.");
+		}
+
+		physicalCacheLocationSetting.settingEl.toggleClass("hidden", !this.plugin.settings.physicalCache);
+
 		addButtonSetting(
 			containerEl,
-			() =>{
-				this.plugin.swiftlatexRender.cache.removeAllCachedSvgs();
+			() => {
+				this.plugin.swiftlatexRender.cache.removeAllCachedFiles();
 				throw new Notice("Cleared cached SVGs");
 			},
 			{
 				name: "Clear cached SVGs",
-				description: "SVGs rendered with SwiftLatex are stored in a database, so diagrams don't have to be re-rendered from scratch every time you open a page. Use this to clear the cache and force all diagrams to be re-rendered.",
+				description:
+					"SVGs rendered with SwiftLatex are stored in a database, so diagrams don't have to be re-rendered from scratch every time you open a page. Use this to clear the cache and force all diagrams to be re-rendered.",
 				elText: "Clear cached SVGs",
 				icon: "trash",
 				tooltip: "Clear cached SVGs",
 			}
-		)
-
+		);
 	}
+
+
 	private displayPreambleSettings(){
 		const containerEl = this.containerEl;
 		this.addHeading(containerEl, "Preamble", "pencil");
