@@ -124,12 +124,12 @@ export class MosheMathSettingTab extends PluginSettingTab {
 		const containerEl = this.containerEl;
 		this.addHeading(containerEl, "cache", "database");
 
-		// 1️⃣ Physical cache toggle (should be first)
 		addToggleSetting(
 			containerEl,
 			(value: boolean) => {
 				this.plugin.settings.physicalCache = value;
 				this.plugin.saveSettings();
+				this.plugin.swiftlatexRender.cache.togglePhysicalCache();
 				physicalCacheLocationSetting.settingEl.toggleClass("hidden", !value);
 			},
 			{
