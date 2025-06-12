@@ -66,7 +66,7 @@ export class Communicator{
         self.close();
         break;
       case "fetchfile":
-        this.handlers.transferTexFileToHost(data["filename"]);
+        this.handlers.transferTexFileToHost(data["fileName"]);
         break;
       case "flushCache":
         this.handlers.cleanDir(self.constants.TEXCACHEROOT);

@@ -1,6 +1,3 @@
-import * as fs from "fs";
-import * as path from "path";
-import { StringMap } from "src/settings/settings";
 
 export enum EngineStatus {
     Init,
@@ -125,17 +122,18 @@ export default abstract class LatexEngine {
     }
     
     /**
-     * Fetches a list of TeX files from a virtual file system and writes them to the specified host directory.
+     * Fetches a list of TeX files from a virtual file system and returns them contents.
      *
      * @param filenames - An array of filenames to fetch from the virtual file system.
-     * @param hostDir - The directory on the host system where the fetched files will be saved.
      */
-    async fetchTexFiles(filenames: string[], hostDir: string): Promise<void> {
-        for (const filename of filenames) {
-            const data = await this.task<{ content: Uint8Array<any> }>({ cmd: EngineCommands.Fetchfile, filename });
+    async fetchTexFiles(fileNames: string[]) {
+        const files = []
+        for (const fileName of fileNames) {
+            const data = await this.task<{ content: Uint8Array<any> }>({ cmd: EngineCommands.Fetchfile, fileName });
             const fileContent = new Uint8Array(data.content);
-            await fs.promises.writeFile(path.join(hostDir, filename), fileContent);
+            files.push({ name: fileName, content: fileContent });
         }
+        return files;
     }
     
     

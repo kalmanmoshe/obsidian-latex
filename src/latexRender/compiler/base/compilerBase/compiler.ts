@@ -22,8 +22,12 @@ export default abstract class LatexCompiler {
     async writeTexFSFile(filename: string, srccode: any): Promise<void> {
         return Promise.all(this.engines.map(engine => engine.writeTexFSFile(filename, srccode))).then(() => {});
 	}
-    async fetchTexFiles(newFileNames:any, cachepath: string) {
-        return Promise.all(this.engines.map(engine => engine.fetchTexFiles(newFileNames, cachepath))).then(() => {});
+    async fetchTexFiles(newFileNames: string[]) {
+        const results = await Promise.all(this.engines.map(engine => engine.fetchTexFiles(newFileNames)));
+        return results.flat().map(file => ({
+            name: file.name,
+            content: file.content
+        }));
     }
     async flushWorkCache() {
         return Promise.all(this.engines.map(engine => engine.flushWorkCache())).then(() => {});

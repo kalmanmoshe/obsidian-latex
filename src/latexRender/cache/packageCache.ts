@@ -3,23 +3,21 @@ import Moshe from "src/main";
 import { StringMap } from "src/settings/settings";
 import { clearFolder } from "./compilerCache";
 import * as fs from 'fs';
-
-export default class PackageCache {
-    private plugin: Moshe;
-    cacheFolderPath: string;
-    constructor(plugin: Moshe) {
-        this.plugin = plugin;
-        this.validateDir();
+import { PhysicalCacheBase } from "./cacheBase";
+export default class PackageCache extends PhysicalCacheBase {
+    setCacheFolderPath(): void {
+        const basePath = this.plugin.getVaultPath();
+        this.cacheFolderPath = path.join(basePath,"swiftlatex-render-cache", "package-cache");
     }
-    private validateDir(){
-        this.cacheFolderPath = path.join(this.getCacheFolderParentPath(),"package-cache");
-        if (!fs.existsSync(this.cacheFolderPath)) {
-            fs.mkdirSync(this.cacheFolderPath, { recursive: true });
-        }
-        
+    getCacheFilePath(fileName: string): string {
+        return path.join(this.getCacheFolderPath(), fileName);
     }
-    private getCacheFolderParentPath() {
-       return path.join(this.plugin.getVaultPath(), this.plugin.app.vault.configDir, "swiftlatex-render-cache");
+    extractFileName(filePath: string): string {
+        return path.basename(filePath);
+    }
+    isValidCacheFile(fileName: string): boolean {
+        const validExtensions = [".sty", ".cls", ".tex"];
+        return validExtensions.includes(path.extname(fileName).toLowerCase());
     }
     async loadPackageCache() {
         // add files in the package cache folder to the cache list
@@ -73,7 +71,10 @@ export default class PackageCache {
                 this.plugin.settings.packageCache[1] as Record<string,string>,
                 cacheData[1] as Record<string,string>
             );
-            await this.compiler().fetchTexFiles(newFileNames, this.cacheFolderPath);
+            const files = await this.compiler().fetchTexFiles(newFileNames);
+            for (const file of files) {
+                this.addFile(file.name, file.content);
+            }
             this.plugin.settings.packageCache = cacheData;
             await this.plugin.saveSettings();
     
