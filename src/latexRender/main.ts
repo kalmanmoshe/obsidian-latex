@@ -82,9 +82,6 @@ export class SwiftlatexRender {
 		await this.loadCompiler();
 		this.configQueue();
 		
-		this.plugin.addRibbonIcon("dice", "Moshe Math", () => {
-			new svgDisplayModule(this.plugin.app, this.cache.getCacheFolderPath(),this.cache.getCachedSvgs()).open();
-		})
 		console.log("SwiftlatexRender loaded");
 	}
 	private bindTransactionLogger() {
