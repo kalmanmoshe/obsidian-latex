@@ -1,8 +1,6 @@
 import { MarkdownPostProcessorContext, TFile, App, MarkdownSectionInformation, MarkdownView,} from 'obsidian';
 import { Md5 } from 'ts-md5';
-import * as fs from 'fs';
 import * as temp from 'temp';
-import * as path from 'path';
 import {CompileResult} from './compiler/base/compilerBase/engine';
 import Moshe from '../main';
 import { CompilerType, StringMap } from 'src/settings/settings.js';
@@ -68,9 +66,9 @@ type QueueObject<T> = async.QueueObject<T> &{
 
 export class SwiftlatexRender {
 	plugin: Moshe;
-	vfs: VirtualFileSystem=new VirtualFileSystem();
-	pdfTexCompiler: PdfTeXCompiler;
-	pdfXetexCompiler: PdfXeTeXCompiler;
+	vfs: VirtualFileSystem = new VirtualFileSystem();
+	pdfTexCompiler?: PdfTeXCompiler;
+	pdfXetexCompiler?: PdfXeTeXCompiler;
 	compiler: LatexCompiler;
 	cache: CompilerCache;
 	queue: QueueObject<Task>;
@@ -101,8 +99,8 @@ export class SwiftlatexRender {
 		if(isTex||isXeTeX) return Promise.resolve();
 		this.compiler.closeWorker();
 		this.compiler = (undefined as any);
-		this.pdfTexCompiler = (undefined as any);
-		this.pdfXetexCompiler = (undefined as any);
+		this.pdfTexCompiler = undefined ;
+		this.pdfXetexCompiler = undefined;
 		return this.loadCompiler()
 	}
 	async loadCompiler(){
@@ -220,9 +218,6 @@ export class SwiftlatexRender {
 		this.queue._tasks.remove(node => blockIdsToRemove.has(node.data.blockId));
 		console.log("Queue after removal:", this.queue._tasks.length);
 	}
-	
-	
-
 	
 	async onunload() {
 		this.compiler.closeWorker();

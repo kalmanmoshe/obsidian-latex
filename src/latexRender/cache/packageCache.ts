@@ -1,5 +1,4 @@
 import path from "path";
-import Moshe from "src/main";
 import { StringMap } from "src/settings/settings";
 import { clearFolder } from "./compilerCache";
 import * as fs from 'fs';
@@ -21,7 +20,7 @@ export default class PackageCache extends PhysicalCacheBase {
     }
     async loadPackageCache() {
         // add files in the package cache folder to the cache list
-        const packageFiles = fs.readdirSync(this.cacheFolderPath);
+        const packageFiles = fs.readdirSync(this.getCacheFolderPath());
         for (const file of packageFiles) {
             const filename = path.basename(file);
             const value = "/tex/"+filename;
@@ -36,7 +35,7 @@ export default class PackageCache extends PhysicalCacheBase {
             const filename = path.basename(val);
             //const read_success = false;
             try {
-                const srccode = fs.readFileSync(path.join(this.cacheFolderPath, filename));
+                const srccode = fs.readFileSync(path.join(this.getCacheFolderPath(), filename));
                 await this.compiler().writeTexFSFile(filename, srccode);
             } catch (e) {
                 // when unable to read file, remove this from the cache
@@ -86,7 +85,7 @@ export default class PackageCache extends PhysicalCacheBase {
      * Remove all cached package files from the file system and update the settings.
      */
     removeAllCachedPackages(): void {
-        clearFolder(this.cacheFolderPath);
+        clearFolder(this.getCacheFolderPath());
         this.plugin.settings.packageCache=[{}, {}, {}, {}];
         this.plugin.saveSettings().then(() => {
             console.log("Package cache settings updated.");

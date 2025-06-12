@@ -7,9 +7,8 @@ import { CacheBase, PhysicalCacheBase, VirtualCacheBase } from "./cacheBase";
 
 export const cacheFileFormat ="svg"
 
-export default class  CompiledFileCache {
+export default class CompiledFileCache {
     private plugin: Moshe;
-    private cacheFolderPath: string;
     private cacheMap: Map<string, Set<string>>;
     private virtualCache?: CompiledFileVirtualCache;
     private physicalCache?: CompiledFilePhysicalCache;
@@ -84,25 +83,6 @@ export default class  CompiledFileCache {
         }
     }
 
-    private cacheFilesValidation(files: string | string[]) {
-        if (typeof files === "string") {
-            files = [files];
-        }
-        const valid = [];
-        for (const file of files) {
-            if (!this.cache.fileExists(file)) {
-                new Notice(`File ${file} does not exist in the cache.`);
-                continue;
-            }
-            if (!file.endsWith(`.${cacheFileFormat}`)) {
-                new Notice(`File ${file} is not a valid cache file.`);
-                continue;
-            }
-            valid.push(file);
-        }
-        return valid;
-    }
-
     private loadCache() {
         const cache = new Map(this.plugin.settings.cache);
         for (const [k, v] of cache) {
@@ -128,7 +108,6 @@ export default class  CompiledFileCache {
         this.cacheMap.get(hash)!.add(file_path);
         this.saveCache();
     }
-
 
     restoreFromCache(el: HTMLElement, hash: string) {
         const data = this.cache.getFile(hash);
@@ -250,16 +229,6 @@ export default class  CompiledFileCache {
 
     getCache(): Map<string, Set<string>> { return this.cacheMap }
 
-}
-interface FileCache{
-    fileExists(name: string): boolean;
-    getFile(name: string): string | undefined;
-    deleteFile(name: string): Promise<void>| void;
-    addFile(name: string, content: string): Promise<void> | void;
-    /**
-     * Returns list of cached file names (hash + .extension).
-     */
-    listCacheFiles(): string[];
 }
 
 class CompiledFileVirtualCache extends VirtualCacheBase {

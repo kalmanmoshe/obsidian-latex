@@ -1,5 +1,5 @@
 import Moshe from "src/main";
-import CompiledFileCache , { cacheFileFormat } from "./fileCache";
+import CompiledFileCache , { cacheFileFormat } from "./compiledFileCache";
 import { ProcessedLog } from "../logs/latex-log-parser";
 import path from "path";
 import * as fs from 'fs';

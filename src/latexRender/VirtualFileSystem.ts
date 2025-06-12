@@ -22,7 +22,8 @@ async function nonBlockingWaitUntil(condition: () => boolean, timeoutMs = 10000,
         await new Promise(resolve => setTimeout(resolve, checkInterval));
     }
 }
-type VirtualFile={name: string,content: string,autoUse?: boolean};
+type VirtualFile = { name: string, content: string, autoUse?: boolean };
+
 export class VirtualFileSystem{
     private files: VirtualFile[]=[]
     private status: VirtualFileSystemFilesStatus=VirtualFileSystemFilesStatus.undefined;
