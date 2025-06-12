@@ -9,13 +9,12 @@
 import {Plugin,Notice, FileSystemAdapter, MarkdownView,} from "obsidian";
 
 
-import {MosheMathPluginSettings, DEFAULT_SETTINGS, processMosheMathSettings} from "./settings/settings";
+import {MosheMathPluginSettings, DEFAULT_SETTINGS} from "./settings/settings";
 import { MosheMathSettingTab } from "./settings/settings_tab";
 
 
 import { getEditorCommands } from "./obsidian/editor_commands";
-import { SwiftlatexRender, waitFor } from "./latexRender/main";
-import { readAndParseSVG } from "./latexRender/svg2latex/temp";
+import { SwiftlatexRender } from "./latexRender/main";
 import { MathJaxAbstractSyntaxTree } from "./latexRender/parse/mathJaxAbstractSyntaxTree";
 import { getFileSets, getPreambleFromFiles, onFileChange, onFileCreate, onFileDelete } from "./obsidian/file_watch";
 import { temp } from "./LaTeX_js/latex";
@@ -38,17 +37,6 @@ import { temp } from "./LaTeX_js/latex";
 /**
  * With Corprieambol whatever is loaded is loaded if explicit. I have to make sure that.only the files is specified are loaded To the engine.
  */
-interface MosheMathTypingApi {
-  context: any;
-  fileSuggest: any;
-  addToggleSetting: any;
-  onSettingChange: any;
-  addButtonSetting: any;
-  addDropdownSetting:any;
-  addTextSetting:any;
-}
-
-export let staticMoshe: null|Moshe= null;
 
 export default class Moshe extends Plugin {
   settings: MosheMathPluginSettings;

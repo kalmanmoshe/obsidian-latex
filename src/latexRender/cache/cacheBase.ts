@@ -8,13 +8,13 @@ export abstract class CacheBase {
     }
     /**
      * Generates the absolute file path in the cache directory for a given file name.
-     * Example: "someFile.pdf" -> "/home/user/.obsidian/plugins/moshe/latex-render-cache/someFile.pdf"
+     * Example: "someFile.pdf" -> "/home/user/.obsidian/latex-render-cache/someFile.pdf"
      * @param fileName The name of the cache file.
      */
     abstract getCacheFilePath(fileName: string): string;
     /**
      * Extracts the file name from a full cache file path.
-     * Example: "/home/user/.obsidian/plugins/moshe/latex-render-cache/someFile.pdf" -> "someFile.pdf"
+     * Example: "/home/user/.obsidian/latex-render-cache/someFile.pdf" -> "someFile.pdf"
      * @param filePath The full path to the cache file.
      */
     abstract extractFileName(filePath: string): string;
