@@ -1,6 +1,5 @@
-
 export var FS_modeStringToFlags = (str: string) => {
-  var flagModes: Record<string,number> = {
+  var flagModes: Record<string, number> = {
     r: 0,
     "r+": 2,
     w: 512 | 64 | 1,
@@ -15,7 +14,7 @@ export var FS_modeStringToFlags = (str: string) => {
   return flags;
 };
 
-export var FS_getMode = (canRead:boolean, canWrite:boolean) => {
+export var FS_getMode = (canRead: boolean, canWrite: boolean) => {
   var mode = 0;
   if (canRead) mode |= 292 | 73;
   if (canWrite) mode |= 146;

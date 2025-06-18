@@ -1,4 +1,3 @@
-
 /*
   latex render elements loder
 */
@@ -29,30 +28,13 @@
   z-index: 10;
 }
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /* Base (shared) styles */
 .block-language-latexsvg {
@@ -67,13 +49,12 @@
   align-items: center;
   width: 100%;
   overflow: hidden;
-
 }
 
 .block-language-latexsvg.overflow-downscale svg {
-  width: auto;              /* ✅ don’t force full width */
+  width: auto; /* ✅ don’t force full width */
   height: auto;
-  max-width: 100%;          /* ✅ only downscale */
+  max-width: 100%; /* ✅ only downscale */
   object-fit: contain;
   display: block;
 }
@@ -82,16 +63,16 @@
   width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  text-align: center;    
-  white-space: nowrap;    
+  text-align: center;
+  white-space: nowrap;
 }
 
 .block-language-latexsvg.overflow-scroll svg {
   display: inline-block;
   width: auto;
   height: auto;
-  max-width: none;        
-  vertical-align: middle;  
+  max-width: none;
+  vertical-align: middle;
 }
 
 /* HIDDEN: just let it overflow */
@@ -106,17 +87,6 @@
   display: block;
 }
 
-
-
-
-
-
-
-
-
-
-
-
 .block-latex-error {
   /* filter: invert(100%); */
   justify-content: center;
@@ -125,7 +95,6 @@
   background-color: white;
   color: black;
 }
-
 
 .moshe-swift-latex-error-container {
   background: #ffe6e6;
@@ -144,7 +113,6 @@
   max-width: 600px; /* Prevents it from becoming too wide on larger screens */
 }
 
-
 .moshe-swift-latex-error-content {
   display: flex;
   flex-direction: column;
@@ -161,10 +129,9 @@
   margin-top: 4px;
 }
 
-.moshe-swift-latex-error-line{
+.moshe-swift-latex-error-line {
   font-size: 12px;
   font-weight: bold;
   color: #721c24;
   margin-top: 6px;
 }
-

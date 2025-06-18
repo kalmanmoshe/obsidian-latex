@@ -1,24 +1,22 @@
-const fs = require('fs').promises;
-import { parse, stringify } from 'svgson';
+const fs = require("fs").promises;
+import { parse, stringify } from "svgson";
 
 export async function readAndParseSVG() {
-    try {
+  try {
+    const svgContent = svg;
+    // Parse the SVG content into a JSON object
+    const svgJSON = await parse(svgContent);
 
-      const svgContent = svg;
-      // Parse the SVG content into a JSON object
-      const svgJSON = await parse(svgContent);
-  
-      // Optionally, convert the JSON back into an SVG string
-      const svgString = stringify(svgJSON);
-  
-      return { svgContent, svgJSON, svgString };
-    } catch (error) {
-      console.error('Error processing SVG:', error);
-      throw error;
-    }
+    // Optionally, convert the JSON back into an SVG string
+    const svgString = stringify(svgJSON);
+
+    return { svgContent, svgJSON, svgString };
+  } catch (error) {
+    console.error("Error processing SVG:", error);
+    throw error;
+  }
 }
-const svg=
-`<!--?xml version="1.0" encoding="UTF-8"?-->
+const svg = `<!--?xml version="1.0" encoding="UTF-8"?-->
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="57.689" height="43.516" viewBox="0 0 57.689 43.516">
 <defs>
 <g>
@@ -33,4 +31,4 @@ path d="M 2.90625 -6.3125 C 2.90625 -6.546875 2.90625 -6.5625 2.671875 -6.5625 C
 </defs>
 <g clip-path="url(#49a7c80ae792a81cdcba7c479ca00e1931u6c4j9__clip-0)">
 <path fill="none" stroke="rgb(0%, 0%, 0%)" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" stroke-opacity="1" stroke-width="0.99628" d="M 0.000230536 0.00185364 L 56.694176 0.00185364 " transform="matrix(0.989, 0, 0, -0.989, 0.656022, 42.544802)"></path></g><g clip-path="url(#49a7c80ae792a81cdcba7c479ca00e1931u6c4j9__clip-1)"><path fill="none" stroke="rgb(100%, 0%, 0%)" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" stroke-opacity="1" stroke-width="0.99628" d="M 28.347203 0.00185364 L 28.347203 37.887344 " transform="matrix(0.989, 0, 0, -0.989, 0.656022, 42.544802)"></path></g><path fill="rgb(100%, 0%, 0%)" fill-opacity="1" fill-rule="nonzero" stroke="rgb(100%, 0%, 0%)" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" stroke-opacity="1" stroke-width="0.99628" d="M 6.054267 -0.000403488 L 1.606909 1.682167 L 3.088045 -0.000403488 L 1.606909 -1.682974 Z M 6.054267 -0.000403488 " transform="matrix(0, -0.989, -0.989, 0, 28.691007, 7.882201)"></path><g fill="rgb(0%, 0%, 0%)" fill-opacity="1"><use xlink:href="#49a7c80ae792a81cdcba7c479ca00e1931u6c4j9__glyph-0-1" x="23.764007" y="17.741671"></use><use xlink:href="#49a7c80ae792a81cdcba7c479ca00e1931u6c4j9__glyph-0-2" x="28.690513" y="17.741671"></use></g>
-</svg>`
+</svg>`;

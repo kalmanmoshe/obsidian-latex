@@ -1,27 +1,26 @@
-import Moshe from "src/main";
+import Moshe from "../../main";
 import * as fs from "fs";
 import { Notice, TFile } from "obsidian";
 import { getLatexHashesFromFile } from "./latexSourceFromFile";
 import * as path from "path";
-import { CacheBase, PhysicalCacheBase, VirtualCacheBase } from "./cacheBase";
 
 export const cacheFileFormat = "svg";
 
 export default class CompiledFileCache {
   private plugin: Moshe;
   private cacheMap: Map<string, Set<string>>;
-  private virtualCache?: CompiledFileVirtualCache;
-  private physicalCache?: CompiledFilePhysicalCache;
-  private cache: CacheBase;
+  private virtualCache?: VirtualCache;
+  private physicalCache?: PhysicalCache;
+  private cache: FileCache;
 
   constructor(plugin: Moshe) {
     this.plugin = plugin;
 
     if (this.plugin.settings.physicalCache) {
-      this.physicalCache = new CompiledFilePhysicalCache(this.plugin);
+      this.physicalCache = new PhysicalCache(this.plugin);
       this.cache = this.physicalCache;
     } else {
-      this.virtualCache = new CompiledFileVirtualCache(this.plugin);
+      this.virtualCache = new VirtualCache(this.plugin);
       this.cache = this.virtualCache;
     }
 
@@ -40,12 +39,12 @@ export default class CompiledFileCache {
   togglePhysicalCacheOff() {
     if (!this.physicalCache) {
       console.warn("Physical cache is already disabled, nothing to do.");
-      this.virtualCache = new CompiledFileVirtualCache(this.plugin);
+      this.virtualCache = new VirtualCache(this.plugin);
       this.cache = this.virtualCache;
       return;
     }
     const filePaths = this.physicalCache.listCacheFiles();
-    this.virtualCache = new CompiledFileVirtualCache(this.plugin);
+    this.virtualCache = new VirtualCache(this.plugin);
     for (const name of filePaths) {
       const content = this.physicalCache.getFile(name);
       if (!content) {
@@ -62,11 +61,11 @@ export default class CompiledFileCache {
   togglePhysicalCacheOn() {
     if (!this.virtualCache) {
       console.warn("Virtual cache is already disabled, nothing to do.");
-      this.physicalCache = new CompiledFilePhysicalCache(this.plugin);
+      this.physicalCache = new PhysicalCache(this.plugin);
       this.cache = this.physicalCache;
       return;
     }
-    this.physicalCache = new CompiledFilePhysicalCache(this.plugin);
+    this.physicalCache = new PhysicalCache(this.plugin);
     const filePaths = this.cache.listCacheFiles();
     for (const name of filePaths || []) {
       const content = this.virtualCache.getFile(name)!;
@@ -239,45 +238,114 @@ export default class CompiledFileCache {
     return this.cacheMap;
   }
 }
-
-class CompiledFileVirtualCache extends VirtualCacheBase {
-  getCacheFilePath(fileName: string): string {
-    if (fileName.endsWith(`.${cacheFileFormat}`)) {
-      fileName = fileName.slice(0, -cacheFileFormat.length - 1);
+interface FileCache {
+  fileExists(name: string): boolean;
+  getFile(name: string): string | undefined;
+  deleteFile(name: string): Promise<void> | void;
+  addFile(name: string, content: string): Promise<void> | void;
+  /**
+   * Returns list of cached file names (hash + .extension).
+   */
+  listCacheFiles(): string[];
+}
+class VirtualCache implements FileCache {
+  /**
+   * @key: hash of the file without extension
+   * @value: content of the file
+   */
+  private cache: Map<string, string>;
+  private createCachePath(name: string): string {
+    if (name.endsWith(`.${cacheFileFormat}`)) {
+      name = name.slice(0, -cacheFileFormat.length - 1);
     }
-    return fileName;
+    return name;
   }
-  extractFileName(fileName: string) {
-    return fileName;
+  constructor(private plugin: Moshe) {
+    this.cache = new Map();
   }
-  isValidCacheFile(fileName: string) {
-    return fileName.endsWith(`.${cacheFileFormat}`);
+  fileExists(name: string) {
+    return this.cache.has(this.createCachePath(name)) || false;
+  }
+  getFile(name: string): string | undefined {
+    return this.cache.get(this.createCachePath(name));
+  }
+  addFile(name: string, content: string): Promise<void> | void {
+    this.cache.set(this.createCachePath(name), content);
+  }
+  deleteFile(name: string): Promise<void> | void {
+    name = this.createCachePath(name);
+    if (this.cache.has(name)) {
+      this.cache.delete(name);
+    } else {
+      new Notice(`File ${name} does not exist in the cache.`);
+    }
+  }
+  listCacheFiles() {
+    return [...(this.cache.keys() || [])].map(
+      (hash) => `${hash}.${cacheFileFormat}`,
+    );
   }
 }
+class PhysicalCache implements FileCache {
+  private cacheFolderPath: string;
 
-class CompiledFilePhysicalCache extends PhysicalCacheBase {
-  getCacheFilePath(fileName: string): string {
-    if (!fileName.endsWith(`.${cacheFileFormat}`)) {
-      fileName = `${fileName}.${cacheFileFormat}`;
-    }
-    return path.join(this.getCacheFolderPath(), fileName);
+  constructor(private plugin: Moshe) {
+    this.validateDir();
   }
-  extractFileName(filePath: string): string {
-    const fileName = path.basename(filePath);
-    if (fileName.endsWith(`.${cacheFileFormat}`)) {
-      return fileName.slice(0, -cacheFileFormat.length - 1);
-    }
-    return fileName;
-  }
-  isValidCacheFile(fileName: string): boolean {
-    return fileName.endsWith(`.${cacheFileFormat}`);
-  }
-
   deleteCacheDirectory() {
     fs.rmdirSync(this.getCacheFolderPath(), { recursive: true });
   }
+  validateDir() {
+    this.cacheFolderPath = this.getCacheFolderPath();
+    if (!fs.existsSync(this.cacheFolderPath)) {
+      fs.mkdirSync(this.cacheFolderPath, { recursive: true });
+    }
+  }
+  private createCachePath(hash: string): string {
+    if (!hash.endsWith(`.${cacheFileFormat}`)) {
+      hash = `${hash}.${cacheFileFormat}`;
+    }
+    return path.join(this.getCacheFolderPath(), hash);
+  }
 
-  setCacheFolderPath() {
+  fileExists(name: string) {
+    const filePath = this.createCachePath(name);
+    return fs.existsSync(filePath);
+  }
+  addFile(name: string, content: string): Promise<void> {
+    const filePath = this.createCachePath(name);
+    return fs.promises.writeFile(filePath, content, "utf8");
+  }
+  deleteFile(name: string) {
+    const filePath = this.createCachePath(name);
+    if (fs.existsSync(filePath)) {
+      fs.rmSync(filePath);
+    }
+  }
+  /**
+   * Reads cached content by hash
+   */
+  getFile(hash: string): string | undefined {
+    const filePath = this.createCachePath(hash);
+    if (fs.existsSync(filePath)) {
+      return fs.readFileSync(filePath, "utf8");
+    } else {
+      return undefined;
+    }
+  }
+  listCacheFiles() {
+    return fs.existsSync(this.getCacheFolderPath())
+      ? fs
+          .readdirSync(this.getCacheFolderPath())
+          .filter((f) => f.endsWith(`.${cacheFileFormat}`))
+      : [];
+  }
+  private getCacheFolderPath() {
+    if (!this.cacheFolderPath) this.setCacheFolderPath();
+    return this.cacheFolderPath;
+  }
+
+  private setCacheFolderPath() {
     let folderPath = "";
     const cacheDir = this.plugin.settings.physicalCacheLocation;
     const basePath = this.plugin.getVaultPath();
