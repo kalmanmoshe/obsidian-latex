@@ -15,9 +15,9 @@ const handlers = {
   writeTexFileRoutine,
   cleanDir,
   transferTexFileToHost,
-}
+};
 DefaultWorkerValues.assign();
-self.onmessage = new Communicator(handlers).onmessage
+self.onmessage = new Communicator(handlers).onmessage;
 Module["print"] = function (a) {
   self.memlog += a + "\n";
   console.log(a);
@@ -146,7 +146,10 @@ function mkdirRoutine(dirname) {
     self.postMessage({ result: "failed", cmd: "mkdir" });
   }
 }
-function writeFileRoutine(filename: string, content: string | Buffer<ArrayBufferLike>) {
+function writeFileRoutine(
+  filename: string,
+  content: string | Buffer<ArrayBufferLike>,
+) {
   try {
     FS.writeFile(self.constants.WORKROOT + "/" + filename, content);
     self.postMessage({ result: "ok", cmd: "writefile" });
@@ -201,8 +204,6 @@ function setTexliveEndpoint(url) {
     self.texlive_endpoint = url;
   }
 }
-
-
 
 function kpse_find_file_impl(nameptr, format, _mustexist) {
   let reqname = UTF8ToString(nameptr);

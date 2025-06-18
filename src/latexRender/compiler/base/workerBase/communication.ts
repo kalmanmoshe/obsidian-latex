@@ -1,8 +1,6 @@
+import { EngineCommands as Commands } from "../compilerBase/engine";
 
-
-import {EngineCommands as Commands} from "../compilerBase/engine";
-
-interface CommandHandlers{
+interface CommandHandlers {
   compileLaTeXRoutine?(): void;
   compileFormatRoutine?(): void;
   compilePDFRoutine?(): void;
@@ -14,13 +12,12 @@ interface CommandHandlers{
   mkdirRoutine(url: string): void;
   writeFileRoutine(url: string, src: string): void;
   transferCacheDataToHost(): void;
-  
 
   cleanDir(url: string): void;
   transferTexFileToHost(filename: string): void;
 }
 
-export class Communicator{
+export class Communicator {
   handlers: CommandHandlers;
   constructor(handlers: CommandHandlers) {
     this.handlers = handlers;
@@ -72,7 +69,7 @@ export class Communicator{
         this.handlers.cleanDir(self.constants.TEXCACHEROOT);
         this.handlers.cleanDir(self.constants.WORKROOT);
         self.postMessage({ result: "ok", cmd: "flushCache" });
-          break;
+        break;
       case "flushworkcache":
         this.handlers.cleanDir(self.constants.WORKROOT);
         self.postMessage({ result: "ok", cmd: "flushworkcache" });
@@ -88,12 +85,12 @@ export class Communicator{
         this.handlers.writeTexFileRoutine(data["url"], data["src"]);
         break;
       case "writecache":
-          self.cacheRecord={
-              texlive404: data["texlive404_cache"],
-              texlive200: data["texlive200_cache"],
-              font404: data["font404_cache"],
-              font200: data["font200_cache"],
-          }
+        self.cacheRecord = {
+          texlive404: data["texlive404_cache"],
+          texlive200: data["texlive200_cache"],
+          font404: data["font404_cache"],
+          font200: data["font200_cache"],
+        };
         self.postMessage({ result: "ok", cmd: "writecache" });
         break;
       default:
@@ -101,8 +98,8 @@ export class Communicator{
         self.postMessage({ result: "failed", cmd: cmd });
     }
   }
-  private hasHandler(key: keyof CommandHandlers)  {
-    if(this.handlers[key] === undefined) {
+  private hasHandler(key: keyof CommandHandlers) {
+    if (this.handlers[key] === undefined) {
       throw new Error(`Handler for command ${key} is not defined.`);
     }
   }

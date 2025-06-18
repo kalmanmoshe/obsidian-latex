@@ -9,25 +9,31 @@ export type Mount = {
   mountpoint: string;
   mounts: Mount[];
   root?: FSNode;
-}
+};
 
 export class FSNode {
-    parent: FSNode;
-    mount: Mount; // Replace 'any' with a more specific type if available
-    mounted: any;
-    id: number;
-    name: string;
-    mode: number;
-    node_ops: { [key: string]: any };
-    stream_ops: { [key: string]: any };
-    rdev: number;
-    name_next: FSNode|undefined
-    FS: FS;
-    usedBytes: number = 0;
-    contents: any//Record<string,FSNode|[]>|null=null;
-    timestamp: number;
+  parent: FSNode;
+  mount: Mount; // Replace 'any' with a more specific type if available
+  mounted: any;
+  id: number;
+  name: string;
+  mode: number;
+  node_ops: { [key: string]: any };
+  stream_ops: { [key: string]: any };
+  rdev: number;
+  name_next: FSNode | undefined;
+  FS: FS;
+  usedBytes: number = 0;
+  contents: any; //Record<string,FSNode|[]>|null=null;
+  timestamp: number;
 
-  constructor(FS: FS,parent: FSNode | undefined, name: string, mode: number, rdev: number) {
+  constructor(
+    FS: FS,
+    parent: FSNode | undefined,
+    name: string,
+    mode: number,
+    rdev: number,
+  ) {
     // If no parent is provided, default to this instance.
     if (!parent) {
       parent = this;

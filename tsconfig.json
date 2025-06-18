@@ -4,7 +4,7 @@
     "inlineSourceMap": true,
     "inlineSources": true,
     "module": "NodeNext",
-    "target": "ES6",    
+    "target": "ES6",
     "allowJs": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
@@ -17,20 +17,21 @@
     "isolatedModules": true,
     "strictNullChecks": true,
     "allowSyntheticDefaultImports": true,
-    "downlevelIteration": true,       // Enables iteration over `RegExpMatchArray`
+    "downlevelIteration": true, // Enables iteration over `RegExpMatchArray`
     "lib": [
-      "esnext",                       // Latest JavaScript features
+      "esnext", // Latest JavaScript features
       "dom",
       "webworker"
     ],
-    "outDir": "./dist", 
+    "outDir": "./dist",
     "rootDir": "./"
   },
   "include": [
-    "**/*.ts"
-, "src/latexRender/PdfTeXEngine.ts", "src/latexRender/swiftlatexpdftex.worker.js", "src/latexRender/logs/HumanReadableLogsRules.tsx", "src/latexRender/parse/autoParse"  ],
-  "exclude": [
-    "node_modules",
-    "dist" 
-  ]
+    "**/*.ts",
+    "src/latexRender/PdfTeXEngine.ts",
+    "src/latexRender/swiftlatexpdftex.worker.js",
+    "src/latexRender/logs/HumanReadableLogsRules.tsx",
+    "src/latexRender/parse/autoParse"
+  ],
+  "exclude": ["node_modules", "dist"]
 }

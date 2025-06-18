@@ -1,8 +1,7 @@
 @import url("./latexRender/latexRender.css");
 @import url("./latexRender/logs/latexLog.css");
 
-.moshe-swift-latex-log-modal{
+.moshe-swift-latex-log-modal {
   width: 100%;
   max-width: 1000px;
 }
-

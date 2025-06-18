@@ -1,11 +1,11 @@
 {
-	"id": "moshe-math",
-	"name": "moshe-math",
-	"version": "1.0.0-beta",
-	"minAppVersion": "0.15.0",
-	"description": "moshe math",
-	"author": "moshe weinstock",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
-	"isDesktopOnly": false
+  "id": "moshe-math",
+  "name": "moshe-math",
+  "version": "1.0.0-beta",
+  "minAppVersion": "0.15.0",
+  "description": "moshe math",
+  "author": "moshe weinstock",
+  "authorUrl": "https://obsidian.md",
+  "fundingUrl": "https://obsidian.md/pricing",
+  "isDesktopOnly": false
 }

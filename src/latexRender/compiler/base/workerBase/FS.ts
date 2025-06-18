@@ -1,7 +1,23 @@
-import { UTF8ArrayToString, lengthBytesUTF8, stringToUTF8Array, intArrayFromString } 
-from "./encodingDecoding.";
-import Module, { ENVIRONMENT_IS_WORKER, err, FS_getMode, FS_modeStringToFlags, HEAP8, mmapAlloc, out, PATH, PATH_FS, randomFill, read_, TTY } 
-from "../../swiftlatexpdftex/mainSwiftlatex.worker";
+import {
+  UTF8ArrayToString,
+  lengthBytesUTF8,
+  stringToUTF8Array,
+  intArrayFromString,
+} from "./encodingDecoding.";
+import Module, {
+  ENVIRONMENT_IS_WORKER,
+  err,
+  FS_getMode,
+  FS_modeStringToFlags,
+  HEAP8,
+  mmapAlloc,
+  out,
+  PATH,
+  PATH_FS,
+  randomFill,
+  read_,
+  TTY,
+} from "../../swiftlatexpdftex/mainSwiftlatex.worker";
 import { FSNode, Mount } from "./FSNode";
 import { MEMFS } from "./MEMFS";
 
@@ -12,8 +28,21 @@ export interface StreamOps {
   write?: (...args: any[]) => any;
   llseek?: (...args: any[]) => any;
   allocate?: (stream: FSStream, offset: number, length: number) => void;
-  mmap?: (stream: FSStream, buffer: any, offset: number, length: number, position: number, mmapFlags: number) => { ptr: any, allocated: boolean };
-  msync?: (stream: FSStream, buffer: any, offset: number, length: number, mmapFlags: number) => void;
+  mmap?: (
+    stream: FSStream,
+    buffer: any,
+    offset: number,
+    length: number,
+    position: number,
+    mmapFlags: number,
+  ) => { ptr: any; allocated: boolean };
+  msync?: (
+    stream: FSStream,
+    buffer: any,
+    offset: number,
+    length: number,
+    mmapFlags: number,
+  ) => void;
 }
 export class FSStream {
   shared: any = {};
@@ -54,16 +83,16 @@ export class FSStream {
 }
 type DeviceEntry = { stream_ops: StreamOps };
 
-export class FS{
-  root =  null as FSNode | null
-  mounts: Mount[] = []
+export class FS {
+  root = null as FSNode | null;
+  mounts: Mount[] = [];
   devices: Record<number, DeviceEntry> = {};
-  streams: (FSStream|null)[] = []
-  nextInode = 1
+  streams: (FSStream | null)[] = [];
+  nextInode = 1;
   nameTable: Array<FSNode | undefined> = [];
-  currentPath = "/"
-  initialized = false
-  ignorePermissions= true
+  currentPath = "/";
+  initialized = false;
+  ignorePermissions = true;
   ErrnoError = class {
     name: string;
     errno: number;
@@ -71,29 +100,29 @@ export class FS{
       this.name = "ErrnoError";
       this.errno = errno;
     }
-  }
-  genericErrors = {}
-  filesystems = null
-  syncFSRequests= 0
-  MAX_OPEN_FDS= 4096
+  };
+  genericErrors = {};
+  filesystems = null;
+  syncFSRequests = 0;
+  MAX_OPEN_FDS = 4096;
   FSStream = FSStream;
   memfs: MEMFS;
-  lookupPath(path: string, opts = {}): { path: string, node: FSNode | null } {
+  lookupPath(path: string, opts = {}): { path: string; node: FSNode | null } {
     path = PATH_FS.resolve(path);
     if (!path) return { path: "", node: null };
-      var defaults: {
-          follow_mount: boolean,
-          recurse_count: number,
-          parent?: boolean,
-          follow?: boolean,
-      } = { follow_mount: true, recurse_count: 0 };
+    var defaults: {
+      follow_mount: boolean;
+      recurse_count: number;
+      parent?: boolean;
+      follow?: boolean;
+    } = { follow_mount: true, recurse_count: 0 };
     const options = Object.assign(defaults, opts);
     if (options.recurse_count > 8) {
       throw new this.ErrnoError(32);
     }
     var parts = path.split("/").filter((p: string) => !!p);
-    if(this.root === null || parts.length === 0) {
-       console.warn("moshe err lookupPath: root is null or parts is empty");
+    if (this.root === null || parts.length === 0) {
+      console.warn("moshe err lookupPath: root is null or parts is empty");
       throw new this.ErrnoError(44);
     }
     var current = this.root;
@@ -131,7 +160,7 @@ export class FS{
     }
     return { path: current_path, node: current };
   }
-  getPath(node: FSNode):string {
+  getPath(node: FSNode): string {
     var path;
     while (true) {
       if (this.isRoot(node)) {
@@ -186,9 +215,14 @@ export class FS{
     }
     return this.lookup(parent, name);
   }
-  createNode(parent: FSNode|null|undefined, name: string, mode: number, rdev: number) {
-    parent = parent||undefined;
-    var node = new FSNode(this,parent, name, mode, rdev);
+  createNode(
+    parent: FSNode | null | undefined,
+    name: string,
+    mode: number,
+    rdev: number,
+  ) {
+    parent = parent || undefined;
+    var node = new FSNode(this, parent, name, mode, rdev);
     this.hashAddNode(node);
     return node;
   }
@@ -249,14 +283,14 @@ export class FS{
     if (!dir.node_ops.lookup) return 2;
     return 0;
   }
-  mayCreate(dir: FSNode , name: string) {
+  mayCreate(dir: FSNode, name: string) {
     try {
       var node = this.lookupNode(dir, name);
       return 20;
     } catch (e) {}
     return this.nodePermissions(dir, "wx");
   }
-  mayDelete(dir: FSNode , name: string, isdir: boolean) {
+  mayDelete(dir: FSNode, name: string, isdir: boolean) {
     var node;
     try {
       node = this.lookupNode(dir, name);
@@ -294,7 +328,7 @@ export class FS{
     }
     return this.nodePermissions(node, this.flagsToPermissionString(flags));
   }
-  
+
   nextfd() {
     for (var fd = 0; fd <= this.MAX_OPEN_FDS; fd++) {
       if (!this.streams[fd]) {
@@ -311,12 +345,11 @@ export class FS{
     return stream;
   }
 
-  getStream(fd: number) {return this.streams[fd];}
-  
-    createStream(
-    stream: Partial<FSStream>,
-    fd = -1
-  ): FSStream {
+  getStream(fd: number) {
+    return this.streams[fd];
+  }
+
+  createStream(stream: Partial<FSStream>, fd = -1): FSStream {
     stream = Object.assign(new this.FSStream(), stream);
     if (fd == -1) {
       fd = this.nextfd();
@@ -329,7 +362,7 @@ export class FS{
     this.streams[fd] = null;
   }
   chrdev_stream_ops = {
-    open: (stream: FSStream)=> {
+    open: (stream: FSStream) => {
       var device = this.getDevice(stream.node.rdev);
       stream.stream_ops = device.stream_ops;
       stream.stream_ops!.open?.(stream);
@@ -337,9 +370,9 @@ export class FS{
     llseek() {
       throw new this.ErrnoError(70);
     },
-  }
+  };
   major(dev: number) {
-  return dev >> 8;
+    return dev >> 8;
   }
   minor(dev: number) {
     return dev & 255;
@@ -351,7 +384,9 @@ export class FS{
   registerDevice(dev: number, ops: StreamOps) {
     this.devices[dev] = { stream_ops: ops };
   }
-  getDevice(dev: number) {return this.devices[dev]}
+  getDevice(dev: number) {
+    return this.devices[dev];
+  }
 
   getMounts(mount: Mount) {
     var mounts = [];
@@ -382,16 +417,16 @@ export class FS{
       this.syncFSRequests--;
       return callback(new this.ErrnoError(10));
     }
-  
+
     const mounts = this.getMounts(this.root.mount);
     let completed = 0;
     let errored = false;
-  
+
     const doCallback = (errCode: number | null) => {
       this.syncFSRequests--;
       return callback(errCode);
     };
-  
+
     const done = (errCode: number | null) => {
       if (errCode) {
         if (!errored) {
@@ -404,7 +439,7 @@ export class FS{
         doCallback(null);
       }
     };
-  
+
     mounts.forEach((mount) => {
       if (!mount.type.syncfs) {
         return done(null);
@@ -433,8 +468,13 @@ export class FS{
         throw new this.ErrnoError(54);
       }
     }
-    var mount: Mount = { type: type, opts: opts, mountpoint: mountpoint, mounts: [] };
-    console.log("type", type,type.m);
+    var mount: Mount = {
+      type: type,
+      opts: opts,
+      mountpoint: mountpoint,
+      mounts: [],
+    };
+    console.log("type", type, type.m);
     var mountRoot = type.mount(mount);
     mountRoot.mount = mount;
     mount.root = mountRoot;
@@ -469,7 +509,7 @@ export class FS{
         }
         current = next;
       }
-    };
+    }
     node.mounted = null;
     var idx = node.mount.mounts.indexOf(mount);
     node.mount.mounts.splice(idx, 1);
@@ -518,7 +558,7 @@ export class FS{
       }
     }
   }
-  mkdev(path:string, mode:number, dev?: any) {
+  mkdev(path: string, mode: number, dev?: any) {
     if (typeof dev == "undefined") {
       dev = mode;
       mode = 438;
@@ -589,7 +629,10 @@ export class FS{
     if (!old_dir.node_ops.rename) {
       throw new this.ErrnoError(63);
     }
-    if (this.isMountpoint(old_node) || (new_node && this.isMountpoint(new_node))) {
+    if (
+      this.isMountpoint(old_node) ||
+      (new_node && this.isMountpoint(new_node))
+    ) {
       throw new this.ErrnoError(10);
     }
     if (new_dir !== old_dir) {
@@ -676,7 +719,7 @@ export class FS{
       link.node_ops.readlink(link),
     );
   }
-  stat(path:string, dontFollow?: any) {
+  stat(path: string, dontFollow?: any) {
     var lookup = this.lookupPath(path, { follow: !dontFollow });
     var node = lookup.node;
     if (!node) {
@@ -690,7 +733,7 @@ export class FS{
   lstat(path: string) {
     return this.stat(path, true);
   }
-  chmod(path: string|FSNode, mode: number, dontFollow?: any) {
+  chmod(path: string | FSNode, mode: number, dontFollow?: any) {
     let node;
     if (typeof path == "string") {
       var lookup = this.lookupPath(path, { follow: !dontFollow });
@@ -717,7 +760,7 @@ export class FS{
     var stream = this.getStreamChecked(fd);
     this.chmod(stream.node, mode);
   }
-  chown(path: string| FSNode, uid: any, gid: any, dontFollow?: any) {
+  chown(path: string | FSNode, uid: any, gid: any, dontFollow?: any) {
     var node;
     if (typeof path == "string") {
       var lookup = this.lookupPath(path, { follow: !dontFollow });
@@ -924,7 +967,7 @@ export class FS{
     if (!seeking) stream.position += bytesRead;
     return bytesRead;
   }
-  write(stream, buffer, offset, length, position, canOwn?:any) {
+  write(stream, buffer, offset, length, position, canOwn?: any) {
     if (length < 0 || position < 0) {
       throw new this.ErrnoError(28);
     }
@@ -1000,7 +1043,7 @@ export class FS{
     }
     return stream.stream_ops.msync(stream, buffer, offset, length, mmapFlags);
   }
-  munmap: (stream) => 0
+  munmap: (stream) => 0;
   ioctl(stream, cmd, arg) {
     if (!stream.stream_ops.ioctl) {
       throw new this.ErrnoError(59);
@@ -1041,7 +1084,9 @@ export class FS{
     }
     this.close(stream);
   }
-  cwd(){ return this.currentPath}
+  cwd() {
+    return this.currentPath;
+  }
 
   chdir(path) {
     var lookup = this.lookupPath(path, { follow: true });
@@ -1099,16 +1144,16 @@ export class FS{
           const fd = +name;
           const stream = fs.getStreamChecked(fd);
           // Create a proper FSNode for the fd
-          const node = new FSNode(this,parent,"fd:" + fd,40960,0);
+          const node = new FSNode(this, parent, "fd:" + fd, 40960, 0);
           node.node_ops = {
             readlink: () => stream.path,
           };
           return node;
-        }
+        },
       };
       return node;
     };
-    this.mount(memfs,{},"/proc/self/fd",);
+    this.mount(memfs, {}, "/proc/self/fd");
   }
   createStandardStreams() {
     if (Module["stdin"]) {
@@ -1199,10 +1244,10 @@ export class FS{
     }
     return ret;
   }
-  createPath(parent: string|FSNode, path: string) {
+  createPath(parent: string | FSNode, path: string) {
     parent = typeof parent == "string" ? parent : this.getPath(parent);
     var parts = path.split("/").reverse();
-    var current
+    var current;
     while (parts.length) {
       var part = parts.pop();
       if (!part) continue;
@@ -1212,9 +1257,15 @@ export class FS{
       } catch (e) {}
       parent = current;
     }
-    return current||null
+    return current || null;
   }
-  createFile(parent: string|FSNode, name: string, properties, canRead, canWrite) {
+  createFile(
+    parent: string | FSNode,
+    name: string,
+    properties,
+    canRead,
+    canWrite,
+  ) {
     var path = PATH.join2(
       typeof parent == "string" ? parent : this.getPath(parent),
       name,
@@ -1222,7 +1273,14 @@ export class FS{
     var mode = FS_getMode(canRead, canWrite);
     return this.create(path, mode);
   }
-  createDataFile(parent: string|FSNode, name, data, canRead, canWrite, canOwn) {
+  createDataFile(
+    parent: string | FSNode,
+    name,
+    data,
+    canRead,
+    canWrite,
+    canOwn,
+  ) {
     var path = name;
     if (parent) {
       parent = typeof parent == "string" ? parent : this.getPath(parent);
@@ -1244,7 +1302,7 @@ export class FS{
       this.chmod(node, mode);
     }
   }
-  createDevice(parent, name, input, output?:any) {
+  createDevice(parent, name, input, output?: any) {
     var path = PATH.join2(
       typeof parent == "string" ? parent : this.getPath(parent),
       name,
@@ -1447,7 +1505,13 @@ export class FS{
         return fn(...args);
       };
     });
-    function writeChunks(stream: FSStream, buffer: Int8Array<ArrayBufferLike>, offset: number, length: number, position: number) {
+    function writeChunks(
+      stream: FSStream,
+      buffer: Int8Array<ArrayBufferLike>,
+      offset: number,
+      length: number,
+      position: number,
+    ) {
       var contents = stream.node.contents;
       if (position >= contents.length) return 0;
       var size = Math.min(contents.length - position, length);
@@ -1462,11 +1526,23 @@ export class FS{
       }
       return size;
     }
-    stream_ops.read = (stream: FSStream, buffer: Int8Array<ArrayBufferLike>, offset: number, length: number, position: number) => {
+    stream_ops.read = (
+      stream: FSStream,
+      buffer: Int8Array<ArrayBufferLike>,
+      offset: number,
+      length: number,
+      position: number,
+    ) => {
       this.forceLoadFile(node);
       return writeChunks(stream, buffer, offset, length, position);
     };
-    stream_ops.mmap = (stream: FSStream, length: number, position: number, prot: any, flags: any) => {
+    stream_ops.mmap = (
+      stream: FSStream,
+      length: number,
+      position: number,
+      prot: any,
+      flags: any,
+    ) => {
       this.forceLoadFile(node);
       var ptr = mmapAlloc(length);
       if (!ptr) {
