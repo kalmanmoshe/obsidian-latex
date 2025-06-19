@@ -262,6 +262,7 @@ export class SwiftlatexRender {
       }
     }, 1) as QueueObject<Task>; // Concurrency is set to 1, so tasks run one at a time
   }
+  
   /**
    * Re-checks the queue to see if any tasks can be removed based on whether their PDF has been restored from cache.
    * If a task's PDF cannot be restored, it is removed from the queue.
@@ -322,8 +323,10 @@ export class SwiftlatexRender {
       await this.cache.afterRenderCleanUp();
     }
   }
+  flatRenderLatex(){
 
-  renderLatexToPDF(source: string, md5Hash: string): Promise<CompileResult> {
+  }
+  disconnectedRenderLatex(source: string){
     return new Promise(async (resolve, reject) => {
       temp.mkdir(
         "obsidian-swiftlatex-renderer",
@@ -342,7 +345,40 @@ export class SwiftlatexRender {
             .compileLaTeX()
             .then(async (result: CompileResult) => {
               this.vfs.removeVirtualFileSystemFiles();
-              this.cache.addLog(result.log, md5Hash);
+              if(md5Hash) this.cache.addLog(result.log, md5Hash);
+              if (result.status != 0) {
+                // manage latex errors
+                reject(result.log);
+              }
+              // update the list of package files in the cache
+              await this.cache.fetchPackageCacheData();
+              resolve(result);
+            });
+        },
+      );
+    });
+  }
+
+  renderLatexToPDF(source: string, md5Hash: string): Promise<CompileResult> {
+    return new Promise(async (resolve, reject) => {
+      temp.mkdir(
+        "obsidian-swiftlatex-renderer",
+        async (err: any) => {
+          try {
+            await waitFor(() => this.compiler.isReady());
+          } catch (err) {
+            reject(err);
+            return;
+          }
+          if (err) reject(err);
+          await this.vfs.loadVirtualFileSystemFiles();
+          await this.compiler.writeMemFSFile("main.tex", source);
+          await this.compiler.setEngineMainFile("main.tex");
+          await this.compiler
+            .compileLaTeX()
+            .then(async (result: CompileResult) => {
+              this.vfs.removeVirtualFileSystemFiles();
+              if(md5Hash) this.cache.addLog(result.log, md5Hash);
               if (result.status != 0) {
                 // manage latex errors
                 reject(result.log);

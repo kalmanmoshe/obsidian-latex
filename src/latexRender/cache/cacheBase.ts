@@ -16,6 +16,11 @@ export abstract class CacheBase {
    * @param filePath The full path to the cache file.
    */
   abstract extractFileName(filePath: string): string;
+  /**
+   * Returns a map of all cached files with their names and content.
+   * The key is the file name (with extension), and the value is the file content.
+   */
+  abstract getFiles(): Map<string, string>;
   abstract isValidCacheFile(fileName: string): boolean;
 
   abstract fileExists(name: string): boolean;
@@ -26,7 +31,7 @@ export abstract class CacheBase {
     content: string | Uint8Array<ArrayBuffer>,
   ): Promise<void> | void;
   /**
-   * Returns list of cached file names (hash + .extension).
+   * Returns list of cached file names (with .extension).
    */
   abstract listCacheFiles(): string[];
 }
@@ -45,6 +50,11 @@ export abstract class VirtualCacheBase extends CacheBase {
   }
   getFile(name: string): string | undefined {
     return this.cache.get(this.getCacheFilePath(name));
+  }
+  getFiles(): Map<string, string> {
+    const newCache = new Map<string, string>();
+    this.cache.forEach((value, key) => newCache.set(this.extractFileName(key), value));
+    return newCache;
   }
   addFile(name: string, content: string | Uint8Array<ArrayBuffer>) {
     content =
@@ -116,6 +126,17 @@ export abstract class PhysicalCacheBase extends CacheBase {
     } else {
       return undefined;
     }
+  }
+  getFiles() {
+    const files = this.listCacheFiles();
+    const fileMap = new Map<string, string>();
+    for (const file of files) {
+      const content = this.getFile(file);
+      if (content) {
+        fileMap.set(file, content);
+      }
+    }
+    return fileMap;
   }
   listCacheFiles() {
     if (!fs.existsSync(this.getCacheFolderPath())) {

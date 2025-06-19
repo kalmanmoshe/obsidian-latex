@@ -234,9 +234,8 @@ export default class CompiledFileCache {
   unloadCache() {
     this.removeAllCached();
   }
-
-  getCache(): Map<string, Set<string>> {
-    return this.cacheMap;
+  getCachedFiles(){
+    return this.cache.getFiles();
   }
 }
 
