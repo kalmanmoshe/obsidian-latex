@@ -80,6 +80,17 @@ function getCodeBlockNamer(plugin: Moshe) {
   };
 }
 
+function testLatex(plugin: Moshe): Command{
+  return {
+    id: "moshe-tast-latex-code-blocks",
+    name: "name test latex code block",
+    callback() {
+      const files = plugin.swiftlatexRender.cache.getCompiledFiles();
+      
+    },
+  }
+}
+
 export const getEditorCommands = (plugin: Moshe): (Command | undefined)[] => {
   return [getCodeBlockNamer(plugin)];
 };
