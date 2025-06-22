@@ -90,9 +90,18 @@ function testLatex(plugin: Moshe): Command{
     },
   }
 }
-
+function removeAllCachedPackages(plugin: Moshe): Command {
+  return {
+    id: "moshe-remove-all-cached-packages",
+    name: "Remove all cached packages",
+    callback() {
+      plugin.swiftlatexRender.cache.removeAllCachedPackages();
+      new Notice("All cached packages removed");
+    },
+  };
+}
 export const getEditorCommands = (plugin: Moshe): (Command | undefined)[] => {
-  return [getCodeBlockNamer(plugin)];
+  return [getCodeBlockNamer(plugin),removeAllCachedPackages(plugin)];
 };
 
 const headingTransformRules = [

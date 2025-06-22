@@ -1,15 +1,13 @@
-import { EnvInfo, MacroInfo } from "./info-specs";
+import { EnvRenderInfo, MacroRenderInfo, RenderInfo } from "./info-specs";
 
 export type GenericAst = GenericNode | GenericNode[];
 
 export interface GenericNode {
   [x: string]: any;
   type: string;
-  _renderInfo?: object;
+  renderInfo?: object;
 }
-type _renderInfo = (MacroInfo["renderInfo"] | EnvInfo["renderInfo"]) & {
-  defaultArg?: string;
-} & Record<string, unknown>;
+
 type Position = {
   start: { offset: number; line: number; column: number };
   end: { offset: number; line: number; column: number };
@@ -17,21 +15,21 @@ type Position = {
 
 export class BaseNode {
   type: string;
-  _renderInfo?: _renderInfo;
+  renderInfo?: RenderInfo;
   position?: Position;
   constructor(
     type: string,
-    renderInfo?: typeof this._renderInfo,
+    renderInfo?: typeof this.renderInfo,
     position?: typeof this.position,
   ) {
     this.type = type;
-    if (renderInfo) this._renderInfo = renderInfo;
+    if (renderInfo) this.renderInfo = renderInfo;
     if (position) this.position = position;
   }
   clone(): this {
     const clone = new (this.constructor as new (...args: any[]) => this)(
       this.type,
-      this._renderInfo,
+      this.renderInfo,
       this.position,
     );
     Object.assign(clone, this);
@@ -85,7 +83,7 @@ export class ContentNode extends BaseNode {
   constructor(
     type: string,
     content: Node[],
-    renderInfo?: _renderInfo,
+    renderInfo?: RenderInfo,
     position?: typeof BaseNode.prototype.position,
   ) {
     super(type, renderInfo, position);
@@ -98,7 +96,7 @@ export class Root extends ContentNode {
   type: "root" = "root";
   constructor(
     content: Node[],
-    renderInfo?: _renderInfo,
+    renderInfo?: RenderInfo,
     position?: typeof BaseNode.prototype.position,
   ) {
     super("root", content, renderInfo, position);
@@ -113,7 +111,7 @@ export class String extends BaseNode {
   content: string;
   constructor(
     content: string,
-    renderInfo?: _renderInfo,
+    renderInfo?: RenderInfo,
     position?: typeof BaseNode.prototype.position,
   ) {
     super("string", renderInfo, position);
@@ -130,7 +128,7 @@ export class String extends BaseNode {
 export class Whitespace extends BaseNode {
   type: "whitespace" = "whitespace";
   constructor(
-    renderInfo?: _renderInfo,
+    renderInfo?: RenderInfo,
     position?: typeof BaseNode.prototype.position,
   ) {
     super("whitespace", renderInfo, position);
@@ -146,7 +144,7 @@ export class Whitespace extends BaseNode {
 export class Parbreak extends BaseNode {
   type: "parbreak" = "parbreak";
   constructor(
-    renderInfo?: _renderInfo,
+    renderInfo?: RenderInfo,
     position?: typeof BaseNode.prototype.position,
   ) {
     super("parbreak", renderInfo, position);
@@ -167,7 +165,7 @@ export class Comment extends BaseNode {
     sameline?: boolean,
     suffixParbreak?: boolean,
     leadingWhitespace?: boolean,
-    renderInfo?: _renderInfo,
+    renderInfo?: RenderInfo,
     position?: typeof BaseNode.prototype.position,
   ) {
     super("comment", renderInfo, position);
@@ -186,27 +184,27 @@ export class Macro extends BaseNode {
   content: string;
   escapeToken?: string;
   args?: Argument[];
-  _renderInfo?: MacroInfo;
+  renderInfo?: RenderInfo;
   constructor(
     content: string,
     escapeToken?: string,
     args?: Argument[],
-    renderInfo?: MacroInfo,
+    renderInfo?: RenderInfo,
     position?: Position,
   ) {
-    renderInfo = renderInfo || getDefaultMacroInfoConfig(content);
+    renderInfo = renderInfo || getDefaultMacroRenderInfoConfig(content);
     super("macro", renderInfo, position);
     this.content = content;
     if (escapeToken) this.escapeToken = escapeToken;
     if (args) this.args = args;
   }
   toString(): string {
-    const prefix = this._renderInfo?.escapeToken || "";
+    const prefix = this.renderInfo?.escapeToken || "";
     return (
       prefix +
       this.content +
       (this.args ? this.args.map((arg) => arg.toString()).join("") : "") +
-      (this._renderInfo?.renderInfo?.breakAfter ? "\n" : "")
+      (this.renderInfo?.breakAfter ? "\n" : "")
     );
   }
 }
@@ -216,7 +214,7 @@ export class Path extends Macro {
   constructor(
     content: string,
     components: Node[],
-    renderInfo?: MacroInfo,
+    renderInfo?: RenderInfo,
     position?: typeof BaseNode.prototype.position,
   ) {
     renderInfo = modifyPathMacroInfo(renderInfo);
@@ -224,15 +222,14 @@ export class Path extends Macro {
     this.components = components;
   }
   toString(): string {
-    let string = this._renderInfo?.escapeToken || "";
+    let string = this.renderInfo?.escapeToken || "";
     string += this.content;
     if (this.args) {
       string += this.args.map((arg) => arg.toString()).join("");
     }
     string += this.components.map((node) => node.toString()).join("");
-    console.log(this._renderInfo?.renderInfo?.tikzPathCommand);
-    string += this._renderInfo?.renderInfo?.tikzPathCommand ? ";" : "";
-    string += this._renderInfo?.renderInfo?.breakAfter ? "\n" : "";
+    string += this.renderInfo?.tikzPathCommand ? ";" : "";
+    string += this.renderInfo?.breakAfter ? "\n" : "";
     return string;
   }
 }
@@ -246,46 +243,45 @@ export class Pathf extends Macro {
 export class Coordinate extends Argument {
     readonly openMark="(";
     readonly closeMark=")";
-    constructor(content: Node[], renderInfo?: _renderInfo, position?: typeof BaseNode.prototype.position) {
+    constructor(content: Node[], renderInfo?: renderInfo, position?: typeof BaseNode.prototype.position) {
         super("(",")",content, renderInfo, position);
     }
 }*/
 
 const macrosNotToescapeRegex = /(_|\^)/;
-const getDefaultMacroInfoConfig = (content: string): MacroInfo | undefined => {
-  let macroInfo: MacroInfo = {};
-  if (!macroInfo.renderInfo) macroInfo.renderInfo = {};
-
+const getDefaultMacroRenderInfoConfig = (content: string): RenderInfo | undefined => {
+  let info: RenderInfo = {};
   if (!macrosNotToescapeRegex.test(content)) {
-    macroInfo.escapeToken = "\\";
+    info.escapeToken = "\\";
   }
   if (content.match(/pgf/)) {
-    macroInfo.renderInfo.pgfkeysArgs = true;
+    info.pgfkeysArgs = true;
   }
-  macroInfo.renderInfo.breakAfter = true;
-  return Object.keys(macroInfo).length === 0 ? undefined : macroInfo;
+  if (content.match(/input|documentclass/))
+    info.breakAfter = true;
+  return Object.keys(info).length === 0 ? undefined : info;
 };
-type RenderInfo = _renderInfo;
-const modifyPathMacroInfo = (macroInfo?: MacroInfo) => {
-  if (!macroInfo) {
-    macroInfo = getDefaultMacroInfoConfig("path") ?? {};
+
+const modifyPathMacroInfo = (info?: RenderInfo) => {
+  if (!info) {
+    info = getDefaultMacroRenderInfoConfig("path") ?? {};
   }
-  if (!macroInfo.renderInfo) macroInfo.renderInfo = {};
-  macroInfo.renderInfo.tikzPathCommand = true;
-  return macroInfo;
+  info.tikzPathCommand = true;
+  return info;
 };
 
 export class Environment extends ContentNode {
   type: "environment" | "mathenv";
   env: string;
   args?: Argument[];
+  renderInfo?: EnvRenderInfo;
   constructor(
     type: "environment" | "mathenv",
     env: string,
     content: Node[],
     args?: Argument[],
     renderInfo?: RenderInfo,
-    position?: typeof BaseNode.prototype.position,
+    position?: Position,
   ) {
     super(type, content, renderInfo, position);
     this.env = env;
@@ -318,7 +314,7 @@ export class VerbatimEnvironment extends BaseNode {
   constructor(
     env: string,
     content: string,
-    renderInfo?: _renderInfo,
+    renderInfo?: RenderInfo,
     position?: typeof BaseNode.prototype.position,
   ) {
     super("verbatim", renderInfo, position);
@@ -334,7 +330,7 @@ export class DisplayMath extends ContentNode {
   type: "displaymath" = "displaymath";
   constructor(
     content: Node[],
-    renderInfo?: _renderInfo,
+    renderInfo?: RenderInfo,
     position?: typeof BaseNode.prototype.position,
   ) {
     super("displaymath", content, renderInfo, position);
@@ -348,7 +344,7 @@ export class Group extends ContentNode {
   type: "group" = "group";
   constructor(
     content: Node[],
-    renderInfo?: _renderInfo,
+    renderInfo?: RenderInfo,
     position?: typeof BaseNode.prototype.position,
   ) {
     super("group", content, renderInfo, position);
@@ -362,7 +358,7 @@ export class InlineMath extends ContentNode {
   type: "inlinemath" = "inlinemath";
   constructor(
     content: Node[],
-    renderInfo?: _renderInfo,
+    renderInfo?: RenderInfo,
     position?: typeof BaseNode.prototype.position,
   ) {
     super("inlinemath", content, renderInfo, position);
@@ -381,7 +377,7 @@ export class Verb extends BaseNode {
     env: string,
     escape: string,
     content: string,
-    renderInfo?: _renderInfo,
+    renderInfo?: RenderInfo,
     position?: typeof BaseNode.prototype.position,
   ) {
     super("verb", renderInfo, position);
@@ -402,7 +398,7 @@ export class Argument extends ContentNode {
     openMark: string,
     closeMark: string,
     content: Node[],
-    renderInfo?: _renderInfo,
+    renderInfo?: RenderInfo,
     position?: typeof BaseNode.prototype.position,
   ) {
     super("argument", content, renderInfo, position);

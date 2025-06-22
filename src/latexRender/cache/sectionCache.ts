@@ -209,7 +209,6 @@ export function getSectionCacheOfString(
   exact = true,
 ): SectionCache | undefined {
   let sourceIndex = findMultiLineStartIndex(source, target);
-  console.log("sourceIndex", sourceIndex);
   if (sourceIndex <= 0) return;
   const codeBlockStartLine = sourceIndex - 1;
   const section = exact

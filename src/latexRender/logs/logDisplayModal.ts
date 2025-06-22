@@ -57,7 +57,6 @@ export class LogDisplayModal extends Modal {
   }
 
   private renderErrors(container: HTMLElement) {
-    console.log("renderErrors", this.log.all);
     const allErrors = this.log.all;
     allErrors.sort((a, b) => {
       const severity = {
@@ -67,7 +66,6 @@ export class LogDisplayModal extends Modal {
       };
       return severity[a.level] - severity[b.level];
     });
-    console.log("allErrors", allErrors);
     allErrors.forEach((err) => {
       const box = container.createDiv(
         "moshe-log-error-box " + `level-${err.level}`,
