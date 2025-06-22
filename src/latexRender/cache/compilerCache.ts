@@ -115,6 +115,12 @@ export default class CompilerCache {
   removeAllCachedFiles() {
     return this.cache.removeAllCached();
   }
+  /**
+   * Removes all cached packages.
+   */
+  removeAllCachedPackages() {
+    return this.packageCache.removeAllCachedPackages();
+  }
 
   /**
    * Gets the parent path for the cache folder.

@@ -158,10 +158,6 @@ export function compileLaTeXRoutine() {
   prepareExecutionContext();
   const setMainFunction = cwrap("setMainEntry", "number", ["string"]);
   setMainFunction(self.mainfile);
-  console.log(
-    FS.root.contents.work.contents["coorPreamble.tex"],
-    FS.root.contents.tex.contents["coorPreamble.tex"],
-  );
   let status = _compileLaTeX();
   if (status === 0) {
     let pdfArrayBuffer = null;
@@ -392,11 +388,10 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
   xhr.open("GET", remote_url, false);
   xhr.timeout = 15e4;
   xhr.responseType = "arraybuffer";
-  //console.log("Start downloading texlive file " + remote_url);
   try {
     xhr.send();
   } catch (err) {
-    console.log("TexLive Download Failed " + remote_url);
+    console.error("TexLive Download Failed " + remote_url, err);
     return 0;
   }
   if (xhr.status === 200) {
@@ -407,7 +402,7 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
     self.cacheRecord.texlive200[cacheKey] = savepath;
     return _allocate(intArrayFromString(savepath));
   } else if (xhr.status === 301) {
-    //console.log("TexLive File not exists " + remote_url);
+    console.log("TexLive file dose not exists " + remote_url);
     self.cacheRecord.texlive404[cacheKey] = 1;
     return 0;
   }

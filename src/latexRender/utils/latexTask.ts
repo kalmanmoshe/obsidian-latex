@@ -211,7 +211,6 @@ export class LatexTask {
         });
     }
     this.task.source = source;
-    console.log("task.source", this.vfs, ast, this.task.source.split("\n"));
     return !!this.err;
   }
   static async processTask(plugin: Moshe, task: MinProcessableTask) {

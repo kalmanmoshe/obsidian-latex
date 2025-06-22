@@ -1,4 +1,4 @@
-import { EnvInfo, MacroInfo } from "../typs/info-specs";
+import { RenderInfo } from "../typs/info-specs";
 
 /**
  * Parse the string into an AST.
@@ -67,9 +67,7 @@ export interface GenericNode {
 // Abstract nodes
 interface BaseNode {
   type: string;
-  _renderInfo?: (MacroInfo["renderInfo"] | EnvInfo["renderInfo"]) & {
-    defaultArg?: string;
-  } & Record<string, unknown>;
+  _renderInfo?: RenderInfo
   position?: {
     start: { offset: number; line: number; column: number };
     end: { offset: number; line: number; column: number };
@@ -187,7 +185,11 @@ function validateNodeContent<T extends BaseNodeClass>(
   }
   return content;
 }
-
+function addRenderInfo(macro: string,renderInfo: object) {
+  console.log("Adding render info for macro:", macro, renderInfo);
+  //if (renderInfo.breakAfter!(macro.match(/(input)/))) return;
+  renderInfo
+}
 export function migrateToClassStructure(ast: Ast): AstClass {
   if (Array.isArray(ast)) {
     const nodes: NodeClass[] = ast.map(migrateToClassStructure).map((node) => {
@@ -231,7 +233,7 @@ export function migrateToClassStructure(ast: Ast): AstClass {
         ast.content,
         ast.escapeToken,
         macroArgs,
-        undefined,
+        ast._renderInfo,
         ast.position,
       );
     case "environment":

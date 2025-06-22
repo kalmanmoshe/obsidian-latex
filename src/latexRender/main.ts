@@ -33,6 +33,8 @@ import { PdfXeTeXCompiler } from "./compiler/swiftlatexxetex/pdfXeTeXCompiler";
 import LatexCompiler from "./compiler/base/compilerBase/compiler";
 import CompilerCache from "./cache/compilerCache";
 
+temp.track();
+
 export const waitFor = async (condFunc: () => boolean) => {
   return new Promise<void>((resolve) => {
     if (condFunc()) {
@@ -326,40 +328,8 @@ export class SwiftlatexRender {
   flatRenderLatex(){
 
   }
-  disconnectedRenderLatex(source: string){
-    return new Promise(async (resolve, reject) => {
-      temp.mkdir(
-        "obsidian-swiftlatex-renderer",
-        async (err: any, dirPath: any) => {
-          try {
-            await waitFor(() => this.compiler.isReady());
-          } catch (err) {
-            reject(err);
-            return;
-          }
-          if (err) reject(err);
-          await this.vfs.loadVirtualFileSystemFiles();
-          await this.compiler.writeMemFSFile("main.tex", source);
-          await this.compiler.setEngineMainFile("main.tex");
-          await this.compiler
-            .compileLaTeX()
-            .then(async (result: CompileResult) => {
-              this.vfs.removeVirtualFileSystemFiles();
-              if(md5Hash) this.cache.addLog(result.log, md5Hash);
-              if (result.status != 0) {
-                // manage latex errors
-                reject(result.log);
-              }
-              // update the list of package files in the cache
-              await this.cache.fetchPackageCacheData();
-              resolve(result);
-            });
-        },
-      );
-    });
-  }
 
-  renderLatexToPDF(source: string, md5Hash: string): Promise<CompileResult> {
+  renderLatexToPDF(source: string, md5Hash?: string): Promise<CompileResult> {
     return new Promise(async (resolve, reject) => {
       temp.mkdir(
         "obsidian-swiftlatex-renderer",
@@ -371,6 +341,7 @@ export class SwiftlatexRender {
             return;
           }
           if (err) reject(err);
+          console.log("Rendering LaTeX to PDF", source.split("\n"),this.vfs);
           await this.vfs.loadVirtualFileSystemFiles();
           await this.compiler.writeMemFSFile("main.tex", source);
           await this.compiler.setEngineMainFile("main.tex");

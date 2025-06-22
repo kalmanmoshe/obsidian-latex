@@ -29,7 +29,7 @@ import { EnvironmentWrap } from "./verifyEnvironmentWrap";
  */
 
 function insureRenderInfoexists(node: Node) {
-  if (!node._renderInfo) node._renderInfo = {};
+  if (!node.renderInfo) node.renderInfo = {};
 }
 export interface LatexDependency {
   source: string;
