@@ -10,7 +10,7 @@ import {
   getFileSectionsFromPath,
   hashLatexSource,
   latexCodeBlockNamesRegex,
-} from "./main";
+} from "./swiftlatexRender";
 import parseLatexLog from "./logs/HumanReadableLogs";
 import { getSectionFromMatching } from "./cache/findSection";
 import { LogDisplayModal } from "./logs/logDisplayModal";
@@ -94,7 +94,7 @@ export class SvgContextMenu extends Menu {
       item.setTitle("Copy parsed source");
       item.setIcon("copy");
       item.onClick(async () => {
-        const source = await this.getparsedSource();
+        const source = await this.getParsedSource();
         await navigator.clipboard.writeText(source);
       });
     });
@@ -185,7 +185,15 @@ export class SvgContextMenu extends Menu {
     const modal = new LogDisplayModal(this.plugin, log);
     modal.open();
   }
-
+  /*private async showLogs() {
+    const hash = this.getHash();
+    this.assignLatexSource();
+    const log = this.plugin.swiftlatexRender.cache.getLog(hash);
+    if(!log) throw new Error("")
+    console.log("log", log);
+    const modal = new LogDisplayModal(this.plugin, log);
+    modal.open();
+  }*/
   private getHash() {
     const hash = this.triggeringElement.id;
     if (hash === undefined) throw new Error("No hash found for SVG element");
@@ -272,7 +280,7 @@ export class SvgContextMenu extends Menu {
   async open(event: MouseEvent) {
     this.showAtPosition({ x: event.pageX, y: event.pageY });
   }
-  private async getparsedSource() {
+  private async getParsedSource() {
     await this.assignLatexSource();
     if (this.codeBlockLanguage === undefined) await this.getSectionCache();
     const task = { source: this.source, sourcePath: this.sourcePath };

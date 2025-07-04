@@ -13,7 +13,7 @@ type Position = {
   end: { offset: number; line: number; column: number };
 };
 
-export class BaseNode {
+export abstract class BaseNode {
   type: string;
   renderInfo?: RenderInfo;
   position?: Position;
@@ -26,17 +26,15 @@ export class BaseNode {
     if (renderInfo) this.renderInfo = renderInfo;
     if (position) this.position = position;
   }
-  clone(): this {
-    const clone = new (this.constructor as new (...args: any[]) => this)(
-      this.type,
-      this.renderInfo,
-      this.position,
-    );
-    Object.assign(clone, this);
-    return clone;
-  }
+  abstract clone(): this;
   isMacro(): this is Macro {
     return this instanceof Macro;
+  }
+  isContent(): this is ContentNode {
+    return this instanceof ContentNode;
+  }
+  hasArguments(): this is Macro | Environment {
+    return this.isMacro() || this instanceof Environment;
   }
   isString(): this is String {
     return this instanceof String;
@@ -78,7 +76,7 @@ export class BaseNode {
   }
 }
 
-export class ContentNode extends BaseNode {
+export abstract class ContentNode extends BaseNode {
   content: Node[];
   constructor(
     type: string,
@@ -88,6 +86,16 @@ export class ContentNode extends BaseNode {
   ) {
     super(type, renderInfo, position);
     this.content = content;
+  }
+  clone(): this {
+    const clone = new (this.constructor as new (...args: any[]) => this)(
+      this.type,
+      this.content.map((node) => node.clone()),
+      this.renderInfo,
+      this.position,
+    );
+    Object.assign(clone, this);
+    return clone;
   }
 }
 
@@ -103,6 +111,13 @@ export class Root extends ContentNode {
   }
   toString(): any {
     return this.content.map((node) => node.toString());
+  }
+  clone(): this {
+    return new Root(
+      this.content.map((node) => node.clone()),
+      this.renderInfo,
+      this.position,
+    ) as this
   }
 }
 
@@ -123,6 +138,15 @@ export class String extends BaseNode {
   getNumber() {
     return Number(this.content);
   }
+  clone(): this {
+    const clone = new String(
+      this.content,
+      this.renderInfo,
+      this.position,
+    ) as this;
+    Object.assign(clone, this);
+    return clone;
+  }
 }
 
 export class Whitespace extends BaseNode {
@@ -139,6 +163,11 @@ export class Whitespace extends BaseNode {
       length = this.position?.end.offset - this.position?.start.offset;
     return " ".repeat(Math.abs(length));
   }
+  clone(): this {
+    const clone = new Whitespace(this.renderInfo, this.position) as this;
+    Object.assign(clone, this);
+    return clone;
+  }
 }
 
 export class Parbreak extends BaseNode {
@@ -151,6 +180,11 @@ export class Parbreak extends BaseNode {
   }
   toString(): string {
     return "\n";
+  }
+  clone(): this {
+    const clone = new Parbreak(this.renderInfo, this.position) as this;
+    Object.assign(clone, this);
+    return clone;
   }
 }
 
@@ -177,6 +211,18 @@ export class Comment extends BaseNode {
   toString(): string {
     return `%${this.content}\n`;
   }
+  clone(): this {
+    const clone = new Comment(
+      this.content,
+      this.sameline,
+      this.suffixParbreak,
+      this.leadingWhitespace,
+      this.renderInfo,
+      this.position,
+    ) as this;
+    Object.assign(clone, this);
+    return clone;
+  }
 }
 
 export class Macro extends BaseNode {
@@ -192,7 +238,7 @@ export class Macro extends BaseNode {
     renderInfo?: RenderInfo,
     position?: Position,
   ) {
-    renderInfo = renderInfo || getDefaultMacroRenderInfoConfig(content);
+    renderInfo = formatRenderInfo(content,renderInfo);
     super("macro", renderInfo, position);
     this.content = content;
     if (escapeToken) this.escapeToken = escapeToken;
@@ -206,6 +252,17 @@ export class Macro extends BaseNode {
       (this.args ? this.args.map((arg) => arg.toString()).join("") : "") +
       (this.renderInfo?.breakAfter ? "\n" : "")
     );
+  }
+  clone(): this {
+    const clone = new Macro(
+      this.content,
+      this.escapeToken,
+      this.args?.map((arg) => arg.clone()),
+      this.renderInfo,
+      this.position,
+    ) as this;
+    Object.assign(clone, this);
+    return clone;
   }
 }
 
@@ -232,6 +289,16 @@ export class Path extends Macro {
     string += this.renderInfo?.breakAfter ? "\n" : "";
     return string;
   }
+  clone(): this {
+    const clone = new Path(
+      this.content,
+      this.components.map((node) => node.clone()),
+      this.renderInfo,
+      this.position,
+    ) as this;
+    Object.assign(clone, this);
+    return clone;
+  }
 }
 
 export class Pathf extends Macro {
@@ -249,6 +316,12 @@ export class Coordinate extends Argument {
 }*/
 
 const macrosNotToescapeRegex = /(_|\^)/;
+function formatRenderInfo(content: string,info?: RenderInfo) {
+  const defConfig = getDefaultMacroRenderInfoConfig(content);
+  if (!info) {return defConfig;}
+  // Overwrite default config with info
+  return Object.assign({}, defConfig, info);
+}
 const getDefaultMacroRenderInfoConfig = (content: string): RenderInfo | undefined => {
   let info: RenderInfo = {};
   if (!macrosNotToescapeRegex.test(content)) {
@@ -324,6 +397,16 @@ export class VerbatimEnvironment extends BaseNode {
   toString(): string {
     return `\\begin{${this.env}}${this.content}\\end{${this.env}}`;
   }
+  clone(): this {
+    const clone = new VerbatimEnvironment(
+      this.env,
+      this.content,
+      this.renderInfo,
+      this.position,
+    ) as this;
+    Object.assign(clone, this);
+    return clone;
+  }
 }
 
 export class DisplayMath extends ContentNode {
@@ -387,6 +470,17 @@ export class Verb extends BaseNode {
   }
   toString(): string {
     return `\\${this.env}${this.escape}${this.content}${this.escape}`;
+  }
+  clone(): this {
+    const clone = new Verb(
+      this.env,
+      this.escape,
+      this.content,
+      this.renderInfo,
+      this.position,
+    ) as this;
+    Object.assign(clone, this);
+    return clone;
   }
 }
 

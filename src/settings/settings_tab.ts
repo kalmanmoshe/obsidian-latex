@@ -1,35 +1,21 @@
-import { EditorView, ViewUpdate } from "@codemirror/view";
+import { EditorView,} from "@codemirror/view";
 import {
   App,
   Notice,
   PluginSettingTab,
   Setting,
   setIcon,
-  ToggleComponent,
-  debounce,
 } from "obsidian";
 import MosheMathPlugin from "../main";
-import { CompilerType, DEFAULT_SETTINGS } from "./settings";
+import { CompilerType, DEFAULT_SETTINGS, OverflowStrategy } from "./settings";
 import {
   addDropdownSetting,
   addToggleSetting,
   setPluginInstance,
-  FileSuggest,
-  FolderSuggest,
-  addTextSetting,
   createSetting,
   addButtonSetting,
+  addFileSearchSetting,
 } from "obsidian-dev-utils";
-
-interface Appearance {
-  name?: string;
-  description?: string;
-  elText?: string;
-  icon?: string;
-  tooltip?: string;
-  defValue?: any;
-  dropDownOptions?: Record<string, string>;
-}
 
 export class MosheMathSettingTab extends PluginSettingTab {
   plugin: MosheMathPlugin;
@@ -79,10 +65,7 @@ export class MosheMathSettingTab extends PluginSettingTab {
     addDropdownSetting(
       containerEl,
       (value: string) => {
-        this.plugin.settings.overflowStrategy = value as
-          | "downscale"
-          | "scroll"
-          | "hidden";
+        this.plugin.settings.overflowStrategy = value as OverflowStrategy
         this.plugin.saveSettings();
       },
       {
@@ -163,42 +146,21 @@ export class MosheMathSettingTab extends PluginSettingTab {
       },
     );
 
-    const physicalCacheLocationSetting = createSetting(containerEl, {
+    const physicalCacheLocationSetting = addFileSearchSetting(
+      containerEl,
+      async (value) => {
+        this.plugin.settings.physicalCacheLocation = value;
+        await this.plugin.saveSettings();
+        this.plugin.swiftlatexRender.cache.changeCacheDirectory();
+      },
+      {
       name: "Physical cache location",
-      description:
-        'The directory where rendered diagrams are stored. Empty for default, "/" for the vault root, or a specific path.',
+      description: "The directory where rendered diagrams are stored. Empty for default, \"/\" for the vault root, or a specific path.",
+      placeholder: DEFAULT_SETTINGS.physicalCacheLocation,
+      defValue: this.plugin.settings.physicalCacheLocation,
+      debounce: {timeout: 1000, resetTimer: true},
     });
-
-    let inputEl: HTMLInputElement | undefined;
-    physicalCacheLocationSetting.addSearch((component) => {
-      component
-        .setPlaceholder(DEFAULT_SETTINGS.physicalCacheLocation)
-        .setValue(this.plugin.settings.physicalCacheLocation)
-        .onChange(
-          debounce(
-            async (value) => {
-              this.plugin.settings.physicalCacheLocation = value;
-              await this.plugin.saveSettings();
-              this.plugin.swiftlatexRender.cache.changeCacheDirectory();
-            },
-            500,
-            true,
-          ),
-        );
-      inputEl = component.inputEl as HTMLInputElement;
-      inputEl.addClass("moshe-typing-location-input-el");
-    });
-    if (inputEl) {
-      this.snippetsFileLocEl = physicalCacheLocationSetting.settingEl;
-      new FolderSuggest(this.app, inputEl);
-    } else {
-      console.error("Input element is undefined.");
-    }
-
-    physicalCacheLocationSetting.settingEl.toggleClass(
-      "hidden",
-      !this.plugin.settings.physicalCache,
-    );
+    physicalCacheLocationSetting.settingEl.toggleClass("hidden",!this.plugin.settings.physicalCache);
 
     addButtonSetting(
       containerEl,
@@ -220,52 +182,37 @@ export class MosheMathSettingTab extends PluginSettingTab {
   private displayPreambleSettings() {
     const containerEl = this.containerEl;
     this.addHeading(containerEl, "Preamble", "pencil");
+
     addToggleSetting(
       containerEl,
       (value: boolean) => {
-        (this.plugin.settings.mathjaxPreamblePreambleEnabled = value),
-          this.plugin.saveSettings();
+        this.plugin.settings.mathjaxPreambleEnabled = value;
+        this.plugin.saveSettings();
+        mathjaxPreambleFileLoc.settingEl.toggleClass("hidden",!this.plugin.settings.mathjaxPreambleEnabled,);
       },
       {
         name: "Mathjax preamble enabled.",
         description: "Whether to load mathjax preamble",
-        defValue: this.plugin.settings.mathjaxPreamblePreambleEnabled,
+        defValue: this.plugin.settings.mathjaxPreambleEnabled,
       },
     );
-    const mathjaxPreambleFileLoc = createSetting(containerEl, {
-      name: "Mathjax preamble file location",
-      description:
-        "the file/directory containing the preamble for MathJax requirs reload to take effect",
-    });
-    let inputEl1: HTMLInputElement | undefined; // Define with a possible undefined type
-    mathjaxPreambleFileLoc.addSearch((component) => {
-      component
-        .setPlaceholder(DEFAULT_SETTINGS.mathjaxPreambleFileLocation)
-        .setValue(this.plugin.settings.mathjaxPreambleFileLocation)
-        .onChange(
-          debounce(
-            async (value) => {
-              this.plugin.settings.mathjaxPreambleFileLocation = value;
-              await this.plugin.saveSettings();
-            },
-            500,
-            true,
-          ),
-        );
 
-      // Ensure inputEl is assigned
-      inputEl1 = component.inputEl as HTMLInputElement;
-      inputEl1.addClass("moshe-typing-location-input-el");
-    });
-
-    // Ensure inputEl is defined before passing to FileSuggest
-    if (inputEl1) {
-      this.snippetsFileLocEl = mathjaxPreambleFileLoc.settingEl;
-      new FileSuggest(this.app, inputEl1);
-    } else {
-      console.error("Input element is undefined.");
-    }
-
+    const mathjaxPreambleFileLoc = addFileSearchSetting(
+      containerEl,
+      async (value) => {
+        this.plugin.settings.mathjaxPreambleFileLocation = value;
+        await this.plugin.saveSettings();
+      },
+      {
+        name: "Mathjax preamble file location",
+        description:
+          "the file/directory containing the preamble for MathJax requirs reload to take effect",
+        placeholder: DEFAULT_SETTINGS.mathjaxPreambleFileLocation,
+        defValue: this.plugin.settings.mathjaxPreambleFileLocation,
+        debounce: { timeout: 1000, resetTimer: true },
+      }
+    )
+    mathjaxPreambleFileLoc.settingEl.toggleClass("hidden",!this.plugin.settings.mathjaxPreambleEnabled,);
     const virtualFilesDescription = document.createDocumentFragment();
 
     const description = document.createElement("span");
@@ -275,52 +222,20 @@ export class MosheMathSettingTab extends PluginSettingTab {
       "When disabled, all LaTeX commands must rely solely on content provided directly in the code block.";
 
     virtualFilesDescription.appendChild(description);
-
     addToggleSetting(
       containerEl,
       (value: boolean) => {
-        this.plugin.settings.pdfTexEnginevirtualFileSystemFilesEnabled = value;
+        this.plugin.settings.compilerVfsEnabled = value;
+        virtualFilesFromCodeBlocks.settingEl.toggleClass("hidden", !value);
+        autoloadedVfsFilesDir.settingEl.toggleClass("hidden", !value);
       },
       {
         name: "Enable virtual files",
         description: virtualFilesDescription,
-        defValue:
-          this.plugin.settings.pdfTexEnginevirtualFileSystemFilesEnabled,
+        defValue: this.plugin.settings.compilerVfsEnabled,
         passToSave: { didFileLocationChange: true },
       },
     );
-    const virtualFilesFileLoc = createSetting(containerEl, {
-      name: "Virtual files file location",
-      description: "the file/directory containing the virtual files",
-    });
-    let inputEl2: HTMLInputElement | undefined; // Define with a possible undefined type
-    virtualFilesFileLoc.addSearch((component) => {
-      component
-        .setPlaceholder(DEFAULT_SETTINGS.virtualFilesFileLocation)
-        .setValue(this.plugin.settings.virtualFilesFileLocation)
-        .onChange(
-          debounce(
-            async (value) => {
-              this.plugin.settings.virtualFilesFileLocation = value;
-              await this.plugin.saveSettings(true);
-            },
-            500,
-            true,
-          ),
-        );
-
-      // Ensure inputEl is assigned
-      inputEl2 = component.inputEl as HTMLInputElement;
-      inputEl2.addClass("moshe-typing-location-input-el");
-    });
-
-    // Ensure inputEl is defined before passing to FileSuggest
-    if (inputEl2) {
-      this.snippetsFileLocEl = virtualFilesFileLoc.settingEl;
-      new FileSuggest(this.app, inputEl2);
-    } else {
-      console.error("Input element is undefined.");
-    }
     const descriptionFragment = document.createDocumentFragment();
     const descriptionDetails = document.createElement("span");
     descriptionDetails.textContent =
@@ -331,7 +246,7 @@ export class MosheMathSettingTab extends PluginSettingTab {
       "Note: the default file extension is '.tex', unless explicitly specified.";
     descriptionFragment.appendChild(descriptionDetails);
 
-    addToggleSetting(
+    const virtualFilesFromCodeBlocks = addToggleSetting(
       containerEl,
       (value: boolean) => {
         this.plugin.settings.virtualFilesFromCodeBlocks = value;
@@ -343,31 +258,23 @@ export class MosheMathSettingTab extends PluginSettingTab {
         passToSave: { didFileLocationChange: true },
       },
     );
-
-    addTextSetting(
+    virtualFilesFromCodeBlocks.settingEl.toggleClass("hidden", !this.plugin.settings.compilerVfsEnabled);
+    const autoloadedVfsFilesDir = addFileSearchSetting(
       containerEl,
-      (value: string) => {
-        this.plugin.settings.autoloadedVirtualFileSystemFiles =
-          strToArray(value);
-        this.plugin.updateCoorVirtualFiles();
+      async (value) => {
+        this.plugin.settings.autoloadedVfsFilesDir = value;
+        await this.plugin.saveSettings();
+        this.plugin.processLatexPreambles(true);
       },
       {
         name: "Autoloaded virtual files",
         description:
-          "Specify virtual files to automatically include in every LaTeX render, separated by commas. " +
-          "Files listed here must exist either as named code blocks (if code-block loading is enabled) " +
-          "or within the configured virtual files directory.",
-        defValue:
-          this.plugin.settings.autoloadedVirtualFileSystemFiles.join(", "),
-        passToSave: { didFileLocationChange: true },
+          "Specify a directory containing virtual files to automatically include in every LaTeX render. " ,
+        placeholder: DEFAULT_SETTINGS.autoloadedVfsFilesDir,
+        defValue: this.plugin.settings.autoloadedVfsFilesDir,
+        debounce: { timeout: 1000, resetTimer: true },
       },
-    );
+    )
+    autoloadedVfsFilesDir.settingEl.toggleClass("hidden", !this.plugin.settings.compilerVfsEnabled);
   }
-}
-
-function strToArray(str: string) {
-  return str
-    .replace(/\s/g, "")
-    .split(",")
-    .filter((s) => s.length > 0);
 }

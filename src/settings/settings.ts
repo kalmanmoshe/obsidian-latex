@@ -5,13 +5,18 @@ export enum CompilerType {
   XeTeX = "xetex",
 }
 
-interface MosheMathBasicSettings {
-  mathjaxPreamblePreambleEnabled: boolean;
+export enum OverflowStrategy {
+  Downscale = "downscale",
+  Scroll = "scroll",
+  Hidden = "hidden",
+}
+
+export interface MosheMathPluginSettings {
+  mathjaxPreambleEnabled: boolean;
   mathjaxPreambleFileLocation: string;
-  pdfTexEnginevirtualFileSystemFilesEnabled: boolean;
-  autoloadedVirtualFileSystemFiles: string[];
+  compilerVfsEnabled: boolean;
+  autoloadedVfsFilesDir: string;
   virtualFilesFromCodeBlocks: boolean;
-  virtualFilesFileLocation: string;
 
   invertColorsInDarkMode: boolean;
 
@@ -37,57 +42,26 @@ interface MosheMathBasicSettings {
    * "scroll" - add a scrollbar.
    * "hidden" - do nothing, content will overflow.
    */
-  overflowStrategy: "downscale" | "scroll" | "hidden";
+  overflowStrategy: OverflowStrategy;
   compiler: CompilerType;
 }
 
-export type MosheMathPluginSettings = MosheMathBasicSettings;
-export type MosheMathettings = MosheMathBasicSettings;
-
 export const DEFAULT_SETTINGS: MosheMathPluginSettings = {
-  mathjaxPreamblePreambleEnabled: false,
+  mathjaxPreambleEnabled: false,
   mathjaxPreambleFileLocation: "",
-  pdfTexEnginevirtualFileSystemFilesEnabled: false,
-  autoloadedVirtualFileSystemFiles: [],
+  compilerVfsEnabled: false,
+  autoloadedVfsFilesDir: "",
   virtualFilesFromCodeBlocks: false,
-  virtualFilesFileLocation: "",
   // stile settings
   invertColorsInDarkMode: true,
 
-  package_url: `https://texlive2.swiftlatex.com/`,
+  package_url: "http://46.101.255.60:3000/"/*`https://texlive2.swiftlatex.com/`*/,
   physicalCache: true,
   physicalCacheLocation: "",
   cache: [],
   packageCache: [{}, {}, {}, {}],
   pdfEngineCooldown: 1000,
   saveLogs: false,
-  overflowStrategy: "downscale",
+  overflowStrategy: OverflowStrategy.Downscale,
   compiler: CompilerType.TeX,
 };
-
-export function processMosheMathSettings(
-  settings: MosheMathPluginSettings,
-): MosheMathettings {
-  function strToArray(str: string) {
-    return str.replace(/\s/g, "").split(",");
-  }
-
-  function getAutofractionExcludedEnvs(envsStr: string) {
-    let envs = [];
-
-    try {
-      const envsJSON = JSON.parse(envsStr);
-      envs = envsJSON.map(function (env: string[]) {
-        return { openSymbol: env[0], closeSymbol: env[1] };
-      });
-    } catch (e) {
-      console.log(e);
-    }
-
-    return envs;
-  }
-
-  return {
-    ...settings,
-  };
-}

@@ -1,5 +1,5 @@
 import Moshe from "src/main";
-import { latexCodeBlockNamesRegex, Task } from "../main";
+import { latexCodeBlockNamesRegex, Task } from "../swiftlatexRender";
 import { VirtualFileSystem } from "../VirtualFileSystem";
 import { TFile } from "obsidian";
 import { getFileSections } from "../cache/sectionCache";
@@ -27,6 +27,10 @@ type InputFile = {
   dependencies: InputFile[];
 };
 type VFSLatexDependency = LatexDependency & { inVFS: boolean };
+/**
+ * Class to handle LaTeX tasks, processing the source code,
+ * managing dependencies, and interacting with the virtual file system.
+ */
 export class LatexTask {
   task: MinProcessableTask;
   plugin: Moshe;
@@ -40,6 +44,12 @@ export class LatexTask {
     latexTask.vfs = plugin.swiftlatexRender.vfs;
     return latexTask;
   }
+  /**
+   * 
+   * @param file 
+   * @param remainingPath 
+   * @returns 
+   */
   async getFileContent(file: TFile, remainingPath?: string): Promise<string> {
     const fileContent = await this.plugin.app.vault.read(file);
     if (!remainingPath) return fileContent;
@@ -68,10 +78,14 @@ export class LatexTask {
     if (!target) err();
     return target!.content.split("\n").slice(1, -1).join("\n");
   }
-  private async processInputFiles(
-    ast: LatexAbstractSyntaxTree,
-    basePath: string,
-  ): Promise<VFSLatexDependency[]> {
+  /**
+   * Processes input files in the LaTeX AST, extracting dependencies and
+   * normalizing file names.
+   * @param ast The LaTeX abstract syntax tree.
+   * @param basePath The base path for resolving relative file paths.
+   * @returns An array of dependencies found in the input files.
+   */
+  private async processInputFiles(ast: LatexAbstractSyntaxTree,basePath: string): Promise<VFSLatexDependency[]> {
     const usedFiles: VFSLatexDependency[] = [];
     const inputFilesMacros = ast
       .usdInputFiles()
@@ -138,8 +152,11 @@ export class LatexTask {
       );
     }
     return usedFiles;
-  } /**
-   * They're somewhere a bug over here that infinitely adds document Environments
+  }
+  /**
+   * Processes the LaTeX task source code, parsing it into an AST,
+   * extracting dependencies, and preparing the final source code.
+   * @returns An object containing the processed source, used files, and AST.
    */
   async processTaskSource() {
     const usedFiles: VFSLatexDependency[] = [];
@@ -152,33 +169,13 @@ export class LatexTask {
     };
     try {
       const ast = LatexAbstractSyntaxTree.parse(this.task.source);
-      usedFiles.push(
-        ...(await this.processInputFiles(ast, this.task.sourcePath)),
-      );
-
-      this.vfs.getAutoUseFileNames().forEach((name) => {
-        ast.addInputFileToPramble(name);
-        const file = this.vfs.getFile(name).content;
-        const dependency = {
-          ...createDpendency(file, name, path.extname(name), {
-            isTex: true,
-            autoUse: true,
-          }),
-          inVFS: true,
-        };
-        usedFiles.push(dependency);
-        ast.addDependency(
-          file,
-          dependency.name,
-          dependency.extension,
-          dependency,
-        );
-      });
+      if (this.plugin.settings.compilerVfsEnabled){
+        usedFiles.push(...(await this.processInputFiles(ast, this.task.sourcePath)));
+        usedFiles.push(...this.addAutoUseFilesToAst(ast));
+      }
       ast.verifyProperDocumentStructure();
       const totalDuration = performance.now() - startTime;
-      console.log(
-        `[TIMER] Total processing time: ${totalDuration.toFixed(2)} ms`,
-      );
+      //console.log(`[TIMER] Total processing time: ${totalDuration.toFixed(2)} ms`);
       // ── Final task update ────────────────────────
       return { ...process, source: ast.toString(), ast };
     } catch (e) {
@@ -191,28 +188,38 @@ export class LatexTask {
       return { ...process, abort };
     }
   }
+  private addAutoUseFilesToAst(ast: LatexAbstractSyntaxTree) {
+    const files: VFSLatexDependency[] = [];
+    this.vfs.getAutoUseFileNames().forEach((name) => {
+      ast.addInputFileToPramble(name);
+      const file = this.vfs.getFile(name).content;
+      const dependency = {
+        ...createDpendency(file, name, path.extname(name), {isTex: true,autoUse: true}),
+        inVFS: true,
+      };
+      files.push(dependency);
+      ast.addDependency(file,dependency.name,dependency.extension,dependency);
+    });
+    return files
+  }
   async processTask(): Promise<boolean> {
     const { usedFiles, abort, source, ast } = await this.processTaskSource();
+    console.log("Ast:", ast?.clone());
     if (this.err) {
       console.error("Error processing task:", this.err);
       this.task.el &&
-        this.plugin.swiftlatexRender.handleError(this.task.el, this.err, {
-          hash: this.task.md5Hash,
-        });
+        this.plugin.swiftlatexRender.handleError(this.task.el, this.err, {hash: this.task.md5Hash,});
       return !!abort;
     }
     //this is just for ts types
     if (!source) throw new Error("Unexpected error: source is undefined");
     for (const dep of usedFiles) {
-      if (!dep.inVFS)
-        this.vfs.addVirtualFileSystemFile({
-          name: dep.name,
-          content: dep.source,
-        });
+      if (!dep.inVFS) this.vfs.addVirtualFileSystemFile({name: dep.name,content: dep.source});
     }
     this.task.source = source;
     return !!this.err;
   }
+
   static async processTask(plugin: Moshe, task: MinProcessableTask) {
     const latexTask = LatexTask.create(plugin, task);
     await latexTask.processTask();

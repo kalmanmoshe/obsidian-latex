@@ -51,11 +51,13 @@ export default class CompilerCache {
     return this.logCache.getLog(hash);
   }
   /**
-   * retrieves the compiled file cache.
+   * Returns a map of all cached files with their names and content.
+   * The key is the file name (with extension), and the value is the file content.
    */
   getCompiledFiles() {
     return this.cache.getCachedFiles();
   }
+  getCacheMap() {return this.cache.getCacheMap();}
   /**
    * Adds a log to the log cache.
    * @param log The log object or string.

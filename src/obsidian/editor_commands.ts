@@ -85,8 +85,10 @@ function testLatex(plugin: Moshe): Command{
     id: "moshe-tast-latex-code-blocks",
     name: "name test latex code block",
     callback() {
-      const files = plugin.swiftlatexRender.cache.getCompiledFiles();
-      
+      const fileNames = plugin.swiftlatexRender.cache.getCacheMap();
+      const files = [];
+      for (const fileName of fileNames) {
+      }
     },
   }
 }
