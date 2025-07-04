@@ -1,6 +1,6 @@
 import { App, SectionCache, TAbstractFile, TFile, TFolder } from "obsidian";
 import Moshe from "src/main";
-import { hashLatexSource, latexCodeBlockNamesRegex } from "../main";
+import { hashLatexSource, latexCodeBlockNamesRegex } from "../swiftlatexRender";
 import { getFileSections } from "./sectionCache";
 import { parseNestedCodeBlocks, shiftSections } from "obsidian-dev-utils";
 

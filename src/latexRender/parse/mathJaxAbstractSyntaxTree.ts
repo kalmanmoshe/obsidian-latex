@@ -10,13 +10,20 @@ import {
 
 export class MathJaxAbstractSyntaxTree {
   ast: Node[];
-  parse(latex: string) {
+  static parse(latex: string) {
+    const tree = new MathJaxAbstractSyntaxTree();
     const ast = migrateToClassStructure(parseMath(latex));
     if (ast instanceof Array) {
-      this.ast = ast;
+      tree.ast = ast;
     } else {
       throw new Error("Root not found it is not in Array, got: " + ast);
     }
+    return tree;
+  }
+  clone(){
+    const newTree = new MathJaxAbstractSyntaxTree();
+    newTree.ast = this.ast.map(node=>node.clone());
+    return newTree;
   }
   reverseRtl() {
     const args = findTextMacros(this.ast);

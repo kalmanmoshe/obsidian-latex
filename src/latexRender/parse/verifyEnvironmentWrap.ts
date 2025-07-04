@@ -1,24 +1,10 @@
 import {
-  Root,
   String,
-  Whitespace,
-  Parbreak,
-  Comment,
   Macro,
   Environment,
   Argument,
-  Path,
-  DisplayMath,
-  Group,
-  InlineMath,
-  Verb,
-  VerbatimEnvironment,
-  Ast,
   Node,
-  ContentNode,
-  BaseNode,
 } from "./typs/ast-types-post";
-import { migrateToClassStructure } from "./autoParse/ast-types-pre";
 import { LatexAbstractSyntaxTree } from "./parse";
 import { Notice } from "obsidian";
 export class EnvironmentWrap {
@@ -66,8 +52,7 @@ export class EnvironmentWrap {
   createDocEnvironment() {
     const preambleEndIndex = this.content.findIndex((node) => {
       if (node.isMacro()) {
-        if (/(documentclass|usetikzlibrary|usepackage)/.test(node.content))
-          return false;
+        if (/(documentclass|usetikzlibrary|usepackage)/.test(node.content)) return false;
         if (
           node.content === "input" &&
           this.ast.dependencies.get(
@@ -78,21 +63,14 @@ export class EnvironmentWrap {
       }
       return true;
     });
-    const index =
-      preambleEndIndex === -1 ? this.content.length : preambleEndIndex;
+    const index = preambleEndIndex === -1 ? this.content.length : preambleEndIndex;
     const preamble = this.ast.content.slice(0, index);
     const envContent = this.ast.content.slice(index);
-    const sortedEnvs = this.getEnvironmentStructure().filter(
-      (env) => !env.inAst,
-    );
+    const sortedEnvs = this.getEnvironmentStructure().filter((env) => !env.inAst,);
     let envs = new Environment("environment", "dummy", []);
     const diff = this.args.length - sortedEnvs.length;
     if (diff > 0) {
-      new Notice(
-        "Too many arguments for environments, the last " +
-          diff +
-          " will be ignored.",
-      );
+      new Notice("Too many arguments for environments, the last " + diff + " will be ignored.");
       this.args.splice(-diff);
     }
     let current = envs;
@@ -111,80 +89,57 @@ export class EnvironmentWrap {
     }
     current.content.push(...envContent);
     envs = envs.content[0] as Environment;
-
     const doc = [...preamble, envs];
     return doc;
   }
   findEnvironmentArgs(): Argument[] | undefined {
-    const firstSquareBracketIndex = this.content.findIndex(
-      (node) => node instanceof String && node.content === "[",
+    const firstBracketIndex = this.content.findIndex(
+      (node) => node.isString?.() && node.content === "["
     );
+  
     const controlIndexes = [
       this.content.findIndex((node) => {
         if (!(node instanceof Macro)) return false;
         if (node.content !== "input") return true;
+  
         const name = node.args?.[0]?.content.map((n) => n.toString()).join("");
-        if (name !== undefined) {
-          return this.ast.dependencies.get(name)?.autoUse === false;
-        }
-        return true;
+        return name === undefined || this.ast.dependencies.get(name)?.autoUse !== false;
       }),
       this.content.findIndex((node) => node instanceof Environment),
-      firstSquareBracketIndex,
-    ].filter((index) => index !== -1);
-
-    const hasArgs =
-      firstSquareBracketIndex !== -1 &&
+      firstBracketIndex,
+    ].filter((i) => i !== -1);
+  
+    const isArgListLikely = firstBracketIndex !== -1 &&
       controlIndexes.length > 0 &&
-      firstSquareBracketIndex === Math.min(...controlIndexes);
-
-    if (!hasArgs) return undefined;
-
+      firstBracketIndex === Math.min(...controlIndexes);
+  
+    if (!isArgListLikely) return undefined;
+  
     const args: Argument[] = [];
-    let openBracketIndex = firstSquareBracketIndex;
-    while (openBracketIndex !== -1) {
-      const matchingBracketIndex = findMatchingBracket(
-        this.content,
-        openBracketIndex,
-      );
-      if (matchingBracketIndex === -1) break;
+    let openIndex = firstBracketIndex;
+    
+    while (openIndex !== -1) {
+      const closeIndex = findMatchingBracket(this.content, openIndex);
+      if (closeIndex === -1) break;
 
-      const options = this.content.splice(
-        openBracketIndex,
-        matchingBracketIndex - openBracketIndex,
-      );
-      const [start, end] = [
-        options.findIndex((o) => !o.isWhitespaceLike()),
-        options.findLastIndex((o) => !o.isWhitespaceLike()),
-      ];
-      const trimmedOptions = options.slice(start, end + 1);
-      const [first, last] = [
-        trimmedOptions[0],
-        trimmedOptions[trimmedOptions.length - 1],
-      ];
-      if (
-        first.isString() &&
-        first.content === "[" &&
-        last.isString() &&
-        last.content === "]"
-      ) {
-        while (options.shift()?.isWhitespaceLike()) {}
-        while (options.pop()?.isWhitespaceLike()) {}
-      }
-      const arg = new Argument("[", "]", options);
-      args.push(arg);
-      openBracketIndex = this.content.findIndex(
-        (node) => node.isString() && node.content === "[",
-      );
-      if (
-        openBracketIndex !== -1 &&
-        !this.content
-          .slice(firstSquareBracketIndex, openBracketIndex)
-          .every((node) => node.isWhitespaceLike())
-      ) {
-        break;
-      }
+      const rawNodes = this.content.splice(openIndex, 1+closeIndex - openIndex);
+      const start = rawNodes.findIndex((n) => !n.isWhitespaceLike?.());
+      const end = rawNodes.findLastIndex((n) => !n.isWhitespaceLike?.());
+  
+      const trimmed = rawNodes.slice(start, end + 1);
+      const first = trimmed[0];
+      const last = trimmed[trimmed.length - 1];
+      rawNodes.shift(); // Remove "["
+      rawNodes.pop(); // Remove "]"
+      // Trim leading/trailing whitespace
+      while (rawNodes[0]?.isWhitespaceLike?.()) rawNodes.shift();
+      while (rawNodes[rawNodes.length - 1]?.isWhitespaceLike?.()) rawNodes.pop();
+      args.push(new Argument("[", "]", rawNodes));
+      openIndex = this.content.findIndex((node) => node.isString?.() && node.content === "[");
+      const range = this.content.slice(firstBracketIndex, openIndex);
+      if (openIndex !== -1 && !range.every((n) => n.isWhitespaceLike?.())) break;
     }
+  
     return args;
   }
   getEnvironmentStructure() {

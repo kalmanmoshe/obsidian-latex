@@ -53,6 +53,12 @@ export function createLatexErrorMessage(
 
 export function createErrorDisplay(err: ProcessedLog) {
   console.error("LaTeX Error:", err);
+  if (err.errors.length === 0) {
+    const errMessage = createLatexErrorMessage()
+    errMessage.title = "Unknown LaTeX Error";
+    errMessage.explanation = err.raw
+    return errorDiv(errMessage);
+  }
   return errorDiv(refactorToErrorMessage(err.errors[0]));
 }
 

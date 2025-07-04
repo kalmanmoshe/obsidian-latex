@@ -97,7 +97,6 @@ export class SwiftlatexRender {
     this.cache = new CompilerCache(this.plugin);
     await this.loadCompiler();
     this.configQueue();
-
     console.log("SwiftlatexRender loaded");
   }
   private bindTransactionLogger() {
@@ -132,18 +131,13 @@ export class SwiftlatexRender {
     } else {
       this.compiler = this.pdfXetexCompiler = new PdfXeTeXCompiler();
     }
-    //console.log("Loading compiler:", this.compiler.constructor.name);
     this.vfs.setPdfCompiler(this.compiler);
     await this.compiler.loadEngine();
     await this.cache.loadPackageCache();
     await this.compiler.setTexliveEndpoint(this.plugin.settings.package_url);
   }
 
-  universalCodeBlockProcessor(
-    source: string,
-    el: HTMLElement,
-    ctx: MarkdownPostProcessorContext,
-  ) {
+  universalCodeBlockProcessor(source: string,el: HTMLElement,ctx: MarkdownPostProcessorContext) {
     const isLangTikz = el.classList.contains("block-language-tikz");
     el.classList.remove("block-language-tikz");
     el.classList.remove("block-language-latex");
@@ -161,23 +155,12 @@ export class SwiftlatexRender {
           source = sectionInfo.source || source;
 
           const finalHash = hashLatexSource(source);
-          if (
-            md5Hash !== finalHash &&
-            this.cache.restoreFromCache(el, finalHash)
-          )
-            return;
+          if (md5Hash !== finalHash && this.cache.restoreFromCache(el, finalHash)) return;
 
           const blockId = getBlockId(ctx.sourcePath, sectionInfo.lineStart);
           this.queue.remove((node) => node.data.blockId === blockId);
           el.appendChild(createWaitingCountdown(this.queue.length()));
-          this.queue.push({
-            source,
-            el,
-            md5Hash,
-            sourcePath: ctx.sourcePath,
-            blockId,
-            process: isLangTikz,
-          });
+          this.queue.push({source,el,md5Hash,sourcePath: ctx.sourcePath,blockId,process: isLangTikz,});
         })
         .catch((err) => {
           err = "Error queuing task: " + err;
@@ -185,15 +168,25 @@ export class SwiftlatexRender {
         });
     }
   }
+  private foo(source: string,el: HTMLElement,info: {md5Hash: string,sourcePath: string,lineStart: number,isLangTikz:boolean}) {
+    const { md5Hash, sourcePath,lineStart,isLangTikz } = info;
+      //Reliable enough for repeated entries
+      source = source || source;
+
+      const finalHash = hashLatexSource(source);
+      if (md5Hash !== finalHash && this.cache.restoreFromCache(el, finalHash)) return;
+
+      const blockId = getBlockId(sourcePath, lineStart);
+      this.queue.remove((node) => node.data.blockId === blockId);
+      el.appendChild(createWaitingCountdown(this.queue.length()));
+      this.queue.push({source,el,md5Hash,sourcePath: sourcePath,blockId,process: isLangTikz,});
+  }
   /**
    * Attempts to locate the Markdown section that corresponds to a rendered code block,
    * even when section info is unavailable (e.g., virtual rendering or nested codeBlock environments).
    */
-  private async ensureContextSectionInfo(
-    source: string,
-    el: HTMLElement,
-    ctx: MarkdownPostProcessorContext,
-  ): Promise<MarkdownSectionInformation & { source?: string }> {
+  private async ensureContextSectionInfo(source: string,el: HTMLElement,ctx: MarkdownPostProcessorContext,)
+    : Promise<MarkdownSectionInformation & { source?: string }> {
     const sectionFromContext = ctx.getSectionInfo(el);
     if (sectionFromContext) return sectionFromContext;
 
@@ -238,22 +231,15 @@ export class SwiftlatexRender {
           console.log("fund in catch for", task.blockId);
           return done();
         }
-        if (task.process)
-          abort = (await LatexTask.processTask(this.plugin, task)).abort;
+        if (task.process) abort = (await LatexTask.processTask(this.plugin, task)).abort;
         if (abort) {
           cooldown = false;
           return done();
         }
-        await this.renderLatexToElement(
-          task.source,
-          task.el,
-          task.md5Hash,
-          task.sourcePath,
-        );
+        await this.renderLatexToElement(task.source,task.el,task.md5Hash,task.sourcePath,);
         this.reCheckQueue(); // only re-check the queue after a valide rendering
       } catch (err) {
-        console.error(
-          "Error rendering/compiling:",
+        console.error("Error rendering/compiling:",
           typeof err === "string" ? [err.split("\n")] : err,
         );
         //this.handleError(task.el, "Render error: " + err);
@@ -290,19 +276,17 @@ export class SwiftlatexRender {
   async onunload() {
     this.compiler.closeWorker();
   }
-
-  handleError(
-    el: HTMLElement,
-    err: string,
-    options: { parseErr?: boolean; hash?: string; throw?: boolean } = {},
-  ): void {
+  
+  handleError(el: HTMLElement,err: string,options: { parseErr?: boolean; hash?: string; throw?: boolean } = {}): void {
     el.innerHTML = "";
     let child: HTMLElement;
     if (options.parseErr) {
-      const processedError: ProcessedLog =
-        (options.hash && this.cache.getLog(options.hash)) || parseLatexLog(err);
+      const processedError: ProcessedLog = (options.hash && this.cache.getLog(options.hash)) || parseLatexLog(err);
+      console.error("Parsing error:", options.hash, processedError);
       child = createErrorDisplay(processedError);
-    } else child = errorDiv({ title: err });
+    } else {
+      child = errorDiv({ title: err })
+    };
     if (options.hash) child.id = options.hash;
     el.appendChild(child);
     if (options.throw) throw err;
@@ -341,7 +325,9 @@ export class SwiftlatexRender {
             return;
           }
           if (err) reject(err);
-          console.log("Rendering LaTeX to PDF", source.split("\n"),this.vfs);
+          if (this.vfs.getEnabled()){
+            console.log("Rendering LaTeX to PDF", source.split("\n"),this.vfs.clone());
+          }
           await this.vfs.loadVirtualFileSystemFiles();
           await this.compiler.writeMemFSFile("main.tex", source);
           await this.compiler.setEngineMainFile("main.tex");
@@ -362,28 +348,15 @@ export class SwiftlatexRender {
       );
     });
   }
-
-  private async translatePDF(
-    pdfData: Buffer<ArrayBufferLike>,
-    el: HTMLElement,
-    hash: string,
-    outputSVG = true,
-  ): Promise<void> {
+  reRenderPDF(hash: string){
+  }
+  
+  private async translatePDF(pdfData: Buffer<ArrayBufferLike>,el: HTMLElement,hash: string,outputSVG = true,): Promise<void> {
     return new Promise<void>((resolve) => {
-      const config = {
-        invertColorsInDarkMode: this.plugin.settings.invertColorsInDarkMode,
-        sourceHash: hash,
-      };
-      if (outputSVG)
-        pdfToSVG(pdfData, config).then((svg: string) => {
-          el.innerHTML = svg;
-          resolve();
-        });
-      else
-        pdfToHtml(pdfData).then((htmlData) => {
-          el.createEl("object", htmlData);
-          resolve();
-        });
+      const config = {invertColorsInDarkMode: this.plugin.settings.invertColorsInDarkMode,
+        sourceHash: hash};
+      if (outputSVG) pdfToSVG(pdfData, config).then((svg: string) => {el.innerHTML = svg;resolve();});
+      else pdfToHtml(pdfData).then((htmlData) => {el.createEl("object", htmlData);resolve();});
     });
   }
 }

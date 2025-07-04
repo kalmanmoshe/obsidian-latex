@@ -12,7 +12,7 @@ import { MosheMathPluginSettings, DEFAULT_SETTINGS } from "./settings/settings";
 import { MosheMathSettingTab } from "./settings/settings_tab";
 
 import { getEditorCommands } from "./obsidian/editor_commands";
-import { SwiftlatexRender } from "./latexRender/main";
+import { SwiftlatexRender } from "./latexRender/swiftlatexRender";
 import { MathJaxAbstractSyntaxTree } from "./latexRender/parse/mathJaxAbstractSyntaxTree";
 import {
   getFileSets,
@@ -22,6 +22,32 @@ import {
   onFileDelete,
 } from "./obsidian/file_watch";
 import { temp } from "./LaTeX_js/latex";
+const https = require('https');
+
+async function isInternetAvailable(): Promise<boolean> {
+  try {
+    const response = await fetch("https://www.google.com", { method: "HEAD", mode: "no-cors" });
+    return true; // If it doesn't throw, assume internet is available
+  } catch {
+    return false;
+  }
+}
+
+async function isWebsiteOnline(url: string): Promise<boolean> {
+  const internet = await isInternetAvailable();
+  if (!internet) {
+    console.log("No internet connection.");
+    return false;
+  }
+
+  try {
+    const response = await fetch(url, { method: "HEAD" });
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+}
+
 /**
  * Assignments:
  * - Create code that will auto-insert metadata into files. You can use this:
@@ -48,6 +74,14 @@ export default class Moshe extends Plugin {
 
   async onload() {
     console.log("Loading Moshe math plugin");
+    const url = "https://texlive2.swiftlatex.com/";
+    isWebsiteOnline(url).then((online) => {
+      if (!online) console.error(`${url} is offline or unreachable.`);
+      else {
+        console.log(`${url} is online.`)
+        new Notice(`Moshe Math Plugin: ${url} is online.`, 5000);
+      };
+    });
     await this.loadSettings();
 
     this.addEditorCommands();
@@ -81,17 +115,11 @@ export default class Moshe extends Plugin {
   }
 
   private setCodeblocks() {
-    this.registerMarkdownCodeBlockProcessor(
-      "tikz",
-      this.swiftlatexRender.universalCodeBlockProcessor.bind(
-        this.swiftlatexRender,
-      ),
+    this.registerMarkdownCodeBlockProcessor("tikz",
+      this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender),
     );
-    this.registerMarkdownCodeBlockProcessor(
-      "latex",
-      this.swiftlatexRender.universalCodeBlockProcessor.bind(
-        this.swiftlatexRender,
-      ),
+    this.registerMarkdownCodeBlockProcessor("latex",
+      this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender),
     );
   }
   private async loadSwiftLatexRender() {
@@ -141,10 +169,9 @@ export default class Moshe extends Plugin {
     }
   }
   async loadMathJax(): Promise<void> {
-    const preamble = this.settings.mathjaxPreamblePreambleEnabled
+    const preamble = this.settings.mathjaxPreambleEnabled
       ? await this.getMathjaxPreamble()
       : "";
-
     //this isnt really needed all it dose is make it of type any so thar are no errors
     const MJ: any = MathJax;
     if (typeof MJ.tex2chtml !== "undefined") {
@@ -189,78 +216,44 @@ export default class Moshe extends Plugin {
   private processMathJax(input: string): string {
     //return input
     if (!/[א-ת]/.test(input)) return input;
-    const ast = new MathJaxAbstractSyntaxTree();
-    ast.parse(input);
+    const ast = MathJaxAbstractSyntaxTree.parse(input);
     ast.reverseRtl();
+    
     return ast.toString();
   }
 
   private async loadSettings() {
     let data = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
-    await this.saveData(this.settings);
-    this.swiftlatexRender.vfs.setEnabled(
-      this.settings.pdfTexEnginevirtualFileSystemFilesEnabled,
-    );
-    if (this.settings.pdfTexEnginevirtualFileSystemFilesEnabled) {
-      this.app.workspace.onLayoutReady(async () => {
-        await this.processLatexPreambles();
-        this.updateCoorVirtualFiles();
-      });
-    }
+    this.saveSettings(true);
   }
 
   async saveSettings(didFileLocationChange = false) {
     await this.saveData(this.settings);
     if (didFileLocationChange) {
-      await this.swiftlatexRender.vfs.setEnabled(
-        this.settings.pdfTexEnginevirtualFileSystemFilesEnabled,
-      );
-      if (this.settings.pdfTexEnginevirtualFileSystemFilesEnabled) {
-        await this.processLatexPreambles(didFileLocationChange);
-        this.updateCoorVirtualFiles();
+      await this.swiftlatexRender.vfs.setEnabled(this.settings.compilerVfsEnabled);
+      if (this.settings.compilerVfsEnabled) {
+        this.app.workspace.onLayoutReady(async () => {
+          await this.processLatexPreambles(didFileLocationChange);
+        })
       }
     }
   }
-  async processLatexPreambles(
-    becauseFileLocationUpdated = false,
-    becauseFileUpdated = false,
-  ) {
-    const preambles = await this.getlatexPreambleFiles(
-      becauseFileLocationUpdated,
-      becauseFileUpdated,
-    );
-    this.swiftlatexRender.vfs.setVirtualFileSystemFiles(
-      preambles.latexVirtualFiles,
-    );
-    this.updateCoorVirtualFiles();
-  }
-  updateCoorVirtualFiles() {
-    const coorFileSet = new Set<string>();
-    this.settings.autoloadedVirtualFileSystemFiles.forEach((file) =>
-      coorFileSet.add(file),
-    );
-    this.swiftlatexRender.vfs.setCoorVirtualFiles(coorFileSet);
+  async processLatexPreambles(becauseFileLocationUpdated = false,becauseFileUpdated = false) {
+    const coorPreambles = await this.getlatexPreambleFiles(becauseFileLocationUpdated, becauseFileUpdated);
+    this.swiftlatexRender.vfs.setVirtualFileSystemFiles(coorPreambles);
+    const fileNames = new Set(coorPreambles.map((file) => file.name))
+    this.swiftlatexRender.vfs.setCoorVirtualFiles(fileNames);
   }
 
-  async getlatexPreambleFiles(
-    becauseFileLocationUpdated: boolean,
-    becauseFileUpdated: boolean,
-  ) {
+  private async getlatexPreambleFiles(becauseFileLocationUpdated: boolean,becauseFileUpdated: boolean) {
     const files = getFileSets(this);
-    const latexVirtualFiles = await getPreambleFromFiles(
-      this,
-      files.latexVirtualFiles,
-    );
-    this.showPreambleLoadedNotice(
-      latexVirtualFiles.length,
-      becauseFileLocationUpdated,
-      becauseFileUpdated,
-    );
-    return { latexVirtualFiles };
+    const coorFiles = await getPreambleFromFiles(this,files.latexVirtualFiles);
+    this.showPreambleLoadedNotice(coorFiles.length,becauseFileLocationUpdated,becauseFileUpdated);
+    return coorFiles ;
   }
 
-  showPreambleLoadedNotice(
+  private showPreambleLoadedNotice(
     nExplicitPreambleFiles: number,
     becauseFileLocationUpdated: boolean,
     becauseFileUpdated: boolean,

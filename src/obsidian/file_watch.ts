@@ -1,16 +1,17 @@
-// credit to The amazing people at obsidian latex suite which this code is heavily influenced from
+// credit to The amazing people at obsidian latex suite which this code is influenced from
 
-import {
-  Vault,
-  TFile,
-  TFolder,
-  TAbstractFile,
-  Notice,
-  debounce,
-} from "obsidian";
+import { dir } from "console";
+import { on } from "events";
+import { Vault, TFile, TFolder, TAbstractFile, Notice, debounce,} from "obsidian";
 import Moshe from "src/main";
 
-function isInFolder(file: TFile, dir: TFolder) {
+/**
+ * Checks if a file is located within a specified folder.
+ * @param dir - The folder to check against.
+ * @param file - The file to check.
+ * @returns {boolean} - True if the file is within the folder, false otherwise.
+ */
+function isFileInFolder(dir: TFolder,file: TFile) {
   let cur = file.parent;
   let cnt = 0;
 
@@ -24,101 +25,105 @@ function isInFolder(file: TFile, dir: TFolder) {
   return false;
 }
 
-function fileIsInFolder(plugin: Moshe, folderPath: string, file: TFile) {
-  const dir = plugin.app.vault.getAbstractFileByPath(folderPath);
-  const isFolder = dir instanceof TFolder;
 
-  return isFolder && isInFolder(file, dir);
+/**
+ * Checks if the file is either the specified path or within the directory of the specified path.
+ * @param plugin - The plugin instance.
+ * @param dir - The directory path to check against.
+ * @param file - The file to validate.
+ * @returns {boolean} - True if the file matches the path or is within the directory, false otherwise.
+ */
+function isFileInDir(dir: TAbstractFile, file: TFile): boolean {
+  if (dir instanceof TFolder) {
+    return isFileInFolder(dir,file);
+  }
+  return dir instanceof TFile && dir.path === file.path;
 }
 
 const refreshFromFiles = debounce(
   async (plugin: Moshe, mathjax = false) => {
-    if (
-      !(
-        plugin.settings.pdfTexEnginevirtualFileSystemFilesEnabled ||
-        plugin.settings.mathjaxPreamblePreambleEnabled
-      )
-    ) {
-      return;
-    }
+    if (!(plugin.settings.compilerVfsEnabled ||
+        plugin.settings.mathjaxPreambleEnabled
+      )) {return;}
+
     if (mathjax) await plugin.loadMathJax();
     else await plugin.processLatexPreambles(false, true);
   },
   500,
   true,
 );
-
-const filePathMatch = (plugin: Moshe, file: TFile) => {
+/**
+ * chack if the file is a vfs/mathjax preamble file
+ * @param plugin 
+ * @param file 
+ * @returns 
+ */
+const filePathConfig = (plugin: Moshe, file: TFile) => {
   const {
-    pdfTexEnginevirtualFileSystemFilesEnabled,
-    virtualFilesFileLocation,
-    mathjaxPreamblePreambleEnabled,
+    compilerVfsEnabled,
+    autoloadedVfsFilesDir,
+    mathjaxPreambleEnabled,
     mathjaxPreambleFileLocation,
   } = plugin.settings;
-  const match = (enabled: boolean, dir: string) => ({
-    enabled,
-    isInFolder: fileIsInFolder(plugin, dir, file),
-    isFile: file.path === dir,
-  });
+  const match = (enabled: boolean, dir: string) => {
+    const possibleFolder = plugin.app.vault.getAbstractFileByPath(dir);
+    let isInFolder = false;
+    if (possibleFolder&& possibleFolder instanceof TFolder){
+      isInFolder = isFileInFolder(possibleFolder, file);
+    }
+    return { enabled, isInFolder, isFile: file.path === dir}
+  };
   return {
-    explicit: match(
-      pdfTexEnginevirtualFileSystemFilesEnabled,
-      virtualFilesFileLocation,
-    ),
-    mathJax: match(mathjaxPreamblePreambleEnabled, mathjaxPreambleFileLocation),
+    autoLoaded: match(compilerVfsEnabled, autoloadedVfsFilesDir),
+    mathJax: match(mathjaxPreambleEnabled, mathjaxPreambleFileLocation),
   };
 };
 
-const shouldRefreshFile = (match: {
+const isDirMonitored = (match: {
   enabled: any;
   isFile: any;
   isInFolder: any;
-}) => match.enabled && (match.isFile || match.isInFolder);
+}): boolean => match.enabled && (match.isFile || match.isInFolder);
 
-export const onFileChange = async (plugin: Moshe, file: TAbstractFile) => {
+export const onFileChange = (plugin: Moshe, file: TAbstractFile) => {
   if (!(file instanceof TFile)) return;
-  const fileMatches = Object.values(filePathMatch(plugin, file));
-  if (fileMatches.some(shouldRefreshFile)) {
-    refreshFromFiles(plugin, shouldRefreshFile(fileMatches[1]));
+  const fileConfig = filePathConfig(plugin, file) ;
+  const shouldRefreshFile = Object.values(fileConfig).some(config => isDirMonitored(config));
+  if (shouldRefreshFile) {
+    refreshFromFiles(plugin, isDirMonitored(fileConfig.mathJax));
   }
 };
-
-const isFolderMonitored = (match: { enabled: boolean; isInFolder: boolean }) =>
-  match.enabled && match.isInFolder;
 
 export const onFileCreate = (plugin: Moshe, file: TAbstractFile) => {
-  if (!(file instanceof TFile)) return;
-  const monitoredFolders = Object.values(filePathMatch(plugin, file));
-  if (monitoredFolders.some(isFolderMonitored)) {
-    refreshFromFiles(plugin, isFolderMonitored(monitoredFolders[1]));
-  }
+  onFileChange(plugin, file);
 };
+
+function getActiveDirectories(plugin: Moshe): string[] {
+  const {
+    compilerVfsEnabled,
+    autoloadedVfsFilesDir,
+    mathjaxPreambleEnabled,
+    mathjaxPreambleFileLocation,
+  } = plugin.settings;
+
+  return [
+    compilerVfsEnabled && autoloadedVfsFilesDir,
+    mathjaxPreambleEnabled && mathjaxPreambleFileLocation,
+  ].filter((path): path is string => Boolean(path))// Chack if the dir is enabled;
+}
 
 export const onFileDelete = (plugin: Moshe, file: TAbstractFile) => {
   if (!(file instanceof TFile)) return;
-  const match = (file: TFile) => {
-    const {
-      pdfTexEnginevirtualFileSystemFilesEnabled,
-      virtualFilesFileLocation,
-      mathjaxPreamblePreambleEnabled,
-      mathjaxPreambleFileLocation,
-    } = plugin.settings;
-    const possibleDirectories = [
-      pdfTexEnginevirtualFileSystemFilesEnabled && virtualFilesFileLocation,
-      mathjaxPreamblePreambleEnabled && mathjaxPreambleFileLocation,
-    ].filter((path): path is string => Boolean(path));
-    const validatedDirectories = possibleDirectories
-      .map((path) => plugin.app.vault.getAbstractFileByPath(path))
-      .filter((dir) => dir instanceof TFolder);
-    return validatedDirectories.some((dir) => file.path.startsWith(dir.path));
-  };
-  if (match(file)) {
-    // There's no point passing mathjax over here as.it won't do anything you cannot.delete the file from catch. Only change it
+  const directories = getActiveDirectories(plugin)
+  .map((path) => plugin.app.vault.getAbstractFileByPath(path))// Get the TAbstractFile
+  .filter(dir => dir !== null);
+
+  if (directories.some(dir=>isFileInDir(dir, file))){
+    // There's no point passing mathjax over here as it won't do anything you cannot delete the file from catch Only change it
     refreshFromFiles(plugin);
   }
 };
 
-const normalizePath = (path: string) => path.replace(/\\/g, "/").toLowerCase();
 
 function* generateFilesWithin(fileOrFolder: TAbstractFile): Generator<TFile> {
   if (fileOrFolder instanceof TFile) yield fileOrFolder;
@@ -145,14 +150,13 @@ interface FileSets {
 export function getFileSets(plugin: Moshe): FileSets {
   const locations = [
     plugin.settings.mathjaxPreambleFileLocation,
-    plugin.settings.virtualFilesFileLocation,
+    plugin.settings.autoloadedVfsFilesDir
   ];
-  const [mathjaxPreambleFiles, latexVirtualFiles] = locations.map((path) =>
-    getFilesWithin(plugin.app.vault, path),
-  );
+  const [mathjaxPreambleFiles, latexVirtualFiles] = locations.map((path) =>getFilesWithin(plugin.app.vault, path));
   return { mathjaxPreambleFiles, latexVirtualFiles };
 }
 export type PreambleFile = { path: string; name: string; content: string };
+
 export async function getPreambleFromFiles(
   plugin: Moshe,
   files: Set<TFile>,

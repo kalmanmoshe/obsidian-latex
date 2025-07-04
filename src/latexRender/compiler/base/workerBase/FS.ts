@@ -474,7 +474,6 @@ export class FS {
       mountpoint: mountpoint,
       mounts: [],
     };
-    console.log("type", type, type.m);
     var mountRoot = type.mount(mount);
     mountRoot.mount = mount;
     mount.root = mountRoot;
