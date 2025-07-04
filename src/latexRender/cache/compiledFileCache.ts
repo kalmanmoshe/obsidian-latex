@@ -154,7 +154,11 @@ export default class CompiledFileCache {
     await this.removeUntraceableFiles();
     await this.removeHashsWithNoCorrespondingPDF();
   }
-
+  /**
+   * Cleans up the cache by removing files that are no longer referenced.
+   * This includes files that are no longer present in the vault or have been deleted.
+   * It also removes unused caches for files that are still present but no longer have any LaTeX hashes associated with them.
+   */
   private async cleanUpCache(): Promise<void> {
     const filePathsToRemove: string[] = [];
     for (const filePath of this.getFilePathsFromCache()) {
@@ -234,8 +238,15 @@ export default class CompiledFileCache {
   unloadCache() {
     this.removeAllCached();
   }
+  /**
+   * Returns a map of all cached files with their names and content.
+   * The key is the file name (with extension), and the value is the file content.
+   */
   getCachedFiles(){
     return this.cache.getFiles();
+  }
+  getCacheMap(): Map<string, Set<string>> {
+    return this.cacheMap;
   }
 }
 
