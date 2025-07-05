@@ -28,7 +28,7 @@ import {
 } from "./cache/findSection";
 import { ProcessedLog } from "./logs/latex-log-parser";
 import PdfTeXCompiler from "./compiler/swiftlatexpdftex/PdfTeXEngine";
-import { LatexTask } from "./utils/latexTask";
+import { LatexTaskProcessor } from "./utils/latexTask";
 import { PdfXeTeXCompiler } from "./compiler/swiftlatexxetex/pdfXeTeXCompiler";
 import LatexCompiler from "./compiler/base/compilerBase/compiler";
 import CompilerCache from "./cache/compilerCache";
@@ -231,7 +231,7 @@ export class SwiftlatexRender {
           console.log("fund in catch for", task.blockId);
           return done();
         }
-        if (task.process) abort = (await LatexTask.processTask(this.plugin, task)).abort;
+        if (task.process) abort = (await LatexTaskProcessor.processTask(this.plugin, task)).abort;
         if (abort) {
           cooldown = false;
           return done();

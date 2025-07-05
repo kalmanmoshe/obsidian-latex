@@ -125,9 +125,6 @@ export class EnvironmentWrap {
       const start = rawNodes.findIndex((n) => !n.isWhitespaceLike?.());
       const end = rawNodes.findLastIndex((n) => !n.isWhitespaceLike?.());
   
-      const trimmed = rawNodes.slice(start, end + 1);
-      const first = trimmed[0];
-      const last = trimmed[trimmed.length - 1];
       rawNodes.shift(); // Remove "["
       rawNodes.pop(); // Remove "]"
       // Trim leading/trailing whitespace
