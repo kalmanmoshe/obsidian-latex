@@ -1,5 +1,4 @@
 import {
-  String,
   Macro,
   Environment,
   Argument,
