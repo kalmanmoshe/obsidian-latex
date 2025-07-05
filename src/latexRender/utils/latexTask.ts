@@ -119,14 +119,8 @@ export class LatexTaskProcessor {
       
       const ext = path.extname(name);
       const baseDependency: Partial<VFSLatexDependency> & {
-        name: string;
-        extension: string;
-        isTex: boolean;
-      } = {
-        name,
-        extension: ext,
-        isTex: isExtensionTex(ext),
-      };
+        name: string; extension: string; isTex: boolean;
+      } = { name, extension: ext, isTex: isExtensionTex(ext), };
 
       if (baseDependency.isTex) {
         // Recursively process the content

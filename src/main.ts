@@ -91,6 +91,7 @@ export default class Moshe extends Plugin {
     );
     this.addSettingTab(new MosheMathSettingTab(this.app, this));
     temp();
+    //this.registerEditorSuggest()
   }
   async onunload() {
     this.removeSyntaxHighlighting();
