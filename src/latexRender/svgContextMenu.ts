@@ -14,7 +14,7 @@ import {
 import parseLatexLog from "./logs/HumanReadableLogs";
 import { getSectionFromMatching } from "./cache/findSection";
 import { LogDisplayModal } from "./logs/logDisplayModal";
-import { LatexTask } from "./utils/latexTask";
+import { LatexTaskProcessor } from "./utils/latexTask";
 /**add:
  * - Reveal in file explorer
  * - show log
@@ -169,7 +169,7 @@ export class SvgContextMenu extends Menu {
         sourcePath: this.sourcePath,
       };
       if (shouldProcess) {
-        const result = LatexTask.processTask(this.plugin, task);
+        const result = LatexTaskProcessor.processTask(this.plugin, task);
       }
       try {
         const newCompile = await this.plugin.swiftlatexRender.renderLatexToPDF(
@@ -286,7 +286,7 @@ export class SvgContextMenu extends Menu {
     const task = { source: this.source, sourcePath: this.sourcePath };
     let source = this.source;
     if (this.codeBlockLanguage === "tikz") {
-      const result = await LatexTask.processTask(this.plugin, task);
+      const result = await LatexTaskProcessor.processTask(this.plugin, task);
       if (!result.task.source)
         throw new Error("No result found for tikz source");
       source = result.task.source || "";

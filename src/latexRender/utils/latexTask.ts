@@ -26,19 +26,43 @@ type InputFile = {
   content: string;
   dependencies: InputFile[];
 };
+
 type VFSLatexDependency = LatexDependency & { inVFS: boolean };
+class BaseTask {
+  surce: string;
+  sourcePath: string;
+}
+class _ProcessableTask extends BaseTask {
+  el: HTMLElement | null;
+}
+class ProcessedTask extends _ProcessableTask {
+  ast: LatexAbstractSyntaxTree | null;
+  md5Hash: string;
+  processed: boolean;
+  processingTime: number;
+}
+export class LatexTask{
+  ast: LatexAbstractSyntaxTree | null = null;
+  source: string = "";
+  sourcePath: string = "";
+  md5Hash: string = "";
+  el: HTMLElement | null = null;
+  processed: boolean = false;
+  processingTime: number = 0;
+}
+
 /**
  * Class to handle LaTeX tasks, processing the source code,
  * managing dependencies, and interacting with the virtual file system.
  */
-export class LatexTask {
+export class LatexTaskProcessor {
   task: MinProcessableTask;
   plugin: Moshe;
   vfs: VirtualFileSystem;
   abort: boolean = false;
   err: string | null = null;
   static create(plugin: Moshe, task: MinProcessableTask) {
-    const latexTask = new LatexTask();
+    const latexTask = new LatexTaskProcessor();
     latexTask.task = task;
     latexTask.plugin = plugin;
     latexTask.vfs = plugin.swiftlatexRender.vfs;
@@ -50,24 +74,15 @@ export class LatexTask {
    * @param remainingPath 
    * @returns 
    */
-  async getFileContent(file: TFile, remainingPath?: string): Promise<string> {
+  private async getFileContent(file: TFile, remainingPath?: string): Promise<string> {
     const fileContent = await this.plugin.app.vault.read(file);
     if (!remainingPath) return fileContent;
     const sections = await getFileSections(file, this.plugin.app, true);
-    const err = () => {
-      throw new Error(
-        "No code block found with name: " +
-          remainingPath +
-          " in file: " +
-          file.path,
-      );
-    };
-    if (!sections) err();
-    const codeBlocks = await getLatexCodeBlocksFromString(
-      fileContent,
-      sections!,
-      true,
-    );
+    const err = "No code block found with name: " + remainingPath + " in file: " + file.path;
+    console.warn("File sections:", sections?.length, "in file:", file.path);
+    if (!sections) throw new Error(err);;
+    const codeBlocks = await getLatexCodeBlocksFromString(fileContent, sections!, true);
+    console.warn("Code blocks found:", codeBlocks.length, "in file:", file.path);
     const target = codeBlocks.find((block) =>
       block.content
         .split("\n")[0]
@@ -75,8 +90,10 @@ export class LatexTask {
         .trim()
         .match(new RegExp("name: *" + remainingPath)),
     );
-    if (!target) err();
-    return target!.content.split("\n").slice(1, -1).join("\n");
+    console.warn("Target code block:", target, "in file:", file.path);
+    if (!target) throw new Error(err);
+    console.warn("Returning content of code block:", target.content);
+    return target.content.split("\n").slice(1, -1).join("\n");
   }
   /**
    * Processes input files in the LaTeX AST, extracting dependencies and
@@ -87,30 +104,32 @@ export class LatexTask {
    */
   private async processInputFiles(ast: LatexAbstractSyntaxTree,basePath: string): Promise<VFSLatexDependency[]> {
     const usedFiles: VFSLatexDependency[] = [];
-    const inputFilesMacros = ast
-      .usdInputFiles()
+    const inputFilesMacros = ast.usdInputFiles()
       .filter((macro) => macro.args && macro.args.length === 1);
+    console.warn("1")
     for (const macro of inputFilesMacros) {
       const args = macro.args!;
       const filePath = args[0].content.map((node) => node.toString()).join("");
+      console.warn("2",filePath);
       const dir = findRelativeFile(
         filePath,
         this.plugin.app.vault.getAbstractFileByPath(basePath),
       );
       const name = (dir.remainingPath || dir.file.basename) + ".tex";
-
+      console.warn("3",name);
       // Replace the macro argument with normalized name
       args[0].content = [new StringClass(name)];
 
       // Avoid circular includes
       if (this.vfs.hasFile(name)) continue;
-
+      console.warn("4",name,dir.file.path,dir.remainingPath);
       let content = "";
       try {
         content = await this.getFileContent(dir.file, dir.remainingPath);
       } catch (e) {
         return e;
       }
+      console.warn("5")
       const ext = path.extname(name);
       const baseDependency: Partial<VFSLatexDependency> & {
         name: string;
@@ -125,22 +144,15 @@ export class LatexTask {
       if (baseDependency.isTex) {
         // Recursively process the content
         const nestedAst = LatexAbstractSyntaxTree.parse(content);
-        usedFiles.push(
-          ...(await this.processInputFiles(nestedAst, dir.file.path)),
-        );
+        usedFiles.push(...(await this.processInputFiles(nestedAst, dir.file.path)));
         baseDependency.ast = nestedAst;
         baseDependency.source = nestedAst.toString();
       } else {
         baseDependency.source = content;
       }
-
+      const { source, name: depName, extension } = baseDependency;
       const dependency = {
-        ...createDpendency(
-          baseDependency.source,
-          baseDependency.name,
-          baseDependency.extension,
-          baseDependency,
-        ),
+        ...createDpendency(source,depName,extension,baseDependency),
         inVFS: false,
       };
       usedFiles.push(dependency);
@@ -151,6 +163,7 @@ export class LatexTask {
         dependency,
       );
     }
+
     return usedFiles;
   }
   /**
@@ -169,8 +182,9 @@ export class LatexTask {
     };
     try {
       const ast = LatexAbstractSyntaxTree.parse(this.task.source);
-      if (this.plugin.settings.compilerVfsEnabled){
-        usedFiles.push(...(await this.processInputFiles(ast, this.task.sourcePath)));
+      if (this.plugin.settings.compilerVfsEnabled) {
+        const files = await this.processInputFiles(ast, this.task.sourcePath)
+        usedFiles.push(...files);
         usedFiles.push(...this.addAutoUseFilesToAst(ast));
       }
       ast.verifyProperDocumentStructure();
@@ -179,6 +193,7 @@ export class LatexTask {
       // ── Final task update ────────────────────────
       return { ...process, source: ast.toString(), ast };
     } catch (e) {
+      console.warn("got error while processing task:", e);
       let abort = false;
       if (typeof e !== "string" && "abort" in e) {
         abort = e.abort;
@@ -206,7 +221,7 @@ export class LatexTask {
     const { usedFiles, abort, source, ast } = await this.processTaskSource();
     console.log("Ast:", ast?.clone());
     if (this.err) {
-      console.error("Error processing task:", this.err);
+      console.error(this.err);
       this.task.el &&
         this.plugin.swiftlatexRender.handleError(this.task.el, this.err, {hash: this.task.md5Hash,});
       return !!abort;
@@ -221,7 +236,7 @@ export class LatexTask {
   }
 
   static async processTask(plugin: Moshe, task: MinProcessableTask) {
-    const latexTask = LatexTask.create(plugin, task);
+    const latexTask = LatexTaskProcessor.create(plugin, task);
     await latexTask.processTask();
     return latexTask;
   }

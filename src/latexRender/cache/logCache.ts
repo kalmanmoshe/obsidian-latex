@@ -4,7 +4,7 @@ import parseLatexLog from "../logs/HumanReadableLogs";
 import { MarkdownView, Notice } from "obsidian";
 import { getSectionFromMatching } from "./findSection";
 import { getFileSectionsFromPath, latexCodeBlockNamesRegex } from "../swiftlatexRender";
-import { LatexTask } from "../utils/latexTask";
+import { LatexTaskProcessor } from "../utils/latexTask";
 
 export default class LogCache {
   private plugin: Moshe;
@@ -70,7 +70,7 @@ export default class LogCache {
       sourcePath: sourcePath,
     };
     if (shouldProcess) {
-      const result = LatexTask.processTask(this.plugin, task);
+      const result = LatexTaskProcessor.processTask(this.plugin, task);
     }
     try {
       const newCompile = await this.plugin.swiftlatexRender.renderLatexToPDF(
