@@ -79,10 +79,8 @@ export class LatexTaskProcessor {
     if (!remainingPath) return fileContent;
     const sections = await getFileSections(file, this.plugin.app, true);
     const err = "No code block found with name: " + remainingPath + " in file: " + file.path;
-    console.warn("File sections:", sections?.length, "in file:", file.path);
     if (!sections) throw new Error(err);;
     const codeBlocks = await getLatexCodeBlocksFromString(fileContent, sections!, true);
-    console.warn("Code blocks found:", codeBlocks.length, "in file:", file.path);
     const target = codeBlocks.find((block) =>
       block.content
         .split("\n")[0]
@@ -90,9 +88,7 @@ export class LatexTaskProcessor {
         .trim()
         .match(new RegExp("name: *" + remainingPath)),
     );
-    console.warn("Target code block:", target, "in file:", file.path);
     if (!target) throw new Error(err);
-    console.warn("Returning content of code block:", target.content);
     return target.content.split("\n").slice(1, -1).join("\n");
   }
   /**
@@ -106,30 +102,21 @@ export class LatexTaskProcessor {
     const usedFiles: VFSLatexDependency[] = [];
     const inputFilesMacros = ast.usdInputFiles()
       .filter((macro) => macro.args && macro.args.length === 1);
-    console.warn("1")
     for (const macro of inputFilesMacros) {
       const args = macro.args!;
       const filePath = args[0].content.map((node) => node.toString()).join("");
-      console.warn("2",filePath);
       const dir = findRelativeFile(
         filePath,
         this.plugin.app.vault.getAbstractFileByPath(basePath),
       );
       const name = (dir.remainingPath || dir.file.basename) + ".tex";
-      console.warn("3",name);
       // Replace the macro argument with normalized name
       args[0].content = [new StringClass(name)];
 
       // Avoid circular includes
       if (this.vfs.hasFile(name)) continue;
-      console.warn("4",name,dir.file.path,dir.remainingPath);
-      let content = "";
-      try {
-        content = await this.getFileContent(dir.file, dir.remainingPath);
-      } catch (e) {
-        return e;
-      }
-      console.warn("5")
+      const content = await this.getFileContent(dir.file, dir.remainingPath);
+      
       const ext = path.extname(name);
       const baseDependency: Partial<VFSLatexDependency> & {
         name: string;
@@ -193,7 +180,6 @@ export class LatexTaskProcessor {
       // ── Final task update ────────────────────────
       return { ...process, source: ast.toString(), ast };
     } catch (e) {
-      console.warn("got error while processing task:", e);
       let abort = false;
       if (typeof e !== "string" && "abort" in e) {
         abort = e.abort;
