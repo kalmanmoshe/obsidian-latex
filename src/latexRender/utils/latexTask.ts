@@ -165,9 +165,12 @@ export class ProcessableLatexTask extends LatexTask {
    */
   log() {
     console.log(`[TIMER] Total processing time: ${this.processingTime.toFixed(2)} ms`);
+    console.log("ast", this.ast?.clone());
+    console.log("task", this);
   }
   async process() {
-    const processor = await LatexTaskProcessor.processTask(this.plugin, this)
+    const processor = await LatexTaskProcessor.processTask(this.plugin, this);
+    console.log("finished processing task", processor);
     return processor;
   }
 }
@@ -211,11 +214,14 @@ export class LatexTaskProcessor {
     if (!remainingPath) return fileContent;
     if (!this.task.name) throw new Error("Task name is not set. Cannot extract code block content.");
     if (remainingPath === this.task.name) throw new Error("Cannot reference the code block name directly (a code block cannot input itself). Use a different name or path.");
+
     const sections = await getFileSections(file, this.plugin.app, true);
     const err = "No code block found with name: " + remainingPath + " in file: " + file.path;
-    if (!sections) throw new Error(err);;
+    if (!sections) throw new Error(err);
+
     const codeBlocks = await getLatexCodeBlocksFromString(fileContent, sections!, true);
     const potentialTargets = codeBlocks.filter((block) => extractCodeBlockName(block.content) === remainingPath);
+    
     if (potentialTargets.length === 0) throw new Error(err);
     if (potentialTargets.length > 1) {
       throw new Error(`Multiple code blocks found with name: ${remainingPath} in file: ${file.path}`);
@@ -285,10 +291,7 @@ export class LatexTaskProcessor {
   async processTaskSource() {
     const usedFiles: VFSLatexDependency[] = [];
     const startTime = performance.now();
-    const process = {
-      abort: false,
-      usedFiles,
-    };
+    const process = {abort: false, usedFiles,};
     try {
       const ast = this.task.ast = LatexAbstractSyntaxTree.parse(this.task.getSource(false));
       this.nameTaskCodeBlock();
@@ -317,7 +320,7 @@ export class LatexTaskProcessor {
       throw new Error("Source path is not a valid file.");
     }
     const fileText = this.task.sectionInfo.text
-    const line = fileText.split("\n")[this.task.sectionInfo.lineStart - 1];
+    const line = fileText.split("\n")[this.task.sectionInfo.lineStart];
     this.task.name = extractCodeBlockName(line);
   }
   private addAutoUseFilesToAst(ast: LatexAbstractSyntaxTree) {
@@ -337,9 +340,8 @@ export class LatexTaskProcessor {
   async processTask(): Promise<boolean> {
     const { usedFiles, abort, } = await this.processTaskSource();
     if (this.err) {
-      console.error(this.err);
-      this.task.el &&
-        this.plugin.swiftlatexRender.handleError(this.task.el, this.err, {hash: this.task.md5Hash,});
+      console.error("At processTask this.err:",this.err);
+      this.task.el && this.plugin.swiftlatexRender.handleError(this.task.el, this.err, {hash: this.task.md5Hash,});
       return !!abort;
     }
     for (const dep of usedFiles) {
