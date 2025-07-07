@@ -76,8 +76,12 @@ export class SvgContextMenu extends Menu {
     this.svgEl = svg
     this.containerEl = el;
     console.log("svg", svg, "el", el, "isError", this.isError);
-    const hash = this.containerEl.id;
-    if (hash === undefined) throw new Error("No hash found for SVG element");
+    const hash = this.svgEl?.id ?? this.containerEl.id;
+    if (hash === undefined) {
+      console.error("No hash found for SVG element", this.svgEl, this.containerEl);
+      throw new Error("No hash found for SVG element")
+    };
+    this.hash = hash
     /*
     return ( svg ??Array.from(el.children).find((child) =>
           child.classList.contains("moshe-swift-latex-error-container") &&child instanceof HTMLElement,
@@ -202,11 +206,14 @@ export class SvgContextMenu extends Menu {
   }*/
   assignLatexSource(): Promise<boolean> {
     if (this.source !== undefined) return Promise.resolve(true);
+    console.log("assignLatexSource", this.sourceAssignmentPromise);
     if (!this.sourceAssignmentPromise) {
       this.sourceAssignmentPromise = (async () => {
         const file = await this.getFile();
         const hash = this.hash;
+        console.log("hash", hash, "file", file);
         if (!hash) return false;
+        console.log("hash", hash);
         this.source = await getLatexSourceFromHash(hash, this.plugin, file);
         return true;
       })();
@@ -227,11 +234,7 @@ export class SvgContextMenu extends Menu {
     if (!sections) throw new Error("No sections found in metadata");
     const fileText = await this.plugin.app.vault.read(file);
     await this.assignLatexSource();
-    const sectionCache = getSectionFromMatching(
-      sections,
-      fileText,
-      this.source,
-    );
+    const sectionCache = getSectionFromMatching(sections,fileText,this.source,);
     if (!sectionCache) throw new Error("Section cache not found");
     const lang = fileText
       .split("\n")
@@ -259,8 +262,9 @@ export class SvgContextMenu extends Menu {
     if (this.svgEl) {
       parentEl.removeChild(this.svgEl);
     }
+    console.log("removing svg", this.svgEl);
     this.assignLatexSource();
-
+    console.log("source", this.source);
     addMenu(this.plugin, parentEl, this.sourcePath);
     const sectionInfo = await this.getSectionInfo();
     const isProcess = this.codeBlockLanguage === "tikz"

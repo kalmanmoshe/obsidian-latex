@@ -130,9 +130,6 @@ export class SwiftlatexRender {
       //Reliable enough for repeated entries
       LatexTask.createAsync(this.plugin, isLangTikz, source, el, ctx).then((task) => {
         if (task.restoreFromCache()) return;
-        if (task.isProcess()) {
-          task.process()
-        }
         this.addToQueue(task);
       })
     }
@@ -153,7 +150,8 @@ export class SwiftlatexRender {
           console.log("fund in catch for", task.blockId);
           return done();
         }
-        if (task.isProcess()) abort = (await LatexTaskProcessor.processTask(this.plugin, task)).abort;
+        if (task.isProcess()) abort = (await task.process()).abort;
+        if (task.isProcess()) task.log();
         if (abort) {
           cooldown = false;
           return done();
