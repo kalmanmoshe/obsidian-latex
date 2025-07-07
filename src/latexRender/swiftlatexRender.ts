@@ -130,6 +130,9 @@ export class SwiftlatexRender {
       //Reliable enough for repeated entries
       LatexTask.createAsync(this.plugin, isLangTikz, source, el, ctx).then((task) => {
         if (task.restoreFromCache()) return;
+        if (task.isProcess()) {
+          task.process()
+        }
         this.addToQueue(task);
       })
     }
