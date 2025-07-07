@@ -2,8 +2,6 @@ import {
   MarkdownPostProcessorContext,
   TFile,
   App,
-  MarkdownSectionInformation,
-  MarkdownView,
 } from "obsidian";
 import { Md5 } from "ts-md5";
 import * as temp from "temp";
@@ -12,23 +10,13 @@ import Moshe from "../main";
 import { CompilerType } from "src/settings/settings.js";
 import async from "async";
 import { pdfToHtml, pdfToSVG } from "./pdfToHtml/pdfToHtml";
-import parseLatexLog, {
-  createErrorDisplay,
-  errorDiv,
-} from "./logs/HumanReadableLogs";
+import parseLatexLog, { createErrorDisplay, errorDiv } from "./logs/HumanReadableLogs";
 import { VirtualFileSystem } from "./VirtualFileSystem";
 import { getFileSections } from "./cache/sectionCache";
 import { SvgContextMenu } from "./svgContextMenu";
-import { createTransactionLogger } from "./cache/transactionLogger";
-import { StateEffect } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
-import {
-  getSectionFromMatching,
-  getSectionFromTransaction,
-} from "./cache/findSection";
 import { ProcessedLog } from "./logs/latex-log-parser";
 import PdfTeXCompiler from "./compiler/swiftlatexpdftex/PdfTeXEngine";
-import { LatexTaskProcessor } from "./utils/latexTask";
+import { LatexTask, LatexTaskProcessor } from "./utils/latexTask";
 import { PdfXeTeXCompiler } from "./compiler/swiftlatexxetex/pdfXeTeXCompiler";
 import LatexCompiler from "./compiler/base/compilerBase/compiler";
 import CompilerCache from "./cache/compilerCache";
@@ -56,6 +44,7 @@ export const waitFor = async (condFunc: () => boolean) => {
  */
 
 export const latexCodeBlockNamesRegex = /(`|~){3,} *(latex|tikz)/;
+
 export type Task = {
   source: string;
   el: HTMLElement;
@@ -89,27 +78,16 @@ export class SwiftlatexRender {
   pdfXetexCompiler?: PdfXeTeXCompiler;
   compiler: LatexCompiler;
   cache: CompilerCache;
-  queue: QueueObject<Task>;
-  logger = createTransactionLogger();
+  queue: QueueObject<LatexTask>;
+  
   async onload(plugin: Moshe) {
     this.plugin = plugin;
-    this.bindTransactionLogger();
     this.cache = new CompilerCache(this.plugin);
     await this.loadCompiler();
     this.configQueue();
     console.log("SwiftlatexRender loaded");
   }
-  private bindTransactionLogger() {
-    const markdownView =
-      this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
-    if (!markdownView) return;
-    const editor = markdownView.editor;
-    const cmView = (editor as any).cm as EditorView;
-
-    cmView.dispatch({
-      effects: StateEffect.appendConfig.of([this.logger.extension]),
-    });
-  }
+  
   switchCompiler(): Promise<void> {
     if (this.compiler === undefined) return this.loadCompiler();
     const isTex =
@@ -150,77 +128,18 @@ export class SwiftlatexRender {
     // Could have a case where pdfCache has the key but the cached file has been deleted
     if (!this.cache.restoreFromCache(el, md5Hash)) {
       //Reliable enough for repeated entries
-      this.ensureContextSectionInfo(source, el, ctx)
-        .then((sectionInfo) => {
-          source = sectionInfo.source || source;
-
-          const finalHash = hashLatexSource(source);
-          if (md5Hash !== finalHash && this.cache.restoreFromCache(el, finalHash)) return;
-
-          const blockId = getBlockId(ctx.sourcePath, sectionInfo.lineStart);
-          this.queue.remove((node) => node.data.blockId === blockId);
-          el.appendChild(createWaitingCountdown(this.queue.length()));
-          this.queue.push({source,el,md5Hash,sourcePath: ctx.sourcePath,blockId,process: isLangTikz,});
-        })
-        .catch((err) => {
-          err = "Error queuing task: " + err;
-          this.handleError(el, err as string, { hash: md5Hash });
-        });
+      LatexTask.createAsync(this.plugin, isLangTikz, source, el, ctx).then((task) => {
+        if (task.restoreFromCache()) return;
+        this.addToQueue(task);
+      })
     }
   }
-  private foo(source: string,el: HTMLElement,info: {md5Hash: string,sourcePath: string,lineStart: number,isLangTikz:boolean}) {
-    const { md5Hash, sourcePath,lineStart,isLangTikz } = info;
-      //Reliable enough for repeated entries
-      source = source || source;
-
-      const finalHash = hashLatexSource(source);
-      if (md5Hash !== finalHash && this.cache.restoreFromCache(el, finalHash)) return;
-
-      const blockId = getBlockId(sourcePath, lineStart);
-      this.queue.remove((node) => node.data.blockId === blockId);
-      el.appendChild(createWaitingCountdown(this.queue.length()));
-      this.queue.push({source,el,md5Hash,sourcePath: sourcePath,blockId,process: isLangTikz,});
+  addToQueue(task: LatexTask) {
+    const blockId = task.getBlockId();
+    this.queue.remove((node) => node.data.blockId === blockId);
+    task.el.appendChild(createWaitingCountdown(this.queue.length()));
+    this.queue.push(task);
   }
-  /**
-   * Attempts to locate the Markdown section that corresponds to a rendered code block,
-   * even when section info is unavailable (e.g., virtual rendering or nested codeBlock environments).
-   */
-  private async ensureContextSectionInfo(source: string,el: HTMLElement,ctx: MarkdownPostProcessorContext,)
-    : Promise<MarkdownSectionInformation & { source?: string }> {
-    const sectionFromContext = ctx.getSectionInfo(el);
-    if (sectionFromContext) return sectionFromContext;
-
-    const { file, sections } = await getFileSectionsFromPath(
-      ctx.sourcePath,
-      this.plugin.app,
-    );
-
-    const editor =
-      this.plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
-    const fileText =
-      editor?.getValue() ?? (await this.plugin.app.vault.cachedRead(file));
-
-    const sectionFromTransaction = getSectionFromTransaction(
-      sections,
-      fileText,
-      this.logger,
-      editor,
-    );
-    if (sectionFromTransaction) return sectionFromTransaction;
-
-    const sectionFromMatching = getSectionFromMatching(
-      sections,
-      fileText,
-      source,
-    );
-    if (sectionFromMatching) return sectionFromMatching;
-    return {
-      lineStart: Math.floor(Math.random() * 1000) * -1,
-      lineEnd: 0,
-      text: fileText,
-    };
-  }
-
   configQueue() {
     this.queue = async.queue(async (task, done) => {
       let cooldown = true;
@@ -231,12 +150,12 @@ export class SwiftlatexRender {
           console.log("fund in catch for", task.blockId);
           return done();
         }
-        if (task.process) abort = (await LatexTaskProcessor.processTask(this.plugin, task)).abort;
+        if (task.isProcess()) abort = (await LatexTaskProcessor.processTask(this.plugin, task)).abort;
         if (abort) {
           cooldown = false;
           return done();
         }
-        await this.renderLatexToElement(task.source,task.el,task.md5Hash,task.sourcePath,);
+        await this.renderLatexToElement(task.getSource(),task.el,task.md5Hash,task.sourcePath,);
         this.reCheckQueue(); // only re-check the queue after a valide rendering
       } catch (err) {
         console.error("Error rendering/compiling:",
@@ -248,7 +167,7 @@ export class SwiftlatexRender {
         if (cooldown)
           setTimeout(() => done(), this.plugin.settings.pdfEngineCooldown);
       }
-    }, 1) as QueueObject<Task>; // Concurrency is set to 1, so tasks run one at a time
+    }, 1) as QueueObject<LatexTask>; // Concurrency is set to 1, so tasks run one at a time
   }
   
   /**
@@ -361,7 +280,7 @@ export class SwiftlatexRender {
   }
 }
 
-const updateQueueCountdown = (queue: QueueObject<Task>) => {
+const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
   let taskNode = queue._tasks.head;
   let index = 0;
   while (taskNode) {
@@ -376,9 +295,6 @@ const updateQueueCountdown = (queue: QueueObject<Task>) => {
 
 export function hashLatexSource(source: string) {
   return Md5.hashStr(source.replace(/\s/g, ""));
-}
-export function getBlockId(path: string, lineStart: number): string {
-  return `${path.replace(/ /g, "_")}_${lineStart}`;
 }
 
 export async function getFileSectionsFromPath(path: string, app: App) {

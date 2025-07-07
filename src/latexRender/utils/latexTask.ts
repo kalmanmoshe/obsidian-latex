@@ -1,7 +1,7 @@
 import Moshe from "src/main";
-import { latexCodeBlockNamesRegex, Task } from "../swiftlatexRender";
+import { getFileSectionsFromPath, hashLatexSource, latexCodeBlockNamesRegex, Task } from "../swiftlatexRender";
 import { VirtualFileSystem } from "../VirtualFileSystem";
-import { TFile } from "obsidian";
+import { MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownView, TFile } from "obsidian";
 import { getFileSections } from "../cache/sectionCache";
 import {
   findRelativeFile,
@@ -15,7 +15,16 @@ import {
 } from "../parse/parse";
 import { String as StringClass } from "../parse/typs/ast-types-post";
 import path from "path";
-
+import { getSectionFromMatching, getSectionFromTransaction } from "../cache/findSection";
+/**
+ * Be careful of catching this as the file may change and until you don't generate a new one it will be static.
+ */
+interface TaskSectionInformation extends MarkdownSectionInformation{
+  /**
+   * The file text where the task (source) is located.
+   */
+  text: string;
+}
 type ProcessableTask = Partial<Omit<Task, "source" | "sourcePath" | "el">> &
   Pick<Task, "source" | "sourcePath" | "el">;
 type MinProcessableTask = Partial<Omit<Task, "source" | "sourcePath">> &
@@ -41,27 +50,150 @@ class ProcessedTask extends _ProcessableTask {
   processed: boolean;
   processingTime: number;
 }
-export class LatexTask{
-  ast: LatexAbstractSyntaxTree | null = null;
-  source: string = "";
-  sourcePath: string = "";
-  md5Hash: string = "";
-  el: HTMLElement | null = null;
-  processed: boolean = false;
-  processingTime: number = 0;
+export function createTask(plugin: Moshe, process: boolean, source: string, el: HTMLElement): LatexTask | ProcessableLatexTask {
+  return process
+    ? new ProcessableLatexTask(plugin, source, el)
+    : new LatexTask(plugin, source, el);
 }
 
+export class LatexTask{
+  plugin: Moshe;
+  protected source: string;
+  sourcePath: string;
+  md5Hash: string;
+  blockId: string;
+  el: HTMLElement;
+  sectionInfo?: TaskSectionInformation;
+  
+  constructor(plugin: Moshe, source: string, el: HTMLElement) {
+    this.plugin = plugin;
+    this.setSource(source);
+    this.el = el;
+  }
+  static baseCreate(plugin: Moshe, process: boolean,source: string, el: HTMLElement,sourcePath: string, sectionInfo: TaskSectionInformation): LatexTask  {
+    const task = createTask(plugin, process, source, el);
+    Object.assign(task, {sourcePath,sectionInfo});
+    return task;
+  }
+  static create(plugin: Moshe, source: string, el: HTMLElement, sourcePath: string, sectionInfo: TaskSectionInformation): LatexTask {
+    return this.baseCreate(plugin, false, source, el, sourcePath, sectionInfo);
+  }
+  static async createAsync(plugin: Moshe, process: boolean, source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+    const task = createTask(plugin, process, source, el);
+    task.sourcePath = ctx.sourcePath; 
+    const md5Hash = hashLatexSource(source);
+    try {
+      await task.ensureSectionInfo(ctx);
+    } catch (err) {
+      const errorMessage = "Error queuing task: " + err;
+      plugin.swiftlatexRender.handleError(el, errorMessage, { hash: md5Hash });
+    }
+    return task;
+  }
+  isProcess(): this is ProcessableLatexTask { return this instanceof ProcessableLatexTask;}
+  restoreFromCache() {
+    return this.plugin.swiftlatexRender.cache.restoreFromCache(this.el, this.md5Hash);
+  }
+  setSource(source: string) { 
+    this.source = source;
+    this.md5Hash = hashLatexSource(source);
+  }
+  getSource(){return this.source;}
+  getBlockId() { 
+    if (!this.sectionInfo) throw new Error("Section information is not set for this task.");
+    return `${this.sourcePath.replace(/ /g, "_")}_${this.sectionInfo.lineStart}`;
+  }
+  async initialize(ctx: MarkdownPostProcessorContext) {
+    await this.ensureSectionInfo(ctx);
+  }
+  /**
+   * sets the section information for the task.
+   * Attempts to locate the Markdown section that corresponds to a rendered code block,
+   * even when section info is unavailable (e.g., virtual rendering or nested codeBlock environments).
+   * @param ctx 
+   * @returns 
+   */
+  private async ensureSectionInfo(ctx: MarkdownPostProcessorContext) {
+    const sectionFromContext = ctx.getSectionInfo(this.el);
+    if (sectionFromContext) { this.sectionInfo = sectionFromContext; return; };
+    
+    const { file, sections } = await getFileSectionsFromPath(ctx.sourcePath, this.plugin.app);
+    const editor = this.plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+    const fileText = editor?.getValue() ?? (await this.plugin.app.vault.cachedRead(file));
+    // i want to move the logger to the plugin thats why i have the err for now, as a reminder
+    let sectionInfo: (MarkdownSectionInformation&{source?: string})|undefined = getSectionFromTransaction(sections,fileText,this.plugin.logger,editor);
+    if (!sectionInfo) {
+     sectionInfo = getSectionFromMatching(sections,fileText,this.source);
+    }
+    if (!sectionInfo) {
+      throw new Error( "No section information found for the task. This might be due to virtual rendering or nested codeBlock environments.")
+    }
+    this.sectionInfo = sectionInfo;
+    if (sectionInfo.source&& sectionInfo.source !== this.source) {
+      this.setSource(sectionInfo.source);
+    }
+  }
+}
+
+export class ProcessableLatexTask extends LatexTask {
+  name?: string;
+  processed: boolean = false;
+  processingTime: number = 0;
+  ast: LatexAbstractSyntaxTree | null = null;
+  sectionInfo: TaskSectionInformation;
+  astSource: string | null = null;
+  constructor(plugin: Moshe, source: string, el: HTMLElement ) {
+    super(plugin, source, el);
+  }
+  static create(plugin: Moshe, source: string, el: HTMLElement, sourcePath: string, info: TaskSectionInformation): ProcessableLatexTask {
+    return super.baseCreate(plugin,true, source, el, sourcePath, info) as ProcessableLatexTask;
+  }
+  /**
+   * returns the source code of the task. 
+   * @param fromAst - if true, returns the source from the AST, otherwise returns the original source. defaults to true.
+   * @returns 
+   */
+  getSource(fromAst: boolean = true): string {
+    if (!fromAst) return this.source;
+    if (!this.ast) throw new Error("AST is not set for this task.");
+    if (!this.astSource) this.astSource = this.ast.toString();
+    return this.astSource;
+  }
+  /**
+   * Logs the task information to the console.
+   * (for debugging purposes rm later)
+   */
+  log() {
+    console.log(`[TIMER] Total processing time: ${this.processingTime.toFixed(2)} ms`);
+  }
+  async process() {
+    const processor = await LatexTaskProcessor.processTask(this.plugin, this)
+    return processor;
+  }
+}
+/**
+ * Attempts to extract the name of a LaTeX code block from the first line of the given text.
+ * @param text - The full text of the code block
+ * @returns The extracted name if matched, otherwise undefined
+ */
+function extractCodeBlockName(text: string): string | undefined {
+  const nameMatch = text.split("\n")[0]
+    .replace(latexCodeBlockNamesRegex, "")
+    .trim()
+    .match(/name: *([\w-]+)/); // Match names with letters, numbers, underscores, and dashes
+  return nameMatch ? nameMatch[1] : undefined;
+}
 /**
  * Class to handle LaTeX tasks, processing the source code,
  * managing dependencies, and interacting with the virtual file system.
  */
 export class LatexTaskProcessor {
-  task: MinProcessableTask;
+  task: ProcessableLatexTask;
   plugin: Moshe;
   vfs: VirtualFileSystem;
   abort: boolean = false;
   err: string | null = null;
-  static create(plugin: Moshe, task: MinProcessableTask) {
+  static create(plugin: Moshe, task: ProcessableLatexTask) {
     const latexTask = new LatexTaskProcessor();
     latexTask.task = task;
     latexTask.plugin = plugin;
@@ -77,18 +209,18 @@ export class LatexTaskProcessor {
   private async getFileContent(file: TFile, remainingPath?: string): Promise<string> {
     const fileContent = await this.plugin.app.vault.read(file);
     if (!remainingPath) return fileContent;
+    if (!this.task.name) throw new Error("Task name is not set. Cannot extract code block content.");
+    if (remainingPath === this.task.name) throw new Error("Cannot reference the code block name directly (a code block cannot input itself). Use a different name or path.");
     const sections = await getFileSections(file, this.plugin.app, true);
     const err = "No code block found with name: " + remainingPath + " in file: " + file.path;
     if (!sections) throw new Error(err);;
     const codeBlocks = await getLatexCodeBlocksFromString(fileContent, sections!, true);
-    const target = codeBlocks.find((block) =>
-      block.content
-        .split("\n")[0]
-        .replace(latexCodeBlockNamesRegex, "")
-        .trim()
-        .match(new RegExp("name: *" + remainingPath)),
-    );
-    if (!target) throw new Error(err);
+    const potentialTargets = codeBlocks.filter((block) => extractCodeBlockName(block.content) === remainingPath);
+    if (potentialTargets.length === 0) throw new Error(err);
+    if (potentialTargets.length > 1) {
+      throw new Error(`Multiple code blocks found with name: ${remainingPath} in file: ${file.path}`);
+    }
+    const target = potentialTargets[0];
     return target.content.split("\n").slice(1, -1).join("\n");
   }
   /**
@@ -102,13 +234,11 @@ export class LatexTaskProcessor {
     const usedFiles: VFSLatexDependency[] = [];
     const inputFilesMacros = ast.usdInputFiles()
       .filter((macro) => macro.args && macro.args.length === 1);
+    
     for (const macro of inputFilesMacros) {
       const args = macro.args!;
       const filePath = args[0].content.map((node) => node.toString()).join("");
-      const dir = findRelativeFile(
-        filePath,
-        this.plugin.app.vault.getAbstractFileByPath(basePath),
-      );
+      const dir = findRelativeFile(filePath,this.plugin.app.vault.getAbstractFileByPath(basePath),);
       const name = (dir.remainingPath || dir.file.basename) + ".tex";
       // Replace the macro argument with normalized name
       args[0].content = [new StringClass(name)];
@@ -157,22 +287,20 @@ export class LatexTaskProcessor {
     const startTime = performance.now();
     const process = {
       abort: false,
-      source: undefined as string | undefined,
       usedFiles,
-      ast: null as LatexAbstractSyntaxTree | null,
     };
     try {
-      const ast = LatexAbstractSyntaxTree.parse(this.task.source);
+      const ast = this.task.ast = LatexAbstractSyntaxTree.parse(this.task.getSource(false));
+      this.nameTaskCodeBlock();
       if (this.plugin.settings.compilerVfsEnabled) {
         const files = await this.processInputFiles(ast, this.task.sourcePath)
         usedFiles.push(...files);
         usedFiles.push(...this.addAutoUseFilesToAst(ast));
       }
       ast.verifyProperDocumentStructure();
-      const totalDuration = performance.now() - startTime;
-      //console.log(`[TIMER] Total processing time: ${totalDuration.toFixed(2)} ms`);
+      this.task.processingTime = performance.now() - startTime;
       // ── Final task update ────────────────────────
-      return { ...process, source: ast.toString(), ast };
+      return { ...process };
     } catch (e) {
       let abort = false;
       if (typeof e !== "string" && "abort" in e) {
@@ -182,6 +310,15 @@ export class LatexTaskProcessor {
       this.err = "Error processing task: " + e;
       return { ...process, abort };
     }
+  }
+  private nameTaskCodeBlock() {
+    const file = this.plugin.app.vault.getAbstractFileByPath(this.task.sourcePath);
+    if (!file || !(file instanceof TFile)) {
+      throw new Error("Source path is not a valid file.");
+    }
+    const fileText = this.task.sectionInfo.text
+    const line = fileText.split("\n")[this.task.sectionInfo.lineStart - 1];
+    this.task.name = extractCodeBlockName(line);
   }
   private addAutoUseFilesToAst(ast: LatexAbstractSyntaxTree) {
     const files: VFSLatexDependency[] = [];
@@ -198,24 +335,20 @@ export class LatexTaskProcessor {
     return files
   }
   async processTask(): Promise<boolean> {
-    const { usedFiles, abort, source, ast } = await this.processTaskSource();
-    console.log("Ast:", ast?.clone());
+    const { usedFiles, abort, } = await this.processTaskSource();
     if (this.err) {
       console.error(this.err);
       this.task.el &&
         this.plugin.swiftlatexRender.handleError(this.task.el, this.err, {hash: this.task.md5Hash,});
       return !!abort;
     }
-    //this is just for ts types
-    if (!source) throw new Error("Unexpected error: source is undefined");
     for (const dep of usedFiles) {
       if (!dep.inVFS) this.vfs.addVirtualFileSystemFile({name: dep.name,content: dep.source});
     }
-    this.task.source = source;
     return !!this.err;
   }
 
-  static async processTask(plugin: Moshe, task: MinProcessableTask) {
+  static async processTask(plugin: Moshe, task: ProcessableLatexTask) {
     const latexTask = LatexTaskProcessor.create(plugin, task);
     await latexTask.processTask();
     return latexTask;

@@ -79,10 +79,7 @@ function getDirRoot(currentDir: TAbstractFile): TFolder {
   return currentDir;
 }
 
-export function findRelativeFile(
-  filePath: string,
-  currentDir: TAbstractFile | null,
-) {
+export function findRelativeFile( filePath: string, currentDir: TAbstractFile | null ) {
   if (!currentDir) {
     throw new Error(`Source file not found`);
   }
@@ -93,10 +90,7 @@ export function findRelativeFile(
   filePath = filePath.replace(leadingDotsRegex, "");
   if (leadingPrefix && leadingPrefix[1]) {
     for (let i = 0; i < leadingPrefix[1].length; i++) {
-      if (!currentDir.parent)
-        throw new Error(
-          `Reached root without resolving full path from: ${sourcePath}`,
-        );
+      if (!currentDir.parent) throw new Error(`Reached root without resolving full path from: ${sourcePath}`);
       currentDir = currentDir.parent;
     }
   } else if (filePath.includes(separator)) {

@@ -1,20 +1,16 @@
 import { MarkdownView, Menu, Modal, Notice, TFile } from "obsidian";
-import { LatexAbstractSyntaxTree } from "./parse/parse";
 import Moshe from "src/main";
 import { getLatexSourceFromHash } from "./cache/latexSourceFromFile";
 import { getFileSections } from "./cache/sectionCache";
 import {
   addMenu,
-  createWaitingCountdown,
-  getBlockId,
   getFileSectionsFromPath,
-  hashLatexSource,
   latexCodeBlockNamesRegex,
 } from "./swiftlatexRender";
 import parseLatexLog from "./logs/HumanReadableLogs";
 import { getSectionFromMatching } from "./cache/findSection";
 import { LogDisplayModal } from "./logs/logDisplayModal";
-import { LatexTaskProcessor } from "./utils/latexTask";
+import { LatexTask, LatexTaskProcessor, ProcessableLatexTask } from "./utils/latexTask";
 /**add:
  * - Reveal in file explorer
  * - show log
@@ -23,12 +19,17 @@ import { LatexTaskProcessor } from "./utils/latexTask";
  */
 export class SvgContextMenu extends Menu {
   plugin: Moshe;
-  triggeringElement: HTMLElement | SVGElement;
+  svgEl?: SVGElement;
+  /**
+   * the container element that holds the SVG/err has class block-language-latexsvg
+   */
+  containerEl: HTMLElement;
   sourcePath: string;
   isError: boolean;
   source: string;
   codeBlockLanguage: "tikz" | "latex";
   private sourceAssignmentPromise: Promise<boolean> | null = null;
+  hash: string;
   constructor(
     plugin: Moshe,
     trigeringElement: HTMLElement,
@@ -36,53 +37,59 @@ export class SvgContextMenu extends Menu {
   ) {
     super();
     this.plugin = plugin;
-    const el = this.insureIsSVG(trigeringElement);
-    if (!el) console.error("No element found in the hierarchy");
-    else if (el) this.triggeringElement = el;
+    this.assignElements(trigeringElement);
     this.sourcePath = sourcePath;
     this.addDisplayItems();
   }
-  private insureIsSVG(el: HTMLElement) {
-    const isSvgContainer = (el: HTMLElement) =>
-      el.classList.contains("block-language-latexsvg");
+  private isSvgContainer(el: HTMLElement) {
+    return el.classList.contains("block-language-latexsvg");
+  }
+  /**
+   * Ensures the provided element is an SVG or a valid container for SVG elements.
+   * If the element is not valid, it climbs up the DOM hierarchy to find a suitable container.
+   * @param el - The element to validate and process.
+   * @returns The validated SVG element or container, or null if none is found.
+   */
+  private assignElements(el: HTMLElement) {
     // Climb up the DOM until we find a valid container or reach the top
+    /*
+    while el is defined and dose not have a parent element or is not an SVG container
+    and none of its children are SVG containers, keep climbing up the DOM.
+    */
     while (
-      el &&
-      (!el.parentElement || !isSvgContainer(el)) &&
-      !Array.from(el.children).some((child) =>
-        isSvgContainer(child as HTMLElement),
-      )
+      el &&!this.isSvgContainer(el) &&
+      !Array.from(el.children).some((child) =>this.isSvgContainer(child as HTMLElement))
     ) {
-      el = el.parentElement!;
+      if (!el.parentElement) break;
+      el = el.parentElement;
     }
-    if (!isSvgContainer(el) && el) {
-      const childContainer = Array.from(el.children).find((child) =>
-        isSvgContainer(child as HTMLElement),
-      ) as HTMLElement | undefined;
+    
+    if (!this.isSvgContainer(el) && el) {
+      const childContainer = Array.from(el.children).find((child) =>this.isSvgContainer(child as HTMLElement)) as HTMLElement | undefined;
       if (childContainer) el = childContainer;
     }
-    const svg = Array.from(el.children).find(
-      (child) => child instanceof SVGElement,
-    ) as SVGElement | undefined;
+    if (!this.isSvgContainer(el) && el) {
+      throw new Error( "No valid SVG container found in the hierarchy. Please ensure the element is a valid SVG container.")
+    }
+    const svg = Array.from(el.children).find((child) => child instanceof SVGElement);
     this.isError = !svg;
-    return (
-      svg ??
-      (Array.from(el.children).find(
-        (child) =>
-          child.classList.contains("moshe-swift-latex-error-container") &&
-          child instanceof HTMLElement,
-      ) as HTMLElement) ??
-      null
-    );
+    this.svgEl = svg
+    this.containerEl = el;
+    console.log("svg", svg, "el", el, "isError", this.isError);
+    const hash = this.containerEl.id;
+    if (hash === undefined) throw new Error("No hash found for SVG element");
+    /*
+    return ( svg ??Array.from(el.children).find((child) =>
+          child.classList.contains("moshe-swift-latex-error-container") &&child instanceof HTMLElement,
+      ) as HTMLElement ??null);*/
   }
-
   private addDisplayItems() {
     if (!this.isError)
       this.addItem((item) => {
         item.setTitle("Copy SVG");
         item.setIcon("copy");
         item.onClick(async () => {
-          const svg = this.triggeringElement;
+          const svg = this.svgEl;
           console.log("svg", svg);
           if (svg) {
             const svgString = new XMLSerializer().serializeToString(svg);
@@ -124,9 +131,8 @@ export class SvgContextMenu extends Menu {
     if (!this.source) return undefined;
   }
   private async showLogs() {
-    const hash = this.getHash();
     this.assignLatexSource();
-    let log = this.plugin.swiftlatexRender.cache.getLog(hash);
+    let log = this.plugin.swiftlatexRender.cache.getLog(this.hash);
     if (!log) {
       let cause = "This may be because ";
       if (!this.plugin.settings.saveLogs) {
@@ -163,7 +169,7 @@ export class SvgContextMenu extends Menu {
           ].match(latexCodeBlockNamesRegex)?.[2] === "tikz";
       const el = document.createElement("div");
       const task = {
-        md5Hash: hash,
+        md5Hash: this.hash,
         source: this.source,
         el: el,
         sourcePath: this.sourcePath,
@@ -194,17 +200,12 @@ export class SvgContextMenu extends Menu {
     const modal = new LogDisplayModal(this.plugin, log);
     modal.open();
   }*/
-  private getHash() {
-    const hash = this.triggeringElement.id;
-    if (hash === undefined) throw new Error("No hash found for SVG element");
-    return hash;
-  }
   assignLatexSource(): Promise<boolean> {
     if (this.source !== undefined) return Promise.resolve(true);
     if (!this.sourceAssignmentPromise) {
       this.sourceAssignmentPromise = (async () => {
         const file = await this.getFile();
-        const hash = this.getHash();
+        const hash = this.hash;
         if (!hash) return false;
         this.source = await getLatexSourceFromHash(hash, this.plugin, file);
         return true;
@@ -218,7 +219,7 @@ export class SvgContextMenu extends Menu {
     if (!(file instanceof TFile)) throw new Error("File is not a TFile");
     return file;
   }
-  async getSectionCache() {
+  async getSectionInfo() {
     const file = await this.getFile();
     if (!file) throw new Error("No file found");
 
@@ -239,41 +240,32 @@ export class SvgContextMenu extends Menu {
       throw new Error("Code block is not a tikz or latex code block");
     }
     this.codeBlockLanguage = lang;
-    return sectionCache;
+    return {
+      lineStart: sectionCache.lineStart,
+      lineEnd: sectionCache.lineEnd,
+      text: fileText
+    };
   }
   /**
    * Can't be saved as contains dynamic content.
    */
 
   private async removeAndReRender() {
-    let hash = this.getHash();
+    let hash = this.hash;
+    const parentEl = this.containerEl;
     if (!this.isError && hash) {
       await this.plugin.swiftlatexRender.cache.removeFile(hash);
     }
-
-    const parentEl = this.triggeringElement.parentNode;
-    if (!parentEl) throw new Error("No parent element found for SVG element");
-    if (!(parentEl instanceof HTMLElement))
-      throw new Error("Parent element is not an HTMLElement");
-    parentEl.removeChild(this.triggeringElement);
-
+    if (this.svgEl) {
+      parentEl.removeChild(this.svgEl);
+    }
     this.assignLatexSource();
 
     addMenu(this.plugin, parentEl, this.sourcePath);
-    const sectionCache = await this.getSectionCache();
-
-    const blockId = getBlockId(this.sourcePath, sectionCache.lineStart);
-    const queue = this.plugin.swiftlatexRender.queue;
-    queue.remove((node) => node.data.blockId === blockId);
-    parentEl.appendChild(createWaitingCountdown(queue.length()));
-    this.plugin.swiftlatexRender.queue.push({
-      source: this.source,
-      el: parentEl,
-      md5Hash: hash ?? hashLatexSource(this.source),
-      sourcePath: this.sourcePath,
-      blockId,
-      process: this.codeBlockLanguage === "tikz",
-    });
+    const sectionInfo = await this.getSectionInfo();
+    const isProcess = this.codeBlockLanguage === "tikz"
+    const task = LatexTask.baseCreate(this.plugin, isProcess, this.source, parentEl,this.sourcePath,sectionInfo)
+    this.plugin.swiftlatexRender.addToQueue(task)
     new Notice("SVG removed from cache. Re-rendering...");
   }
 
@@ -282,15 +274,10 @@ export class SvgContextMenu extends Menu {
   }
   private async getParsedSource() {
     await this.assignLatexSource();
-    if (this.codeBlockLanguage === undefined) await this.getSectionCache();
-    const task = { source: this.source, sourcePath: this.sourcePath };
-    let source = this.source;
-    if (this.codeBlockLanguage === "tikz") {
-      const result = await LatexTaskProcessor.processTask(this.plugin, task);
-      if (!result.task.source)
-        throw new Error("No result found for tikz source");
-      source = result.task.source || "";
-    }
-    return source;
+    const sectionInfo = await this.getSectionInfo();
+    const task = ProcessableLatexTask.create(this.plugin, this.source, document.createElement("div"), this.sourcePath, sectionInfo);
+    if (this.codeBlockLanguage !== "tikz") return task.getSource(false);
+    await task.process();
+    return task.getSource(true);
   }
 }

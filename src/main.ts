@@ -22,8 +22,9 @@ import {
   onFileDelete,
 } from "./obsidian/file_watch";
 import { temp } from "./LaTeX_js/latex";
-const https = require('https');
-
+import { createTransactionLogger } from "./latexRender/cache/transactionLogger";
+import { EditorView } from "@codemirror/view";
+import { StateEffect } from "@codemirror/state";
 async function isInternetAvailable(): Promise<boolean> {
   try {
     const response = await fetch("https://www.google.com", { method: "HEAD", mode: "no-cors" });
@@ -39,7 +40,6 @@ async function isWebsiteOnline(url: string): Promise<boolean> {
     console.log("No internet connection.");
     return false;
   }
-
   try {
     const response = await fetch(url, { method: "HEAD" });
     return response.ok;
@@ -71,7 +71,7 @@ async function isWebsiteOnline(url: string): Promise<boolean> {
 export default class Moshe extends Plugin {
   settings: MosheMathPluginSettings;
   swiftlatexRender: SwiftlatexRender = new SwiftlatexRender();
-
+  logger = createTransactionLogger();
   async onload() {
     console.log("Loading Moshe math plugin");
     const url = "https://texlive2.swiftlatex.com/";
@@ -100,6 +100,7 @@ export default class Moshe extends Plugin {
 
   private async loadLayoutReadyDependencies() {
     this.loadMathJax();
+    this.bindTransactionLogger();
     // we need to use await here because the codeBlock processor
     // needs to be loaded before the codeBlocks are processed
     await this.loadSwiftLatexRender();
@@ -114,7 +115,17 @@ export default class Moshe extends Plugin {
     }
     this.watchFiles();
   }
+  private bindTransactionLogger() {
+    const markdownView =
+      this.app.workspace.getActiveViewOfType(MarkdownView);
+    if (!markdownView) return;
+    const editor = markdownView.editor;
+    const cmView = (editor as any).cm as EditorView;
 
+    cmView.dispatch({
+      effects: StateEffect.appendConfig.of([this.logger.extension]),
+    });
+  }
   private setCodeblocks() {
     this.registerMarkdownCodeBlockProcessor("tikz",
       this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender),
