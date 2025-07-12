@@ -138,54 +138,39 @@ export class SvgContextMenu extends Menu {
     this.assignLatexSource();
     let log = this.plugin.swiftlatexRender.cache.getLog(this.hash);
     if (!log) {
-      let cause = "This may be because ";
+      let cause;
       if (!this.plugin.settings.saveLogs) {
-        cause += "log saving is disabled in the settings.";
-      } else {
-        cause = "";
-      }
+        cause = "This may be because log saving is disabled in the settings.";
+      } 
       new Notice(
         "No logs were found for this SVG element.\n" +
           (cause ? cause + "\n" : "") +
           "Re-rendering the SVG to generate logs. This may take a moment...",
       );
       await this.assignLatexSource();
-      const { file, sections } = await getFileSectionsFromPath(
-        this.sourcePath,
-        this.plugin.app,
-      );
+      const { file } = await getFileSectionsFromPath(this.sourcePath,this.plugin.app);
       const editor =
         this.plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
       const fileText =
         editor?.getValue() ?? (await this.plugin.app.vault.cachedRead(file));
-      const sectionFromMatching = getSectionFromMatching(
-        sections,
-        fileText,
-        this.source,
-      );
-      if (!sectionFromMatching)
-        throw new Error("No section found for this source");
-      const shouldProcess =
-        fileText
-          .split("\n")
-          [
-            sectionFromMatching.lineStart
-          ].match(latexCodeBlockNamesRegex)?.[2] === "tikz";
+      
+      const sectionInfo = await this.getSectionInfo();
+      const shouldProcess = fileText.split("\n")[sectionInfo.lineStart]
+        .match(latexCodeBlockNamesRegex)?.[2] === "tikz";
+      
       const el = document.createElement("div");
-      const task = {
-        md5Hash: this.hash,
-        source: this.source,
-        el: el,
-        sourcePath: this.sourcePath,
-      };
-      if (shouldProcess) {
-        const result = LatexTaskProcessor.processTask(this.plugin, task);
+      
+      const task = LatexTask.baseCreate(this.plugin, shouldProcess, this.source, el, this.sourcePath, sectionInfo);
+      if (task.isProcess()) {
+        const result = await LatexTaskProcessor.processTask(this.plugin, task);
+        if (result.isError) {
+          console.error("Error processing task for log", result.err);
+          new Notice("Error processing task for log: " + result.err);
+          return;
+        }
       }
       try {
-        const newCompile = await this.plugin.swiftlatexRender.renderLatexToPDF(
-          task.source,
-          task.md5Hash,
-        );
+        const newCompile = await this.plugin.swiftlatexRender.renderLatexToPDF(task.getSource(),task.md5Hash,);
         log = parseLatexLog(newCompile.log);
       } catch (err) {
         log = parseLatexLog(err);

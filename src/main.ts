@@ -128,10 +128,10 @@ export default class Moshe extends Plugin {
   }
   private setCodeblocks() {
     this.registerMarkdownCodeBlockProcessor("tikz",
-      this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender),
+      this.swiftlatexRender.codeBlockProcessor.bind(this.swiftlatexRender),
     );
     this.registerMarkdownCodeBlockProcessor("latex",
-      this.swiftlatexRender.universalCodeBlockProcessor.bind(this.swiftlatexRender),
+      this.swiftlatexRender.codeBlockProcessor.bind(this.swiftlatexRender),
     );
   }
   private async loadSwiftLatexRender() {

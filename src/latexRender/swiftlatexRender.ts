@@ -115,12 +115,10 @@ export class SwiftlatexRender {
     await this.compiler.setTexliveEndpoint(this.plugin.settings.package_url);
   }
 
-  universalCodeBlockProcessor(source: string,el: HTMLElement,ctx: MarkdownPostProcessorContext) {
+  codeBlockProcessor(source: string,el: HTMLElement,ctx: MarkdownPostProcessorContext) {
     const isLangTikz = el.classList.contains("block-language-tikz");
-    el.classList.remove("block-language-tikz");
-    el.classList.remove("block-language-latex");
-    el.classList.add("block-language-latexsvg");
-    el.classList.add(`overflow-${this.plugin.settings.overflowStrategy}`);
+    el.classList.remove(...["block-language-tikz","block-language-latex"]);
+    el.classList.add(...["block-language-latexsvg",`overflow-${this.plugin.settings.overflowStrategy}`]);
     const md5Hash = hashLatexSource(source);
     addMenu(this.plugin, el, ctx.sourcePath);
 
@@ -129,6 +127,11 @@ export class SwiftlatexRender {
     if (!this.cache.restoreFromCache(el, md5Hash)) {
       //Reliable enough for repeated entries
       LatexTask.createAsync(this.plugin, isLangTikz, source, el, ctx).then((task) => {
+        if (typeof task === "string") {
+          const errorMessage = "Error creating task: " + task;
+          this.handleError(el, errorMessage, { hash: md5Hash });
+          return;
+        }
         if (task.restoreFromCache()) return;
         this.addToQueue(task);
       })
@@ -140,33 +143,37 @@ export class SwiftlatexRender {
     task.el.appendChild(createWaitingCountdown(this.queue.length()));
     this.queue.push(task);
   }
+  /**
+   * Processes and renders the given LaTeX task.
+   *
+   * @param task The task to process and render.
+   * @returns `true` if the task was compiled and rendered; `false` if it was restored from cache or failed during processing.
+   */
+  async processAndRenderLatexTask(task: LatexTask): Promise<boolean> {
+    if (this.cache.restoreFromCache(task.el, task.md5Hash)) {
+      console.log("fund in catch for", task.blockId);
+      return false;
+    }
+    if (task.isProcess()) {
+      const processor = await task.process();
+      task.log()
+      const { el, md5Hash } = processor.task;
+      if (processor.isError) {
+        const errorMessage = "Error in processing task: " + processor.err;
+        this.handleError(el, errorMessage, { hash: md5Hash, });
+        return false
+      }
+    }
+    await this.renderLatexToElement(task.getSource(),task.el,task.md5Hash,task.sourcePath,);
+    this.reCheckQueue(); // only re-check the queue after a valide rendering
+    return true;
+  }
   configQueue() {
     this.queue = async.queue(async (task, done) => {
-      let cooldown = true;
-      try {
-        let abort = false;
-        if (this.cache.restoreFromCache(task.el, task.md5Hash)) {
-          cooldown = false;
-          console.log("fund in catch for", task.blockId);
-          return done();
-        }
-        if (task.isProcess()) abort = (await task.process()).abort;
-        if (task.isProcess()) task.log();
-        if (abort) {
-          cooldown = false;
-          return done();
-        }
-        await this.renderLatexToElement(task.getSource(),task.el,task.md5Hash,task.sourcePath,);
-        this.reCheckQueue(); // only re-check the queue after a valide rendering
-      } catch (err) {
-        console.error("Error rendering/compiling:",
-          typeof err === "string" ? [err.split("\n")] : err,
-        );
-        //this.handleError(task.el, "Render error: " + err);
-      } finally {
-        updateQueueCountdown(this.queue);
-        if (cooldown)
-          setTimeout(() => done(), this.plugin.settings.pdfEngineCooldown);
+      const didRender = await this.processAndRenderLatexTask(task);
+      updateQueueCountdown(this.queue);
+      if (didRender) {
+        setTimeout(() => done(), this.plugin.settings.pdfEngineCooldown);
       }
     }, 1) as QueueObject<LatexTask>; // Concurrency is set to 1, so tasks run one at a time
   }
@@ -197,7 +204,7 @@ export class SwiftlatexRender {
     this.compiler.closeWorker();
   }
   
-  handleError(el: HTMLElement,err: string,options: { parseErr?: boolean; hash?: string; throw?: boolean } = {}): void {
+  private handleError(el: HTMLElement,err: string,options: { parseErr?: boolean; hash?: string; throw?: boolean } = {}): void {
     el.innerHTML = "";
     let child: HTMLElement;
     if (options.parseErr) {
@@ -211,6 +218,7 @@ export class SwiftlatexRender {
     el.appendChild(child);
     if (options.throw) throw err;
   }
+
   private async renderLatexToElement(
     source: string,
     el: HTMLElement,
@@ -229,9 +237,6 @@ export class SwiftlatexRender {
       await this.cache.afterRenderCleanUp();
     }
   }
-  flatRenderLatex(){
-
-  }
 
   renderLatexToPDF(source: string, md5Hash?: string): Promise<CompileResult> {
     return new Promise(async (resolve, reject) => {
@@ -241,8 +246,7 @@ export class SwiftlatexRender {
           try {
             await waitFor(() => this.compiler.isReady());
           } catch (err) {
-            reject(err);
-            return;
+            reject(err); return;
           }
           if (err) reject(err);
           if (this.vfs.getEnabled()){
@@ -251,19 +255,17 @@ export class SwiftlatexRender {
           await this.vfs.loadVirtualFileSystemFiles();
           await this.compiler.writeMemFSFile("main.tex", source);
           await this.compiler.setEngineMainFile("main.tex");
-          await this.compiler
-            .compileLaTeX()
-            .then(async (result: CompileResult) => {
-              this.vfs.removeVirtualFileSystemFiles();
-              if(md5Hash) this.cache.addLog(result.log, md5Hash);
-              if (result.status != 0) {
-                // manage latex errors
-                reject(result.log);
-              }
-              // update the list of package files in the cache
-              await this.cache.fetchPackageCacheData();
-              resolve(result);
-            });
+          const result = await this.compiler.compileLaTeX()
+
+          this.vfs.removeVirtualFileSystemFiles();
+          if(md5Hash) this.cache.addLog(result.log, md5Hash);
+          if (result.status != 0) {
+            // manage latex errors
+            reject(result.log);
+          }
+          // update the list of package files in the cache
+          await this.cache.fetchPackageCacheData();
+          resolve(result);
         },
       );
     });

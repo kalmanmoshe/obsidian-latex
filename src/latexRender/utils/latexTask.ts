@@ -81,12 +81,10 @@ export class LatexTask{
   static async createAsync(plugin: Moshe, process: boolean, source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
     const task = createTask(plugin, process, source, el);
     task.sourcePath = ctx.sourcePath; 
-    const md5Hash = hashLatexSource(source);
     try {
       await task.ensureSectionInfo(ctx);
-    } catch (err) {
-      const errorMessage = "Error queuing task: " + err;
-      plugin.swiftlatexRender.handleError(el, errorMessage, { hash: md5Hash });
+    } catch (err ) {
+      return err as string;
     }
     return task;
   }
@@ -194,8 +192,9 @@ export class LatexTaskProcessor {
   task: ProcessableLatexTask;
   plugin: Moshe;
   vfs: VirtualFileSystem;
-  abort: boolean = false;
+  isError: boolean = false;
   err: string | null = null;
+  dependencies: VFSLatexDependency[] = [];
   static create(plugin: Moshe, task: ProcessableLatexTask) {
     const latexTask = new LatexTaskProcessor();
     latexTask.task = task;
@@ -203,28 +202,41 @@ export class LatexTaskProcessor {
     latexTask.vfs = plugin.swiftlatexRender.vfs;
     return latexTask;
   }
+  private setError(err: string) {
+    if (this.err !== null) {
+      const errorMessage = "Error already set: " + this.err + ". New error: " + err;
+      console.error(errorMessage);
+      throw new Error(errorMessage);
+    }
+    this.err = err;
+    this.isError = true;
+  }
   /**
    * 
    * @param file 
    * @param remainingPath 
    * @returns 
    */
-  private async getFileContent(file: TFile, remainingPath?: string): Promise<string> {
+  private async getFileContent(file: TFile, remainingPath?: string): Promise<string|void> {
     const fileContent = await this.plugin.app.vault.read(file);
     if (!remainingPath) return fileContent;
-    if (!this.task.name) throw new Error("Task name is not set. Cannot extract code block content.");
-    if (remainingPath === this.task.name) throw new Error("Cannot reference the code block name directly (a code block cannot input itself). Use a different name or path.");
-
+    if (!this.task.name) { 
+      this.setError("Task name is not set. Cannot extract code block content."); return;};
+    if (remainingPath === this.task.name) {
+      this.setError("Cannot reference the code block name directly (a code block cannot input itself). Use a different name or path.");
+      return;
+    }
     const sections = await getFileSections(file, this.plugin.app, true);
     const err = "No code block found with name: " + remainingPath + " in file: " + file.path;
-    if (!sections) throw new Error(err);
+    if (!sections) {this.setError(err); return; };
 
     const codeBlocks = await getLatexCodeBlocksFromString(fileContent, sections!, true);
     const potentialTargets = codeBlocks.filter((block) => extractCodeBlockName(block.content) === remainingPath);
     
-    if (potentialTargets.length === 0) throw new Error(err);
+    if (potentialTargets.length === 0) {this.setError(err); return; };
     if (potentialTargets.length > 1) {
-      throw new Error(`Multiple code blocks found with name: ${remainingPath} in file: ${file.path}`);
+      this.setError(`Multiple code blocks found with name: ${remainingPath} in file: ${file.path}`);
+      return;
     }
     const target = potentialTargets[0];
     return target.content.split("\n").slice(1, -1).join("\n");
@@ -236,7 +248,7 @@ export class LatexTaskProcessor {
    * @param basePath The base path for resolving relative file paths.
    * @returns An array of dependencies found in the input files.
    */
-  private async processInputFiles(ast: LatexAbstractSyntaxTree,basePath: string): Promise<VFSLatexDependency[]> {
+  private async processInputFiles(ast: LatexAbstractSyntaxTree,basePath: string): Promise<VFSLatexDependency[]|void> {
     const usedFiles: VFSLatexDependency[] = [];
     const inputFilesMacros = ast.usdInputFiles()
       .filter((macro) => macro.args && macro.args.length === 1);
@@ -252,6 +264,7 @@ export class LatexTaskProcessor {
       // Avoid circular includes
       if (this.vfs.hasFile(name)) continue;
       const content = await this.getFileContent(dir.file, dir.remainingPath);
+      if (!content) {return;}
       
       const ext = path.extname(name);
       const baseDependency: Partial<VFSLatexDependency> & {
@@ -261,7 +274,9 @@ export class LatexTaskProcessor {
       if (baseDependency.isTex) {
         // Recursively process the content
         const nestedAst = LatexAbstractSyntaxTree.parse(content);
-        usedFiles.push(...(await this.processInputFiles(nestedAst, dir.file.path)));
+        const processedFiles = await this.processInputFiles(nestedAst, dir.file.path)
+        if (!processedFiles) { return; }
+        usedFiles.push(...processedFiles);
         baseDependency.ast = nestedAst;
         baseDependency.source = nestedAst.toString();
       } else {
@@ -289,35 +304,31 @@ export class LatexTaskProcessor {
    * @returns An object containing the processed source, used files, and AST.
    */
   async processTaskSource() {
-    const usedFiles: VFSLatexDependency[] = [];
     const startTime = performance.now();
-    const process = {abort: false, usedFiles,};
     try {
       const ast = this.task.ast = LatexAbstractSyntaxTree.parse(this.task.getSource(false));
       this.nameTaskCodeBlock();
       if (this.plugin.settings.compilerVfsEnabled) {
         const files = await this.processInputFiles(ast, this.task.sourcePath)
-        usedFiles.push(...files);
-        usedFiles.push(...this.addAutoUseFilesToAst(ast));
+        if (!files){return}
+        this.dependencies.push(...files);
+        this.dependencies.push(...this.addAutoUseFilesToAst(ast));
       }
       ast.verifyProperDocumentStructure();
       this.task.processingTime = performance.now() - startTime;
       // ── Final task update ────────────────────────
-      return { ...process };
     } catch (e) {
-      let abort = false;
       if (typeof e !== "string" && "abort" in e) {
-        abort = e.abort;
         e = e.message;
       }
-      this.err = "Error processing task: " + e;
-      return { ...process, abort };
+      this.setError(e);
     }
   }
   private nameTaskCodeBlock() {
     const file = this.plugin.app.vault.getAbstractFileByPath(this.task.sourcePath);
     if (!file || !(file instanceof TFile)) {
-      throw new Error("Source path is not a valid file.");
+      this.setError("Source path is not a valid file.");
+      return;
     }
     const fileText = this.task.sectionInfo.text
     const line = fileText.split("\n")[this.task.sectionInfo.lineStart];
@@ -338,16 +349,12 @@ export class LatexTaskProcessor {
     return files
   }
   async processTask(): Promise<boolean> {
-    const { usedFiles, abort, } = await this.processTaskSource();
-    if (this.err) {
-      console.error("At processTask this.err:",this.err);
-      this.task.el && this.plugin.swiftlatexRender.handleError(this.task.el, this.err, {hash: this.task.md5Hash,});
-      return !!abort;
-    }
-    for (const dep of usedFiles) {
+    await this.processTaskSource();
+    if (this.isError){return false;}
+    for (const dep of this.dependencies) {
       if (!dep.inVFS) this.vfs.addVirtualFileSystemFile({name: dep.name,content: dep.source});
     }
-    return !!this.err;
+    return true;
   }
 
   static async processTask(plugin: Moshe, task: ProcessableLatexTask) {
