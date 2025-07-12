@@ -19,22 +19,15 @@ export class PdfXeTeXCompiler extends LatexCompiler {
     this.setEngineMainFile = this.xetEng.setEngineMainFile.bind(this.xetEng);
   }
 
-  fetchCacheData(): Promise<Record<string, string>[]> {
-    return new Promise<Record<string, string>[]>((resolve) => {
-      this.xetEng
-        .fetchCacheData()
-        .then((xetcache: Record<string, string>[]) => {
-          this.dviEng
-            .fetchCacheData()
-            .then((dvicache: Record<string, string>[]) => {
-              const mergedcache = xetcache.map((item: any, index: any) => ({
-                ...item,
-                ...dvicache[index],
-              }));
-              resolve(mergedcache);
-            });
-        });
-    });
+  async fetchCacheData(): Promise<Record<string, string>[]> {
+    const xetCache = await this.xetEng.fetchCacheData();
+    const dviCache = await this.dviEng.fetchCacheData();
+
+    const mergedCache = xetCache.map((item, index) => ({
+      ...item,
+      ...dviCache[index],
+    }));
+    return mergedCache
   }
   async compileLaTeX(): Promise<CompileResult> {
     const xetResult = await this.xetEng.compileLaTeX();

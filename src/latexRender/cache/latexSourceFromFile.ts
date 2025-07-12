@@ -2,7 +2,6 @@ import { App, SectionCache, TAbstractFile, TFile, TFolder } from "obsidian";
 import Moshe from "src/main";
 import { hashLatexSource, latexCodeBlockNamesRegex } from "../swiftlatexRender";
 import { getFileSections } from "./sectionCache";
-import { parseNestedCodeBlocks, shiftSections } from "obsidian-dev-utils";
 
 export async function getLatexSourceFromHash(
   hash: string,
@@ -159,50 +158,22 @@ export async function getLatexHashesFromFile(file: TFile, app: App) {
  * converts the sections into code block information with startLine Endline and content
  * @param string
  * @param sections
- * @param accountForNestedCodeBlocks
  * @returns { lineStart: number; lineEnd: number; content: string }[]
  */
-export async function getLatexCodeBlocksFromString(
-  string: String,
-  sections: SectionCache[],
-  accountForNestedCodeBlocks = false,
-) {
+export async function getLatexCodeBlocksFromString(string: String, sections: SectionCache[]) {
   const lines = string.split("\n");
   // Filter sections that are code blocks with latex or tikz language hints.
-  sections = sections.filter(
-    (section: SectionCache) =>
-      section.type === "code" && //nested code blocks can be in none latex/tikz named code blocks
-      (accountForNestedCodeBlocks ||
-        lines[section.position.start.line].match(latexCodeBlockNamesRegex)),
-  );
-  let codeBlocks: { lineStart: number; lineEnd: number; content: string }[] =
-    [];
+  sections = sections.filter((section: SectionCache) =>section.type === "code");
+  let codeBlocks: { lineStart: number; lineEnd: number; content: string }[] =[];
   for (const section of sections) {
-    const content = lines
-      .slice(section.position.start.line, section.position.end.line + 1)
-      .join("\n");
-    const startPos = section.position.start;
-    if (accountForNestedCodeBlocks) {
-      const nestedCodeBlocks = shiftSections(
-        startPos.line,
-        parseNestedCodeBlocks(content),
-      ).map((block) => ({
-        lineStart: block.start,
-        lineEnd: block.end,
-        content: lines.slice(block.start, block.end + 1).join("\n"),
-      }));
-      codeBlocks.push(...nestedCodeBlocks);
-    }
+    const content = lines.slice(section.position.start.line, section.position.end.line + 1).join("\n");
     codeBlocks.push({
       lineStart: section.position.start.line,
       lineEnd: section.position.end.line,
       content,
     });
   }
-  if (accountForNestedCodeBlocks) {
-    codeBlocks = codeBlocks
-      .filter((block) => lines[block.lineStart].match(latexCodeBlockNamesRegex))
-      .sort((a, b) => a.lineStart - b.lineStart);
-  }
+  codeBlocks = codeBlocks.filter((block) => block.content.match(latexCodeBlockNamesRegex) !== null)
+    .sort((a, b) => a.lineStart - b.lineStart);
   return codeBlocks;
 }

@@ -257,7 +257,7 @@ export class SwiftlatexRender {
           await this.compiler.setEngineMainFile("main.tex");
           const result = await this.compiler.compileLaTeX()
 
-          this.vfs.removeVirtualFileSystemFiles();
+          await this.vfs.removeVirtualFileSystemFiles();
           if(md5Hash) this.cache.addLog(result.log, md5Hash);
           if (result.status != 0) {
             // manage latex errors
