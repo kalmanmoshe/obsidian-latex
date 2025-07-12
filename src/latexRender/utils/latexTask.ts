@@ -217,7 +217,7 @@ export class LatexTaskProcessor {
    * @param remainingPath 
    * @returns 
    */
-  private async getFileContent(file: TFile, remainingPath?: string): Promise<string|void> {
+  private async getFileContent(file: TFile, remainingPath?: string): Promise<string | void> {
     const fileContent = await this.plugin.app.vault.read(file);
     if (!remainingPath) return fileContent;
     if (!this.task.name) { 
@@ -227,13 +227,13 @@ export class LatexTaskProcessor {
       return;
     }
     const sections = await getFileSections(file, this.plugin.app, true);
-    const err = "No code block found with name: " + remainingPath + " in file: " + file.path;
+    const err = "No code block found with name: " + remainingPath + " in file: " + file.path;;
     if (!sections) {this.setError(err); return; };
-
-    const codeBlocks = await getLatexCodeBlocksFromString(fileContent, sections!, true);
+    //error it returns 3 times the same code block
+    const codeBlocks = await getLatexCodeBlocksFromString(fileContent, sections!);
     const potentialTargets = codeBlocks.filter((block) => extractCodeBlockName(block.content) === remainingPath);
     
-    if (potentialTargets.length === 0) {this.setError(err); return; };
+    if (potentialTargets.length === 0) { this.setError(err); return; };
     if (potentialTargets.length > 1) {
       this.setError(`Multiple code blocks found with name: ${remainingPath} in file: ${file.path}`);
       return;
@@ -252,7 +252,6 @@ export class LatexTaskProcessor {
     const usedFiles: VFSLatexDependency[] = [];
     const inputFilesMacros = ast.usdInputFiles()
       .filter((macro) => macro.args && macro.args.length === 1);
-    
     for (const macro of inputFilesMacros) {
       const args = macro.args!;
       const filePath = args[0].content.map((node) => node.toString()).join("");

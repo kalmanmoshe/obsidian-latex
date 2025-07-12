@@ -43,21 +43,18 @@ export default abstract class LatexEngine {
   protected compiler: Worker | undefined;
   protected compilerStatus: EngineStatus = EngineStatus.Init;
   abstract loadEngine(): Promise<void>;
-
+  protected tasks: string[] = [];
   isReady(): boolean {
     return this.compilerStatus === EngineStatus.Ready;
   }
   getEngineStatus(): EngineStatus {
     return this.compilerStatus;
   }
-  tasks: string[] = [];
-  protected checkEngineStatus(): this is { compiler: Worker } {
+  
+  protected checkEngineStatus(cmd?: string): this is { compiler: Worker } {
     if (!this.isReady()) {
-      console.log("last task", this.tasks[this.tasks.length - 1]);
-      throw new Error(
-        "Engine is still spinning or not ready yet! engineStatus: " +
-          EngineStatus[this.compilerStatus],
-      );
+      const errorMessage = `Engine is not ready! engineStatus: ${EngineStatus[this.compilerStatus]}, last task: ${this.tasks[this.tasks.length - 1]}.`+(cmd ? `, Attempted command: ${cmd}` : "");
+      throw new Error(errorMessage);
     }
     if (this.compiler === undefined) {
       throw new Error(
@@ -181,7 +178,7 @@ export default abstract class LatexEngine {
 
   task<T = void>(task: any): Promise<T> {
     const command = task.cmd;
-    if (!this.checkEngineStatus()) return Promise.reject();
+    if (!this.checkEngineStatus(command)) return Promise.reject();
     this.compilerStatus = EngineStatus.Busy;
     this.tasks.push(command);
     return new Promise<T>((resolve, reject) => {
