@@ -2,7 +2,7 @@ import Moshe from "src/main";
 import { ProcessedLog } from "../logs/latex-log-parser";
 import parseLatexLog from "../logs/HumanReadableLogs";
 import { MarkdownView, Notice } from "obsidian";
-import { getSectionFromMatching } from "./findSection";
+import { getSectionFromMatching } from "../resolvers/findSection";
 import { getFileSectionsFromPath, latexCodeBlockNamesRegex } from "../swiftlatexRender";
 import { LatexTaskProcessor } from "../utils/latexTask";
 

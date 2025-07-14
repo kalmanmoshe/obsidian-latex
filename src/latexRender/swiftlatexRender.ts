@@ -12,7 +12,7 @@ import async from "async";
 import { pdfToHtml, pdfToSVG } from "./pdfToHtml/pdfToHtml";
 import parseLatexLog, { createErrorDisplay, errorDiv } from "./logs/HumanReadableLogs";
 import { VirtualFileSystem } from "./VirtualFileSystem";
-import { getFileSections } from "./cache/sectionCache";
+import { getFileSections } from "./resolvers/sectionCache";
 import { SvgContextMenu } from "./svgContextMenu";
 import { ProcessedLog } from "./logs/latex-log-parser";
 import PdfTeXCompiler from "./compiler/swiftlatexpdftex/PdfTeXEngine";
@@ -139,7 +139,7 @@ export class SwiftlatexRender {
   }
   addToQueue(task: LatexTask) {
     const blockId = task.getBlockId();
-    this.queue.remove((node) => node.data.blockId === blockId);
+    this.queue.remove((node) => node.data.getBlockId() === blockId);
     task.el.appendChild(createWaitingCountdown(this.queue.length()));
     this.queue.push(task);
   }
@@ -151,7 +151,7 @@ export class SwiftlatexRender {
    */
   async processAndRenderLatexTask(task: LatexTask): Promise<boolean> {
     if (this.cache.restoreFromCache(task.el, task.md5Hash)) {
-      console.log("fund in catch for", task.blockId);
+      console.log("fund in catch for", task.getBlockId());
       return false;
     }
     if (task.isProcess()) {
@@ -159,7 +159,7 @@ export class SwiftlatexRender {
       task.log()
       const { el, md5Hash } = processor.task;
       if (processor.isError) {
-        const errorMessage = "Error in processing task: " + processor.err;
+        const errorMessage = "Error processing task: " + processor.err;
         this.handleError(el, errorMessage, { hash: md5Hash, });
         return false
       }
@@ -174,6 +174,8 @@ export class SwiftlatexRender {
       updateQueueCountdown(this.queue);
       if (didRender) {
         setTimeout(() => done(), this.plugin.settings.pdfEngineCooldown);
+      } else {
+        done();
       }
     }, 1) as QueueObject<LatexTask>; // Concurrency is set to 1, so tasks run one at a time
   }
@@ -190,13 +192,13 @@ export class SwiftlatexRender {
     while (taskNode) {
       const task = taskNode.data;
       if (this.cache.restoreFromCache(task.el, task.md5Hash)) {
-        blockIdsToRemove.add(task.blockId);
+        blockIdsToRemove.add(task.getBlockId());
       }
       taskNode = taskNode.next;
     }
     if (blockIdsToRemove.size === 0) return;
     console.log("Removing tasks from queue:", blockIdsToRemove);
-    this.queue._tasks.remove((node) => blockIdsToRemove.has(node.data.blockId));
+    this.queue._tasks.remove((node) => blockIdsToRemove.has(node.data.getBlockId()));
     console.log("Queue after removal:", this.queue._tasks.length);
   }
 
@@ -240,8 +242,7 @@ export class SwiftlatexRender {
 
   renderLatexToPDF(source: string, md5Hash?: string): Promise<CompileResult> {
     return new Promise(async (resolve, reject) => {
-      temp.mkdir(
-        "obsidian-swiftlatex-renderer",
+      temp.mkdir("obsidian-swiftlatex-renderer",
         async (err: any) => {
           try {
             await waitFor(() => this.compiler.isReady());
@@ -270,7 +271,9 @@ export class SwiftlatexRender {
       );
     });
   }
-  reRenderPDF(hash: string){
+
+  reRenderPDF(hash: string) {
+    
   }
   
   private async translatePDF(pdfData: Buffer<ArrayBufferLike>,el: HTMLElement,hash: string,outputSVG = true,): Promise<void> {

@@ -4,8 +4,13 @@ import {
   EditorPosition,
   HeadingCache,
   Notice,
+  TFile,
 } from "obsidian";
-import { getCurrentCursorLocationSection } from "src/latexRender/cache/findSection";
+import { getCurrentCursorLocationSection } from "src/latexRender/resolvers/findSection";
+import { codeBlockNameRegex, getLatexCodeBlocksFromFile } from "src/latexRender/resolvers/latexSourceFromFile";
+import { getFileSections } from "src/latexRender/resolvers/sectionCache";
+import { latexCodeBlockNamesRegex } from "src/latexRender/swiftlatexRender";
+import { LatexTask } from "src/latexRender/utils/latexTask";
 import Moshe from "src/main";
 const Hebcal = require("hebcal");
 const { HDate } = require("hebcal");
@@ -84,10 +89,19 @@ function testLatex(plugin: Moshe): Command{
   return {
     id: "moshe-tast-latex-code-blocks",
     name: "name test latex code block",
-    callback() {
-      const fileNames = plugin.swiftlatexRender.cache.getCacheMap();
+    callback: async () => {
+      const filePaths = plugin.swiftlatexRender.cache.getFilePathsFromCache();
       const files = [];
-      for (const fileName of fileNames) {
+      for (const path of filePaths) {
+        const file = plugin.app.vault.getAbstractFileByPath(path);
+        if (!file || !(file instanceof TFile)) continue;
+        const codeBlocks = await getLatexCodeBlocksFromFile(plugin.app, file as TFile);
+        for (const codeBlock of codeBlocks) {
+          const content = codeBlock.content.split("\n").slice(1, -1).join("\n");
+          const isProcess = codeBlock.content.split("\n")[0].match(codeBlockNameRegex)?.[1] === "tikz";
+          const info = 
+          const task = LatexTask.baseCreate(plugin,isProcess,content,document.createElement("div"),file?.path,codeBlock);
+        }
       }
     },
   }

@@ -1,7 +1,7 @@
 import Moshe from "src/main";
 import * as fs from "fs";
 import { Notice, TFile } from "obsidian";
-import { getLatexHashesFromFile } from "./latexSourceFromFile";
+import { getLatexHashesFromFile } from "../resolvers/latexSourceFromFile";
 import * as path from "path";
 import { CacheBase, PhysicalCacheBase, VirtualCacheBase } from "./cacheBase";
 
@@ -9,6 +9,9 @@ export const cacheFileFormat = "svg";
 
 export default class CompiledFileCache {
   private plugin: Moshe;
+  /**
+   * Map of cached files. hash -> Set of file paths that contain this hash.
+   */
   private cacheMap: Map<string, Set<string>>;
   private virtualCache?: CompiledFileVirtualCache;
   private physicalCache?: CompiledFilePhysicalCache;
@@ -121,38 +124,12 @@ export default class CompiledFileCache {
     return this.cacheMap.has(hash) && this.cache.fileExists(dataPath);
   }
 
-  private async removeUntraceableFiles() {
-    const cacheFolderFiles = this.cache.listCacheFiles();
-    const cacheHashes = [...this.cacheMap.keys()];
-    const filesToRemove = cacheFolderFiles.filter(
-      (file) => !cacheHashes.includes(file.split(".")[0]),
-    );
-    for (const file of filesToRemove) {
-      await this.removeMdFileCacheDataFromCache(file);
-    }
-  }
-
-  private async removeHashsWithNoCorrespondingPDF() {
-    const cacheFolderHashes = this.cache
-      .listCacheFiles()
-      .map((file) => file.split(".")[0]);
-    const cacheHashes = [...this.cacheMap.keys()];
-    const hashesToRemove = cacheHashes.filter(
-      (hash) => !cacheFolderHashes.includes(hash),
-    );
-    for (const hash of hashesToRemove) {
-      await this.removeMdFileCacheDataFromCache(hash);
-    }
-  }
-
-  private getFilePathsFromCache(): string[] {
+  getFilePathsFromCache(): string[] {
     return [...new Set([...this.cacheMap.values()].flatMap((set) => [...set]))];
   }
 
   async afterRenderCleanUp() {
     await this.cleanUpCache();
-    await this.removeUntraceableFiles();
-    await this.removeHashsWithNoCorrespondingPDF();
   }
   /**
    * Cleans up the cache by removing files that are no longer referenced.
@@ -160,7 +137,11 @@ export default class CompiledFileCache {
    * It also removes unused caches for files that are still present but no longer have any LaTeX hashes associated with them.
    */
   private async cleanUpCache(): Promise<void> {
+    const cacheFolderFiles = this.cache.listCacheFiles();
+    const cacheHashes = [...this.cacheMap.keys()];
     const filePathsToRemove: string[] = [];
+    const hashesToRemove: string[] = [];
+
     for (const filePath of this.getFilePathsFromCache()) {
       const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
       if (!file) {
@@ -173,17 +154,35 @@ export default class CompiledFileCache {
         }
       }
     }
+
+    for (const file of cacheFolderFiles) {
+      const hash = file.split(".")[0];
+      if (!cacheHashes.includes(hash)) {
+        hashesToRemove.push(hash);
+      }
+    }
+
+    for (const hash of hashesToRemove) {
+      await this.removeFileFromCache(hash);
+    }
+
     for (const filePath of filePathsToRemove) {
       this.removeFileFromCache(filePath);
     }
+
     await this.plugin.saveSettings();
   }
-
+  /**
+   * Removes unused caches for a specific file.
+   * This checks the LaTeX hashes in the file and removes any hashes from the cache that are not present in the file.
+   * If a hash is no longer referenced by any file, it is removed from the cache.
+   */
   private async removeUnusedCachesForFile(file: TFile) {
-    const hashes_in_file = await getLatexHashesFromFile(file, this.plugin.app);
-    const hashes_in_cache = this.getLatexHashesFromCacheForFile(file);
-    for (const hash of hashes_in_cache) {
-      if (!hashes_in_file.contains(hash)) {
+    const hashesInFile = await getLatexHashesFromFile(file, this.plugin.app);
+    const hashesInCache = this.getLatexHashesFromCacheForFile(file);
+    for (const hash of hashesInCache) {
+      // if the hash (from the cache) is not present in the file, remove it from the cache
+      if (!hashesInFile.contains(hash)) {
         this.cacheMap.get(hash)?.delete(file.path);
         if (this.cacheMap.get(hash)?.size == 0) {
           await this.removeFileFromCache(hash);
@@ -194,9 +193,7 @@ export default class CompiledFileCache {
 
   async removeFileFromCache(key: string) {
     if (this.cacheMap.has(key)) this.cacheMap.delete(key);
-
     this.cache.deleteFile(key);
-
     await this.saveCache();
   }
 
