@@ -4,7 +4,7 @@ import {
   SectionCache,
   TFile,
 } from "obsidian";
-import { TransactionLogger } from "./transactionLogger";
+import { TransactionLogger } from "../cache/transactionLogger";
 import {
   getBestFitSectionCatch,
   getFileSections,

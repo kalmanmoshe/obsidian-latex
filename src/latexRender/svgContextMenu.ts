@@ -1,14 +1,14 @@
 import { MarkdownView, Menu, Modal, Notice, TFile } from "obsidian";
 import Moshe from "src/main";
-import { getLatexSourceFromHash } from "./cache/latexSourceFromFile";
-import { getFileSections } from "./cache/sectionCache";
+import { getLatexSourceFromHash } from "./resolvers/latexSourceFromFile";
+import { getFileSections } from "./resolvers/sectionCache";
 import {
   addMenu,
   getFileSectionsFromPath,
   latexCodeBlockNamesRegex,
 } from "./swiftlatexRender";
 import parseLatexLog from "./logs/HumanReadableLogs";
-import { getSectionFromMatching } from "./cache/findSection";
+import { getSectionFromMatching } from "./resolvers/findSection";
 import { LogDisplayModal } from "./logs/logDisplayModal";
 import { LatexTask, LatexTaskProcessor, ProcessableLatexTask } from "./utils/latexTask";
 /**add:

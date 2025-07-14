@@ -123,7 +123,12 @@ export default class CompilerCache {
   removeAllCachedPackages() {
     return this.packageCache.removeAllCachedPackages();
   }
-
+  /**
+   * @returns An array of file paths from the cache that contain codeBlocks of compiled files.
+   */
+  getFilePathsFromCache() {
+    return this.cache.getFilePathsFromCache();
+  }
   /**
    * Gets the parent path for the cache folder.
    * @returns The absolute path to the cache folder parent.
