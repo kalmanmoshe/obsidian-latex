@@ -6,6 +6,11 @@ import * as fs from "fs";
 import PackageCache from "./packageCache";
 import LogCache from "./logCache";
 
+export enum CacheStatus{
+  NotCached = "NotCached",
+  Cached = "Cached",
+  Error = "Error",
+}
 /**
  * Manages caching for LaTeX files, logs, and packages.
  */
@@ -50,6 +55,13 @@ export default class CompilerCache {
   getLog(hash: string) {
     return this.logCache.getLog(hash);
   }
+  async forceGetLog(hash: string,config: {source: string,sourcePath: string}) {
+    const log = this.getLog(hash)||await this.logCache.forceGetLog(hash,config);
+    if (!log) {
+      throw new Error("No log found for this hash, nor was one able to be produced.")
+    }
+    return log
+  }
   /**
    * Returns a map of all cached files with their names and content.
    * The key is the file name (with extension), and the value is the file content.
@@ -57,7 +69,6 @@ export default class CompilerCache {
   getCompiledFiles() {
     return this.cache.getCachedFiles();
   }
-  getCacheMap() {return this.cache.getCacheMap();}
   /**
    * Adds a log to the log cache.
    * @param log The log object or string.
@@ -149,7 +160,27 @@ export default class CompilerCache {
       fs.mkdirSync(cacheFolderParentPath, { recursive: true });
     }
   }
-
+  cacheStatusForHash(hash: string) {
+    switch (true) {
+      case this.isHashCached(hash):
+        return CacheStatus.Cached;
+      case this.logCache.hasLog(hash)://We have only the log - this means its in error state
+        return CacheStatus.Error;
+      default:
+        return CacheStatus.NotCached;
+    }
+  }
+  isHashCached(hash: string) {
+    return this.cache.hasHash(hash);
+  }
+  /**
+   * Retrieves file paths from the cache for a given hash.
+   * @param hash 
+   * @returns 
+   */
+  getCachedFilePathsForHash(hash: string) {
+    return this.cache.getFilePathsFromCacheForHash(hash);
+  }
   /**
    * Gets the compiler instance from the plugin.
    */

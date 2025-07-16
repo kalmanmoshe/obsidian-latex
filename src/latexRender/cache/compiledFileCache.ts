@@ -112,7 +112,13 @@ export default class CompiledFileCache {
     this.cacheMap.get(hash)!.add(file_path);
     this.saveCache();
   }
-
+  /**
+   * Restores the cached content for a given element and hash.
+   * If the content is found in the cache, it sets the innerHTML of the element to the cached content.
+   * @param el 
+   * @param hash 
+   * @returns 
+   */
   restoreFromCache(el: HTMLElement, hash: string) {
     const data = this.cache.getFile(hash);
     if (data === undefined) return false;
@@ -120,12 +126,21 @@ export default class CompiledFileCache {
     return true;
   }
 
-  hasFile(hash: string, dataPath: string) {
+  fileExists(hash: string, dataPath: string) {
     return this.cacheMap.has(hash) && this.cache.fileExists(dataPath);
   }
 
+  hasHash(hash: string): boolean {
+    return this.cacheMap.has(hash);
+  }
+
+
   getFilePathsFromCache(): string[] {
     return [...new Set([...this.cacheMap.values()].flatMap((set) => [...set]))];
+  }
+  getFilePathsFromCacheForHash(hash: string): string[] {
+    if (!this.cacheMap.has(hash)) return [];
+    return [...this.cacheMap.get(hash)!];
   }
 
   async afterRenderCleanUp() {
@@ -178,7 +193,7 @@ export default class CompiledFileCache {
    * If a hash is no longer referenced by any file, it is removed from the cache.
    */
   private async removeUnusedCachesForFile(file: TFile) {
-    const hashesInFile = await getLatexHashesFromFile(file, this.plugin.app);
+    const hashesInFile = await getLatexHashesFromFile(this.plugin.app,file);
     const hashesInCache = this.getLatexHashesFromCacheForFile(file);
     for (const hash of hashesInCache) {
       // if the hash (from the cache) is not present in the file, remove it from the cache
@@ -241,9 +256,6 @@ export default class CompiledFileCache {
    */
   getCachedFiles(){
     return this.cache.getFiles();
-  }
-  getCacheMap(): Map<string, Set<string>> {
-    return this.cacheMap;
   }
 }
 

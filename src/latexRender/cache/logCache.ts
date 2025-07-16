@@ -4,7 +4,8 @@ import parseLatexLog from "../logs/HumanReadableLogs";
 import { MarkdownView, Notice } from "obsidian";
 import { getSectionFromMatching } from "../resolvers/findSection";
 import { getFileSectionsFromPath, latexCodeBlockNamesRegex } from "../swiftlatexRender";
-import { LatexTaskProcessor } from "../utils/latexTask";
+import { LatexTask, LatexTaskProcessor } from "../utils/latexTask";
+import { sectionToTaskInfo } from "../resolvers/latexSourceFromFile";
 
 export default class LogCache {
   private plugin: Moshe;
@@ -20,16 +21,20 @@ export default class LogCache {
     this.cache.set(hash, log);
   }
   getLog(hash: string): ProcessedLog | undefined {
-    if (!this.plugin.settings.saveLogs||!this.cache) return undefined;
-    return this.cache.get(hash);
+    if (!this.cacheEnabled()) return undefined;
+    return this.cache!.get(hash);
+  }
+  private cacheEnabled() {
+    return this.plugin.settings.saveLogs && this.cache !== undefined;
+  }
+  hasLog(hash: string): boolean {
+    return this.cacheEnabled() && this.cache!.has(hash);
   }
   /**
    * 
    */
   async forceGetLog(hash: string,config: {source: string,sourcePath: string}): Promise<ProcessedLog | undefined> {
-    if (!this.cache) return undefined;
-    let log = this.cache.get(hash);
-    if (log) return log;
+    if (this.hasLog(hash)) return this.cache!.get(hash);
 
     let cause="";
     if (!this.plugin.settings.saveLogs) {
@@ -40,47 +45,15 @@ export default class LogCache {
       "Re-rendering the SVG to generate logs. This may take a moment...",
     );
     const { source, sourcePath } = config;
-    //await this.assignLatexSource();
-    const { file, sections } = await getFileSectionsFromPath(
-      sourcePath,
-      this.plugin.app,
-    );
-    const editor =
-      this.plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
-    const fileText =
-      editor?.getValue() ?? (await this.plugin.app.vault.cachedRead(file));
-    const sectionFromMatching = getSectionFromMatching(
-      sections,
-      fileText,
-      source,
-    );
-    if (!sectionFromMatching)
-      throw new Error("No section found for this source");
-    const shouldProcess =
-      fileText
-        .split("\n")
-        [
-          sectionFromMatching.lineStart
-        ].match(latexCodeBlockNamesRegex)?.[2] === "tikz";
-    const el = document.createElement("div");
-    const task = {
-      md5Hash: hash,
-      source: source,
-      el: el,
-      sourcePath: sourcePath,
-    };
-    if (shouldProcess) {
-      const result = LatexTaskProcessor.processTask(this.plugin, task);
-    }
-    try {
-      const newCompile = await this.plugin.swiftlatexRender.renderLatexToPDF(
-        task.source,
-        task.md5Hash,
-      );
-      log = parseLatexLog(newCompile.log);
-    } catch (err) {
-      log = parseLatexLog(err);
-    }
+    const { file, sections } = await getFileSectionsFromPath(sourcePath,this.plugin.app,);
+    const editor = this.plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+    const fileText = editor?.getValue() ?? (await this.plugin.app.vault.cachedRead(file));
+    const sectionFromMatching = getSectionFromMatching(sections,fileText,source);
+    if (!sectionFromMatching) throw new Error("No section found for this source");
+    const sectionInfo = sectionToTaskInfo(sectionFromMatching);
+    const task = LatexTask.fromSectionInfo(this.plugin, sourcePath, sectionInfo);
+    const result = await this.plugin.swiftlatexRender.detachedProcessAndRender(task);
+    return parseLatexLog(result.log);
   }
   removeLog(log: ProcessedLog, hash: string): void {
     if (!this.plugin.settings.saveLogs || !this.cache)

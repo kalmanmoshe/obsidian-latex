@@ -52,8 +52,10 @@ export async function getCurrentCursorLocationSection(
   return section;
 }
 
+
 /**
  * Tries to find a section by exact or fuzzy string match against the file content.
+ * i need to faze this out
  */
 export function getSectionFromMatching(
   sections: SectionCache[],
@@ -69,6 +71,7 @@ export function getSectionFromMatching(
   }
   if (!sectionCache) {
     const bestFit = getBestFitSectionCatch(sections, fileText, source);
+    sectionCache = bestFit?.section;
   }
   if (!sectionCache) return;
 

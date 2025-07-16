@@ -1,16 +1,14 @@
-import { MarkdownView, Menu, Modal, Notice, TFile } from "obsidian";
+import { Menu, Notice, TFile } from "obsidian";
 import Moshe from "src/main";
-import { getLatexSourceFromHash } from "./resolvers/latexSourceFromFile";
+import { findSectionInfoFromHashInFile, sectionToTaskInfo } from "./resolvers/latexSourceFromFile";
 import { getFileSections } from "./resolvers/sectionCache";
 import {
   addMenu,
-  getFileSectionsFromPath,
   latexCodeBlockNamesRegex,
 } from "./swiftlatexRender";
-import parseLatexLog from "./logs/HumanReadableLogs";
 import { getSectionFromMatching } from "./resolvers/findSection";
 import { LogDisplayModal } from "./logs/logDisplayModal";
-import { LatexTask, LatexTaskProcessor, ProcessableLatexTask } from "./utils/latexTask";
+import { LatexTask, TaskSectionInformation } from "./utils/latexTask";
 /**add:
  * - Reveal in file explorer
  * - show log
@@ -138,43 +136,8 @@ export class SvgContextMenu extends Menu {
     this.assignLatexSource();
     let log = this.plugin.swiftlatexRender.cache.getLog(this.hash);
     if (!log) {
-      let cause;
-      if (!this.plugin.settings.saveLogs) {
-        cause = "This may be because log saving is disabled in the settings.";
-      } 
-      new Notice(
-        "No logs were found for this SVG element.\n" +
-          (cause ? cause + "\n" : "") +
-          "Re-rendering the SVG to generate logs. This may take a moment...",
-      );
       await this.assignLatexSource();
-      const { file } = await getFileSectionsFromPath(this.sourcePath,this.plugin.app);
-      const editor =
-        this.plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
-      const fileText =
-        editor?.getValue() ?? (await this.plugin.app.vault.cachedRead(file));
-      
-      const sectionInfo = await this.getSectionInfo();
-      const shouldProcess = fileText.split("\n")[sectionInfo.lineStart]
-        .match(latexCodeBlockNamesRegex)?.[2] === "tikz";
-      
-      const el = document.createElement("div");
-      
-      const task = LatexTask.baseCreate(this.plugin, shouldProcess, this.source, el, this.sourcePath, sectionInfo);
-      if (task.isProcess()) {
-        const result = await LatexTaskProcessor.processTask(this.plugin, task);
-        if (result.isError) {
-          console.error("Error processing task for log", result.err);
-          new Notice("Error processing task for log: " + result.err);
-          return;
-        }
-      }
-      try {
-        const newCompile = await this.plugin.swiftlatexRender.renderLatexToPDF(task.getSource(),task.md5Hash,);
-        log = parseLatexLog(newCompile.log);
-      } catch (err) {
-        log = parseLatexLog(err);
-      }
+      log = await this.plugin.swiftlatexRender.cache.forceGetLog(this.hash,{source: this.source, sourcePath: this.sourcePath})
     }
     console.log("log", log);
     const modal = new LogDisplayModal(this.plugin, log);
@@ -199,7 +162,9 @@ export class SvgContextMenu extends Menu {
         console.log("hash", hash, "file", file);
         if (!hash) return false;
         console.log("hash", hash);
-        this.source = await getLatexSourceFromHash(hash, this.plugin, file);
+        const info = await findSectionInfoFromHashInFile(this.plugin, file, hash);
+        if (!info) throw new Error("No info found for hash: " + hash);
+        this.source = info.codeBlock;
         return true;
       })();
     }
@@ -211,7 +176,10 @@ export class SvgContextMenu extends Menu {
     if (!(file instanceof TFile)) throw new Error("File is not a TFile");
     return file;
   }
-  async getSectionInfo() {
+  private async assignMetadata() {
+    
+  }
+  async getSectionInfo(): Promise<TaskSectionInformation> {
     const file = await this.getFile();
     if (!file) throw new Error("No file found");
 
@@ -221,18 +189,12 @@ export class SvgContextMenu extends Menu {
     await this.assignLatexSource();
     const sectionCache = getSectionFromMatching(sections,fileText,this.source,);
     if (!sectionCache) throw new Error("Section cache not found");
-    const lang = fileText
-      .split("\n")
-      [sectionCache.lineStart].match(latexCodeBlockNamesRegex)?.[2];
+    const lang = fileText.split("\n")[sectionCache.lineStart].match(latexCodeBlockNamesRegex)?.[2];
     if (lang !== "tikz" && lang !== "latex") {
       throw new Error("Code block is not a tikz or latex code block");
     }
     this.codeBlockLanguage = lang;
-    return {
-      lineStart: sectionCache.lineStart,
-      lineEnd: sectionCache.lineEnd,
-      text: fileText
-    };
+    return sectionToTaskInfo(sectionCache)
   }
   /**
    * Can't be saved as contains dynamic content.
@@ -264,9 +226,8 @@ export class SvgContextMenu extends Menu {
   private async getParsedSource() {
     await this.assignLatexSource();
     const sectionInfo = await this.getSectionInfo();
-    const task = ProcessableLatexTask.create(this.plugin, this.source, document.createElement("div"), this.sourcePath, sectionInfo);
-    if (this.codeBlockLanguage !== "tikz") return task.getSource(false);
-    await task.process();
-    return task.getSource(true);
+    const task = LatexTask.fromSectionInfo(this.plugin,this.sourcePath, sectionInfo);
+    if (task.isProcess()) await task.process();
+    return task.getProcessedContent();
   }
 }
