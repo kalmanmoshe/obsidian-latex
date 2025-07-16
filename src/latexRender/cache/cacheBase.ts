@@ -22,7 +22,10 @@ export abstract class CacheBase {
    */
   abstract getFiles(): Map<string, string>;
   abstract isValidCacheFile(fileName: string): boolean;
-
+  /**
+   * Checks if the file is a valid cache file that is in the cache directory.
+   * @param name - the name of the file to check including extension.
+   */
   abstract fileExists(name: string): boolean;
   abstract getFile(name: string): string | undefined;
   abstract deleteFile(name: string): Promise<void> | void;

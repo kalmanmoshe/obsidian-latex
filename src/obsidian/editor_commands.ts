@@ -6,11 +6,13 @@ import {
   Notice,
   TFile,
 } from "obsidian";
+import { CacheStatus } from "src/latexRender/cache/compilerCache";
+import { CompileStatus } from "src/latexRender/compiler/base/compilerBase/engine";
 import { getCurrentCursorLocationSection } from "src/latexRender/resolvers/findSection";
-import { codeBlockNameRegex, getLatexCodeBlocksFromFile } from "src/latexRender/resolvers/latexSourceFromFile";
+import { codeBlockNameRegex, extractCodeBlockMetadata, getLatexCodeBlockSectionsFromFile } from "src/latexRender/resolvers/latexSourceFromFile";
 import { getFileSections } from "src/latexRender/resolvers/sectionCache";
 import { latexCodeBlockNamesRegex } from "src/latexRender/swiftlatexRender";
-import { LatexTask } from "src/latexRender/utils/latexTask";
+import { LatexTask, TaskSectionInformation } from "src/latexRender/utils/latexTask";
 import Moshe from "src/main";
 const Hebcal = require("hebcal");
 const { HDate } = require("hebcal");
@@ -90,22 +92,38 @@ function testLatex(plugin: Moshe): Command{
     id: "moshe-tast-latex-code-blocks",
     name: "name test latex code block",
     callback: async () => {
+      
+      const trackerArr = [0, 0, 0, 0];
       const filePaths = plugin.swiftlatexRender.cache.getFilePathsFromCache();
       const files = [];
       for (const path of filePaths) {
         const file = plugin.app.vault.getAbstractFileByPath(path);
         if (!file || !(file instanceof TFile)) continue;
-        const codeBlocks = await getLatexCodeBlocksFromFile(plugin.app, file as TFile);
-        for (const codeBlock of codeBlocks) {
-          const content = codeBlock.content.split("\n").slice(1, -1).join("\n");
-          const isProcess = codeBlock.content.split("\n")[0].match(codeBlockNameRegex)?.[1] === "tikz";
-          const info = 
-          const task = LatexTask.baseCreate(plugin,isProcess,content,document.createElement("div"),file?.path,codeBlock);
+        const codeBlockSections = await getLatexCodeBlockSectionsFromFile(plugin.app, file as TFile);
+        for (const section of codeBlockSections) {
+          const idx = await foo(plugin, file, section);
+          trackerArr[idx]++;
         }
       }
+      const tracker = {
+        unchangedSuccess: trackerArr[0],
+        unchangedFailure: trackerArr[1], 
+        fixed: trackerArr[2],
+        broken: trackerArr[3],
+      };
     },
   }
 }
+
+async function foo(plugin: Moshe, file: TFile, section: TaskSectionInformation) {
+  const task = LatexTask.fromSectionInfo(plugin, file, section);
+  const isCached = task.getCacheStatus() === CacheStatus.Cached;
+  if (task.isProcess()) await task.process();
+  const result = await plugin.swiftlatexRender.detachedProcessAndRender(task)
+  const compileSuccess = result.status === CompileStatus.Success;
+  return compileSuccess ? (isCached ? 0 : 2) : (isCached ? 3 : 1);
+}
+
 function removeAllCachedPackages(plugin: Moshe): Command {
   return {
     id: "moshe-remove-all-cached-packages",

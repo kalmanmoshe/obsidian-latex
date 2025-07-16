@@ -5,7 +5,7 @@ import {
 } from "obsidian";
 import { Md5 } from "ts-md5";
 import * as temp from "temp";
-import { CompileResult } from "./compiler/base/compilerBase/engine";
+import { CompileResult, CompileStatus } from "./compiler/base/compilerBase/engine";
 import Moshe from "../main";
 import { CompilerType } from "src/settings/settings.js";
 import async from "async";
@@ -164,9 +164,19 @@ export class SwiftlatexRender {
         return false
       }
     }
-    await this.renderLatexToElement(task.getSource(),task.el,task.md5Hash,task.sourcePath,);
+    await this.renderLatexToElement(task.getProcessedContent(),task.el,task.md5Hash,task.sourcePath,);
     this.reCheckQueue(); // only re-check the queue after a valide rendering
     return true;
+  }
+  async detachedProcessAndRender(task: LatexTask) {
+    if (task.isProcess()) {
+      const processor = await task.process();
+      task.log()
+      if (processor.isError) {
+        return new CompileResult(undefined, CompileStatus.PocessingError, processor.err!);
+      }
+    }
+    return await this.renderLatexToPDF(task.getProcessedContent(), { strict: true, });
   }
   configQueue() {
     this.queue = async.queue(async (task, done) => {
@@ -228,7 +238,7 @@ export class SwiftlatexRender {
     sourcePath: string,
   ): Promise<void> {
     try {
-      const result = await this.renderLatexToPDF(source, md5Hash);
+      const result = await this.renderLatexToPDF(source, {md5Hash});
       el.innerHTML = "";
       await this.translatePDF(result.pdf, el, md5Hash);
       this.cache.addFile(el.innerHTML, md5Hash, sourcePath);
@@ -239,8 +249,7 @@ export class SwiftlatexRender {
       await this.cache.afterRenderCleanUp();
     }
   }
-
-  renderLatexToPDF(source: string, md5Hash?: string): Promise<CompileResult> {
+  renderLatexToPDF(source: string, config: { strict?: boolean, md5Hash?: string } = {}): Promise<CompileResult> {
     return new Promise(async (resolve, reject) => {
       temp.mkdir("obsidian-swiftlatex-renderer",
         async (err: any) => {
@@ -259,13 +268,13 @@ export class SwiftlatexRender {
           const result = await this.compiler.compileLaTeX()
 
           await this.vfs.removeVirtualFileSystemFiles();
-          if(md5Hash) this.cache.addLog(result.log, md5Hash);
+          if(config.md5Hash) this.cache.addLog(result.log, config.md5Hash);
           if (result.status != 0) {
             // manage latex errors
             reject(result.log);
           }
           // update the list of package files in the cache
-          await this.cache.fetchPackageCacheData();
+          if(!config.strict) await this.cache.fetchPackageCacheData();
           resolve(result);
         },
       );

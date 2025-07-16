@@ -2,71 +2,48 @@ import { App, MarkdownSectionInformation, SectionCache, TAbstractFile, TFile, TF
 import Moshe from "src/main";
 import { hashLatexSource, latexCodeBlockNamesRegex } from "../swiftlatexRender";
 import { getFileSections } from "./sectionCache";
+import { TaskSectionInformation } from "../utils/latexTask";
 
-export async function getLatexSourceFromHash(
-  hash: string,
-  plugin: Moshe,
-  file?: TFile,
-): Promise<string> {
-  // Cache for file content to avoid multiple disk reads.
-  const fileContentCache = new Map<string, string>();
-
-  // Helper function that reads a file and caches its content.
-  const readFile = async (file: TFile): Promise<string> => {
-    if (!fileContentCache.has(file.path)) {
-      const content = await plugin.app.vault.read(file);
-      fileContentCache.set(file.path, content);
-    }
-    return fileContentCache.get(file.path)!;
+export function sectionToTaskInfo(section: MarkdownSectionInformation): TaskSectionInformation {
+  return {
+    lineStart: section.lineStart,
+    lineEnd: section.lineEnd,
+    codeBlock: section.text.split("\n").slice(section.lineStart, section.lineEnd + 1).join("\n"),
   };
-
-  const findLatexSourceFromHashInFile = async (
-    hash: string,
-    file?: TFile,
-  ): Promise<string | undefined> => {
-    if (!file) return;
-    const content = await readFile(file);
-    const sections = await getFileSections(file, plugin.app, true);
-    if (!sections) return;
-    const blockSections = await getLatexCodeBlocksFromString(content, sections);
-    for (const section of blockSections) {
-      const codeSection = section.content.split("\n").slice(1, -1).join("\n");
-      if (hashLatexSource(codeSection) === hash) {
-        return codeSection;
-      }
+}
+export async function findSectionInfoFromHashInFile(plugin: Moshe,file: TFile, hash: string) {
+  const blockSections = await getLatexCodeBlockSectionsFromFile(plugin.app, file)
+  for (const section of blockSections) {
+    const codeSection = section.codeBlock.split("\n").slice(1, -1).join("\n");
+    if (hashLatexSource(codeSection) === hash) {
+      return section;
     }
-  };
+  }
+}
 
-  // Check provided file first.
-  const fromProvidedFile = await findLatexSourceFromHashInFile(hash, file);
-  if (fromProvidedFile) return fromProvidedFile;
+export async function getSectionInfoFromHash(plugin: Moshe,hash: string): Promise<TaskSectionInformation> {
+  const filePathsCache = new Set<string>();
 
   // Use cache to narrow down file paths.
-  const cachedFilePaths = Array.from(
-    plugin.settings.cache.find(
-      (entry: [string, Set<string>]) => entry[0] === hash,
-    )?.[1] || [],
-  );
+  const cachedFilePaths = plugin.swiftlatexRender.cache.getCachedFilePathsForHash(hash);
   for (const filePath of cachedFilePaths) {
-    const fileFromCache = plugin.app.metadataCache.getFirstLinkpathDest(
-      filePath,
-      file ? file.path : "",
-    );
+    if(filePathsCache.has(filePath)) continue;
+    filePathsCache.add(filePath);
+    const fileFromCache = plugin.app.metadataCache.getFirstLinkpathDest(filePath, "");
     if (!fileFromCache) continue;
-    const source = await findLatexSourceFromHashInFile(hash, fileFromCache);
-    if (source) return source;
+    const info = await findSectionInfoFromHashInFile(plugin, fileFromCache, hash);
+    if (info) return info;
   }
 
   // If still not found, search all files in parallel.
   const allFiles = plugin.app.vault.getFiles();
-  const checkPromises = allFiles.map((file) =>
-    findLatexSourceFromHashInFile(hash, file),
-  );
-  const results = await Promise.all(checkPromises);
-  const found = results.find((source) => source !== undefined);
-  if (found) return found;
-
-  throw new Error("Latex source not found for hash: " + hash);
+  for (const file of allFiles) {
+    if (filePathsCache.has(file.path)) continue; // Skip already checked files
+    filePathsCache.add(file.path);
+    const info = await findSectionInfoFromHashInFile(plugin, file, hash);
+    if (info) {return info}
+  }
+  throw new Error("Latex info not found for hash: " + hash);
 }
 
 function getDirRoot(currentDir: TAbstractFile): TFolder {
@@ -141,11 +118,11 @@ export function extractCodeBlockMetadata(text: string): { language?: string;  na
 }
 /**
  * Attempts to extract the name of a LaTeX code block from the first line of the given text.
- * @param text - The full text of the code block
+ * @param codeBlock - The full text of the code block
  * @returns The extracted name if matched, otherwise undefined
  */
-export function extractCodeBlockName(text: string): string | undefined {
-  const nameMatch = text.split("\n")[0]
+export function extractCodeBlockName(codeBlock: string): string | undefined {
+  const nameMatch = codeBlock.split("\n")[0]
     .replace(latexCodeBlockNamesRegex, "")
     .trim()
     .match(/name: *([\w-]+)/); // Match names with letters, numbers, underscores, and dashes
@@ -158,31 +135,31 @@ export function extractCodeBlockName(text: string): string | undefined {
  * @returns 
  */
 export async function getLatexHashesFromFile(app: App,file: TFile) {
-  const codeBlocks = await getLatexCodeBlocksFromFile(app, file);
-  const hashes = codeBlocks.map((block) => hashLatexSource(block.content.split("\n").slice(1, -1).join("\n")));
+  const codeBlocks = await getLatexCodeBlockSectionsFromFile(app, file);
+  const hashes = codeBlocks.map((block) => hashLatexSource(block.codeBlock.split("\n").slice(1, -1).join("\n")));
   return hashes;
 }
 
 /**
- * Converts code sections into LaTeX code block objects containing start line, end line, and full content.
- * The content includes both the opening and closing code block delimiters (i.e., the ``` lines).
+ * Converts code sections into LaTeX code block objects containing start line, end line, and the full code block text.
+ * including both the opening and closing code block delimiters (i.e., the ``` lines).
  *
- * @param string - The full text content of the file.
+ * @param string - The full text of the file.
  * @param sections - An array of SectionCache items representing code block positions.
- * @returns An array of objects with { lineStart, lineEnd, content } for each LaTeX/TikZ code block.
+ * @returns An array of TaskSectionInformation one for each LaTeX/TikZ code block.
  */
-export function getLatexCodeBlocksFromString(string: string, sections: SectionCache[]):MarkdownSectionInformation[] {
+export function getLatexCodeBlocksFromString(string: string, sections: SectionCache[]):TaskSectionInformation[] {
   const lines = string.split("\n");
   // Filter sections that are code blocks with latex or tikz language hints.
   sections = sections.filter((section: SectionCache) =>section.type === "code");
-  let codeBlocks: { lineStart: number; lineEnd: number; content: string }[] =[];
+  let codeBlocks: { lineStart: number; lineEnd: number; codeBlock: string }[] =[];
   for (const section of sections) {
-    const content = lines.slice(section.position.start.line, section.position.end.line + 1).join("\n");
-    if (!content.split("\n")[0].match(latexCodeBlockNamesRegex)) continue;
+    const codeBlock = lines.slice(section.position.start.line, section.position.end.line + 1).join("\n");
+    if (!codeBlock.split("\n")[0].match(latexCodeBlockNamesRegex)) continue;
     codeBlocks.push({
       lineStart: section.position.start.line,
       lineEnd: section.position.end.line,
-      content,
+      codeBlock: codeBlock,
     });
   }
   codeBlocks = codeBlocks.sort((a, b) => a.lineStart - b.lineStart);
@@ -194,9 +171,9 @@ export function getLatexCodeBlocksFromString(string: string, sections: SectionCa
  * @param file 
  * @returns 
  */
-export async function getLatexCodeBlocksFromFile(app: App,file: TFile){
+export async function getLatexCodeBlockSectionsFromFile(app: App,file: TFile){
   const sections = await getFileSections(file, app, true);
   if (!sections) return [];
-  const content = await app.vault.read(file);
-  return getLatexCodeBlocksFromString(content, sections);
+  const fileText = await app.vault.read(file);
+  return getLatexCodeBlocksFromString(fileText, sections);
 }

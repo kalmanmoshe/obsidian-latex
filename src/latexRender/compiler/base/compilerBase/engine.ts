@@ -4,7 +4,12 @@ export enum EngineStatus {
   Busy,
   Error,
 }
-
+export enum CompileStatus {
+  Success = 0,
+  PocessingError,
+  FileNotFound = -253,
+  EngineCrashed = -254, 
+}
 export class CompileResult {
   pdf: Buffer<ArrayBufferLike>;
   status: number = -254;
@@ -26,7 +31,7 @@ export enum EngineCommands {
   Settexliveurl = "settexliveurl",
   Mkdir = "mkdir",
   Compileformat = "compileformat",
-  writecache = "writecache",
+  Writecache = "writecache",
   Fetchfile = "fetchfile",
   FetchWorkFiles = "fetchWorkFiles",
   FetchCache = "fetchcache",
@@ -144,7 +149,7 @@ export default abstract class LatexEngine {
     font200_cache: any,
   ) {
     return this.task({
-      cmd: EngineCommands.writecache,
+      cmd: EngineCommands.Writecache,
       texlive404_cache,
       texlive200_cache,
       font404_cache,
