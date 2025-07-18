@@ -170,6 +170,15 @@ export default class CompilerCache {
         return CacheStatus.NotCached;
     }
   }
+  cacheStatusForHashAsNum(hash: string): number {
+    const status = this.cacheStatusForHash(hash);
+    const statusToNum: Record<CacheStatus, number> = {
+      [CacheStatus.Cached]: 0,
+      [CacheStatus.Error]: 2,
+      [CacheStatus.NotCached]: 4,
+    };
+    return statusToNum[status];
+  }
   isHashCached(hash: string) {
     return this.cache.hasHash(hash);
   }
