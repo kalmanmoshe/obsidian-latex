@@ -16,7 +16,7 @@ import { getFileSections } from "./resolvers/sectionCache";
 import { SvgContextMenu } from "./svgContextMenu";
 import { ProcessedLog } from "./logs/latex-log-parser";
 import PdfTeXCompiler from "./compiler/swiftlatexpdftex/PdfTeXEngine";
-import { LatexTask, LatexTaskProcessor } from "./utils/latexTask";
+import { LatexTask } from "./utils/latexTask";
 import { PdfXeTeXCompiler } from "./compiler/swiftlatexxetex/pdfXeTeXCompiler";
 import LatexCompiler from "./compiler/base/compilerBase/compiler";
 import CompilerCache from "./cache/compilerCache";
@@ -45,14 +45,6 @@ export const waitFor = async (condFunc: () => boolean) => {
 
 export const latexCodeBlockNamesRegex = /(`|~){3,} *(latex|tikz)/;
 
-export type Task = {
-  source: string;
-  el: HTMLElement;
-  md5Hash: string;
-  sourcePath: string;
-  blockId: string;
-  process: boolean;
-};
 type InternalTask<T> = {
   data: T;
   callback: Function;
@@ -139,9 +131,15 @@ export class SwiftlatexRender {
   }
   addToQueue(task: LatexTask) {
     const blockId = task.getBlockId();
+    console.log("Adding task to queue for block ID:", blockId,task, "Queue length:", this.queue.length());
     this.queue.remove((node) => node.data.getBlockId() === blockId);
     task.el.appendChild(createWaitingCountdown(this.queue.length()));
     this.queue.push(task);
+  }
+  abortAllTasks() {
+    this.queue.kill();
+    console.log("All tasks aborted and cache cleared.");
+    this.configQueue();
   }
   /**
    * Processes and renders the given LaTeX task.
@@ -176,7 +174,11 @@ export class SwiftlatexRender {
         return new CompileResult(undefined, CompileStatus.PocessingError, processor.err!);
       }
     }
-    return await this.renderLatexToPDF(task.getProcessedContent(), { strict: true, });
+    try {
+      return await this.renderLatexToPDF(task.getProcessedContent(), { strict: true, });
+    } catch(err) {
+      return new CompileResult(undefined, CompileStatus.CompileError, err as string);
+    }
   }
   configQueue() {
     this.queue = async.queue(async (task, done) => {
@@ -250,39 +252,42 @@ export class SwiftlatexRender {
     }
   }
   renderLatexToPDF(source: string, config: { strict?: boolean, md5Hash?: string } = {}): Promise<CompileResult> {
-    return new Promise(async (resolve, reject) => {
-      temp.mkdir("obsidian-swiftlatex-renderer",
-        async (err: any) => {
-          try {
-            await waitFor(() => this.compiler.isReady());
-          } catch (err) {
-            reject(err); return;
+    return new Promise((resolve, reject) => {
+      temp.mkdir("obsidian-swiftlatex-renderer", async (mkdirErr: any) => {
+        if (mkdirErr) {
+          reject(mkdirErr);
+          return;
+        }
+
+        try {
+          await waitFor(() => this.compiler.isReady());
+
+          if (this.vfs.getEnabled()) {
+            console.log("Rendering LaTeX to PDF", source.split("\n"), this.vfs.clone());
           }
-          if (err) reject(err);
-          if (this.vfs.getEnabled()){
-            console.log("Rendering LaTeX to PDF", source.split("\n"),this.vfs.clone());
-          }
+
           await this.vfs.loadVirtualFileSystemFiles();
           await this.compiler.writeMemFSFile("main.tex", source);
           await this.compiler.setEngineMainFile("main.tex");
-          const result = await this.compiler.compileLaTeX()
+          const result = await this.compiler.compileLaTeX();
 
           await this.vfs.removeVirtualFileSystemFiles();
-          if(config.md5Hash) this.cache.addLog(result.log, config.md5Hash);
-          if (result.status != 0) {
-            // manage latex errors
-            reject(result.log);
-          }
-          // update the list of package files in the cache
-          if(!config.strict) await this.cache.fetchPackageCacheData();
-          resolve(result);
-        },
-      );
-    });
-  }
 
-  reRenderPDF(hash: string) {
-    
+          if (config.md5Hash) this.cache.addLog(result.log, config.md5Hash);
+
+          if (result.status !== 0) {
+            reject(result.log);
+            return;
+          }
+
+          if (!config.strict) await this.cache.fetchPackageCacheData();
+
+          resolve(result);
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
   }
   
   private async translatePDF(pdfData: Buffer<ArrayBufferLike>,el: HTMLElement,hash: string,outputSVG = true,): Promise<void> {

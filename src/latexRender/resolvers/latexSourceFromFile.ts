@@ -20,7 +20,16 @@ export async function findSectionInfoFromHashInFile(plugin: Moshe,file: TFile, h
     }
   }
 }
-
+export async function extractAllSectionsByFile(app: App) {
+  const files = app.vault.getFiles().filter(f => f.extension === "md");
+  const sectionsByFile = await Promise.all(
+      files.map(async file => ({
+          file,
+          codeBlockSections: await getLatexCodeBlockSectionsFromFile(app, file as TFile)
+      }))
+  );
+  return sectionsByFile
+}
 export async function getSectionInfoFromHash(plugin: Moshe,hash: string): Promise<TaskSectionInformation> {
   const filePathsCache = new Set<string>();
 

@@ -1,5 +1,5 @@
 import Moshe from "src/main";
-import { getFileSectionsFromPath, hashLatexSource, latexCodeBlockNamesRegex, Task } from "../swiftlatexRender";
+import { getFileSectionsFromPath, hashLatexSource, } from "../swiftlatexRender";
 import { VirtualFileSystem } from "../VirtualFileSystem";
 import { MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownView, TFile } from "obsidian";
 import { getFileSections } from "../resolvers/sectionCache";
@@ -50,12 +50,6 @@ export interface TaskSectionInformation {
  * codeBlock - The source code of a codeBlock including the code block delimiters.
  * content - The content of the code block without the delimiters.
  */
-
-type ProcessableTask = Partial<Omit<Task, "source" | "sourcePath" | "el">> &
-  Pick<Task, "source" | "sourcePath" | "el">;
-type MinProcessableTask = Partial<Omit<Task, "source" | "sourcePath">> &
-  Pick<Task, "source" | "sourcePath">;
-
 type InputFile = {
   name: string;
   content: string;
@@ -92,7 +86,8 @@ export class LatexTask{
   }
   static baseCreate(plugin: Moshe, process: boolean, source: string, el: HTMLElement, sourcePath: string, sectionInfo: TaskSectionInformation): LatexTask  {
     const task = createTask(plugin, process, source, el);
-    Object.assign(task, {sourcePath,sectionInfo});
+    task.sourcePath = sourcePath;
+    task.setSectionInfo(sectionInfo);
     return task;
   }
   static fromSectionInfo(plugin: Moshe,path: string, sectionInfo: TaskSectionInformation): LatexTask {
@@ -118,6 +113,9 @@ export class LatexTask{
   getCacheStatus() {
     return this.plugin.swiftlatexRender.cache.cacheStatusForHash(this.md5Hash);
   }
+  getCacheStatusAsNum() {
+    return this.plugin.swiftlatexRender.cache.cacheStatusForHashAsNum(this.md5Hash);
+  }
   restoreFromCache() {
     return this.plugin.swiftlatexRender.cache.restoreFromCache(this.el, this.md5Hash);
   }
@@ -134,7 +132,12 @@ export class LatexTask{
     this.sectionInfo = info;
     this.blockId = `${this.sourcePath.replace(/ /g, "_")}_${this.sectionInfo.lineStart}`
   }
-  getBlockId() {return this.blockId}
+  getBlockId() {
+    if (!this.blockId) {
+      throw new Error("Block ID is not set. Call setSectionInfo first.");
+    }
+    return this.blockId
+  }
   async initialize(ctx: MarkdownPostProcessorContext) {
     await this.ensureSectionInfo(ctx);
   }

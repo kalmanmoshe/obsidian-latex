@@ -7,6 +7,7 @@ export enum EngineStatus {
 export enum CompileStatus {
   Success = 0,
   PocessingError,
+  CompileError,
   FileNotFound = -253,
   EngineCrashed = -254, 
 }
