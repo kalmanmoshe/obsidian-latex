@@ -8,7 +8,7 @@ export default class PackageCache extends PhysicalCacheBase {
     const basePath = this.plugin.getVaultPath();
     this.cacheFolderPath = path.join(
       basePath,
-      this.plugin.app.vault.configDir,
+      app.vault.configDir,
       "swiftlatex-render-cache",
       "package-cache",
     );

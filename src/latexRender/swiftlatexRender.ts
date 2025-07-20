@@ -20,9 +20,15 @@ import { LatexTask } from "./utils/latexTask";
 import { PdfXeTeXCompiler } from "./compiler/swiftlatexxetex/pdfXeTeXCompiler";
 import LatexCompiler from "./compiler/base/compilerBase/compiler";
 import CompilerCache from "./cache/compilerCache";
+import { getPoseFromEl } from "./resolvers/temp";
 
 temp.track();
 
+export enum RenderLoaderClasses {
+  ParentContainer = "moshe-latex-render-loader-parent-container",
+  Loader = "moshe-latex-render-loader",
+  Countdown = "moshe-latex-render-countdown",
+}
 export const waitFor = async (condFunc: () => boolean) => {
   return new Promise<void>((resolve) => {
     if (condFunc()) {
@@ -62,7 +68,6 @@ type QueueObject<T> = async.QueueObject<T> & {
 /**
  * add option for Persistent preamble.so it won't get deleted.after use Instead, saved until overwritten
  */
-
 export class SwiftlatexRender {
   plugin: Moshe;
   vfs: VirtualFileSystem = new VirtualFileSystem();
@@ -71,7 +76,7 @@ export class SwiftlatexRender {
   compiler: LatexCompiler;
   cache: CompilerCache;
   queue: QueueObject<LatexTask>;
-  
+
   async onload(plugin: Moshe) {
     this.plugin = plugin;
     this.cache = new CompilerCache(this.plugin);
@@ -79,7 +84,7 @@ export class SwiftlatexRender {
     this.configQueue();
     console.log("SwiftlatexRender loaded");
   }
-  
+
   switchCompiler(): Promise<void> {
     if (this.compiler === undefined) return this.loadCompiler();
     const isTex =
@@ -95,6 +100,7 @@ export class SwiftlatexRender {
     this.pdfXetexCompiler = undefined;
     return this.loadCompiler();
   }
+
   async loadCompiler() {
     if (this.plugin.settings.compiler === CompilerType.TeX) {
       this.compiler = this.pdfTexCompiler = new PdfTeXCompiler();
@@ -107,10 +113,16 @@ export class SwiftlatexRender {
     await this.compiler.setTexliveEndpoint(this.plugin.settings.package_url);
   }
 
-  codeBlockProcessor(source: string,el: HTMLElement,ctx: MarkdownPostProcessorContext) {
+  codeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+    // obsidian dose not attach the el to the DOM yet, so we need to wait for the next frame (witch will hapen ones we are dose with the prosising)
+    requestAnimationFrame(() => {
+      console.warn(getPoseFromEl(ctx.sourcePath, el));
+    });
+
+    return
     const isLangTikz = el.classList.contains("block-language-tikz");
-    el.classList.remove(...["block-language-tikz","block-language-latex"]);
-    el.classList.add(...["block-language-latexsvg",`overflow-${this.plugin.settings.overflowStrategy}`]);
+    el.classList.remove(...["block-language-tikz", "block-language-latex"]);
+    el.classList.add(...["block-language-latexsvg", `overflow-${this.plugin.settings.overflowStrategy}`]);
     const md5Hash = hashLatexSource(source);
     addMenu(this.plugin, el, ctx.sourcePath);
 
@@ -131,11 +143,12 @@ export class SwiftlatexRender {
   }
   addToQueue(task: LatexTask) {
     const blockId = task.getBlockId();
-    console.log("Adding task to queue for block ID:", blockId,task, "Queue length:", this.queue.length());
+    console.log("Adding task to queue for block ID:", blockId, task, "Queue length:", this.queue.length());
     this.queue.remove((node) => node.data.getBlockId() === blockId);
     task.el.appendChild(createWaitingCountdown(this.queue.length()));
     this.queue.push(task);
   }
+
   abortAllTasks() {
     this.queue.kill();
     console.log("All tasks aborted and cache cleared.");
@@ -162,7 +175,7 @@ export class SwiftlatexRender {
         return false
       }
     }
-    await this.renderLatexToElement(task.getProcessedContent(),task.el,task.md5Hash,task.sourcePath,);
+    await this.renderLatexToElement(task.getProcessedContent(), task.el, task.md5Hash, task.sourcePath,);
     this.reCheckQueue(); // only re-check the queue after a valide rendering
     return true;
   }
@@ -176,7 +189,7 @@ export class SwiftlatexRender {
     }
     try {
       return await this.renderLatexToPDF(task.getProcessedContent(), { strict: true, });
-    } catch(err) {
+    } catch (err) {
       return new CompileResult(undefined, CompileStatus.CompileError, err as string);
     }
   }
@@ -191,7 +204,7 @@ export class SwiftlatexRender {
       }
     }, 1) as QueueObject<LatexTask>; // Concurrency is set to 1, so tasks run one at a time
   }
-  
+
   /**
    * Re-checks the queue to see if any tasks can be removed based on whether their PDF has been restored from cache.
    * If a task's PDF cannot be restored, it is removed from the queue.
@@ -217,8 +230,8 @@ export class SwiftlatexRender {
   async onunload() {
     this.compiler.closeWorker();
   }
-  
-  private handleError(el: HTMLElement,err: string,options: { parseErr?: boolean; hash?: string; throw?: boolean } = {}): void {
+
+  private handleError(el: HTMLElement, err: string, options: { parseErr?: boolean; hash?: string; throw?: boolean } = {}): void {
     el.innerHTML = "";
     let child: HTMLElement;
     if (options.parseErr) {
@@ -240,7 +253,7 @@ export class SwiftlatexRender {
     sourcePath: string,
   ): Promise<void> {
     try {
-      const result = await this.renderLatexToPDF(source, {md5Hash});
+      const result = await this.renderLatexToPDF(source, { md5Hash });
       el.innerHTML = "";
       await this.translatePDF(result.pdf, el, md5Hash);
       this.cache.addFile(el.innerHTML, md5Hash, sourcePath);
@@ -289,13 +302,15 @@ export class SwiftlatexRender {
       });
     });
   }
-  
-  private async translatePDF(pdfData: Buffer<ArrayBufferLike>,el: HTMLElement,hash: string,outputSVG = true,): Promise<void> {
+
+  private async translatePDF(pdfData: Buffer<ArrayBufferLike>, el: HTMLElement, hash: string, outputSVG = true,): Promise<void> {
     return new Promise<void>((resolve) => {
-      const config = {invertColorsInDarkMode: this.plugin.settings.invertColorsInDarkMode,
-        sourceHash: hash};
-      if (outputSVG) pdfToSVG(pdfData, config).then((svg: string) => {el.innerHTML = svg;resolve();});
-      else pdfToHtml(pdfData).then((htmlData) => {el.createEl("object", htmlData);resolve();});
+      const config = {
+        invertColorsInDarkMode: this.plugin.settings.invertColorsInDarkMode,
+        sourceHash: hash
+      };
+      if (outputSVG) pdfToSVG(pdfData, config).then((svg: string) => { el.innerHTML = svg; resolve(); });
+      else pdfToHtml(pdfData).then((htmlData) => { el.createEl("object", htmlData); resolve(); });
     });
   }
 }
@@ -305,7 +320,7 @@ const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
   let index = 0;
   while (taskNode) {
     const task = taskNode.data;
-    const countdown = task.el.querySelector(".moshe-latex-render-countdown");
+    const countdown = task.el.querySelector(RenderLoaderClasses.Countdown);
     if (countdown) countdown.textContent = index.toString();
     else console.warn(`Countdown not found for task ${index}`);
     taskNode = taskNode.next;
@@ -317,10 +332,10 @@ export function hashLatexSource(source: string) {
   return Md5.hashStr(source.replace(/\s/g, ""));
 }
 
-export async function getFileSectionsFromPath(path: string, app: App) {
+export async function getFileSectionsFromPath(path: string) {
   const file = app.vault.getAbstractFileByPath(path) as TFile;
   //we cant use the file cache
-  const sections = await getFileSections(file, app, true);
+  const sections = await getFileSections(file, true);
   if (!sections) throw new Error("No sections found in metadata");
   return { file, sections };
 }
@@ -336,13 +351,15 @@ export function addMenu(plugin: Moshe, el: HTMLElement, filePath: string) {
 
 export function createWaitingCountdown(index: number) {
   const parentContainer = Object.assign(document.createElement("div"), {
-    className: "moshe-latex-render-loader-parent-container",
+    className: RenderLoaderClasses.ParentContainer,
   });
+
   const loader = Object.assign(document.createElement("div"), {
-    className: "moshe-latex-render-loader",
+    className: RenderLoaderClasses.Loader,
   });
+
   const countdown = Object.assign(document.createElement("div"), {
-    className: "moshe-latex-render-countdown",
+    className: RenderLoaderClasses.Countdown,
     textContent: index.toString(),
   });
   parentContainer.appendChild(loader);

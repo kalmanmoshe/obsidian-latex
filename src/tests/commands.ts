@@ -1,12 +1,9 @@
 
 import { Command, Modal, Notice, TFile } from "obsidian";
-import { latexCodeBlockNamesRegex } from "src/latexRender/swiftlatexRender";
-import { LatexTask, TaskSectionInformation } from "src/latexRender/utils/latexTask";
+import { LatexTask } from "src/latexRender/utils/latexTask";
 import Moshe from "src/main";
-import { codeBlockNameRegex, extractCodeBlockMetadata, getLatexCodeBlockSectionsFromFile } from "src/latexRender/resolvers/latexSourceFromFile";
-import { getFileSections } from "src/latexRender/resolvers/sectionCache";
-import { CacheStatus } from "src/latexRender/cache/compilerCache";
 import { CompileResult, CompileStatus } from "src/latexRender/compiler/base/compilerBase/engine";
+import { getLatexTaskSectionInfosFromFile, TaskSectionInformation } from "src/latexRender/resolvers/taskSectionInformation";
 
 export function getTestCommands(plugin: Moshe): Command[] {
     return [createTestLatexCommand(plugin)];
@@ -43,11 +40,11 @@ interface CompileAnalysisResult {
 }
 
 async function getAllMarkdownLatexSections(plugin: Moshe) {
-    const files = plugin.app.vault.getFiles().filter(f => f.extension === "md");
+    const files = app.vault.getFiles().filter(f => f.extension === "md");
     const sectionsOfFiles = await Promise.all(
         files.map(async file => ({
             file,
-            codeBlockSections: await getLatexCodeBlockSectionsFromFile(plugin.app, file as TFile)
+            codeBlockSections: await getLatexTaskSectionInfosFromFile(file as TFile)
         }))
     );
     return sectionsOfFiles.filter(({ codeBlockSections }) => codeBlockSections.length > 0);
@@ -121,17 +118,17 @@ class CompileTest {
             unknownFailure: []
         };
 
-        const files = plugin.app.vault.getFiles().filter(f => f.extension === "md");
+        const files = app.vault.getFiles().filter(f => f.extension === "md");
         this.sectionsByFile = await Promise.all(
             files.map(async file => ({
                 file,
-                codeBlockSections: await getLatexCodeBlockSectionsFromFile(plugin.app, file as TFile)
+                codeBlockSections: await getLatexTaskSectionInfosFromFile(file as TFile)
             }))
         );
 
         this.analyzeLatexCodeBlocks(token);
     }
-    
+
     static async analyzeLatexCodeBlocks(token: string) {
         for (const { file, codeBlockSections } of this.sectionsByFile) {
             for (const section of codeBlockSections) {
@@ -175,7 +172,7 @@ class TestResultModal extends Modal {
     testStartTime = 0;
 
     constructor(plugin: Moshe) {
-        super(plugin.app);
+        super(app);
         this.plugin = plugin;
         this.set();
     }
@@ -200,7 +197,7 @@ class TestResultModal extends Modal {
         this.contentEl.createEl("p", { text: `Test started: ${dateStr}` });
     }
 
-    setCurrent(filePath: string, section: TaskSectionInformation,fileIndex: number, sectionIndex: number) {
+    setCurrent(filePath: string, section: TaskSectionInformation) {
         this.currentFileEl.setText(`File: ${filePath}`);
         this.currentSectionEl.setText(`Section line: ${section.lineStart}`);
     }
@@ -239,27 +236,27 @@ class TestResultModal extends Modal {
 
     async saveReport() {
         const tracker = CompileTest.tracker;
-        let idx=0;
-        if (this.plugin.app.vault.getAbstractFileByPath("compile-report.md") !== null) {
+        let idx = 0;
+        if (app.vault.getAbstractFileByPath("compile-report.md") !== null) {
             idx++;
-            while (this.plugin.app.vault.getAbstractFileByPath("compile-report" + idx + ".md") !== null) {
+            while (app.vault.getAbstractFileByPath("compile-report" + idx + ".md") !== null) {
             }
         }
-        
-        const path = idx===0 ? "compile-report.md": "compile-report-"+idx+".md";
+
+        const path = idx === 0 ? "compile-report.md" : "compile-report-" + idx + ".md";
 
         const report = this.generateMarkdownReport(tracker);
-        await this.plugin.app.vault.create(path, report);
+        await app.vault.create(path, report);
         new Notice(`Report saved to ${path}`);
     }
 
     generateMarkdownReport(tracker: CompileTracker): string {
         const date = new Date(this.testStartTime).toLocaleString();
         const blocks = Object.entries(tracker).map(([label, results]) => {
-            const items = results.map(r => {
+            const items = (results as CompileAnalysisResult[]).map((r: CompileAnalysisResult) => {
                 const line = r.section.lineStart;
-                const link = `obsidian://open?path=${encodeURIComponent(r.task.filePath)}#^${line}`;
-                return `- [${r.task.filePath}](<${link}>) (Line ${line})`;
+                const link = `obsidian://open?path=${encodeURIComponent(r.task.sourcePath)}#^${line}`;
+                return `- [${r.task.sourcePath}](<${link}>) (Line ${line})`;
             }).join("\n");
             return `### ${label} (${results.length})\n${items}`;
         });

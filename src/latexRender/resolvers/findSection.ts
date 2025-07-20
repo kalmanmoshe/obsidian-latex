@@ -11,13 +11,13 @@ import {
   getSectionCacheOfString,
   getSectionCacheOfStringFuzzy,
 } from "./sectionCache";
-import Moshe from "src/main";
 import { EditorView } from "@codemirror/view";
+import { TaskSectionInformation } from "./taskSectionInformation";
 
 /**
  * Tries to resolve the relevant section using the latest transaction log entry (source mode only).
  */
-export function getSectionFromTransaction(
+function getSectionFromTransaction(
   sections: SectionCache[],
   fileText: string,
   logger: TransactionLogger,
@@ -28,7 +28,7 @@ export function getSectionFromTransaction(
   if (!latestChange || !logger.hasRecentChanges()) return;
 
   const lineIndex = editor.offsetToPos(latestChange.from).line;
-  const section = getInnermostSection(sections, lineIndex);
+  const section = findInnermostSection(sections, lineIndex);
   if (!section) return;
 
   return {
@@ -38,17 +38,14 @@ export function getSectionFromTransaction(
     source: extractSectionSource(fileText, section),
   };
 }
-export async function getCurrentCursorLocationSection(
-  file: TFile,
-  plugin: Moshe,
-  editor: Editor,
-) {
-  const sections = await getFileSections(file, plugin.app, true);
+
+export async function getCurrentCursorLocationSection(file: TFile, editor: Editor,) {
+  const sections = await getFileSections(file, true);
   if (!sections) return;
   const selection = ((editor as any).cm as EditorView).state.selection;
   const head = selection.main.head;
   const lineIndex = editor.offsetToPos(head).line;
-  const section = getInnermostSection(sections, lineIndex);
+  const section = findInnermostSection(sections, lineIndex);
   return section;
 }
 
@@ -57,11 +54,7 @@ export async function getCurrentCursorLocationSection(
  * Tries to find a section by exact or fuzzy string match against the file content.
  * i need to faze this out
  */
-export function getSectionFromMatching(
-  sections: SectionCache[],
-  fileText: string,
-  source: string,
-): (MarkdownSectionInformation & { source?: string }) | undefined {
+export function getSectionFromMatching(sections: SectionCache[], fileText: string, source: string,): (MarkdownSectionInformation & { source?: string }) | undefined {
   let sectionCache: SectionCache | undefined;
   let fuzzyResult: { source: string; section: SectionCache } | undefined;
   sectionCache = getSectionCacheOfString(sections, fileText, source, false);
@@ -83,8 +76,19 @@ export function getSectionFromMatching(
   };
 }
 
+export function getTaskSectionInfoFromMatching(sections: SectionCache[], fileText: string, source: string,): TaskSectionInformation | undefined {
+  const section = getSectionFromMatching(sections, fileText, source);
+  if (!section) return;
+  const codeBlock = section.source || extractSectionSource(fileText, section);
+  return {
+    lineStart: section.lineStart,
+    lineEnd: section.lineEnd,
+    codeBlock: section.source,
+  };
+}
+
 /**
- * Extracts the raw markdown content of a section from the file.
+ * Extracts the raw markdown content of a section from the file. 
  */
 function extractSectionSource(fileText: string, section: SectionCache): string {
   const lines = fileText.split("\n");
@@ -92,11 +96,19 @@ function extractSectionSource(fileText: string, section: SectionCache): string {
     .slice(section.position.start.line + 1, section.position.end.line)
     .join("\n");
 }
+/**
+ * Removes the opening and closing delimiters from a code block string. (i.e., the ``` lines).
+ * @param codeBlock 
+ * @returns 
+ */
+export function codeBlockToContent(codeBlock: string): string {
+  return codeBlock.split("\n").slice(1, -1).join("\n");
+}
 
 /**
  * Returns the most nested (deepest) section that contains a given line.
  */
-export function getInnermostSection(
+export function findInnermostSection(
   sections: SectionCache[],
   lineIndex: number,
   lineEnd?: number,
@@ -110,3 +122,4 @@ export function getInnermostSection(
     )
     .sort((a, b) => b.position.start.line - a.position.start.line)[0];
 }
+

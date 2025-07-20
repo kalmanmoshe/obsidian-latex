@@ -3,9 +3,9 @@ import { ProcessedLog } from "../logs/latex-log-parser";
 import parseLatexLog from "../logs/HumanReadableLogs";
 import { MarkdownView, Notice } from "obsidian";
 import { getSectionFromMatching } from "../resolvers/findSection";
-import { getFileSectionsFromPath, latexCodeBlockNamesRegex } from "../swiftlatexRender";
+import { getFileSectionsFromPath } from "../swiftlatexRender";
 import { LatexTask, LatexTaskProcessor } from "../utils/latexTask";
-import { sectionToTaskInfo } from "../resolvers/latexSourceFromFile";
+import { sectionToTaskSectionInfo } from "../resolvers/taskSectionInformation";
 
 export default class LogCache {
   private plugin: Moshe;
@@ -33,10 +33,10 @@ export default class LogCache {
   /**
    * 
    */
-  async forceGetLog(hash: string,config: {source: string,sourcePath: string}): Promise<ProcessedLog | undefined> {
+  async forceGetLog(hash: string, config: { source: string, sourcePath: string }): Promise<ProcessedLog | undefined> {
     if (this.hasLog(hash)) return this.cache!.get(hash);
 
-    let cause="";
+    let cause = "";
     if (!this.plugin.settings.saveLogs) {
       cause = "This may be because log saving is disabled in the settings.\n";
     }
@@ -45,12 +45,12 @@ export default class LogCache {
       "Re-rendering the SVG to generate logs. This may take a moment...",
     );
     const { source, sourcePath } = config;
-    const { file, sections } = await getFileSectionsFromPath(sourcePath,this.plugin.app,);
-    const editor = this.plugin.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
-    const fileText = editor?.getValue() ?? (await this.plugin.app.vault.cachedRead(file));
-    const sectionFromMatching = getSectionFromMatching(sections,fileText,source);
+    const { file, sections } = await getFileSectionsFromPath(sourcePath,);
+    const editor = app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+    const fileText = editor?.getValue() ?? (await app.vault.cachedRead(file));
+    const sectionFromMatching = getSectionFromMatching(sections, fileText, source);
     if (!sectionFromMatching) throw new Error("No section found for this source");
-    const sectionInfo = sectionToTaskInfo(sectionFromMatching);
+    const sectionInfo = sectionToTaskSectionInfo(sectionFromMatching);
     const task = LatexTask.fromSectionInfo(this.plugin, sourcePath, sectionInfo);
     const result = await this.plugin.swiftlatexRender.detachedProcessAndRender(task);
     return parseLatexLog(result.log);

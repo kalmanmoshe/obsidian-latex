@@ -6,7 +6,7 @@
 //git pull --all#Pull all branches
 //git push --all#Push all branches
 
-import { Plugin, Notice, FileSystemAdapter, MarkdownView } from "obsidian";
+import { Plugin, Notice, FileSystemAdapter, MarkdownView, App } from "obsidian";
 
 import { MosheMathPluginSettings, DEFAULT_SETTINGS } from "./settings/settings";
 import { MosheMathSettingTab } from "./settings/settings_tab";
@@ -25,6 +25,10 @@ import { temp } from "./LaTeX_js/latex";
 import { createTransactionLogger } from "./latexRender/cache/transactionLogger";
 import { EditorView } from "@codemirror/view";
 import { StateEffect } from "@codemirror/state";
+
+declare global {
+  const app: App;
+}
 async function isInternetAvailable(): Promise<boolean> {
   try {
     const response = await fetch("https://www.google.com", { method: "HEAD", mode: "no-cors" });
@@ -51,9 +55,9 @@ async function isWebsiteOnline(url: string): Promise<boolean> {
 /**
  * Assignments:
  * - Create code that will auto-insert metadata into files. You can use this:
- *   const file = this.plugin.app.vault.getAbstractFileByPath(ctx.sourcePath);
+ *   const file = app.vault.getAbstractFileByPath(ctx.sourcePath);
  *   if (file instanceof TFile) {
- *     const metadata = this.plugin.app.metadataCache.getFileCache(file);
+ *     const metadata = app.metadataCache.getFileCache(file);
  *     console.log(metadata);
  *   }
  * - Create qna for better Searching finding and styling
@@ -86,10 +90,10 @@ export default class Moshe extends Plugin {
 
     this.addEditorCommands();
     this.addSyntaxHighlighting();
-    this.app.workspace.onLayoutReady(
+    app.workspace.onLayoutReady(
       async () => await this.loadLayoutReadyDependencies(),
     );
-    this.addSettingTab(new MosheMathSettingTab(this.app, this));
+    this.addSettingTab(new MosheMathSettingTab(this));
     temp();
     //this.registerEditorSuggest()
   }
@@ -117,7 +121,7 @@ export default class Moshe extends Plugin {
   }
   private bindTransactionLogger() {
     const markdownView =
-      this.app.workspace.getActiveViewOfType(MarkdownView);
+      app.workspace.getActiveViewOfType(MarkdownView);
     if (!markdownView) return;
     const editor = markdownView.editor;
     const cmView = (editor as any).cm as EditorView;
@@ -207,7 +211,7 @@ export default class Moshe extends Plugin {
   }
 
   private refreshAllWindows() {
-    this.app.workspace.iterateAllLeaves((leaf) => {
+    app.workspace.iterateAllLeaves((leaf) => {
       if (leaf.view instanceof MarkdownView) {
         const editor = leaf.view.editor;
         if (editor) {
@@ -230,7 +234,7 @@ export default class Moshe extends Plugin {
     if (!/[א-ת]/.test(input)) return input;
     const ast = MathJaxAbstractSyntaxTree.parse(input);
     ast.reverseRtl();
-    
+
     return ast.toString();
   }
 
@@ -245,24 +249,24 @@ export default class Moshe extends Plugin {
     if (didFileLocationChange) {
       await this.swiftlatexRender.vfs.setEnabled(this.settings.compilerVfsEnabled);
       if (this.settings.compilerVfsEnabled) {
-        this.app.workspace.onLayoutReady(async () => {
+        app.workspace.onLayoutReady(async () => {
           await this.processLatexPreambles(didFileLocationChange);
         })
       }
     }
   }
-  async processLatexPreambles(becauseFileLocationUpdated = false,becauseFileUpdated = false) {
+  async processLatexPreambles(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
     const coorPreambles = await this.getlatexPreambleFiles(becauseFileLocationUpdated, becauseFileUpdated);
     this.swiftlatexRender.vfs.setVirtualFileSystemFiles(coorPreambles);
     const fileNames = new Set(coorPreambles.map((file) => file.name))
     this.swiftlatexRender.vfs.setCoorVirtualFiles(fileNames);
   }
 
-  private async getlatexPreambleFiles(becauseFileLocationUpdated: boolean,becauseFileUpdated: boolean) {
+  private async getlatexPreambleFiles(becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean) {
     const files = getFileSets(this);
-    const coorFiles = await getPreambleFromFiles(this,files.latexVirtualFiles);
-    this.showPreambleLoadedNotice(coorFiles.length,becauseFileLocationUpdated,becauseFileUpdated);
-    return coorFiles ;
+    const coorFiles = await getPreambleFromFiles(this, files.latexVirtualFiles);
+    this.showPreambleLoadedNotice(coorFiles.length, becauseFileLocationUpdated, becauseFileUpdated);
+    return coorFiles;
   }
 
   private showPreambleLoadedNotice(
@@ -280,8 +284,8 @@ export default class Moshe extends Plugin {
     new Notice(prefix + body.join(" and ") + suffix, 5000);
   }
   getVaultPath() {
-    if (this.app.vault.adapter instanceof FileSystemAdapter) {
-      return this.app.vault.adapter.getBasePath();
+    if (app.vault.adapter instanceof FileSystemAdapter) {
+      return app.vault.adapter.getBasePath();
     } else {
       throw new Error("Moshe: Could not get vault path.");
     }
@@ -289,7 +293,7 @@ export default class Moshe extends Plugin {
 
   private watchFiles() {
     // Only begin watching files once the layout is ready.
-    this.app.workspace.onLayoutReady(() => {
+    app.workspace.onLayoutReady(() => {
       // Set up a Chokidar watcher for .sty files
       const vaultEvents = {
         modify: onFileChange,
@@ -299,7 +303,7 @@ export default class Moshe extends Plugin {
 
       for (const [eventName, callback] of Object.entries(vaultEvents)) {
         this.registerEvent(// @ts-expect-error
-          this.app.vault.on(eventName, (file: TAbstractFile) =>
+          app.vault.on(eventName, (file: TAbstractFile) =>
             callback(this, file),
           ),
         );

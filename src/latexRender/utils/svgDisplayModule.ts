@@ -7,7 +7,6 @@ export class svgDisplayModule extends Modal {
   cache: Map<string, Set<string>>;
 
   constructor(
-    app: App,
     cacheFolderPath: string,
     cache: Map<string, Set<string>>,
   ) {

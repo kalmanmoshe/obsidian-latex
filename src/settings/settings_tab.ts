@@ -23,7 +23,7 @@ export class MosheMathSettingTab extends PluginSettingTab {
   snippetsFileLocEl: HTMLElement;
   snippetVariablesFileLocEl: HTMLElement;
 
-  constructor(app: App, plugin: MosheMathPlugin) {
+  constructor( plugin: MosheMathPlugin) {
     super(app, plugin);
     this.plugin = plugin;
     setPluginInstance(plugin);
