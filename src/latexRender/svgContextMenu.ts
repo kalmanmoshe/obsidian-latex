@@ -1,14 +1,12 @@
 import { Menu, Notice, TFile } from "obsidian";
 import Moshe from "src/main";
-import { findSectionInfoFromHashInFile, sectionToTaskInfo } from "./resolvers/latexSourceFromFile";
-import { getFileSections } from "./resolvers/sectionCache";
-import {
-  addMenu,
-  latexCodeBlockNamesRegex,
-} from "./swiftlatexRender";
-import { getSectionFromMatching } from "./resolvers/findSection";
+import { extractCodeBlockLanguage } from "./resolvers/latexSourceFromFile";
+import { addMenu } from "./swiftlatexRender";
+import { codeBlockToContent } from "./resolvers/findSection";
 import { LogDisplayModal } from "./logs/logDisplayModal";
-import { LatexTask, TaskSectionInformation } from "./utils/latexTask";
+import { LatexTask } from "./utils/latexTask";
+import { ErrorClasses } from "./logs/HumanReadableLogs";
+import { findTaskSectionInfoFromHashInFile, TaskSectionInformation } from "./resolvers/taskSectionInformation";
 /**add:
  * - Reveal in file explorer
  * - show log
@@ -19,9 +17,13 @@ export class SvgContextMenu extends Menu {
   plugin: Moshe;
   svgEl?: SVGElement;
   /**
-   * the container element that holds the SVG/err has class block-language-latexsvg
+   * the container element that holds the SVG/err container.
    */
-  containerEl: HTMLElement;
+  containerEl?: HTMLElement;
+  /**
+   * The parent el of the code block has class block-language-latexsvg
+   */
+  blockEl: HTMLElement;
   sourcePath: string;
   isError: boolean;
   source: string;
@@ -38,6 +40,7 @@ export class SvgContextMenu extends Menu {
     this.assignElements(trigeringElement);
     this.sourcePath = sourcePath;
     this.addDisplayItems();
+    console.log("SvgContextMenu created for", this.blockEl, this.svgEl, this.containerEl, this.hash);
   }
   private isSvgContainer(el: HTMLElement) {
     return el.classList.contains("block-language-latexsvg");
@@ -55,35 +58,35 @@ export class SvgContextMenu extends Menu {
     and none of its children are SVG containers, keep climbing up the DOM.
     */
     while (
-      el &&!this.isSvgContainer(el) &&
-      !Array.from(el.children).some((child) =>this.isSvgContainer(child as HTMLElement))
+      el && !this.isSvgContainer(el) &&
+      !Array.from(el.children).some((child) => this.isSvgContainer(child as HTMLElement))
     ) {
       if (!el.parentElement) break;
       el = el.parentElement;
     }
-    
+
     if (!this.isSvgContainer(el) && el) {
-      const childContainer = Array.from(el.children).find((child) =>this.isSvgContainer(child as HTMLElement)) as HTMLElement | undefined;
+      const childContainer = Array.from(el.children).find((child) => this.isSvgContainer(child as HTMLElement)) as HTMLElement | undefined;
       if (childContainer) el = childContainer;
     }
     if (!this.isSvgContainer(el) && el) {
-      throw new Error( "No valid SVG container found in the hierarchy. Please ensure the element is a valid SVG container.")
+      throw new Error("No valid SVG container found in the hierarchy. Please ensure the element is a valid SVG container.")
     }
     const svg = Array.from(el.children).find((child) => child instanceof SVGElement);
+    const errorContainer = Array.from(el.children).find((child) => child.classList.contains(ErrorClasses.Container));
+    if (!svg && !errorContainer) {
+      throw new Error("No SVG element or error container found in the provided element.");
+    }
+    this.blockEl = el;
     this.isError = !svg;
     this.svgEl = svg
-    this.containerEl = el;
-    console.log("svg", svg, "el", el, "isError", this.isError);
+    this.containerEl = errorContainer as HTMLElement || undefined;
     const hash = this.svgEl?.id ?? this.containerEl.id;
     if (hash === undefined) {
       console.error("No hash found for SVG element", this.svgEl, this.containerEl);
       throw new Error("No hash found for SVG element")
     };
     this.hash = hash
-    /*
-    return ( svg ??Array.from(el.children).find((child) =>
-          child.classList.contains("moshe-swift-latex-error-container") &&child instanceof HTMLElement,
-      ) as HTMLElement ??null);*/
   }
   private addDisplayItems() {
     if (!this.isError)
@@ -137,21 +140,12 @@ export class SvgContextMenu extends Menu {
     let log = this.plugin.swiftlatexRender.cache.getLog(this.hash);
     if (!log) {
       await this.assignLatexSource();
-      log = await this.plugin.swiftlatexRender.cache.forceGetLog(this.hash,{source: this.source, sourcePath: this.sourcePath})
+      log = await this.plugin.swiftlatexRender.cache.forceGetLog(this.hash, { source: this.source, sourcePath: this.sourcePath })
     }
     console.log("log", log);
     const modal = new LogDisplayModal(this.plugin, log);
     modal.open();
   }
-  /*private async showLogs() {
-    const hash = this.getHash();
-    this.assignLatexSource();
-    const log = this.plugin.swiftlatexRender.cache.getLog(hash);
-    if(!log) throw new Error("")
-    console.log("log", log);
-    const modal = new LogDisplayModal(this.plugin, log);
-    modal.open();
-  }*/
   assignLatexSource(): Promise<boolean> {
     if (this.source !== undefined) return Promise.resolve(true);
     console.log("assignLatexSource", this.sourceAssignmentPromise);
@@ -159,64 +153,60 @@ export class SvgContextMenu extends Menu {
       this.sourceAssignmentPromise = (async () => {
         const file = await this.getFile();
         const hash = this.hash;
-        console.log("hash", hash, "file", file);
         if (!hash) return false;
-        console.log("hash", hash);
-        const info = await findSectionInfoFromHashInFile(this.plugin, file, hash);
+        const info = await findTaskSectionInfoFromHashInFile(file, hash);
         if (!info) throw new Error("No info found for hash: " + hash);
-        this.source = info.codeBlock;
+        this.source = codeBlockToContent(info.codeBlock);
         return true;
       })();
     }
     return this.sourceAssignmentPromise;
   }
   private async getFile() {
-    const file = this.plugin.app.vault.getAbstractFileByPath(this.sourcePath);
+    const file = app.vault.getAbstractFileByPath(this.sourcePath);
     if (!file) throw new Error("File not found");
     if (!(file instanceof TFile)) throw new Error("File is not a TFile");
     return file;
   }
   private async assignMetadata() {
-    
+
   }
   async getSectionInfo(): Promise<TaskSectionInformation> {
     const file = await this.getFile();
     if (!file) throw new Error("No file found");
-
-    const sections = await getFileSections(file, this.plugin.app, true);
-    if (!sections) throw new Error("No sections found in metadata");
-    const fileText = await this.plugin.app.vault.read(file);
-    await this.assignLatexSource();
-    const sectionCache = getSectionFromMatching(sections,fileText,this.source,);
-    if (!sectionCache) throw new Error("Section cache not found");
-    const lang = fileText.split("\n")[sectionCache.lineStart].match(latexCodeBlockNamesRegex)?.[2];
+    const sectionInfo = await findTaskSectionInfoFromHashInFile(file, this.hash);
+    if (!sectionInfo) throw new Error("No section info found for hash: " + this.hash + " in file: " + file.path);
+    this.source = codeBlockToContent(sectionInfo.codeBlock);
+    const lang = extractCodeBlockLanguage(sectionInfo.codeBlock);
     if (lang !== "tikz" && lang !== "latex") {
       throw new Error("Code block is not a tikz or latex code block");
     }
     this.codeBlockLanguage = lang;
-    return sectionToTaskInfo(sectionCache)
+    return sectionInfo;
+  }
+  /**
+   * Cleans the block element by removing all its children.
+   */
+  private cleanBlockEl() {
+    while (this.blockEl.firstChild) {
+      this.blockEl.removeChild(this.blockEl.firstChild);
+    }
   }
   /**
    * Can't be saved as contains dynamic content.
-   */
-
+  */
   private async removeAndReRender() {
     let hash = this.hash;
-    const parentEl = this.containerEl;
+    const parentEl = this.blockEl;
     if (!this.isError && hash) {
       await this.plugin.swiftlatexRender.cache.removeFile(hash);
     }
-    if (this.svgEl) {
-      parentEl.removeChild(this.svgEl);
-    }
-    console.log("removing svg", this.svgEl);
-    this.assignLatexSource();
-    console.log("source", this.source);
-    addMenu(this.plugin, parentEl, this.sourcePath);
+    this.cleanBlockEl();
     const sectionInfo = await this.getSectionInfo();
-    const isProcess = this.codeBlockLanguage === "tikz"
-    const task = LatexTask.baseCreate(this.plugin, isProcess, this.source, parentEl,this.sourcePath,sectionInfo)
-    this.plugin.swiftlatexRender.addToQueue(task)
+    const shouldProcess = this.codeBlockLanguage === "tikz";
+    addMenu(this.plugin, parentEl, this.sourcePath);
+    const task = LatexTask.baseCreate(this.plugin, shouldProcess, this.source, this.blockEl, this.sourcePath, sectionInfo);
+    this.plugin.swiftlatexRender.addToQueue(task);
     new Notice("SVG removed from cache. Re-rendering...");
   }
 
@@ -226,7 +216,7 @@ export class SvgContextMenu extends Menu {
   private async getParsedSource() {
     await this.assignLatexSource();
     const sectionInfo = await this.getSectionInfo();
-    const task = LatexTask.fromSectionInfo(this.plugin,this.sourcePath, sectionInfo);
+    const task = LatexTask.fromSectionInfo(this.plugin, this.sourcePath, sectionInfo);
     if (task.isProcess()) await task.process();
     return task.getProcessedContent();
   }

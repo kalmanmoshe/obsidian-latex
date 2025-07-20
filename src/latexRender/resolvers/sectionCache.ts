@@ -1,5 +1,5 @@
 import { App, Notice, SectionCache, TFile } from "obsidian";
-import { getInnermostSection } from "./findSection";
+import { findInnermostSection } from "./findSection";
 import { parseNestedCodeBlocks, shiftSections } from "obsidian-dev-utils";
 /**
  * get the sections of a file from the metadata cache with the option to account for nested code blocks.
@@ -10,7 +10,6 @@ import { parseNestedCodeBlocks, shiftSections } from "obsidian-dev-utils";
  */
 export function getFileSections(
   file: TFile,
-  app: App,
   accountForNestedCodeBlocks = false,
 ): Promise<SectionCache[]> | SectionCache[] | undefined {
   const fileCache = app.metadataCache.getFileCache(file);
@@ -19,12 +18,11 @@ export function getFileSections(
   if (!accountForNestedCodeBlocks) {
     return fileCache.sections;
   }
-  return getFileSectionsWithNested(file, app, fileCache.sections);
+  return getFileSectionsWithNested(file, fileCache.sections);
 }
 
 async function getFileSectionsWithNested(
   file: TFile,
-  app: App,
   sectionsBase: SectionCache[],
 ): Promise<SectionCache[]> {
   const sections: SectionCache[] = [];
@@ -213,13 +211,13 @@ export function getSectionCacheOfString(
   const codeBlockStartLine = sourceIndex - 1;
   const section = exact
     ? sectionsCache.find(
-        (section) => section.position.start.line === codeBlockStartLine,
-      )
+      (section) => section.position.start.line === codeBlockStartLine,
+    )
     : sectionsCache.find(
-        (section) =>
-          section.position.start.line >= codeBlockStartLine &&
-          section.position.end.line >= codeBlockStartLine,
-      );
+      (section) =>
+        section.position.start.line >= codeBlockStartLine &&
+        section.position.end.line >= codeBlockStartLine,
+    );
   return section;
 }
 
@@ -270,7 +268,7 @@ export function getBestFitSectionCatch(
     return undefined;
   }
   const { indexInDoc, start, end } = matches[0];
-  const section = getInnermostSection(sectionsCache, indexInDoc);
+  const section = findInnermostSection(sectionsCache, indexInDoc);
   if (!section) return undefined;
   const slicedSource = target
     .split("\n")

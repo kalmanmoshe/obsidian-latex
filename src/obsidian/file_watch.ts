@@ -2,7 +2,7 @@
 
 import { dir } from "console";
 import { on } from "events";
-import { Vault, TFile, TFolder, TAbstractFile, Notice, debounce,} from "obsidian";
+import { Vault, TFile, TFolder, TAbstractFile, Notice, debounce, } from "obsidian";
 import Moshe from "src/main";
 
 /**
@@ -11,7 +11,7 @@ import Moshe from "src/main";
  * @param file - The file to check.
  * @returns {boolean} - True if the file is within the folder, false otherwise.
  */
-function isFileInFolder(dir: TFolder,file: TFile) {
+function isFileInFolder(dir: TFolder, file: TFile) {
   let cur = file.parent;
   let cnt = 0;
 
@@ -35,7 +35,7 @@ function isFileInFolder(dir: TFolder,file: TFile) {
  */
 function isFileInDir(dir: TAbstractFile, file: TFile): boolean {
   if (dir instanceof TFolder) {
-    return isFileInFolder(dir,file);
+    return isFileInFolder(dir, file);
   }
   return dir instanceof TFile && dir.path === file.path;
 }
@@ -43,8 +43,8 @@ function isFileInDir(dir: TAbstractFile, file: TFile): boolean {
 const refreshFromFiles = debounce(
   async (plugin: Moshe, mathjax = false) => {
     if (!(plugin.settings.compilerVfsEnabled ||
-        plugin.settings.mathjaxPreambleEnabled
-      )) {return;}
+      plugin.settings.mathjaxPreambleEnabled
+    )) { return; }
 
     if (mathjax) await plugin.loadMathJax();
     else await plugin.processLatexPreambles(false, true);
@@ -66,12 +66,12 @@ const filePathConfig = (plugin: Moshe, file: TFile) => {
     mathjaxPreambleFileLocation,
   } = plugin.settings;
   const match = (enabled: boolean, dir: string) => {
-    const possibleFolder = plugin.app.vault.getAbstractFileByPath(dir);
+    const possibleFolder = app.vault.getAbstractFileByPath(dir);
     let isInFolder = false;
-    if (possibleFolder&& possibleFolder instanceof TFolder){
+    if (possibleFolder && possibleFolder instanceof TFolder) {
       isInFolder = isFileInFolder(possibleFolder, file);
     }
-    return { enabled, isInFolder, isFile: file.path === dir}
+    return { enabled, isInFolder, isFile: file.path === dir }
   };
   return {
     autoLoaded: match(compilerVfsEnabled, autoloadedVfsFilesDir),
@@ -87,7 +87,7 @@ const isDirMonitored = (match: {
 
 export const onFileChange = (plugin: Moshe, file: TAbstractFile) => {
   if (!(file instanceof TFile)) return;
-  const fileConfig = filePathConfig(plugin, file) ;
+  const fileConfig = filePathConfig(plugin, file);
   const shouldRefreshFile = Object.values(fileConfig).some(config => isDirMonitored(config));
   if (shouldRefreshFile) {
     refreshFromFiles(plugin, isDirMonitored(fileConfig.mathJax));
@@ -115,10 +115,10 @@ function getActiveDirectories(plugin: Moshe): string[] {
 export const onFileDelete = (plugin: Moshe, file: TAbstractFile) => {
   if (!(file instanceof TFile)) return;
   const directories = getActiveDirectories(plugin)
-  .map((path) => plugin.app.vault.getAbstractFileByPath(path))// Get the TAbstractFile
-  .filter(dir => dir !== null);
+    .map((path) => app.vault.getAbstractFileByPath(path))// Get the TAbstractFile
+    .filter(dir => dir !== null);
 
-  if (directories.some(dir=>isFileInDir(dir, file))){
+  if (directories.some(dir => isFileInDir(dir, file))) {
     // There's no point passing mathjax over here as it won't do anything you cannot delete the file from catch Only change it
     refreshFromFiles(plugin);
   }
@@ -152,7 +152,7 @@ export function getFileSets(plugin: Moshe): FileSets {
     plugin.settings.mathjaxPreambleFileLocation,
     plugin.settings.autoloadedVfsFilesDir
   ];
-  const [mathjaxPreambleFiles, latexVirtualFiles] = locations.map((path) =>getFilesWithin(plugin.app.vault, path));
+  const [mathjaxPreambleFiles, latexVirtualFiles] = locations.map((path) => getFilesWithin(app.vault, path));
   return { mathjaxPreambleFiles, latexVirtualFiles };
 }
 export type PreambleFile = { path: string; name: string; content: string };
@@ -168,7 +168,7 @@ export async function getPreambleFromFiles(
       fileContents.push({
         path: file.path,
         name: file.name,
-        content: await plugin.app.vault.cachedRead(file),
+        content: await app.vault.cachedRead(file),
       });
     } catch (e) {
       console.error(`Failed to fetch ${file.path} from memfs: ${e}`);

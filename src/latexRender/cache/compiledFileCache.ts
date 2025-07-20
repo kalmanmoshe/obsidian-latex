@@ -158,7 +158,7 @@ export default class CompiledFileCache {
     const hashesToRemove: string[] = [];
 
     for (const filePath of this.getFilePathsFromCache()) {
-      const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
+      const file = app.vault.getAbstractFileByPath(filePath);
       if (!file) {
         filePathsToRemove.push(filePath);
       } else if (file instanceof TFile) {
@@ -193,7 +193,7 @@ export default class CompiledFileCache {
    * If a hash is no longer referenced by any file, it is removed from the cache.
    */
   private async removeUnusedCachesForFile(file: TFile) {
-    const hashesInFile = await getLatexHashesFromFile(this.plugin.app,file);
+    const hashesInFile = await getLatexHashesFromFile(file);
     const hashesInCache = this.getLatexHashesFromCacheForFile(file);
     for (const hash of hashesInCache) {
       // if the hash (from the cache) is not present in the file, remove it from the cache
@@ -254,7 +254,7 @@ export default class CompiledFileCache {
    * Returns a map of all cached files with their names and content.
    * The key is the file name (with extension), and the value is the file content.
    */
-  getCachedFiles(){
+  getCachedFiles() {
     return this.cache.getFiles();
   }
 }
@@ -305,7 +305,7 @@ class CompiledFilePhysicalCache extends PhysicalCacheBase {
     else
       folderPath = path.join(
         basePath,
-        this.plugin.app.vault.configDir,
+        app.vault.configDir,
         "swiftlatex-render-cache",
       );
 

@@ -6,7 +6,7 @@ import * as fs from "fs";
 import PackageCache from "./packageCache";
 import LogCache from "./logCache";
 
-export enum CacheStatus{
+export enum CacheStatus {
   NotCached = "NotCached",
   Cached = "Cached",
   Error = "Error",
@@ -55,8 +55,8 @@ export default class CompilerCache {
   getLog(hash: string) {
     return this.logCache.getLog(hash);
   }
-  async forceGetLog(hash: string,config: {source: string,sourcePath: string}) {
-    const log = this.getLog(hash)||await this.logCache.forceGetLog(hash,config);
+  async forceGetLog(hash: string, config: { source: string, sourcePath: string }) {
+    const log = this.getLog(hash) || await this.logCache.forceGetLog(hash, config);
     if (!log) {
       throw new Error("No log found for this hash, nor was one able to be produced.")
     }
@@ -147,7 +147,7 @@ export default class CompilerCache {
   private getCacheFolderParentPath() {
     return path.join(
       this.plugin.getVaultPath(),
-      this.plugin.app.vault.configDir,
+      app.vault.configDir,
       "swiftlatex-render-cache",
     );
   }

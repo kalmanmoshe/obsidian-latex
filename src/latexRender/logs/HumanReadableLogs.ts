@@ -10,6 +10,15 @@ export default function parseLatexLog(
 ): ProcessedLog {
   return new LatexLogParser(rawLog, options).parse();
 }
+export enum ErrorClasses {
+  Container = "moshe-swift-latex-error-container",
+  Content = "moshe-swift-latex-error-content",
+  Title = "moshe-swift-latex-error-title",
+  Explanation = "moshe-swift-latex-error-explanation",
+  Cause = "moshe-swift-latex-error-cause",
+  Package = "moshe-swift-latex-error-package",
+  Line = "moshe-swift-latex-error-line",
+}
 
 function displayStructure(items: any[], indent: number = 0): string {
   let result = "";
@@ -65,23 +74,23 @@ export function createErrorDisplay(err: ProcessedLog) {
 export function errorDiv(info: ErrorMessage): HTMLElement {
   const { title, cause, line, explanation, triggeringPackage } = info;
   const container = Object.assign(document.createElement("div"), {
-    className: "moshe-swift-latex-error-container",
+    className: ErrorClasses.Container,
   });
 
   const content = Object.assign(document.createElement("div"), {
-    className: "moshe-swift-latex-error-content",
+    className: ErrorClasses.Content,
   });
   container.appendChild(content);
 
   const errorDetails = [
-    ["moshe-swift-latex-error-title", title],
-    ["moshe-swift-latex-error-explanation", explanation],
-    ["moshe-swift-latex-error-cause", `Triggered from ${cause}`],
+    [ErrorClasses.Title, title],
+    [ErrorClasses.Explanation, explanation],
+    [ErrorClasses.Cause, `Triggered from ${cause}`],
     [
-      "moshe-swift-latex-error-package",
+      ErrorClasses.Package,
       triggeringPackage ? `Package: ${triggeringPackage}` : undefined,
     ],
-    ["moshe-swift-latex-error-line", line ? `At line: ${line}` : undefined],
+    [ErrorClasses.Line, line ? `At line: ${line}` : undefined],
   ];
 
   errorDetails.forEach(([className, textContent]) => {

@@ -33,7 +33,7 @@ function removeAllCachedPackages(plugin: Moshe): Command {
 }
 
 async function extractAllUnrenderedSectionsByFile(plugin: Moshe) {
-  const sectionsByFile = await extractAllSectionsByFile(plugin.app);
+  const sectionsByFile = await extractAllSectionsByFile();
   const sectionInfosByFile = [];
 
   for (const { file, codeBlockSections } of sectionsByFile) {
@@ -55,14 +55,14 @@ async function extractAllUnrenderedSectionsByFile(plugin: Moshe) {
 }
 async function renderAllUnrenderedCodeBlocks(plugin: Moshe) {
   const sectionInfosByFile = await extractAllUnrenderedSectionsByFile(plugin);
-  console.log("Unrendered sections found:", sectionInfosByFile,sectionInfosByFile.length);
+  console.log("Unrendered sections found:", sectionInfosByFile, sectionInfosByFile.length);
   for (const { file, codeBlockSections } of sectionInfosByFile) {
     for (const codeBlock of codeBlockSections) {
       const task = LatexTask.fromSectionInfo(plugin, file.path, codeBlock);
       plugin.swiftlatexRender.addToQueue(task);
     }
   }
-  console.log("All unrendered code blocks are being processed",plugin.swiftlatexRender.queue);
+  console.log("All unrendered code blocks are being processed", plugin.swiftlatexRender.queue);
 }
 
 function getRenderAllUnrenderedCodeBlocks(plugin: Moshe) {

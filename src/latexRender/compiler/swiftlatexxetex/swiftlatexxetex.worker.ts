@@ -16,7 +16,7 @@ import { DefaultWorkerValues, WorkerWindow } from "../base/workerBase/self";
 import { Communicator } from "../base/workerBase/communication";
 import { wasmBinaryFileImport } from "./wasmBinaryStaticImport";
 declare global {
-  interface Window extends WorkerWindow {}
+  interface Window extends WorkerWindow { }
 }
 DefaultWorkerValues.assign();
 const handlers = {
@@ -492,8 +492,8 @@ if (ENVIRONMENT_IS_NODE) {
   if (numericVersion < 160000) {
     throw new Error(
       "This emscripten-generated code requires node v16.0.0 (detected v" +
-        nodeVersion +
-        ")",
+      nodeVersion +
+      ")",
     );
   }
 
@@ -591,7 +591,7 @@ if (ENVIRONMENT_IS_NODE) {
   };
 
   if (typeof clearTimeout == "undefined") {
-    globalThis.clearTimeout = (id) => {};
+    globalThis.clearTimeout = (id) => { };
   }
 
   if (typeof setTimeout == "undefined") {
@@ -636,7 +636,7 @@ if (ENVIRONMENT_IS_NODE) {
     console.log = /** @type{!function(this:Console, ...*): undefined} */ print;
     console.warn = console.error =
       /** @type{!function(this:Console, ...*): undefined} */ typeof printErr !=
-      "undefined"
+        "undefined"
         ? printErr
         : print;
   }
@@ -659,7 +659,7 @@ Object.assign(Module, moduleOverrides);
 moduleOverrides = null;
 checkIncomingModuleAPI();
 
-// Emit code to handle expected values on the Module object. This applies Module.x
+// Emit code to handle expected values on the Module object. applies Module.x
 // to the proper local x. This has two benefits: first, we only emit it if it is
 // expected to arrive, and second, by using a local everywhere else that can be
 // minified.
@@ -862,9 +862,9 @@ assert(
 
 assert(
   typeof Int32Array != "undefined" &&
-    typeof Float64Array !== "undefined" &&
-    Int32Array.prototype.subarray != undefined &&
-    Int32Array.prototype.set != undefined,
+  typeof Float64Array !== "undefined" &&
+  Int32Array.prototype.subarray != undefined &&
+  Int32Array.prototype.set != undefined,
   "JS engine does not provide full typed array support",
 );
 
@@ -995,7 +995,7 @@ function addOnPreMain(cb) {
   __ATMAIN__.unshift(cb);
 }
 
-function addOnExit(cb) {}
+function addOnExit(cb) { }
 
 function addOnPostRun(cb) {
   __ATPOSTRUN__.unshift(cb);
@@ -1120,7 +1120,7 @@ function abort(what) {
   // Use a wasm runtime error, because a JS error might be seen as a foreign
   // exception, which means we'd run destructors on it. We need the error to
   // simply make the program stop.
-  // FIXME This approach does not work in Wasm EH because it currently does not assume
+  // FIXME approach does not work in Wasm EH because it currently does not assume
   // all RuntimeErrors are from traps; it decides whether a RuntimeError is from
   // a trap or not based on a hidden field within the object. So at the moment
   // we don't have a way of throwing a wasm trap from JS. TODO Make a JS API that
@@ -1496,8 +1496,8 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
       if (u > 0x10ffff)
         warnOnce(
           "Invalid Unicode code point " +
-            ptrToString(u) +
-            " encountered when serializing a JS string to a UTF-8 string in wasm memory! (Valid unicode code points should be in range 0-0x10FFFF).",
+          ptrToString(u) +
+          " encountered when serializing a JS string to a UTF-8 string in wasm memory! (Valid unicode code points should be in range 0-0x10FFFF).",
         );
       heap[outIdx++] = 0xf0 | (u >> 18);
       heap[outIdx++] = 0x80 | ((u >> 12) & 63);
@@ -1573,8 +1573,8 @@ var UTF8ArrayToString = (heapOrArray, idx, maxBytesToRead) => {
       if ((u0 & 0xf8) != 0xf0)
         warnOnce(
           "Invalid UTF-8 leading byte " +
-            ptrToString(u0) +
-            " encountered when deserializing a UTF-8 string in wasm memory to a JS string!",
+          ptrToString(u0) +
+          " encountered when deserializing a UTF-8 string in wasm memory to a JS string!",
         );
       u0 =
         ((u0 & 7) << 18) | (u1 << 12) | (u2 << 6) | (heapOrArray[idx++] & 63);
@@ -1745,11 +1745,11 @@ var warnOnce = (text) => {
 var ___assert_fail = (condition, filename, line, func) => {
   abort(
     `Assertion failed: ${UTF8ToString(condition)}, at: ` +
-      [
-        filename ? UTF8ToString(filename) : "unknown filename",
-        line,
-        func ? UTF8ToString(func) : "unknown function",
-      ],
+    [
+      filename ? UTF8ToString(filename) : "unknown filename",
+      line,
+      func ? UTF8ToString(func) : "unknown function",
+    ],
   );
 };
 
@@ -2243,7 +2243,7 @@ var MEMFS = {
     newCapacity = Math.max(
       newCapacity,
       (prevCapacity * (prevCapacity < CAPACITY_DOUBLING_MAX ? 2.0 : 1.125)) >>>
-        0,
+      0,
     );
     if (prevCapacity != 0) newCapacity = Math.max(newCapacity, 256); // At minimum allocate 256b for each file when expanding.
     var oldContents = node.contents;
@@ -2319,7 +2319,7 @@ var MEMFS = {
         var new_node;
         try {
           new_node = FS.lookupNode(new_dir, new_name);
-        } catch (e) {}
+        } catch (e) { }
         if (new_node) {
           for (var i in new_node.contents) {
             throw new FS.ErrnoError(55);
@@ -3070,7 +3070,7 @@ var FS = {
     try {
       var node = FS.lookupNode(dir, name);
       return 20;
-    } catch (e) {}
+    } catch (e) { }
     return FS.nodePermissions(dir, "wx");
   },
   mayDelete(dir, name, isdir) {
@@ -4144,7 +4144,7 @@ var FS = {
     try {
       var lookup = FS.lookupPath(path, { follow: !dontResolveLastLink });
       path = lookup.path;
-    } catch (e) {}
+    } catch (e) { }
     var ret = {
       isRoot: false,
       exists: false,
@@ -4543,13 +4543,13 @@ var SYSCALLS = {
     (tempI64 = [
       stat.size >>> 0,
       ((tempDouble = stat.size),
-      +Math.abs(tempDouble) >= 1.0
-        ? tempDouble > 0.0
-          ? +Math.floor(tempDouble / 4294967296.0) >>> 0
-          : ~~+Math.ceil(
+        +Math.abs(tempDouble) >= 1.0
+          ? tempDouble > 0.0
+            ? +Math.floor(tempDouble / 4294967296.0) >>> 0
+            : ~~+Math.ceil(
               (tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0,
             ) >>> 0
-        : 0),
+          : 0),
     ]),
       (HEAP32[(buf + 24) >> 2] = tempI64[0]),
       (HEAP32[(buf + 28) >> 2] = tempI64[1]);
@@ -4561,13 +4561,13 @@ var SYSCALLS = {
     (tempI64 = [
       Math.floor(atime / 1000) >>> 0,
       ((tempDouble = Math.floor(atime / 1000)),
-      +Math.abs(tempDouble) >= 1.0
-        ? tempDouble > 0.0
-          ? +Math.floor(tempDouble / 4294967296.0) >>> 0
-          : ~~+Math.ceil(
+        +Math.abs(tempDouble) >= 1.0
+          ? tempDouble > 0.0
+            ? +Math.floor(tempDouble / 4294967296.0) >>> 0
+            : ~~+Math.ceil(
               (tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0,
             ) >>> 0
-        : 0),
+          : 0),
     ]),
       (HEAP32[(buf + 40) >> 2] = tempI64[0]),
       (HEAP32[(buf + 44) >> 2] = tempI64[1]);
@@ -4575,13 +4575,13 @@ var SYSCALLS = {
     (tempI64 = [
       Math.floor(mtime / 1000) >>> 0,
       ((tempDouble = Math.floor(mtime / 1000)),
-      +Math.abs(tempDouble) >= 1.0
-        ? tempDouble > 0.0
-          ? +Math.floor(tempDouble / 4294967296.0) >>> 0
-          : ~~+Math.ceil(
+        +Math.abs(tempDouble) >= 1.0
+          ? tempDouble > 0.0
+            ? +Math.floor(tempDouble / 4294967296.0) >>> 0
+            : ~~+Math.ceil(
               (tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0,
             ) >>> 0
-        : 0),
+          : 0),
     ]),
       (HEAP32[(buf + 56) >> 2] = tempI64[0]),
       (HEAP32[(buf + 60) >> 2] = tempI64[1]);
@@ -4589,13 +4589,13 @@ var SYSCALLS = {
     (tempI64 = [
       Math.floor(ctime / 1000) >>> 0,
       ((tempDouble = Math.floor(ctime / 1000)),
-      +Math.abs(tempDouble) >= 1.0
-        ? tempDouble > 0.0
-          ? +Math.floor(tempDouble / 4294967296.0) >>> 0
-          : ~~+Math.ceil(
+        +Math.abs(tempDouble) >= 1.0
+          ? tempDouble > 0.0
+            ? +Math.floor(tempDouble / 4294967296.0) >>> 0
+            : ~~+Math.ceil(
               (tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0,
             ) >>> 0
-        : 0),
+          : 0),
     ]),
       (HEAP32[(buf + 72) >> 2] = tempI64[0]),
       (HEAP32[(buf + 76) >> 2] = tempI64[1]);
@@ -4603,13 +4603,13 @@ var SYSCALLS = {
     (tempI64 = [
       stat.ino >>> 0,
       ((tempDouble = stat.ino),
-      +Math.abs(tempDouble) >= 1.0
-        ? tempDouble > 0.0
-          ? +Math.floor(tempDouble / 4294967296.0) >>> 0
-          : ~~+Math.ceil(
+        +Math.abs(tempDouble) >= 1.0
+          ? tempDouble > 0.0
+            ? +Math.floor(tempDouble / 4294967296.0) >>> 0
+            : ~~+Math.ceil(
               (tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0,
             ) >>> 0
-        : 0),
+          : 0),
     ]),
       (HEAP32[(buf + 88) >> 2] = tempI64[0]),
       (HEAP32[(buf + 92) >> 2] = tempI64[1]);
@@ -5286,13 +5286,13 @@ function _fd_seek(fd, offset_low, offset_high, whence, newOffset) {
     (tempI64 = [
       stream.position >>> 0,
       ((tempDouble = stream.position),
-      +Math.abs(tempDouble) >= 1.0
-        ? tempDouble > 0.0
-          ? +Math.floor(tempDouble / 4294967296.0) >>> 0
-          : ~~+Math.ceil(
+        +Math.abs(tempDouble) >= 1.0
+          ? tempDouble > 0.0
+            ? +Math.floor(tempDouble / 4294967296.0) >>> 0
+            : ~~+Math.ceil(
               (tempDouble - +(~~tempDouble >>> 0)) / 4294967296.0,
             ) >>> 0
-        : 0),
+          : 0),
     ]),
       (HEAP32[newOffset >> 2] = tempI64[0]),
       (HEAP32[(newOffset + 4) >> 2] = tempI64[1]);
@@ -5567,12 +5567,12 @@ var _strftime = (s, maxsize, format, tm) => {
       // Day of the year (001-366)
       return leadingNulls(
         date.tm_mday +
-          arraySum(
-            isLeapYear(date.tm_year + 1900)
-              ? MONTH_DAYS_LEAP
-              : MONTH_DAYS_REGULAR,
-            date.tm_mon - 1,
-          ),
+        arraySum(
+          isLeapYear(date.tm_year + 1900)
+            ? MONTH_DAYS_LEAP
+            : MONTH_DAYS_REGULAR,
+          date.tm_mon - 1,
+        ),
         3,
       );
     },
@@ -6493,7 +6493,7 @@ function checkUnflushedContent() {
         has = true;
       }
     });
-  } catch (e) {}
+  } catch (e) { }
   out = oldOut;
   err = oldErr;
   if (has) {
