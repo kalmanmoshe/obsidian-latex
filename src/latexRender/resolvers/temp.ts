@@ -9,15 +9,56 @@ import { Line } from "@codemirror/state";
 import { codeMirrorLineToTaskSectionInfo, getLatexTaskSectionInfosFromFile } from "./taskSectionInformation";
 type LeafViewInfo = {
 	leaf: WorkspaceLeaf;
-	container: HTMLElement | null;
-	mode: MarkdownViewModeType;
+	mode: MarkdownViewMode;
 };
-enum MarkdownViewModeType {
+enum MarkdownViewMode {
 	Source = 'source',
 	Preview = 'preview',
 	LivePreview = 'live-preview',
 	Unknown = 'unknown'
 };
+function extractMarkdownViewMode(el: HTMLElement): MarkdownViewMode {
+	if (el.classList.contains("markdown-preview-view")) {
+		return MarkdownViewMode.Preview;
+	} else if (el.classList.contains("markdown-source-view")) {
+		return el.classList.contains("is-live-preview") ? MarkdownViewMode.LivePreview : MarkdownViewMode.Source;
+	}
+	return MarkdownViewMode.Unknown;
+}
+
+function findLeafContainingEl(el: HTMLElement): WorkspaceLeaf | null {
+	const leaves = app.workspace.getLeavesOfType("markdown"); // all editor leaves
+
+	for (const leaf of leaves) {
+		const view = getEditorViewForLeaf(leaf); // Custom function — see below
+		if (view?.dom?.contains(el)) {
+			return leaf;
+		}
+	}
+
+	return null;
+}
+function getEditorViewForLeaf(leaf: WorkspaceLeaf): EditorView | null {
+	const cm = (leaf.view as any)?.editor?.cm;
+	if (cm instanceof EditorView) {
+		return cm;
+	}
+	return null;
+}
+function findLeafViewInfoForElement(el: HTMLElement): LeafViewInfo|null  {
+	const leaf = findLeafContainingEl(el);
+	if (!leaf) return null;
+	const containerEl = leaf.view.containerEl;
+	const previewEl = containerEl.querySelector('.markdown-preview-view') as HTMLElement | null;
+	const sourceEl = containerEl.querySelector('.markdown-source-view') as HTMLElement | null;
+	if (!previewEl && !sourceEl) return { leaf, mode: MarkdownViewMode.Unknown };
+	if (previewEl) {
+		return { leaf, mode: MarkdownViewMode.Preview };
+	}
+	const mode = sourceEl!.classList.contains("is-live-preview") ? MarkdownViewMode.LivePreview : MarkdownViewMode.Source;
+	return { leaf, mode };
+	
+}
 
 function getLeafContainersForFile(path: string): LeafViewInfo[] {
 	const leaves = app.workspace.getLeavesOfType('markdown');
@@ -34,16 +75,18 @@ function getLeafContainersForFile(path: string): LeafViewInfo[] {
 		const previewEl = containerEl.querySelector('.markdown-preview-view') as HTMLElement | null;
 		const sourceEl = containerEl.querySelector('.markdown-source-view') as HTMLElement | null;
 		let container: HTMLElement | null = previewEl;
-		let mode: MarkdownViewModeType = viewState?.state?.mode as MarkdownViewModeType || MarkdownViewModeType.Unknown;
+		let mode: MarkdownViewMode = viewState?.state?.mode as MarkdownViewMode || MarkdownViewMode.Unknown;
 		// the viewState mode will only be source or preview, Therefore if we get source we need to look for LivePreview
-		if (mode !== MarkdownViewModeType.Preview) {
+		if (mode !== MarkdownViewMode.Preview) {
 			container = sourceEl;
-			mode = container?.classList.contains("is-live-preview") ? MarkdownViewModeType.LivePreview : MarkdownViewModeType.Source;
+			mode = container?.classList.contains("is-live-preview") ? MarkdownViewMode.LivePreview : MarkdownViewMode.Source;
 		}
-		result.push({ leaf, container, mode });
+		result.push({ leaf, mode });
 	}
 	return result;
 }
+
+
 
 function getEditorViewForFile(file: TFile): CodeMirror.Editor | null {
 	const leaves = app.workspace.getLeavesOfType("markdown");
@@ -68,8 +111,29 @@ class Foo {
 		this.el = el;
 	}
 	async foo() {
+		const info = findLeafViewInfoForElement(this.el);
+		if (!info) {
+			throw new Error("Leaf not found for file: " + this.file.path);
+		}
+		const { leaf, mode } = info;
+		switch (mode) {
+			case MarkdownViewMode.Source:
+				console.log("Source mode", leaf);
+				break;
+			case MarkdownViewMode.Preview:
+				console.log("Preview mode", leaf);
+				break;
+			case MarkdownViewMode.LivePreview:
+				console.log("Live Preview mode", leaf);
+				break;
+			default:
+				throw new Error("Unknown mode for file: " + this.file.path);
+		}
+
+		return
 		let container = this.findAnywhere(this.el, "markdown-source-view");
 		console.log("container", container, this.el);
+
 		if (container?.classList?.contains("is-live-preview")) {
 			const sectionInfo = await this.fromLivePreview(container);
 			console.warn("this.fromLivePreview(container)", sectionInfo);
@@ -99,6 +163,8 @@ class Foo {
 		// Step 1: Traverse up to the highest known ancestor (root)
 		let root: HTMLElement = el;
 		while (root.parentElement) {
+			//console.log("root", root,root.classList);
+			if (root.classList?.contains(className)) return root; // Check if the current element has the class
 			root = root.parentElement;
 		}
 
@@ -116,15 +182,19 @@ class Foo {
 		return null;
 	}
 	async fromLivePreview(viewEl: HTMLElement) {
-		const cmView = getEditorViewForFile(this.file);
+		const cmView = findLeafViewInfoForElement(this.el);
+
 		if (cmView) {
 			const view = cmView as unknown as EditorView;
-			const pos = view?.posAtDOM(this.el);
-			const line = view?.state.doc.lineAt(pos);
-			console.log("line", line, pos, view?.state.doc.toString());
-			if (line) {
-				const section = codeMirrorLineToTaskSectionInfo(this.file, line);
-				if (section) return section;
+			try {
+				const pos = view?.posAtDOM(this.el);
+				const line = view?.state.doc.lineAt(pos);
+				if (line) {
+					const section = await codeMirrorLineToTaskSectionInfo(this.file, line);
+					if (section) return section;
+				}
+			} catch (err) {
+				console.error("Error in posAtDOM:", err);
 			}
 		}
 		
@@ -135,13 +205,13 @@ class Foo {
 
 		console.log("sizer", sizer);
 	}
+	async fromPreview(viewEl: HTMLElement) {
+
+	}
 
 }
 
 export function getPoseFromEl(elFilePath: string, el: HTMLElement) {
-	const view = app.workspace.activeEditor?.editor?.cm as EditorView | undefined;
-	const state = view?.state;
-	if (!state) return null;
 	const foo = new Foo(app.vault.getAbstractFileByPath(elFilePath) as TFile, el);
 	foo.foo();
 }
