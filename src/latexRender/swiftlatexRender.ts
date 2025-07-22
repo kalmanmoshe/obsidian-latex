@@ -20,7 +20,6 @@ import { LatexTask } from "./utils/latexTask";
 import { PdfXeTeXCompiler } from "./compiler/swiftlatexxetex/pdfXeTeXCompiler";
 import LatexCompiler from "./compiler/base/compilerBase/compiler";
 import CompilerCache from "./cache/compilerCache";
-import { getPoseFromEl } from "./resolvers/temp";
 
 temp.track();
 
@@ -114,13 +113,6 @@ export class SwiftlatexRender {
   }
 
   codeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
-    console.debug("Processing code block:", el);
-    // obsidian dose not attach the el to the DOM yet, so we need to wait for the next frame (witch will hapen ones we are dose with the prosising)
-    requestAnimationFrame(() => {
-      console.warn(getPoseFromEl(ctx.sourcePath, el));
-    });
-
-    return
     const isLangTikz = el.classList.contains("block-language-tikz");
     el.classList.remove(...["block-language-tikz", "block-language-latex"]);
     el.classList.add(...["block-language-latexsvg", `overflow-${this.plugin.settings.overflowStrategy}`]);
