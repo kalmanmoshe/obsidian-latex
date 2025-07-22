@@ -114,6 +114,7 @@ export class SwiftlatexRender {
   }
 
   codeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+    console.debug("Processing code block:", el);
     // obsidian dose not attach the el to the DOM yet, so we need to wait for the next frame (witch will hapen ones we are dose with the prosising)
     requestAnimationFrame(() => {
       console.warn(getPoseFromEl(ctx.sourcePath, el));
