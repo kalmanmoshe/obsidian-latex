@@ -23,7 +23,7 @@ export class MosheMathSettingTab extends PluginSettingTab {
   snippetsFileLocEl: HTMLElement;
   snippetVariablesFileLocEl: HTMLElement;
 
-  constructor( plugin: MosheMathPlugin) {
+  constructor(plugin: MosheMathPlugin) {
     super(app, plugin);
     this.plugin = plugin;
     setPluginInstance(plugin);
@@ -135,7 +135,7 @@ export class MosheMathSettingTab extends PluginSettingTab {
       (value: boolean) => {
         this.plugin.settings.physicalCache = value;
         this.plugin.saveSettings();
-        this.plugin.swiftlatexRender.cache.togglePhysicalCache();
+        this.plugin.swiftlatexRender.cache.resultFileCache.togglePhysicalCache();
         physicalCacheLocationSetting.settingEl.toggleClass("hidden", !value);
       },
       {
@@ -151,7 +151,7 @@ export class MosheMathSettingTab extends PluginSettingTab {
       async (value) => {
         this.plugin.settings.physicalCacheLocation = value;
         await this.plugin.saveSettings();
-        this.plugin.swiftlatexRender.cache.changeCacheDirectory();
+        this.plugin.swiftlatexRender.cache.resultFileCache.changeCacheDirectory();
       },
       {
       name: "Physical cache location",
@@ -161,12 +161,11 @@ export class MosheMathSettingTab extends PluginSettingTab {
       debounce: {timeout: 1000, resetTimer: true},
     });
     physicalCacheLocationSetting.settingEl.toggleClass("hidden",!this.plugin.settings.physicalCache);
-
     addButtonSetting(
       containerEl,
       () => {
-        this.plugin.swiftlatexRender.cache.removeAllCachedFiles();
-        throw new Notice("Cleared cached SVGs");
+        this.plugin.swiftlatexRender.cache.resultFileCache.removeAllCached();
+        new Notice("Cleared cached SVGs");
       },
       {
         name: "Clear cached SVGs",

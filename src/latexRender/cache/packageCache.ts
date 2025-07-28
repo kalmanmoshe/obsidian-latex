@@ -2,8 +2,9 @@ import path from "path";
 import { StringMap } from "src/settings/settings";
 import { clearFolder } from "./compilerCache";
 import * as fs from "fs";
-import { PhysicalCacheBase } from "./cacheBase";
+import { PhysicalCacheBase } from "./cacheBase/physicalCacheBase";
 export default class PackageCache extends PhysicalCacheBase {
+  
   setCacheFolderPath(): void {
     const basePath = this.plugin.getVaultPath();
     this.cacheFolderPath = path.join(
@@ -13,16 +14,7 @@ export default class PackageCache extends PhysicalCacheBase {
       "package-cache",
     );
   }
-  getCacheFilePath(fileName: string): string {
-    return path.join(this.getCacheFolderPath(), fileName);
-  }
-  extractFileName(filePath: string): string {
-    return path.basename(filePath);
-  }
-  isValidCacheFile(fileName: string): boolean {
-    const validExtensions = [".sty", ".cls", ".tex"];
-    return validExtensions.includes(path.extname(fileName).toLowerCase());
-  }
+  
   async loadPackageCache() {
     // add files in the package cache folder to the cache list
     const packageFiles = fs.readdirSync(this.getCacheFolderPath());

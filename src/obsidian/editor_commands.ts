@@ -8,7 +8,7 @@ import Moshe from "src/main";
 import { assignCodeBlockName } from "./codeBlockNamer";
 import { getTestCommands } from "src/tests/commands";
 import { extractAllSectionsByFile } from "src/latexRender/resolvers/latexSourceFromFile";
-import { hashLatexSource } from "src/latexRender/swiftlatexRender";
+import { hashLatexContent } from "src/latexRender/swiftlatexRender";
 import { CacheStatus } from "src/latexRender/cache/compilerCache";
 import { LatexTask } from "src/latexRender/utils/latexTask";
 
@@ -41,7 +41,7 @@ async function extractAllUnrenderedSectionsByFile(plugin: Moshe) {
 
     for (const section of codeBlockSections) {
       const codeBlock = section.codeBlock.split("\n").slice(1, -1).join("\n");
-      const hash = hashLatexSource(codeBlock);
+      const hash = hashLatexContent(codeBlock);
       if (plugin.swiftlatexRender.cache.cacheStatusForHash(hash) === CacheStatus.NotCached) {
         fileInfos.push(section);
       }
@@ -75,6 +75,16 @@ function getRenderAllUnrenderedCodeBlocks(plugin: Moshe) {
     }
   };
 }
+function getRebuildQueue(plugin: Moshe) {
+  return {
+    id: "rebuild-queue",
+    name: "Rebuild Render Queue",
+    callback: async () => {
+      plugin.swiftlatexRender.rebuildQueue();
+      new Notice("Render queue rebuilt");
+    }
+  };
+}
 
 function getAbortTasks(plugin: Moshe) {
   return {
@@ -86,6 +96,7 @@ function getAbortTasks(plugin: Moshe) {
     }
   };
 }
+
 
 export const getEditorCommands = (plugin: Moshe): (Command | undefined)[] => {
   return [

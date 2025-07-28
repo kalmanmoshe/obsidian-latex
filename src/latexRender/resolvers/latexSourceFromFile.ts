@@ -1,11 +1,13 @@
 import { App, MarkdownSectionInformation, SectionCache, TAbstractFile, TFile, TFolder } from "obsidian";
 import Moshe from "src/main";
-import { hashLatexSource, latexCodeBlockNamesRegex } from "../swiftlatexRender";
+import { hashLatexContent, latexCodeBlockNamesRegex } from "../swiftlatexRender";
 import { getFileSections } from "./sectionCache";
 import { getLatexTaskSectionInfosFromFile, TaskSectionInformation } from "./taskSectionInformation";
 /** rooles: 
  * - find = Might be undefined
  * - get = Will always return a value or throw an error
+ * - getAll = Will always return an array, might be empty
+ * - extract = Will always return a value And ensure no conflicts or throw an error
  * - codeBlock = the code block text including the opening and closing code block delimiters (i.e., the ``` lines).
  * - content = the content of the code block without the opening and closing delimiters.
  * - sectionInfo = MarkdownSectionInformation
@@ -128,6 +130,6 @@ export function extractCodeBlockName(codeBlock: string): string | undefined {
  */
 export async function getLatexHashesFromFile(file: TFile) {
 	const codeBlocks = await getLatexTaskSectionInfosFromFile(file);
-	const hashes = codeBlocks.map((block) => hashLatexSource(block.codeBlock.split("\n").slice(1, -1).join("\n")));
+	const hashes = codeBlocks.map((block) => hashLatexContent(block.codeBlock.split("\n").slice(1, -1).join("\n")));
 	return hashes;
 }

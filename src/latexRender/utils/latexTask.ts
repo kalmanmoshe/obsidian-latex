@@ -1,8 +1,8 @@
 import Moshe from "src/main";
-import { getFileSectionsFromPath, hashLatexSource, } from "../swiftlatexRender";
+import { hashLatexContent, } from "../swiftlatexRender";
 import { VirtualFileSystem } from "../VirtualFileSystem";
 import { MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownView, TFile } from "obsidian";
-import { getFileSections } from "../resolvers/sectionCache";
+import { getFileSections, getFileSectionsFromPath } from "../resolvers/sectionCache";
 import {
   extractCodeBlockMetadata,
   extractCodeBlockName,
@@ -61,7 +61,8 @@ export class LatexTask {
   plugin: Moshe;
   protected content: string;
   sourcePath: string;
-  md5Hash: string;
+  rawHash: string;
+  resolvedHash: string
   protected blockId: string;
   el: HTMLElement;
   protected sectionInfo?: TaskSectionInformation;
@@ -75,8 +76,8 @@ export class LatexTask {
   set onCompiledCallback(callback: (task: LatexTask) => void) {
     this.onCompiled = callback;
   }
-  static baseCreate(plugin: Moshe, process: boolean, source: string, el: HTMLElement, sourcePath: string, sectionInfo: TaskSectionInformation): LatexTask {
-    const task = createTask(plugin, process, source, el);
+  static baseCreate(plugin: Moshe, process: boolean, content: string, el: HTMLElement, sourcePath: string, sectionInfo: TaskSectionInformation): LatexTask {
+    const task = createTask(plugin, process, content, el);
     task.sourcePath = sourcePath;
     task.setSectionInfo(sectionInfo);
     return task;
@@ -94,32 +95,36 @@ export class LatexTask {
     const isProcess = metadata.language === "tikz";
     return LatexTask.baseCreate(plugin, isProcess, content, document.createElement("div"), path, sectionInfo);
   }
-  static create(plugin: Moshe, source: string, el: HTMLElement, sourcePath: string, sectionInfo: TaskSectionInformation): LatexTask {
-    return this.baseCreate(plugin, false, source, el, sourcePath, sectionInfo);
+  static create(plugin: Moshe, content: string, el: HTMLElement, sourcePath: string, sectionInfo: TaskSectionInformation): LatexTask {
+    return this.baseCreate(plugin, false, content, el, sourcePath, sectionInfo);
   }
-  static async createAsync(plugin: Moshe, process: boolean, source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
-    const task = createTask(plugin, process, source, el);
+  static async createAsync(plugin: Moshe, process: boolean, content: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+    const task = createTask(plugin, process, content, el);
     task.sourcePath = ctx.sourcePath;
     try {
       await task.ensureSectionInfo(ctx);
     } catch (err) {
+      console.error("Error while ensuring section info for task:", err);
       return err as string;
     }
     return task;
   }
   isProcess(): this is ProcessableLatexTask { return this instanceof ProcessableLatexTask; }
   getCacheStatus() {
-    return this.plugin.swiftlatexRender.cache.cacheStatusForHash(this.md5Hash);
+    return this.plugin.swiftlatexRender.cache.cacheStatusForHash(this.rawHash);
   }
   getCacheStatusAsNum() {
-    return this.plugin.swiftlatexRender.cache.cacheStatusForHashAsNum(this.md5Hash);
+    return this.plugin.swiftlatexRender.cache.cacheStatusForHashAsNum(this.rawHash);
   }
   restoreFromCache() {
-    return this.plugin.swiftlatexRender.cache.restoreFromCache(this.el, this.md5Hash);
+    return this.plugin.swiftlatexRender.cache.resultFileCache.restoreFromCache(this.el, this.rawHash);
   }
   setSource(source: string) {
     this.content = source;
-    this.md5Hash = hashLatexSource(source);
+    this.rawHash = hashLatexContent(source);
+    if (!this.resolvedHash) {
+      this.resolvedHash = this.rawHash;
+    }
   }
   getContent() { return this.content; }
   getProcessedContent() { return this.getContent(); }
@@ -154,9 +159,10 @@ export class LatexTask {
     const editor = app.workspace.getActiveViewOfType(MarkdownView)?.editor;
     const fileText = editor?.getValue() ?? (await app.vault.cachedRead(file));
     // i want to move the logger to the plugin thats why i have the err for now, as a reminder
-    let sectionInfo: (MarkdownSectionInformation & { source?: string }) | undefined = getSectionFromTransaction(sections, fileText, this.plugin.logger, editor);
+    let sectionInfo: (MarkdownSectionInformation & { source?: string }) | undefined = undefined//getSectionFromTransaction(sections, fileText, this.plugin.logger, editor);
     if (!sectionInfo) {
       sectionInfo = getSectionFromMatching(sections, fileText, this.content);
+      console.log("Section info from matching:", sectionInfo);
     }
     if (!sectionInfo) {
       throw new Error("No section information found for the task. This might be due to virtual rendering or nested codeBlock environments.")
@@ -172,27 +178,31 @@ export class ProcessableLatexTask extends LatexTask {
   name?: string;
   processed: boolean = false;
   processingTime: number = 0;
-  ast: LatexAbstractSyntaxTree | null = null;
+  private ast: LatexAbstractSyntaxTree | null = null;
   sectionInfo: TaskSectionInformation;
-  astSource: string | null = null;
-  constructor(plugin: Moshe, source: string, el: HTMLElement) {
-    super(plugin, source, el);
+  astContent: string | null = null;
+  constructor(plugin: Moshe, content: string, el: HTMLElement) {
+    super(plugin, content, el);
   }
-  static create(plugin: Moshe, source: string, el: HTMLElement, sourcePath: string, info: TaskSectionInformation): ProcessableLatexTask {
-    return super.baseCreate(plugin, true, source, el, sourcePath, info) as ProcessableLatexTask;
+  static create(plugin: Moshe, content: string, el: HTMLElement, sourcePath: string, info: TaskSectionInformation): ProcessableLatexTask {
+    return super.baseCreate(plugin, true, content, el, sourcePath, info) as ProcessableLatexTask;
   }
   /**
-   * returns the source code of the task. 
-   * @param fromAst - if true, returns the source from the AST, otherwise returns the original source. defaults to true.
+   * returns the content code of the task. 
+   * @param fromAst - if true, returns the content from the AST, otherwise returns the original content. defaults to true.
    * @returns 
    */
   getContent(): string {
     return this.content;
   }
   getProcessedContent(): string {
-    if (!this.ast) throw new Error("AST is not set for this task.");
-    if (!this.astSource) this.astSource = this.ast.toString();
-    return this.astSource;
+    if (!this.ast || !this.astContent) throw new Error("AST is not set for this task.");
+    return this.astContent;
+  }
+  setAst(ast: LatexAbstractSyntaxTree) {
+    this.ast = ast;
+    this.astContent = ast.toString();
+    this.resolvedHash = hashLatexContent(this.astContent);
   }
   /**
    * Logs the task information to the console.
@@ -334,7 +344,8 @@ export class LatexTaskProcessor {
   async processTaskSource() {
     const startTime = performance.now();
     try {
-      const ast = this.task.ast = LatexAbstractSyntaxTree.parse(this.task.getContent());
+      const ast = LatexAbstractSyntaxTree.parse(this.task.getContent());
+      this.task.setAst(ast);
       this.nameTaskCodeBlock();
       if (this.plugin.settings.compilerVfsEnabled) {
         const files = await this.processInputFiles(ast, this.task.sourcePath)
@@ -375,6 +386,7 @@ export class LatexTaskProcessor {
     });
     return files
   }
+
   async processTask(): Promise<boolean> {
     await this.processTaskSource();
     if (this.isError) { return false; }
@@ -389,8 +401,5 @@ export class LatexTaskProcessor {
     await latexTask.processTask();
     return latexTask;
   }
-}
-function getSectionFromTransaction(sections: import("obsidian").SectionCache[], fileText: string, logger: TransactionLogger, editor: import("obsidian").Editor | undefined): (MarkdownSectionInformation & { source?: string; }) | undefined {
-  throw new Error("Function not implemented.");
 }
 
