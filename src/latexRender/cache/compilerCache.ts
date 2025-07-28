@@ -1,5 +1,5 @@
 import Moshe from "src/main";
-import CompiledFileCache from "./compiledFileCache";
+import ResultFileCache from "./resultFileCache";
 import { ProcessedLog } from "../logs/latex-log-parser";
 import path from "path";
 import * as fs from "fs";
@@ -18,7 +18,7 @@ export default class CompilerCache {
   /** Reference to the main plugin instance. */
   private plugin: Moshe;
   /** Handles caching of compiled files. */
-  private cache: CompiledFileCache;
+  resultFileCache: ResultFileCache;
   /** Handles caching of LaTeX packages. */
   private packageCache: PackageCache;
   /** Handles caching of compilation logs. */
@@ -31,8 +31,8 @@ export default class CompilerCache {
   constructor(plugin: Moshe) {
     this.plugin = plugin;
     this.validateCatchDirectory();
-    this.cache = new CompiledFileCache(this.plugin);
-    this.packageCache = new PackageCache(this.plugin);
+    this.resultFileCache = new ResultFileCache(this.plugin);
+    this.packageCache = new PackageCache(this.plugin, [".sty", ".cls", ".tex"]);
     this.logCache = new LogCache(this.plugin);
   }
 
@@ -42,12 +42,7 @@ export default class CompilerCache {
   fetchPackageCacheData() {
     return this.packageCache.fetchPackageCacheData();
   }
-  /**
-   * Cleans up after rendering (e.g., clears temporary cache).
-   */
-  afterRenderCleanUp() {
-    return this.cache.afterRenderCleanUp();
-  }
+  
   /**
    * Retrieves a cached log by hash.
    * @param hash The hash key for the log.
@@ -62,13 +57,7 @@ export default class CompilerCache {
     }
     return log
   }
-  /**
-   * Returns a map of all cached files with their names and content.
-   * The key is the file name (with extension), and the value is the file content.
-   */
-  getCompiledFiles() {
-    return this.cache.getCachedFiles();
-  }
+
   /**
    * Adds a log to the log cache.
    * @param log The log object or string.
@@ -79,67 +68,19 @@ export default class CompilerCache {
   }
 
   /**
-   * Restores a cached file to a DOM element.
-   * @param el The target HTML element.
-   * @param hash The hash key for the cached file.
-   */
-  restoreFromCache(el: HTMLElement, hash: string) {
-    return this.cache.restoreFromCache(el, hash);
-  }
-
-  /**
    * Loads the package cache from disk.
    */
   loadPackageCache() {
     return this.packageCache.loadPackageCache();
   }
-  /**
-   * Adds a file to the compiled file cache.
-   * @param content The file content.
-   * @param hash The hash key for the file.
-   * @param file_path The file path.
-   */
-  addFile(content: string, hash: string, file_path: string) {
-    this.cache.addFile(content, hash, file_path);
-  }
 
-  /**
-   * Removes a file from the compiled file cache.
-   * @param key The cache key.
-   */
-  removeFile(key: string) {
-    return this.cache.removeFileFromCache(key);
-  }
-  /**
-   * Toggles the use of physical (on-disk) cache.
-   */
-  togglePhysicalCache() {
-    return this.cache.togglePhysicalCache();
-  }
-  /**
-   * Changes the cache directory location.
-   */
-  changeCacheDirectory() {
-    this.cache.changeCacheDirectory();
-  }
-  /**
-   * Removes all cached files from the compiled file cache.
-   */
-  removeAllCachedFiles() {
-    return this.cache.removeAllCached();
-  }
   /**
    * Removes all cached packages.
    */
   removeAllCachedPackages() {
     return this.packageCache.removeAllCachedPackages();
   }
-  /**
-   * @returns An array of file paths from the cache that contain codeBlocks of compiled files.
-   */
-  getFilePathsFromCache() {
-    return this.cache.getFilePathsFromCache();
-  }
+
   /**
    * Gets the parent path for the cache folder.
    * @returns The absolute path to the cache folder parent.
@@ -162,7 +103,7 @@ export default class CompilerCache {
   }
   cacheStatusForHash(hash: string) {
     switch (true) {
-      case this.isHashCached(hash):
+      case this.resultFileCache.hasHash(hash):
         return CacheStatus.Cached;
       case this.logCache.hasLog(hash)://We have only the log - this means its in error state
         return CacheStatus.Error;
@@ -179,17 +120,7 @@ export default class CompilerCache {
     };
     return statusToNum[status];
   }
-  isHashCached(hash: string) {
-    return this.cache.hasHash(hash);
-  }
-  /**
-   * Retrieves file paths from the cache for a given hash.
-   * @param hash 
-   * @returns 
-   */
-  getCachedFilePathsForHash(hash: string) {
-    return this.cache.getFilePathsFromCacheForHash(hash);
-  }
+
   /**
    * Gets the compiler instance from the plugin.
    */
@@ -201,7 +132,7 @@ export default class CompilerCache {
    */
   private async unloadCache() {
     await this.compiler().flushCache();
-    this.cache.unloadCache();
+    this.resultFileCache.removeAllCached();
   }
 }
 

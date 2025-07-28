@@ -3,9 +3,9 @@ import { ProcessedLog } from "../logs/latex-log-parser";
 import parseLatexLog from "../logs/HumanReadableLogs";
 import { MarkdownView, Notice } from "obsidian";
 import { getSectionFromMatching } from "../resolvers/findSection";
-import { getFileSectionsFromPath } from "../swiftlatexRender";
-import { LatexTask, LatexTaskProcessor } from "../utils/latexTask";
+import { LatexTask } from "../utils/latexTask";
 import { sectionToTaskSectionInfo } from "../resolvers/taskSectionInformation";
+import { getFileSectionsFromPath } from "../resolvers/sectionCache";
 
 export default class LogCache {
   private plugin: Moshe;

@@ -2,7 +2,8 @@ import { MarkdownSectionInformation, SectionCache, TFile } from "obsidian";
 import { Line } from "@codemirror/state";
 import { getFileSections } from "./sectionCache";
 import Moshe from "src/main";
-import { hashLatexSource, latexCodeBlockNamesRegex } from "../swiftlatexRender";
+import { hashLatexContent, latexCodeBlockNamesRegex } from "../swiftlatexRender";
+import ResultFileCache from "../cache/resultFileCache";
 export interface TaskSectionInformation {
     /**
      * The line start of the source in the file. (zero-based index)
@@ -55,11 +56,11 @@ export async function findTaskSectionInfoFromContentInFile(file: TFile, content:
         }
     }
 }
-export async function getTaskSectionInfoFromHash(plugin: Moshe, hash: string): Promise<TaskSectionInformation> {
-    const filePathsCache = new Set<string>();
 
+export async function getTaskSectionInfoFromHash(cache: ResultFileCache, hash: string): Promise<TaskSectionInformation> {
+    const filePathsCache = new Set<string>();
     // Use cache to narrow down file paths.
-    const cachedFilePaths = plugin.swiftlatexRender.cache.getCachedFilePathsForHash(hash);
+    const cachedFilePaths = cache.getCachedFilePathsForRawHash(hash);
     for (const filePath of cachedFilePaths) {
         if (filePathsCache.has(filePath)) continue;
         filePathsCache.add(filePath);
@@ -123,7 +124,7 @@ export async function findTaskSectionInfoFromHashInFile(file: TFile, hash: strin
     const blockSections = await getLatexTaskSectionInfosFromFile(file)
     for (const section of blockSections) {
         const sectionContent = section.codeBlock.split("\n").slice(1, -1).join("\n");
-        if (hashLatexSource(sectionContent) === hash) {
+        if (hashLatexContent(sectionContent) === hash) {
             return section;
         }
     }

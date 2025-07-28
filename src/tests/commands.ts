@@ -106,7 +106,7 @@ class CompileTest {
         const token = this.activeToken;
         this.testStartTime = Date.now();
 
-        this.displayModal = new TestResultModal(plugin);
+        this.displayModal = new TestResultModal();
         this.displayModal.open();
         this.displayModal.setTestStartTime(this.testStartTime);
         this.tracker = {
@@ -165,15 +165,13 @@ class CompileTest {
 
 
 class TestResultModal extends Modal {
-    plugin: Moshe;
     currentFileEl: HTMLElement;
     currentSectionEl: HTMLElement;
     resultsContainer: HTMLElement;
     testStartTime = 0;
 
-    constructor(plugin: Moshe) {
+    constructor() {
         super(app);
-        this.plugin = plugin;
         this.set();
     }
 

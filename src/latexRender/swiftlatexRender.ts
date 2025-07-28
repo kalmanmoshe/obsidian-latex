@@ -20,6 +20,7 @@ import { LatexTask } from "./utils/latexTask";
 import { PdfXeTeXCompiler } from "./compiler/swiftlatexxetex/pdfXeTeXCompiler";
 import LatexCompiler from "./compiler/base/compilerBase/compiler";
 import CompilerCache from "./cache/compilerCache";
+import { dir } from "console";
 
 temp.track();
 
@@ -111,17 +112,17 @@ export class SwiftlatexRender {
     await this.cache.loadPackageCache();
     await this.compiler.setTexliveEndpoint(this.plugin.settings.package_url);
   }
-
+  // i have to also cache the files refrenced my the hash and thar loction becose thar can i a file that is Referencing the same files.But because it's in a different directory, those files in actuality are different, leading to a different render. 
   codeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
     const isLangTikz = el.classList.contains("block-language-tikz");
     el.classList.remove(...["block-language-tikz", "block-language-latex"]);
     el.classList.add(...["block-language-latexsvg", `overflow-${this.plugin.settings.overflowStrategy}`]);
-    const md5Hash = hashLatexSource(source);
+    const md5Hash = hashLatexContent(source);
     addMenu(this.plugin, el, ctx.sourcePath);
 
     // PDF file has already been cached
     // Could have a case where pdfCache has the key but the cached file has been deleted
-    if (!this.cache.restoreFromCache(el, md5Hash)) {
+    if (!this.cache.resultFileCache.restoreFromCache(el, md5Hash)) {
       //Reliable enough for repeated entries
       LatexTask.createAsync(this.plugin, isLangTikz, source, el, ctx).then((task) => {
         if (typeof task === "string") {
@@ -129,6 +130,7 @@ export class SwiftlatexRender {
           this.handleError(el, errorMessage, { hash: md5Hash });
           return;
         }
+        console.log("Created task:", task, "type of task:", typeof task);
         if (task.restoreFromCache()) return;
         this.addToQueue(task);
       })
@@ -142,11 +144,17 @@ export class SwiftlatexRender {
     this.queue.push(task);
   }
 
-  abortAllTasks() {
-    this.queue.kill();
-    console.log("All tasks aborted and cache cleared.");
+  rebuildQueue() {
+    this.abortAllTasks();
     this.configQueue();
   }
+
+  abortAllTasks() {
+    abortAllTasks(this.queue);
+    this.queue.kill();
+    console.log("All tasks aborted.");
+  }
+
   /**
    * Processes and renders the given LaTeX task.
    *
@@ -154,21 +162,21 @@ export class SwiftlatexRender {
    * @returns `true` if the task was compiled and rendered; `false` if it was restored from cache or failed during processing.
    */
   async processAndRenderLatexTask(task: LatexTask): Promise<boolean> {
-    if (this.cache.restoreFromCache(task.el, task.md5Hash)) {
+    if (this.cache.resultFileCache.restoreFromCache(task.el, task.rawHash)) {
       console.log("fund in catch for", task.getBlockId());
       return false;
     }
     if (task.isProcess()) {
       const processor = await task.process();
       task.log()
-      const { el, md5Hash } = processor.task;
+      const { el, rawHash: md5Hash } = processor.task;
       if (processor.isError) {
         const errorMessage = "Error processing task: " + processor.err;
         this.handleError(el, errorMessage, { hash: md5Hash, });
         return false
       }
     }
-    await this.renderLatexToElement(task.getProcessedContent(), task.el, task.md5Hash, task.sourcePath,);
+    await this.renderLatexToElement(task.getProcessedContent(), task.el, task.rawHash, task.resolvedHash, task.sourcePath,);
     this.reCheckQueue(); // only re-check the queue after a valide rendering
     return true;
   }
@@ -209,7 +217,7 @@ export class SwiftlatexRender {
 
     while (taskNode) {
       const task = taskNode.data;
-      if (this.cache.restoreFromCache(task.el, task.md5Hash)) {
+      if (this.cache.resultFileCache.restoreFromCache(task.el, task.rawHash)) {
         blockIdsToRemove.add(task.getBlockId());
       }
       taskNode = taskNode.next;
@@ -242,21 +250,23 @@ export class SwiftlatexRender {
   private async renderLatexToElement(
     source: string,
     el: HTMLElement,
-    md5Hash: string,
+    rawHash: string,
+    resolvedHash: string,
     sourcePath: string,
   ): Promise<void> {
     try {
-      const result = await this.renderLatexToPDF(source, { md5Hash });
+      const result = await this.renderLatexToPDF(source, { md5Hash: rawHash });
       el.innerHTML = "";
-      await this.translatePDF(result.pdf, el, md5Hash);
-      this.cache.addFile(el.innerHTML, md5Hash, sourcePath);
+      await this.translatePDF(result.pdf, el, rawHash);
+      this.cache.resultFileCache.addFile(el.innerHTML, rawHash, resolvedHash, sourcePath);
     } catch (err) {
-      this.handleError(el, err as string, { parseErr: true, hash: md5Hash });
+      this.handleError(el, err as string, { parseErr: true, hash: rawHash });
     } finally {
       await waitFor(() => this.compiler.isReady());
-      await this.cache.afterRenderCleanUp();
+      await this.cache.resultFileCache.cleanUpCache();
     }
   }
+
   renderLatexToPDF(source: string, config: { strict?: boolean, md5Hash?: string } = {}): Promise<CompileResult> {
     return new Promise((resolve, reject) => {
       temp.mkdir("obsidian-swiftlatex-renderer", async (mkdirErr: any) => {
@@ -321,17 +331,11 @@ const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
   }
 };
 
-export function hashLatexSource(source: string) {
-  return Md5.hashStr(source.replace(/\s/g, ""));
+export function hashLatexContent(content: string) {
+  return Md5.hashStr(content.replace(/\s/g, ""));
 }
 
-export async function getFileSectionsFromPath(path: string) {
-  const file = app.vault.getAbstractFileByPath(path) as TFile;
-  //we cant use the file cache
-  const sections = await getFileSections(file, true);
-  if (!sections) throw new Error("No sections found in metadata");
-  return { file, sections };
-}
+
 
 export function addMenu(plugin: Moshe, el: HTMLElement, filePath: string) {
   el.addEventListener("contextmenu", (event) => {
@@ -342,6 +346,13 @@ export function addMenu(plugin: Moshe, el: HTMLElement, filePath: string) {
   });
 }
 
+function abortAllTasks(queue: QueueObject<LatexTask>) {
+  let head = queue._tasks.head;
+  while (head) {
+    head.data.el.innerHTML = "";
+    head = head.next;
+  }
+}
 export function createWaitingCountdown(index: number) {
   const parentContainer = Object.assign(document.createElement("div"), {
     className: RenderLoaderClasses.ParentContainer,

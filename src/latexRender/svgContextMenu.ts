@@ -2,11 +2,11 @@ import { Menu, Notice, TFile } from "obsidian";
 import Moshe from "src/main";
 import { extractCodeBlockLanguage } from "./resolvers/latexSourceFromFile";
 import { addMenu } from "./swiftlatexRender";
-import { codeBlockToContent } from "./resolvers/findSection";
 import { LogDisplayModal } from "./logs/logDisplayModal";
 import { LatexTask } from "./utils/latexTask";
 import { ErrorClasses } from "./logs/HumanReadableLogs";
 import { findTaskSectionInfoFromHashInFile, TaskSectionInformation } from "./resolvers/taskSectionInformation";
+import { codeBlockToContent } from "./resolvers/sectionUtils";
 /**add:
  * - Reveal in file explorer
  * - show log
@@ -143,7 +143,7 @@ export class SvgContextMenu extends Menu {
       log = await this.plugin.swiftlatexRender.cache.forceGetLog(this.hash, { source: this.source, sourcePath: this.sourcePath })
     }
     console.log("log", log);
-    const modal = new LogDisplayModal(this.plugin, log);
+    const modal = new LogDisplayModal(log);
     modal.open();
   }
   assignLatexSource(): Promise<boolean> {
@@ -199,7 +199,7 @@ export class SvgContextMenu extends Menu {
     let hash = this.hash;
     const parentEl = this.blockEl;
     if (!this.isError && hash) {
-      await this.plugin.swiftlatexRender.cache.removeFile(hash);
+      await this.plugin.swiftlatexRender.cache.resultFileCache.removeFileFromCache(hash);
     }
     this.cleanBlockEl();
     const sectionInfo = await this.getSectionInfo();

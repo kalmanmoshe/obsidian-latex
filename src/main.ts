@@ -51,6 +51,14 @@ async function isWebsiteOnline(url: string): Promise<boolean> {
     return false;
   }
 }
+async function checkWebStatis(url: string) {
+  const online = await isWebsiteOnline(url)
+  if (!online) console.error(`${url} is offline or unreachable.`);
+  else {
+    console.log(`${url} is online.`)
+    new Notice(`Moshe Math Plugin: ${url} is online.`, 5000);
+  };
+}
 
 /**
  * Assignments:
@@ -78,14 +86,7 @@ export default class Moshe extends Plugin {
   logger = createTransactionLogger();
   async onload() {
     console.log("Loading Moshe math plugin");
-    const url = "https://texlive2.swiftlatex.com/";
-    isWebsiteOnline(url).then((online) => {
-      if (!online) console.error(`${url} is offline or unreachable.`);
-      else {
-        console.log(`${url} is online.`)
-        new Notice(`Moshe Math Plugin: ${url} is online.`, 5000);
-      };
-    });
+    checkWebStatis("https://texlive2.swiftlatex.com/");
     await this.loadSettings();
 
     this.addEditorCommands();

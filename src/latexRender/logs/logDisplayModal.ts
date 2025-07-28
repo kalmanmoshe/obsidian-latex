@@ -2,11 +2,9 @@ import { Modal } from "obsidian";
 import Moshe from "src/main";
 import { ProcessedLog, File, ErrorLevel } from "./latex-log-parser";
 export class LogDisplayModal extends Modal {
-  plugin: Moshe;
   log: ProcessedLog;
-  constructor(plugin: Moshe, log: ProcessedLog) {
+  constructor(log: ProcessedLog) {
     super(app);
-    this.plugin = plugin;
     this.log = log;
     this.modalEl.addClass("moshe-swift-latex-log-modal");
   }
