@@ -16,9 +16,9 @@ import {
 } from "../parse/parse";
 import { String as StringClass } from "../parse/typs/ast-types-post";
 import path from "path";
-import { getSectionFromMatching } from "../resolvers/findSection";
-import { getLatexTaskSectionInfosFromString, sectionToTaskSectionInfo, TaskSectionInformation } from "../resolvers/taskSectionInformation";
-import { TransactionLogger } from "../cache/transactionLogger";
+import { getSectionsFromMatching } from "../resolvers/findSection";
+import { getLatexTaskSectionInfosFromString, TaskSectionInformation } from "../resolvers/taskSectionInformation";
+import { codeBlockToContent, sectionToTaskSectionInfo } from "../resolvers/sectionUtils";
 /**
  * Be careful of catching this as the file may change and until you don't generate a new one it will be static.
  */
@@ -65,8 +65,9 @@ export class LatexTask {
   resolvedHash: string
   protected blockId: string;
   el: HTMLElement;
-  protected sectionInfo?: TaskSectionInformation;
+  protected sectionInfos?: TaskSectionInformation[];
   protected onCompiled?: (task: LatexTask) => void;
+  private error: string;
 
   constructor(plugin: Moshe, source: string, el: HTMLElement) {
     this.plugin = plugin;
@@ -76,10 +77,14 @@ export class LatexTask {
   set onCompiledCallback(callback: (task: LatexTask) => void) {
     this.onCompiled = callback;
   }
-  static baseCreate(plugin: Moshe, process: boolean, content: string, el: HTMLElement, sourcePath: string, sectionInfo: TaskSectionInformation): LatexTask {
+  isError() {
+    return !!this.error;
+  }
+  static baseCreate(plugin: Moshe, process: boolean, content: string, el: HTMLElement, sourcePath: string, sectionInfo: TaskSectionInformation| TaskSectionInformation[]): LatexTask {
     const task = createTask(plugin, process, content, el);
     task.sourcePath = sourcePath;
-    task.setSectionInfo(sectionInfo);
+    const sectionInfos = Array.isArray(sectionInfo) ? sectionInfo : [sectionInfo];
+    task.setSectionInfos(sectionInfos);
     return task;
   }
   /**
@@ -90,10 +95,26 @@ export class LatexTask {
    * @returns 
    */
   static fromSectionInfo(plugin: Moshe, path: string, sectionInfo: TaskSectionInformation): LatexTask {
-    const content = sectionInfo.codeBlock.split("\n").slice(1, -1).join("\n");
+    const content = codeBlockToContent(sectionInfo.codeBlock);
     const metadata = extractCodeBlockMetadata(sectionInfo.codeBlock);
     const isProcess = metadata.language === "tikz";
     return LatexTask.baseCreate(plugin, isProcess, content, document.createElement("div"), path, sectionInfo);
+  }
+  static fromSectionInfos(plugin: Moshe, path: string, sectionInfos: TaskSectionInformation[]): LatexTask {
+    if (sectionInfos.length === 0) {
+      throw new Error("No section information provided for creating a task.");
+    }
+    const contents = sectionInfos.map(sec => codeBlockToContent(sec.codeBlock));
+    if (!contents.every(c => c === contents[0])) {
+      throw new Error("All section contents must be the same for creating a task from multiple sections.");
+    }
+    const content = contents[0];
+    const metadatas = sectionInfos.map(sec => extractCodeBlockMetadata(sec.codeBlock));
+    if (!metadatas.every(meta => meta.language === metadatas[0].language)) {
+      throw new Error("All section metadata languages must be the same for creating a task from multiple sections.");
+    }
+    const isProcess = metadatas[0].language === "tikz";
+    return LatexTask.baseCreate(plugin, isProcess, content, document.createElement("div"), path, sectionInfos);
   }
   static create(plugin: Moshe, content: string, el: HTMLElement, sourcePath: string, sectionInfo: TaskSectionInformation): LatexTask {
     return this.baseCreate(plugin, false, content, el, sourcePath, sectionInfo);
@@ -105,9 +126,9 @@ export class LatexTask {
       await task.ensureSectionInfo(ctx);
     } catch (err) {
       console.error("Error while ensuring section info for task:", err);
-      return err as string;
+      return { isError: true, result: err };
     }
-    return task;
+    return { isError: false, result: task }
   }
   isProcess(): this is ProcessableLatexTask { return this instanceof ProcessableLatexTask; }
   getCacheStatus() {
@@ -117,7 +138,7 @@ export class LatexTask {
     return this.plugin.swiftlatexRender.cache.cacheStatusForHashAsNum(this.rawHash);
   }
   restoreFromCache() {
-    return this.plugin.swiftlatexRender.cache.resultFileCache.restoreFromCache(this.el, this.rawHash);
+    return this.plugin.swiftlatexRender.cache.resultFileCache.restoreFromCache(this.el, this.rawHash, this.sourcePath);
   }
   setSource(source: string) {
     this.content = source;
@@ -128,21 +149,23 @@ export class LatexTask {
   }
   getContent() { return this.content; }
   getProcessedContent() { return this.getContent(); }
-  setSectionInfo(info: TaskSectionInformation | MarkdownSectionInformation) {
-    if ("text" in info) { // if it's a MarkdownSectionInformation
-      info = sectionToTaskSectionInfo(info);
+  setSectionInfos(infos: (TaskSectionInformation | MarkdownSectionInformation)[]) {
+    for (const info of infos) {
+      const taskInfo = "text" in info ? sectionToTaskSectionInfo(info) : info;
+      this.sectionInfos ??= [];
+      this.sectionInfos.push(taskInfo as TaskSectionInformation);
     }
-    this.sectionInfo = info;
-    this.blockId = `${this.sourcePath.replace(/ /g, "_")}_${this.sectionInfo.lineStart}`
+
+    this.sectionInfos!.sort((a, b) => a.lineStart - b.lineStart);
+
+    const numberKey = this.sectionInfos!.map(sec => sec.lineStart).join("|");
+    this.blockId = this.sourcePath.replace(/ /g, "_") + "::" + numberKey;
   }
   getBlockId() {
     if (!this.blockId) {
       throw new Error("Block ID is not set. Call setSectionInfo first.");
     }
     return this.blockId
-  }
-  async initialize(ctx: MarkdownPostProcessorContext) {
-    await this.ensureSectionInfo(ctx);
   }
   /**
    * sets the section information for the task.
@@ -153,34 +176,40 @@ export class LatexTask {
    */
   private async ensureSectionInfo(ctx: MarkdownPostProcessorContext) {
     const sectionFromContext = ctx.getSectionInfo(this.el);
-    if (sectionFromContext) { this.setSectionInfo(sectionFromContext); return; };
-
+    if (sectionFromContext) { this.setSectionInfos([sectionFromContext]); return; };
     const { file, sections } = await getFileSectionsFromPath(ctx.sourcePath);
     const editor = app.workspace.getActiveViewOfType(MarkdownView)?.editor;
     const fileText = editor?.getValue() ?? (await app.vault.cachedRead(file));
     // i want to move the logger to the plugin thats why i have the err for now, as a reminder
-    let sectionInfo: (MarkdownSectionInformation & { source?: string }) | undefined = undefined//getSectionFromTransaction(sections, fileText, this.plugin.logger, editor);
-    if (!sectionInfo) {
-      sectionInfo = getSectionFromMatching(sections, fileText, this.content);
-      console.log("Section info from matching:", sectionInfo);
-    }
-    if (!sectionInfo) {
+    let sectionInfos = getSectionsFromMatching(sections, fileText, this.content);
+    
+    if (!sectionInfos) {
+      console.warn(sectionInfos,sections, fileText.split("\n"), this.content.split("\n"));
       throw new Error("No section information found for the task. This might be due to virtual rendering or nested codeBlock environments.")
     }
-    this.setSectionInfo(sectionInfo);
-    if (sectionInfo.source && sectionInfo.source !== this.content) {
-      this.setSource(sectionInfo.source);
+
+    this.setSectionInfos(sectionInfos);
+    const sectionInfosContent = this.sectionInfos?.map(sec => codeBlockToContent(sec.codeBlock))||[];
+    if (sectionInfosContent.some(secContent => secContent !== this.content)) {
+      throw new Error("Section information does not match the task content. This might be due to virtual rendering or nested codeBlock environments.");
     }
   }
+  getDependencyPaths(): string[] {
+    
+  }
 }
+//Create a block ID that is generated from all possible solutions. 
 
 export class ProcessableLatexTask extends LatexTask {
-  name?: string;
+  /**
+   * Because we can't guarantee one section information per task, there may be situations where there are multiple. we don't have enough information to prefer one over the other, so we must consider them all.
+   */
+  possibleNames?: string[];
   processed: boolean = false;
   processingTime: number = 0;
   private ast: LatexAbstractSyntaxTree | null = null;
-  sectionInfo: TaskSectionInformation;
-  astContent: string | null = null;
+  sectionInfos: TaskSectionInformation[];
+  private astContent: string | null = null;
   constructor(plugin: Moshe, content: string, el: HTMLElement) {
     super(plugin, content, el);
   }
@@ -248,10 +277,7 @@ export class LatexTaskProcessor {
     this.isError = true;
   }
   private isNameConflict(name: string): boolean {
-    if (this.task.name !== undefined && name === this.task.name) {
-      return true;
-    }
-    return false
+    return this.task.possibleNames !== undefined && this.task.possibleNames.includes(name);
   }
   /**
    * 
@@ -278,7 +304,7 @@ export class LatexTaskProcessor {
       this.setError(`Multiple code blocks found with name: ${remainingPath} in file: ${file.path}`);
       return;
     }
-    return target.codeBlock.split("\n").slice(1, -1).join("\n");
+    return codeBlockToContent(target.codeBlock);
   }
   /**
    * Processes input files in the LaTeX AST, extracting dependencies and
@@ -345,7 +371,6 @@ export class LatexTaskProcessor {
     const startTime = performance.now();
     try {
       const ast = LatexAbstractSyntaxTree.parse(this.task.getContent());
-      this.task.setAst(ast);
       this.nameTaskCodeBlock();
       if (this.plugin.settings.compilerVfsEnabled) {
         const files = await this.processInputFiles(ast, this.task.sourcePath)
@@ -354,6 +379,7 @@ export class LatexTaskProcessor {
         this.dependencies.push(...this.addAutoUseFilesToAst(ast));
       }
       ast.verifyProperDocumentStructure();
+      this.task.setAst(ast);
       this.task.processingTime = performance.now() - startTime;
       // ── Final task update ────────────────────────
     } catch (e) {
@@ -369,9 +395,15 @@ export class LatexTaskProcessor {
       this.setError("Source path is not a valid file.");
       return;
     }
-    const line = this.task.sectionInfo.codeBlock.split("\n")[0];
-    this.task.name = extractCodeBlockName(line);
+    const names = []
+    for (const section of this.task.sectionInfos) {
+      const line = section.codeBlock.split("\n")[0];
+      const name = extractCodeBlockName(line);
+      if (name) names.push(name);
+    }
+    this.task.possibleNames = names;
   }
+
   private addAutoUseFilesToAst(ast: LatexAbstractSyntaxTree) {
     const files: VFSLatexDependency[] = [];
     this.vfs.getAutoUseFileNames().forEach((name) => {

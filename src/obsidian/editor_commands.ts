@@ -11,6 +11,7 @@ import { extractAllSectionsByFile } from "src/latexRender/resolvers/latexSourceF
 import { hashLatexContent } from "src/latexRender/swiftlatexRender";
 import { CacheStatus } from "src/latexRender/cache/compilerCache";
 import { LatexTask } from "src/latexRender/utils/latexTask";
+import { codeBlockToContent } from "src/latexRender/resolvers/sectionUtils";
 
 function getCodeBlockNamer(plugin: Moshe) {
   return {
@@ -40,7 +41,7 @@ async function extractAllUnrenderedSectionsByFile(plugin: Moshe) {
     const fileInfos = [];
 
     for (const section of codeBlockSections) {
-      const codeBlock = section.codeBlock.split("\n").slice(1, -1).join("\n");
+      const codeBlock = codeBlockToContent(section.codeBlock);
       const hash = hashLatexContent(codeBlock);
       if (plugin.swiftlatexRender.cache.cacheStatusForHash(hash) === CacheStatus.NotCached) {
         fileInfos.push(section);

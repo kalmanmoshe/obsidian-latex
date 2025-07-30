@@ -3,6 +3,7 @@ import Moshe from "src/main";
 import { hashLatexContent, latexCodeBlockNamesRegex } from "../swiftlatexRender";
 import { getFileSections } from "./sectionCache";
 import { getLatexTaskSectionInfosFromFile, TaskSectionInformation } from "./taskSectionInformation";
+import { codeBlockToContent } from "./sectionUtils";
 /** rooles: 
  * - find = Might be undefined
  * - get = Will always return a value or throw an error
@@ -130,6 +131,6 @@ export function extractCodeBlockName(codeBlock: string): string | undefined {
  */
 export async function getLatexHashesFromFile(file: TFile) {
 	const codeBlocks = await getLatexTaskSectionInfosFromFile(file);
-	const hashes = codeBlocks.map((block) => hashLatexContent(block.codeBlock.split("\n").slice(1, -1).join("\n")));
+	const hashes = codeBlocks.map((block) => hashLatexContent(codeBlockToContent(block.codeBlock)));
 	return hashes;
 }
