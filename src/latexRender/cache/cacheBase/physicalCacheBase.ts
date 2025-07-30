@@ -51,13 +51,13 @@ export abstract class PhysicalCacheBase extends CacheBase {
         return fs.existsSync(filePath);
     }
 
-    addFile(name: string, content: string | Uint8Array<ArrayBuffer>): Promise<void> {
-        const filePath = this.getCacheFilePath(name);
+    addFile(fileName: string, content: string | Uint8Array<ArrayBuffer>): Promise<void> {
+        const filePath = this.getCacheFilePath(fileName);
         return fs.promises.writeFile(filePath, content, "utf8");
     }
 
-    deleteFile(name: string) {
-        const filePath = this.getCacheFilePath(name);
+    deleteFile(fileName: string) {
+        const filePath = this.getCacheFilePath(fileName);
         if (fs.existsSync(filePath)) {
             fs.rmSync(filePath);
         }
@@ -66,8 +66,8 @@ export abstract class PhysicalCacheBase extends CacheBase {
     /**
      * Reads cached content by name
      */
-    getFile(name: string): string | undefined {
-        const filePath = this.getCacheFilePath(name);
+    getFile(fileName: string): string | undefined {
+        const filePath = this.getCacheFilePath(fileName);
         if (fs.existsSync(filePath)) {
             return fs.readFileSync(filePath, "utf8");
         } else {

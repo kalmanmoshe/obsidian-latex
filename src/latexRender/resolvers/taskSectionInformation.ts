@@ -1,9 +1,9 @@
 import { MarkdownSectionInformation, SectionCache, TFile } from "obsidian";
-import { Line } from "@codemirror/state";
 import { getFileSections } from "./sectionCache";
 import Moshe from "src/main";
 import { hashLatexContent, latexCodeBlockNamesRegex } from "../swiftlatexRender";
 import ResultFileCache from "../cache/resultFileCache";
+import { codeBlockToContent } from "./sectionUtils";
 export interface TaskSectionInformation {
     /**
      * The line start of the source in the file. (zero-based index)
@@ -22,7 +22,7 @@ export interface TaskSectionInformation {
 /**
  * Returns the most nested (deepest) section info that contains a given line.
  */
-function findInnermostSectionInfo(
+export function findInnermostSectionInfo(
     sectionInfos: TaskSectionInformation[],
     lineIndex: number,
     lineEnd?: number,
@@ -34,23 +34,12 @@ function findInnermostSectionInfo(
     ).sort((a, b) => b.lineStart - a.lineStart)[0];
 }
 
-export function sectionToTaskSectionInfo(section: MarkdownSectionInformation): TaskSectionInformation {
-    return {
-        lineStart: section.lineStart,
-        lineEnd: section.lineEnd,
-        codeBlock: section.text.split("\n").slice(section.lineStart, section.lineEnd + 1).join("\n"),
-    };
-}
 
-export async function codeMirrorLineToTaskSectionInfo(file: TFile, line: Line) {
-    const sectionInfos = await getLatexTaskSectionInfosFromFile(file);
-    return findInnermostSectionInfo(sectionInfos, line.number);
-}
 
 export async function findTaskSectionInfoFromContentInFile(file: TFile, content: string) {
     const blockSections = await getLatexTaskSectionInfosFromFile(file)
     for (const section of blockSections) {
-        const sectionContent = section.codeBlock.split("\n").slice(1, -1).join("\n");
+        const sectionContent = codeBlockToContent(section.codeBlock);
         if (sectionContent === content) {
             return section;
         }
@@ -123,7 +112,7 @@ export function getLatexTaskSectionInfosFromString(string: string, sections: Sec
 export async function findTaskSectionInfoFromHashInFile(file: TFile, hash: string) {
     const blockSections = await getLatexTaskSectionInfosFromFile(file)
     for (const section of blockSections) {
-        const sectionContent = section.codeBlock.split("\n").slice(1, -1).join("\n");
+        const sectionContent = codeBlockToContent(section.codeBlock);
         if (hashLatexContent(sectionContent) === hash) {
             return section;
         }

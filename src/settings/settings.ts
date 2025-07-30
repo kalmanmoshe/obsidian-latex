@@ -16,11 +16,11 @@ export enum OverflowStrategy {
  *
  * Structure:
  * - Outer key: Raw hash of the standardized code block (quick to compute).
- * - Outer value: A map where:
- *   - Key: Resolved hash (includes resolved paths/dependencies).
- *   - Value: A set of file paths that reference this resolved version.
- *
- * Type: Map<RawHash, Map<ResolvedHash, Set<FilePath>>>
+ * - Outer value: A map keyed by the resolved hash (includes path resolution).
+ *   - Inner key: Hash representing the fully resolved version of the code block.
+ *   - Inner value: A set of file paths that reference this resolved version.
+ * 
+ * Map<RawHash, Map<ResolvedHash, Set<FilePath>>>;
  */
 export type CacheMap = Map<string, Map<string, Set<string>>>;
 

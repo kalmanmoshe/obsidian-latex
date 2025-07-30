@@ -113,7 +113,7 @@ export class SwiftlatexRender {
     await this.compiler.setTexliveEndpoint(this.plugin.settings.package_url);
   }
   // i have to also cache the files refrenced my the hash and thar loction becose thar can i a file that is Referencing the same files.But because it's in a different directory, those files in actuality are different, leading to a different render. 
-  codeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+  async codeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
     const isLangTikz = el.classList.contains("block-language-tikz");
     el.classList.remove(...["block-language-tikz", "block-language-latex"]);
     el.classList.add(...["block-language-latexsvg", `overflow-${this.plugin.settings.overflowStrategy}`]);
@@ -122,23 +122,21 @@ export class SwiftlatexRender {
 
     // PDF file has already been cached
     // Could have a case where pdfCache has the key but the cached file has been deleted
-    if (!this.cache.resultFileCache.restoreFromCache(el, md5Hash)) {
+    if (!this.cache.resultFileCache.restoreFromCache(el, md5Hash, ctx.sourcePath)) {
       //Reliable enough for repeated entries
-      LatexTask.createAsync(this.plugin, isLangTikz, source, el, ctx).then((task) => {
-        if (typeof task === "string") {
-          const errorMessage = "Error creating task: " + task;
-          this.handleError(el, errorMessage, { hash: md5Hash });
-          return;
-        }
-        console.log("Created task:", task, "type of task:", typeof task);
-        if (task.restoreFromCache()) return;
-        this.addToQueue(task);
-      })
+      const createResult = await LatexTask.createAsync(this.plugin, isLangTikz, source, el, ctx)
+      if (createResult.isError) {
+        const errorMessage = "Error creating task: " + createResult.result;
+        this.handleError(el, errorMessage, { hash: md5Hash });
+        return;
+      }
+      const task = createResult.result as LatexTask;
+      if (task.restoreFromCache()) return;
+      this.addToQueue(task);
     }
   }
   addToQueue(task: LatexTask) {
     const blockId = task.getBlockId();
-    console.log("Adding task to queue for block ID:", blockId, task, "Queue length:", this.queue.length());
     this.queue.remove((node) => node.data.getBlockId() === blockId);
     task.el.appendChild(createWaitingCountdown(this.queue.length()));
     this.queue.push(task);
@@ -162,7 +160,7 @@ export class SwiftlatexRender {
    * @returns `true` if the task was compiled and rendered; `false` if it was restored from cache or failed during processing.
    */
   async processAndRenderLatexTask(task: LatexTask): Promise<boolean> {
-    if (this.cache.resultFileCache.restoreFromCache(task.el, task.rawHash)) {
+    if (this.cache.resultFileCache.restoreFromCache(task.el, task.rawHash, task.sourcePath)) {
       console.log("fund in catch for", task.getBlockId());
       return false;
     }
@@ -194,6 +192,7 @@ export class SwiftlatexRender {
       return new CompileResult(undefined, CompileStatus.CompileError, err as string);
     }
   }
+
   configQueue() {
     this.queue = async.queue(async (task, done) => {
       const didRender = await this.processAndRenderLatexTask(task);
@@ -217,7 +216,7 @@ export class SwiftlatexRender {
 
     while (taskNode) {
       const task = taskNode.data;
-      if (this.cache.resultFileCache.restoreFromCache(task.el, task.rawHash)) {
+      if (this.cache.resultFileCache.restoreFromCache(task.el, task.rawHash, task.sourcePath)) {
         blockIdsToRemove.add(task.getBlockId());
       }
       taskNode = taskNode.next;

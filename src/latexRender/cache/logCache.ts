@@ -2,10 +2,10 @@ import Moshe from "src/main";
 import { ProcessedLog } from "../logs/latex-log-parser";
 import parseLatexLog from "../logs/HumanReadableLogs";
 import { MarkdownView, Notice } from "obsidian";
-import { getSectionFromMatching } from "../resolvers/findSection";
+import { getSectionsFromMatching } from "../resolvers/findSection";
 import { LatexTask } from "../utils/latexTask";
-import { sectionToTaskSectionInfo } from "../resolvers/taskSectionInformation";
 import { getFileSectionsFromPath } from "../resolvers/sectionCache";
+import { sectionToTaskSectionInfo } from "../resolvers/sectionUtils";
 
 export default class LogCache {
   private plugin: Moshe;
@@ -48,10 +48,10 @@ export default class LogCache {
     const { file, sections } = await getFileSectionsFromPath(sourcePath,);
     const editor = app.workspace.getActiveViewOfType(MarkdownView)?.editor;
     const fileText = editor?.getValue() ?? (await app.vault.cachedRead(file));
-    const sectionFromMatching = getSectionFromMatching(sections, fileText, source);
-    if (!sectionFromMatching) throw new Error("No section found for this source");
-    const sectionInfo = sectionToTaskSectionInfo(sectionFromMatching);
-    const task = LatexTask.fromSectionInfo(this.plugin, sourcePath, sectionInfo);
+    const sectionsFromMatching = getSectionsFromMatching(sections, fileText, source);
+    if (!sectionsFromMatching) throw new Error("No section found for this source");
+    const sectionInfos = sectionsFromMatching.map(secFromMatch => sectionToTaskSectionInfo(secFromMatch));
+    const task = LatexTask.fromSectionInfos(this.plugin, sourcePath, sectionInfos);
     const result = await this.plugin.swiftlatexRender.detachedProcessAndRender(task);
     return parseLatexLog(result.log);
   }

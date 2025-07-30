@@ -6,7 +6,7 @@ import {
   TFile,
 } from "obsidian";
 import { TransactionLogger } from "../cache/transactionLogger";
-import {getFileSections,} from "./sectionCache";
+import { getFileSections, } from "./sectionCache";
 import { EditorView } from "@codemirror/view";
 import { extractSectionSource } from "./sectionUtils";
 
@@ -45,51 +45,37 @@ export async function getCurrentCursorLocationSection(file: TFile, editor: Edito
   return section;
 }
 
-
 /**
  * Tries to find a section by exact or fuzzy string match against the file content.
  * i need to faze this out
  */
-export function getSectionFromMatching(sections: SectionCache[], fileText: string, source: string,): (MarkdownSectionInformation & { source?: string }) | undefined {
-  let sectionCache: SectionCache | undefined;
-  let fuzzyResult: { source: string; section: SectionCache } | undefined;
-  sectionCache = extractSectionCacheOfString(sections, fileText, source);
-  if (!sectionCache || !sectionCache.position) return;
-  return {
-    lineStart: sectionCache?.position.start.line,
-    lineEnd: sectionCache?.position.end.line,
-    text: fileText,
-    source: fuzzyResult?.source ?? extractSectionSource(fileText, sectionCache),
-  }
-  if (!sectionCache) {
-    fuzzyResult = getSectionCacheOfStringFuzzy(sections, fileText, source);
-    sectionCache = fuzzyResult?.section;
-  }
-  if (!sectionCache) {
-    const bestFit = getBestFitSectionCatch(sections, fileText, source);
-    sectionCache = bestFit?.section;
-  }
-  if (!sectionCache) return;
+export function getSectionsFromMatching(sections: SectionCache[], fileText: string, source: string,): MarkdownSectionInformation[] | undefined {
+  const sectionCache: SectionCache[] | undefined =
+    extractPossibleSectionCatchesOfString(sections, fileText, source)
+      ?.filter((sec) => sec.position);
+  console.log("sectionCache", sectionCache);
+  if (!sectionCache || sectionCache.length === 0) return;
 
-  return {
+  return sectionCache.map((sectionCache) => ({
     lineStart: sectionCache.position.start.line,
     lineEnd: sectionCache.position.end.line,
     text: fileText,
-    source: fuzzyResult?.source ?? extractSectionSource(fileText, sectionCache),
-  };
+  }));
+
 }
 
-function extractSectionCacheOfString(sectionsCache: SectionCache[], fileText: string, target: string, exact = true,): SectionCache | undefined {
-  const sourceIndexes = getAllLineStartIndexesOfString(fileText, target);
-  console.log("sourceIndexes", sourceIndexes);
-  const sourceIndex = extractSectionCheck(sourceIndexes);
-  if (!sourceIndex) return;
-  const codeBlockDelimiterIndex = sourceIndex - 1;
-  const possibleSection = findInnermostSection(sectionsCache, codeBlockDelimiterIndex);
-  if (!exact || !possibleSection) return possibleSection;
-  if (possibleSection.position.start.line === codeBlockDelimiterIndex) {
-    return possibleSection
-  }
+function extractPossibleSectionCatchesOfString(sectionsCache: SectionCache[], fileText: string, target: string, exact = false,): SectionCache[] | undefined {
+  const sourceLineIndexes = getAllLineStartIndexesOfString(fileText, target);
+  const possibleSections = sourceLineIndexes.map(idx => findInnermostSection(sectionsCache, idx - 1)).filter(sec => sec != undefined);
+  if (!exact || possibleSections.length === 0) return possibleSections.length > 0 ? possibleSections : undefined;
+  const exactSections = possibleSections.filter(sec =>
+    sourceLineIndexes.includes(sec.position.start.line)
+  );
+  return exactSections.length > 0 ? exactSections : undefined;
+}
+
+function extractSectionCatchOfIndex() {
+
 }
 
 function extractSectionCheck(indexes: number[]) {
@@ -125,7 +111,7 @@ function getTaskSectionInfoFromMatching(sections: SectionCache[], fileText: stri
 /**
  * Returns the most nested (deepest) section that contains a given line.
  */
-function findInnermostSection(
+export function findInnermostSection(
   sections: SectionCache[],
   lineIndex: number,
   lineEnd?: number,

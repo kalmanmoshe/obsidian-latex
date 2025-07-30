@@ -126,10 +126,7 @@ export default class ResultFileCache {
 	 * @param filePath The file path.
 	 */
 	async addFile(content: string, rawHash: string, resolvedHash: string, filePath: string) {
-		await this.cache.addFile(resolvedHash, content);
-
-		const dir = this.dirFromFilePath(filePath);
-
+		await this.cache.addFile(this.hashToFileName(resolvedHash), content);
 		let resolvedMap = this.cacheMap.get(rawHash);
 		if (!resolvedMap) {
 			resolvedMap = new Map<string, Set<string>>();
@@ -142,7 +139,7 @@ export default class ResultFileCache {
 			resolvedMap.set(resolvedHash, pathSet);
 		}
 
-		pathSet.add(dir);
+		pathSet.add(filePath);
 		this.saveCache();
 	}
 
@@ -179,21 +176,27 @@ export default class ResultFileCache {
 	}
 
 	/**
-	 * retrieves the directory path from a file path.
-	 * It normalizes the file path and checks if it starts with the vault path.
-	 * @param filePath 
-	 * @returns 
-	 */
+ * Given a file path that may be relative or absolute, returns the directory path
+ * relative to the vault base path.
+ *
+ * @param filePath - The file path (can be absolute or relative to the vault)
+ * @returns The directory containing the file, as a path relative to the vault
+ */
 	private dirFromFilePath(filePath: string): string {
-		const dir = path.dirname(filePath);
 		const basePath = path.normalize(this.plugin.getVaultPath());
-		const normalizedDir = path.normalize(dir);
 
-		if (!normalizedDir.startsWith(basePath)) {
-			throw new Error(`File path ${filePath} does not start with vault path ${basePath}`);
+		const absolutePath = path.isAbsolute(filePath)
+			? path.normalize(filePath)
+			: path.normalize(path.join(basePath, filePath));
+
+		if (!fs.existsSync(absolutePath)) {
+			throw new Error(`File path ${absolutePath} does not exist in vault`);
 		}
-		return path.relative(basePath, normalizedDir);
+
+		const dir = path.dirname(absolutePath);
+		return path.relative(basePath, path.normalize(dir));
 	}
+
 
 	/**
 	 * Restores the cached content for a given element and hash.
@@ -202,20 +205,23 @@ export default class ResultFileCache {
 	 * @param rawHash 
 	 * @returns 
 	 */
-	restoreFromCache(el: HTMLElement, rawHash: string) {
+	restoreFromCache(el: HTMLElement, rawHash: string, filePath: string): boolean {
 		// if the resolve hash is the same as the raw hash, we can directly get the file from the cache so we dont have to check
-		const data = this.cache.getFile(this.hashToFileName(rawHash));
+		const data = this.getFileFromRawHash(rawHash, filePath);
 		if (data === undefined) return false;
 		el.innerHTML = data;
 		return true;
 	}
 
 	hasHash(hash: string): boolean {
-		return this.cacheMap.has(hash) || this.cache.fileExists(hash);
+		return this.cacheMap.has(hash) || this.cache.fileExists(this.hashToFileName(hash));
 	}
 
 
 	getAllFilePathsFromCache(): string[] {
+		const v1 = [...this.cacheMap.values()]
+		const v2 = v1.flatMap(innerMap => [...innerMap.values()]);
+		const v3 = v2.flatMap(set => [...set]);
 		return [
 			...new Set(
 				[...this.cacheMap.values()]                      // get all inner maps
@@ -242,7 +248,7 @@ export default class ResultFileCache {
 	 */
 	async cleanUpCache(): Promise<void> {
 		const cacheFolderFiles = this.cache.listCacheFiles();
-		const cacheHashes = [...this.cacheMap.keys()];
+		const cachedResolvedHashes = this.getResolvedHashes();
 		const filePathsToRemove: string[] = [];
 		const hashesToRemove: string[] = [];
 
@@ -258,14 +264,14 @@ export default class ResultFileCache {
 				}
 			}
 		}
-
+		console.log("before", [...cacheFolderFiles.map(f => f)]);
 		for (const file of cacheFolderFiles) {
 			const hash = file.split(".")[0];
-			if (!cacheHashes.includes(hash)) {
+			if (!cachedResolvedHashes.includes(hash)) {
 				hashesToRemove.push(hash);
 			}
 		}
-
+		console.log("after",hashesToRemove, filePathsToRemove);
 		for (const hash of hashesToRemove) {
 			await this.removeFileFromCache(hash);
 		}
@@ -296,12 +302,17 @@ export default class ResultFileCache {
 	}
 	/**
 	 * Removes a file from the compiled file cache.
-	 * @param key The cache key.
+	 * @param hash The cache key.
 	 */
-	async removeFileFromCache(key: string) {
-		if (this.cacheMap.has(key)) this.cacheMap.delete(key);
-		this.cache.deleteFile(key);
+	async removeFileFromCache(hash: string) {// Problem is that I'm catching the directory, not the file path. 
+		console.log(`Removing file from cache: ${hash}`);
+		if (this.cacheMap.has(hash)) this.cacheMap.delete(hash);
+		this.cache.deleteFile(this.hashToFileName(hash));
 		await this.saveCache();
+	}
+
+	async removeFilePathFromCache(filePath: string) {
+
 	}
 
 	async removeMdFileCacheDataFromCache(file_path: string) {
@@ -350,6 +361,9 @@ export default class ResultFileCache {
 
 	private hashToFileName(hash: string): string {
 		return `${hash}.${cacheFileFormat}`;
+	}
+	private getResolvedHashes() {
+		return [...this.cacheMap.values()].map(innerMap => [...innerMap.keys()]).flat();
 	}
 }
 // This is just for naming consistency with the physical cache.
