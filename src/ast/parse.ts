@@ -9,6 +9,7 @@ import {
 import { migrateToClassStructure, parse } from "./autoParse/ast-types-pre";
 import { claenUpPaths } from "./cleanUpAst";
 import { EnvironmentWrap } from "./verifyEnvironmentWrap";
+import { extractBasenameAndExtension } from "src/latexRender/resolvers/paths";
 
 /**
  * Assignments:
@@ -19,9 +20,16 @@ import { EnvironmentWrap } from "./verifyEnvironmentWrap";
 function insureRenderInfoexists(node: Node) {
   if (!node.renderInfo) node.renderInfo = {};
 }
+/**
+ * Dependencies themselves and the final source of the AST are not referenced by the path but only by base name and extension.IE. somePath/dir/file.tex -> file.tex So if multiple files are referenced.With same names.This will cause a conflict and they will be overridden.Even if the paths are different.This is just because I was lazy and I didn't want to implement.Directories in the VFS. 
+ */
 export interface LatexDependency {
-  source: string;
-  name: string;
+  content: string;
+  basename: string;
+  /**
+   * The path to the file relative to the vault root.
+   */
+  path: string;
   extension: string;
   ast?: LatexAbstractSyntaxTree;
   isTex: boolean;
@@ -47,8 +55,8 @@ export class LatexAbstractSyntaxTree {
     this.verifyDocumentclass();
     this.cleanUp();
   }
-  verifydocstructure() {}
-  parseArguments() {}
+  verifydocstructure() { }
+  parseArguments() { }
   hasDocumentclass() {
     return this.content.some(
       (node) => node instanceof Macro && node.content === "documentclass",
@@ -92,34 +100,24 @@ export class LatexAbstractSyntaxTree {
     }
     this.content.splice(startIndex, 0, input);
   }
-  addDependency(
-    source: string,
-    name: string,
-    extension: string,
-    config: {
-      isTex?: boolean;
-      ast?: LatexAbstractSyntaxTree;
-      autoUse?: boolean;
-    } = {},
-  ) {
-    if (!this.isInputFile(name))
+  addDependency(dpendency: LatexDependency) {
+    const name = dpendency.basename + "." + dpendency.extension;
+    if (!this.isInputFile(name)) {
       throw new Error("File not found in input files");
-    this.dependencies.set(
-      name,
-      createDpendency(source, name, extension, config),
-    );
+    }
+    this.dependencies.set(name, dpendency);
   }
   cleanUp() {
     claenUpPaths(this.content);
   }
-  removeAllWhitespace() {}
+  removeAllWhitespace() { }
   /**
    * In latex empty lines can cause errors
    * This methd remove all empty lines from the document.
    */
-  removeEmptyLines() {}
-  usdPackages() {}
-  usdLibraries() {}
+  removeEmptyLines() { }
+  usdPackages() { }
+  usdLibraries() { }
   usdInputFiles() {
     return findUsdInputFiles(this.content);
   }
@@ -138,8 +136,8 @@ export class LatexAbstractSyntaxTree {
   isInputFile(filePath: string) {
     return this.getInputFilesPaths().some((path) => filePath === path.trim());
   }
-  usdCommands() {}
-  usdEnvironments() {}
+  usdCommands() { }
+  usdEnvironments() { }
   clone() {
     return new LatexAbstractSyntaxTree(
       this.content.map((node) => node.clone()),
@@ -178,21 +176,23 @@ export function isExtensionTex(extension: string) {
     .split(".")
     .some((ext) => texExtensions.includes(ext.toLowerCase()));
 }
+
+
+
 export function createDpendency(
   source: string,
-  name: string,
-  extension: string,
-  config: {
-    isTex?: boolean;
-    ast?: LatexAbstractSyntaxTree;
-    autoUse?: boolean;
-  } = {},
+  path: string,
+  config: { isTex?: boolean; ast?: LatexAbstractSyntaxTree; autoUse?: boolean; } = {}
 ): LatexDependency {
   let { isTex, ast, autoUse } = config;
+  const {basename, extension} = extractBasenameAndExtension(path);
   isTex = isTex || isExtensionTex(extension);
   if (isTex && !ast) ast = LatexAbstractSyntaxTree.parse(source);
-  return { source, ast, isTex, name, extension, autoUse };
+  return { content: source, ast, isTex, path, basename, extension, autoUse };
 }
+
+
+
 
 function findUsdInputFiles(ast: Ast): Macro[] {
   const inputMacros: Macro[] = [];
@@ -208,58 +208,3 @@ function findUsdInputFiles(ast: Ast): Macro[] {
   }
   return inputMacros;
 }
-
-function cleanUpTikzSet(ast: any) {}
-
-/*
-function cleanUpDefs(ast:Node) {
-    const condition = (node: Node) => node instanceof Macro && node.content === "def";
-    function action(ast: Node,index:number) {
-        if(!contentInNodeAndArray(ast))return;
-        const fondDef = ast.content[index] instanceof Macro && ast.content[index].content === "def";
-        if (!fondDef) {throw new Error("Def not found");}
-        const defCaller = ast.content[index + 1];
-        if (!(defCaller instanceof Macro)) { throw new Error("Def must be followed by a macro"); }
-        const params=parsePlaceholders(ast, index + 2);
-        const items = ast.content.slice(params.endIndex,params.endIndex+1); 
-        //ast.content.splice(index, params.endIndex - index + 1, new Def(defCaller.content,items,params.placeholdersNum));
-    }
-    cleanUpAst(ast, condition, action);
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-function parsePlaceholders(ast: Node, startIndex: number) {
-    let i = startIndex;
-    const placeholders: number[] = [];
-    
-    while ("content" in ast&&i < ast.content.length &&ast.content[i] instanceof String &&ast.content[i].content === "#") {
-      if (i + 1 >= ast.content.length) {throw new Error(`Expected parameter after marker at index ${i}.`);}
-      const param = ast.content[i + 1];
-      if (!(param instanceof String)) {throw new Error(`Invalid parameter at index ${i + 1}.`);}
-      const num = param.getNumber();
-      if (isNaN(num)) {throw new Error(`Invalid placeholder at index ${i + 1}: not a number.`);}
-      placeholders.push(num);
-      i += 2;
-    }
-    if (!placeholders.every((num, index, arr) => index === 0 || num === arr[index - 1] + 1)) {
-        throw new Error("Placeholders must be in ascending order");
-    }
-    if (placeholders.length && placeholders[0] !== 1) {
-        throw new Error("First placeholder must be 1");
-    }
-    return { placeholdersNum: Math.max(...placeholders), endIndex: i };
-}
-
-
-*/

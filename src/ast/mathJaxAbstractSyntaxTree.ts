@@ -20,9 +20,9 @@ export class MathJaxAbstractSyntaxTree {
     }
     return tree;
   }
-  clone(){
+  clone() {
     const newTree = new MathJaxAbstractSyntaxTree();
-    newTree.ast = this.ast.map(node=>node.clone());
+    newTree.ast = this.ast.map(node => node.clone());
     return newTree;
   }
   reverseRtl() {

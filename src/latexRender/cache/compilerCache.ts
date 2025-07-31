@@ -42,7 +42,7 @@ export default class CompilerCache {
   fetchPackageCacheData() {
     return this.packageCache.fetchPackageCacheData();
   }
-  
+
   /**
    * Retrieves a cached log by hash.
    * @param hash The hash key for the log.
@@ -103,7 +103,7 @@ export default class CompilerCache {
   }
   cacheStatusForHash(hash: string) {
     switch (true) {
-      case this.resultFileCache.hasHash(hash):
+      case this.resultFileCache.hasRawHash(hash):
         return CacheStatus.Cached;
       case this.logCache.hasLog(hash)://We have only the log - this means its in error state
         return CacheStatus.Error;

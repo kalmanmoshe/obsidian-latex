@@ -11,21 +11,51 @@ export enum OverflowStrategy {
   Hidden = "hidden",
 }
 
+
+
 /**
- * A cache map for tracking code block compilations.
+ * Represents a single compilation entry for a code block.
+ */
+export type CacheEntry = {
+  /** List of resolved file paths that this code block depends on */
+  dependencies: string[];
+
+  /** A deterministic hash computed from the sorted list of dependencies */
+  depsHash: string;
+
+  /** Set of file paths that reference this specific source+dependency combination */
+  referencedBy: Set<string>;
+};
+
+/**
+ * In-memory cache structure for tracking compiled code blocks.
  *
  * Structure:
- * - Outer key: Raw hash of the standardized code block (quick to compute).
- * - Outer value: A map keyed by the resolved hash (includes path resolution).
- *   - Inner key: Hash representing the fully resolved version of the code block.
- *   - Inner value: A set of file paths that reference this resolved version.
- * 
- * Map<RawHash, Map<ResolvedHash, Set<FilePath>>>;
+ * - Key: raw hash of the standardized code block (quick to compute).
+ * - Value: array of CacheEntry objects, each corresponding to a unique set of dependencies.
+ *
+ * Type: Map<RawHash, CacheEntry[]>
  */
-export type CacheMap = Map<string, Map<string, Set<string>>>;
+export type CacheMap = Map<string, CacheEntry[]>;
 
-// Because we store the cache in a json file, we cannot use Map directly.
-export type CacheArray = Array<[string, Array<[string, Array<string>]>]>;
+/**
+ * JSON-serializable version of a CacheEntry (Set → Array).
+ */
+export type CacheEntryJson = {
+  dependencies: string[];
+  depsHash: string;
+  referencedBy: string[];
+};
+
+/**
+ * JSON-safe cache structure for persisting CacheMap to disk.
+ *
+ * Structure:
+ * - Array of [RawHash, CacheEntryJson[]] tuples.
+ */
+export type CacheJson = Array<[string, CacheEntryJson[]]>;
+
+
 export interface MosheMathPluginSettings {
   mathjaxPreambleEnabled: boolean;
   mathjaxPreambleFileLocation: string;
@@ -38,7 +68,7 @@ export interface MosheMathPluginSettings {
   package_url: string;
   physicalCache: boolean;
   physicalCacheLocation: string;
-  cache: CacheArray;
+  cache: CacheJson;
   /**
    * There are four catches:
    * 1. texlive404_cache - Not found files

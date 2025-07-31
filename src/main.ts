@@ -13,7 +13,7 @@ import { MosheMathSettingTab } from "./settings/settings_tab";
 
 import { getEditorCommands } from "./obsidian/editor_commands";
 import { SwiftlatexRender } from "./latexRender/swiftlatexRender";
-import { MathJaxAbstractSyntaxTree } from "./latexRender/parse/mathJaxAbstractSyntaxTree";
+import { MathJaxAbstractSyntaxTree } from "./ast/mathJaxAbstractSyntaxTree";
 import {
   getFileSets,
   getPreambleFromFiles,

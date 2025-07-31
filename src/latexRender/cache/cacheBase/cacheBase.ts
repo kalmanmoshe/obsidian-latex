@@ -1,6 +1,7 @@
 import Moshe from "src/main";
 import { Notice } from "obsidian";
 import path from "path";
+import { extractBasenameAndExtension, isValidFileBasename } from "src/latexRender/resolvers/paths";
 
 export abstract class CacheBase {
 
@@ -35,32 +36,17 @@ export abstract class CacheBase {
    * Returns list of cached file names (with extension).
    */
   abstract listCacheFiles(): string[];
-
+  abstract cleanCache(): void;
   abstract clearCache(): void;
   abstract deleteCache(): void;
 
-
-  /**
-   * Checks if the provided file basename is valid.
-   * @param basename - the basename of the file to check.
-   * @returns 
-   */
-  isValidFileBasename(basename: any): boolean {
-    if (!basename || typeof basename !== "string"|| basename.trim() === ""||basename.length > 32|| basename.length < 3) {
-      return false;
-    }
-    if (basename.includes("/") || basename.includes("\\")) {
-      return false;
-    }
-    return true;
-  }
   
   isValidFileName(fileName: any) {
     if (!fileName || typeof fileName !== "string" || fileName.trim() === "") {
       return false;
     }
-    const [basename, extension] = extractBasenameAndExtension(fileName);
-    return this.isValidFileBasename(basename) && this.cacheFileExtensions.includes(extension);
+    const { basename, extension } = extractBasenameAndExtension(fileName);
+    return isValidFileBasename(basename) && this.cacheFileExtensions.includes(extension);
   }
 
   /**
@@ -69,15 +55,15 @@ export abstract class CacheBase {
    * @returns The validated file name.
    */
   ensureIsValidFileName(fileName: string): string {
-    const [basename, extension] = extractBasenameAndExtension(fileName);
-    this.ensureIsValidFileExtension(extension!);
+    const {basename, extension} = extractBasenameAndExtension(fileName);
+    this.ensureIsValidFileExtension(extension);
     this.ensureIsValidFileBasename(basename);
     
     return fileName;
   }
 
   ensureIsValidFileBasename(basename: string): string {
-    if (!this.isValidFileBasename(basename)) {
+    if (!isValidFileBasename(basename)) {
       throw new Error(`Invalid file basename: ${basename}`);
     }
     return basename;
@@ -89,12 +75,13 @@ export abstract class CacheBase {
     }
     return extension;
   }
-
 }
 
-function extractBasenameAndExtension(fileName: string): [string, string] {
-  const parts = fileName.split(".");
-  const extension = parts.pop()!;
-  const basename = parts.join(".");
-  return [basename, extension];
-}
+
+/**
+ * Checks if the provided file basename is valid.
+ * @param basename - the basename of the file to check.
+ * @returns 
+ */
+export const fileBaseNameRegex = /[a-zA-Z0-9]*/
+

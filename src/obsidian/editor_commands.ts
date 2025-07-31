@@ -8,10 +8,10 @@ import Moshe from "src/main";
 import { assignCodeBlockName } from "./codeBlockNamer";
 import { getTestCommands } from "src/tests/commands";
 import { extractAllSectionsByFile } from "src/latexRender/resolvers/latexSourceFromFile";
-import { hashLatexContent } from "src/latexRender/swiftlatexRender";
 import { CacheStatus } from "src/latexRender/cache/compilerCache";
 import { LatexTask } from "src/latexRender/utils/latexTask";
 import { codeBlockToContent } from "src/latexRender/resolvers/sectionUtils";
+import { hashLatexContent } from "src/latexRender/cache/resultFileCache";
 
 function getCodeBlockNamer(plugin: Moshe) {
   return {

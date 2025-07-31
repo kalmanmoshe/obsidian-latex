@@ -1,9 +1,4 @@
-import {
-  MarkdownPostProcessorContext,
-  TFile,
-  App,
-} from "obsidian";
-import { Md5 } from "ts-md5";
+import {MarkdownPostProcessorContext } from "obsidian";
 import * as temp from "temp";
 import { CompileResult, CompileStatus } from "./compiler/base/compilerBase/engine";
 import Moshe from "../main";
@@ -12,7 +7,6 @@ import async from "async";
 import { pdfToHtml, pdfToSVG } from "./pdfToHtml/pdfToHtml";
 import parseLatexLog, { createErrorDisplay, errorDiv } from "./logs/HumanReadableLogs";
 import { VirtualFileSystem } from "./VirtualFileSystem";
-import { getFileSections } from "./resolvers/sectionCache";
 import { SvgContextMenu } from "./svgContextMenu";
 import { ProcessedLog } from "./logs/latex-log-parser";
 import PdfTeXCompiler from "./compiler/swiftlatexpdftex/PdfTeXEngine";
@@ -20,10 +14,9 @@ import { LatexTask } from "./utils/latexTask";
 import { PdfXeTeXCompiler } from "./compiler/swiftlatexxetex/pdfXeTeXCompiler";
 import LatexCompiler from "./compiler/base/compilerBase/compiler";
 import CompilerCache from "./cache/compilerCache";
-import { dir } from "console";
+import { hashLatexContent } from "./cache/resultFileCache";
 
 temp.track();
-
 export enum RenderLoaderClasses {
   ParentContainer = "moshe-latex-render-loader-parent-container",
   Loader = "moshe-latex-render-loader",
@@ -174,7 +167,7 @@ export class SwiftlatexRender {
         return false
       }
     }
-    await this.renderLatexToElement(task.getProcessedContent(), task.el, task.rawHash, task.resolvedHash, task.sourcePath,);
+    await this.renderLatexToElement(task.getProcessedContent(), task.el, task.rawHash, task.getDependencyPaths(), task.sourcePath,);
     this.reCheckQueue(); // only re-check the queue after a valide rendering
     return true;
   }
@@ -249,20 +242,19 @@ export class SwiftlatexRender {
   private async renderLatexToElement(
     source: string,
     el: HTMLElement,
-    rawHash: string,
-    resolvedHash: string,
+    rawHash: string, 
+    dependencyPaths: string[],
     sourcePath: string,
   ): Promise<void> {
     try {
       const result = await this.renderLatexToPDF(source, { md5Hash: rawHash });
       el.innerHTML = "";
       await this.translatePDF(result.pdf, el, rawHash);
-      this.cache.resultFileCache.addFile(el.innerHTML, rawHash, resolvedHash, sourcePath);
+      this.cache.resultFileCache.addFile(el.innerHTML, rawHash, dependencyPaths, sourcePath);
     } catch (err) {
       this.handleError(el, err as string, { parseErr: true, hash: rawHash });
     } finally {
       await waitFor(() => this.compiler.isReady());
-      await this.cache.resultFileCache.cleanUpCache();
     }
   }
 
@@ -322,7 +314,7 @@ const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
   let index = 0;
   while (taskNode) {
     const task = taskNode.data;
-    const countdown = task.el.querySelector(RenderLoaderClasses.Countdown);
+    const countdown = task.el.querySelector("."+RenderLoaderClasses.Countdown);
     if (countdown) countdown.textContent = index.toString();
     else console.warn(`Countdown not found for task ${index}`);
     taskNode = taskNode.next;
@@ -330,9 +322,6 @@ const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
   }
 };
 
-export function hashLatexContent(content: string) {
-  return Md5.hashStr(content.replace(/\s/g, ""));
-}
 
 
 

@@ -28,7 +28,7 @@ export abstract class VirtualCacheBase extends CacheBase {
         content = typeof content === "string" ? content : new TextDecoder().decode(content);
         this.cache.set(fileName, content);
     }
-    deleteFile(fileName: string): Promise<void> | void {
+    deleteFile(fileName: string): void {
         if (this.cache.has(fileName)) {
             this.cache.delete(fileName);
         } else {
@@ -46,5 +46,13 @@ export abstract class VirtualCacheBase extends CacheBase {
     }
     clearCache(): void {
         this.cache.clear();
+    }
+    cleanCache(): void {
+        const keys = [...this.cache.keys()];
+        keys.forEach(key => {
+            if (!this.isValidFileName(key)) {
+                this.cache.delete(key);
+            }
+        });
     }
 }
