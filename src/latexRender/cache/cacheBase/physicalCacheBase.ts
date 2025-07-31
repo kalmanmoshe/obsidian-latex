@@ -105,4 +105,17 @@ export abstract class PhysicalCacheBase extends CacheBase {
         });
         return files;
     }
+    cleanCache() {
+        if (!fs.existsSync(this.getCacheFolderPath())) {
+            return
+        }
+        const files = fs.readdirSync(this.getCacheFolderPath());
+        for (const file of files) {
+            if (!this.isValidFileName(file)) {
+                console.warn(`Removing invalid cache file: ${file}`);
+                const filePath = path.join(this.getCacheFolderPath(), file);
+                fs.rmSync(filePath);
+            }
+        } 
+    }
 }

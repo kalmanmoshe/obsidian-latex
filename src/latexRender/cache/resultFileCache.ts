@@ -4,11 +4,21 @@ import { Notice, TFile } from "obsidian";
 import { getLatexHashesFromFile } from "../resolvers/latexSourceFromFile";
 import * as path from "path";
 import { CacheBase } from "./cacheBase/cacheBase";
-import { CacheArray, CacheMap } from "src/settings/settings";
-import { PhysicalCacheBase } from "./cacheBase/physicalCacheBase";
-import { VirtualCacheBase } from "./cacheBase/virtualCacheBase";
+import { CacheEntry, CacheJson, CacheMap } from "src/settings/settings";
 
 export const cacheFileFormat = "svg";
+import crypto from "crypto";
+import { ResultFilePhysicalCache, ResultFileVirtualCache } from "./resultFileCacheTypes";
+
+export function hashString(input: string, length: number = 16): string {
+	return crypto.createHash("sha256")
+		.update(input)
+		.digest("hex")
+		.slice(0, length);
+}
+export function hashLatexContent(content: string) {
+	return hashString(content.replace(/\s/g, ""), 16);
+}
 
 export default class ResultFileCache {
 	private plugin: Moshe;
@@ -16,18 +26,18 @@ export default class ResultFileCache {
 	 * Map of cached files. hash -> Set of file paths that contain this hash.
 	 */
 	private cacheMap: CacheMap;;
-	private virtualCache?: CompiledFileVirtualCache;
-	private physicalCache?: CompiledFilePhysicalCache;
+	private virtualCache?: ResultFileVirtualCache;
+	private physicalCache?: ResultFilePhysicalCache;
 	private cache: CacheBase;
 
 	constructor(plugin: Moshe) {
 		this.plugin = plugin;
 
 		if (this.plugin.settings.physicalCache) {
-			this.physicalCache = new CompiledFilePhysicalCache(this.plugin, [cacheFileFormat]);
+			this.physicalCache = new ResultFilePhysicalCache(this.plugin, [cacheFileFormat]);
 			this.cache = this.physicalCache;
 		} else {
-			this.virtualCache = new CompiledFileVirtualCache(this.plugin);
+			this.virtualCache = new ResultFileVirtualCache(this.plugin);
 			this.cache = this.virtualCache;
 		}
 
@@ -47,12 +57,12 @@ export default class ResultFileCache {
 	private togglePhysicalCacheOff() {
 		if (!this.physicalCache) {
 			console.warn("Physical cache is already disabled, nothing to do.");
-			this.virtualCache = new CompiledFileVirtualCache(this.plugin);
+			this.virtualCache = new ResultFileVirtualCache(this.plugin);
 			this.cache = this.virtualCache;
 			return;
 		}
 		const fileNames = this.physicalCache.listCacheFiles();
-		this.virtualCache = new CompiledFileVirtualCache(this.plugin);
+		this.virtualCache = new ResultFileVirtualCache(this.plugin);
 		for (const name of fileNames) {
 			const content = this.physicalCache.getFile(name);
 			if (!content) {
@@ -69,11 +79,11 @@ export default class ResultFileCache {
 	private togglePhysicalCacheOn() {
 		if (!this.virtualCache) {
 			console.warn("Virtual cache is already disabled, nothing to do.");
-			this.physicalCache = new CompiledFilePhysicalCache(this.plugin, [cacheFileFormat]);
+			this.physicalCache = new ResultFilePhysicalCache(this.plugin, [cacheFileFormat]);
 			this.cache = this.physicalCache;
 			return;
 		}
-		this.physicalCache = new CompiledFilePhysicalCache(this.plugin, [cacheFileFormat]);
+		this.physicalCache = new ResultFilePhysicalCache(this.plugin, [cacheFileFormat]);
 		const fileNames = this.cache.listCacheFiles();
 		for (const fileName of fileNames || []) {
 			const content = this.virtualCache.getFile(fileName)!;
@@ -91,97 +101,116 @@ export default class ResultFileCache {
 		} else {
 			this.togglePhysicalCacheOff();
 		}
+		this.cleanUpCache();
 	}
 
 	private loadCache() {
 		const cache: CacheMap = new Map();
 		for (const [k, v] of this.plugin.settings.cache || []) {
-			const innerMap = new Map<string, Set<string>>();
-			for (const [innerK, innerV] of v) {
-				innerMap.set(innerK, new Set(innerV));
-			}
-			cache.set(k, innerMap);
+			const cacheEntries = v.map((entry) => ({ ...entry, referencedBy: new Set(entry.referencedBy) }));
+			cache.set(k, cacheEntries);
 		}
 		this.cacheMap = cache;
+		this.cleanUpCache();
 	}
 
 	private async saveCache() {
-		const arr: CacheArray = []
-		for (const [k, v] of (this.cacheMap as CacheMap)) {
-			const innerArr: Array<[string, Array<string>]> = [];
-			for (const [innerK, innerV] of v) {
-				innerArr.push([innerK, Array.from(innerV)]);
+		const arr: CacheJson = []
+		for (const [k, v] of this.cacheMap) {
+			const cacheEntriesJson = [];
+			for (const entry of v) {
+				cacheEntriesJson.push({
+					dependencies: entry.dependencies,
+					depsHash: entry.depsHash,
+					referencedBy: [...entry.referencedBy],
+				});
 			}
-			arr.push([k, innerArr]);
+			arr.push([k, cacheEntriesJson]);
 		}
 		this.plugin.settings.cache = arr;
 		await this.plugin.saveSettings();
+	}
+
+	private getDependencyHash(dependencies: string[]): string {
+		if (dependencies.length === 0) { return "nodeps"; }
+		const sorted = [...dependencies].sort();
+		const joined = sorted.join("\n");
+		return hashString(joined, 16);
 	}
 
 	/**
 	 * Adds a file to the compiled file cache.
 	 * @param content The file content.
 	 * @param rawHash The raw hash key for the file.
-	 * @param resolvedHash The resolved hash key for the file.
+	 * @param dependencies The list of dependencies for the file (as relative paths to the vault root).
 	 * @param filePath The file path.
 	 */
-	async addFile(content: string, rawHash: string, resolvedHash: string, filePath: string) {
-		await this.cache.addFile(this.hashToFileName(resolvedHash), content);
-		let resolvedMap = this.cacheMap.get(rawHash);
-		if (!resolvedMap) {
-			resolvedMap = new Map<string, Set<string>>();
-			this.cacheMap.set(rawHash, resolvedMap);
+	async addFile(content: string, rawHash: string, dependencies: string[], filePath: string) {
+		const depsHash = this.getDependencyHash(dependencies);
+		const basename = this.getFileBaseName(rawHash, depsHash);
+
+		let entries = this.cacheMap.get(rawHash);
+		if (!entries) {
+			entries = [];
+			this.cacheMap.set(rawHash, entries);
 		}
 
-		let pathSet = resolvedMap.get(resolvedHash);
-		if (!pathSet) {
-			pathSet = new Set<string>();
-			resolvedMap.set(resolvedHash, pathSet);
+		let entry = entries.find(e => e.depsHash === depsHash);
+
+		if (entry) {
+			entry.referencedBy.add(filePath);
+		} else {
+			entry = {
+				dependencies,
+				depsHash,
+				referencedBy: new Set([filePath]),
+			};
+			entries.push(entry);
 		}
-
-		pathSet.add(filePath);
-		this.saveCache();
+		if (this.cacheMap.get(rawHash)?.filter(e => e.referencedBy.has(filePath)).length !== 1) {
+			throw new Error(`File ${filePath} is already referenced by another hash or dependency combination.`);
+		}
+		this.cache.addFile(this.basenameToFileName(basename), content);
+		await this.saveCache();
 	}
-
-	getFileFromResolvedHash(resolvedHash: string) {
-		return this.cache.getFile(this.hashToFileName(resolvedHash));
+	
+	private getResultFileFromRawHash(rawHash: string, path: string): string | undefined {
+		const cacheEntries = this.cacheMap.get(rawHash);
+		if (!cacheEntries || cacheEntries.length === 0) { return undefined; }
+		let entry = cacheEntries.find(e => e.referencedBy.has(path)) || this.tempName(cacheEntries, path);
+		// i need to add dep to file problom mathcing
+		//if (!entry) { return undefined } // No entry found for this path
+		const depsHash = entry ? entry.depsHash : this.getDependencyHash([]);
+		const basename = this.getFileBaseName(rawHash, depsHash);
+		return this.cache.getFile(this.basenameToFileName(basename));
 	}
-
-	getFileFromRawHash(rawHash: string, path: string): string | undefined {
-		const innerMap = this.cacheMap.get(rawHash);
-		if (!innerMap || innerMap.size === 0) { return undefined; }
-		const dir = this.dirFromFilePath(path);
-		let key;
-		for (const [resolvedHash, dirs] of innerMap.entries()) {
-			if (dirs.has(dir) || rawHash === resolvedHash) {
-				key = resolvedHash;
-				break;
+	private tempName(cacheEntries: CacheEntry[], filePath: string): CacheEntry|undefined {
+		// if a dependency is a code block within the file, it cant be a match
+		// it can be that the code block useis in absolute path, but because we cannot check that, we will just return undefined.
+		for (const entry of cacheEntries) {
+			if (entry.referencedBy.has(filePath)) {
+				return entry;
 			}
-		}
-		if (key) {
-			return this.cache.getFile(this.hashToFileName(key));
+			this.isDependencyCodeBlock(entry.dependencies[0])
 		}
 	}
 
+	private isDependencyCodeBlock(dependency: string): boolean {
+		const name = path.basename(dependency);
+		const dir = path.dirname(dependency);
+		const vaultPath = this.plugin.getVaultPath();
+		const relativePath = path.relative(vaultPath, dir);
+		const dirT = app.vault.getAbstractFileByPath(relativePath);
+		throw new Error(`Dependency ${dependency} is not a valid file in the vault.`);
+	}
+
 	/**
-	 * Checks if the raw hash has a differing inner hash.
-	 * This is used to determine if the raw hash has multiple resolved hashes associated with it.
-	 * @param rawHash The raw hash to check.
-	 * @returns true if the raw hash has a differing inner hash, false otherwise.
+	 * Given a file path that may be relative or absolute, returns the directory path
+	 * relative to the vault base path.
+	 *
+	 * @param filePath - The file path (can be absolute or relative to the vault)
+	 * @returns The directory containing the file, as a path relative to the vault
 	 */
-	private hasDifferingInnerHash(rawHash: string) {
-		const innerMap = this.cacheMap.get(rawHash);
-		if (!innerMap || innerMap.size !== 1) return false;
-		return !innerMap.has(rawHash);
-	}
-
-	/**
- * Given a file path that may be relative or absolute, returns the directory path
- * relative to the vault base path.
- *
- * @param filePath - The file path (can be absolute or relative to the vault)
- * @returns The directory containing the file, as a path relative to the vault
- */
 	private dirFromFilePath(filePath: string): string {
 		const basePath = path.normalize(this.plugin.getVaultPath());
 
@@ -207,38 +236,30 @@ export default class ResultFileCache {
 	 */
 	restoreFromCache(el: HTMLElement, rawHash: string, filePath: string): boolean {
 		// if the resolve hash is the same as the raw hash, we can directly get the file from the cache so we dont have to check
-		const data = this.getFileFromRawHash(rawHash, filePath);
+		const data = this.getResultFileFromRawHash(rawHash, filePath);
 		if (data === undefined) return false;
 		el.innerHTML = data;
 		return true;
 	}
 
-	hasHash(hash: string): boolean {
-		return this.cacheMap.has(hash) || this.cache.fileExists(this.hashToFileName(hash));
+	hasRawHash(rawHash: string): boolean {
+		return this.cacheMap.has(rawHash);
 	}
 
 
 	getAllFilePathsFromCache(): string[] {
-		const v1 = [...this.cacheMap.values()]
-		const v2 = v1.flatMap(innerMap => [...innerMap.values()]);
-		const v3 = v2.flatMap(set => [...set]);
 		return [
 			...new Set(
-				[...this.cacheMap.values()]                      // get all inner maps
-					.flatMap(innerMap => [...innerMap.values()])  // get all Set<string>
-					.flatMap(set => [...set])                     // flatten to string[]
+				[...this.cacheMap.values()]
+					.map(cacheEntries => cacheEntries.map(cacheEntry => [...cacheEntry.referencedBy]))
+					.flat().flat()
 			)
 		];
 	}
 
-	/**
-	 * Retrieves file paths from the cache for a given hash.
-	 * @param rawHash 
-	 * @returns 
-	 */
 	getCachedFilePathsForRawHash(rawHash: string): string[] {
-		if (!this.cacheMap.has(rawHash)) return [];
-		return [...this.cacheMap.get(rawHash)!.values()].flatMap(pathsSet => [...pathsSet.values()])
+		const cacheEntries = this.cacheMap.get(rawHash);
+		return cacheEntries ? [...cacheEntries.flatMap(entry => [...entry.referencedBy])] : [];
 	}
 
 	/**
@@ -246,12 +267,12 @@ export default class ResultFileCache {
 	 * This includes files that are no longer present in the vault or have been deleted.
 	 * It also removes unused caches for files that are still present but no longer have any LaTeX hashes associated with them.
 	 */
-	async cleanUpCache(): Promise<void> {
-		const cacheFolderFiles = this.cache.listCacheFiles();
-		const cachedResolvedHashes = this.getResolvedHashes();
+	private async cleanUpCache(): Promise<void> {
+		this.cache.cleanCache();
+		const resultFileNames = this.cache.listCacheFiles();
 		const filePathsToRemove: string[] = [];
-		const hashesToRemove: string[] = [];
-
+		const rawHashesToRemove: string[] = [];
+		// Find files that dont exsist anymaor if file dose exist, remove unused caches for it.
 		for (const filePath of this.getAllFilePathsFromCache()) {
 			const file = app.vault.getAbstractFileByPath(filePath);
 			if (!file) {
@@ -264,82 +285,102 @@ export default class ResultFileCache {
 				}
 			}
 		}
-		console.log("before", [...cacheFolderFiles.map(f => f)]);
-		for (const file of cacheFolderFiles) {
-			const hash = file.split(".")[0];
-			if (!cachedResolvedHashes.includes(hash)) {
-				hashesToRemove.push(hash);
+		// make Or that all files in the cache are valid files and still present in the vault.
+		for (const resultFile of resultFileNames) {
+			const rawHash = this.nameToHashes(resultFile).rawHash;
+			if (!rawHash || !this.cacheMap.has(rawHash)) {
+				rawHashesToRemove.push(rawHash);
 			}
 		}
-		console.log("after",hashesToRemove, filePathsToRemove);
-		for (const hash of hashesToRemove) {
-			await this.removeFileFromCache(hash);
+
+		for (const hash of rawHashesToRemove) {
+			this.removeRawHashFromCache(hash);
 		}
 
 		for (const filePath of filePathsToRemove) {
-			this.removeFileFromCache(filePath);
+			this.removeReferencingFileFromCache(filePath);
 		}
-
-		await this.plugin.saveSettings();
+		await this.saveCache();
 	}
+
 	/**
 	 * Removes unused caches for a specific file.
 	 * This checks the LaTeX hashes in the file and removes any hashes from the cache that are not present in the file.
 	 * If a hash is no longer referenced by any file, it is removed from the cache.
 	 */
 	private async removeUnusedCachesForFile(file: TFile) {
-		const hashesInFile = await getLatexHashesFromFile(file);
-		const rawHashesInCache = this.getHashesFromCacheForFile(file).rawHashes;
+		const rawHashesInFile = await getLatexHashesFromFile(file);
+		const rawHashesInCache = this.getRawHashesFromCacheForReferencingFile(file).rawHashes;
+		console.log("rawHashesInCache", rawHashesInCache)
 		for (const hash of rawHashesInCache) {
 			// if the hash (from the cache) is not present in the file, remove it from the cache
-			if (!hashesInFile.contains(hash)) {
-				this.cacheMap.get(hash)?.delete(file.path);
-				if (this.cacheMap.get(hash)?.size == 0) {
-					await this.removeFileFromCache(hash);
-				}
+			if (!rawHashesInFile.contains(hash)) {
+				this.removeRawHashFromCache(hash);
 			}
 		}
 	}
-	/**
-	 * Removes a file from the compiled file cache.
-	 * @param hash The cache key.
-	 */
-	async removeFileFromCache(hash: string) {// Problem is that I'm catching the directory, not the file path. 
-		console.log(`Removing file from cache: ${hash}`);
-		if (this.cacheMap.has(hash)) this.cacheMap.delete(hash);
-		this.cache.deleteFile(this.hashToFileName(hash));
-		await this.saveCache();
-	}
 
-	async removeFilePathFromCache(filePath: string) {
-
-	}
-
-	async removeMdFileCacheDataFromCache(file_path: string) {
-		for (const h of this.cacheMap.keys()) {
-			this.cacheMap.get(h)?.delete(file_path);
-			if (this.cacheMap.get(h)?.size == 0) {
-				await this.removeFileFromCache(h);
+	private removeRawHashFromCache(rawHash: string): void {
+		const entries = this.cacheMap.get(rawHash);
+		this.cacheMap.delete(rawHash);
+		if (entries) {
+			for (const entry of entries) {
+				this.removeResultFileFromCache(this.getFileBaseName(rawHash, entry.depsHash));
 			}
 		}
-		await this.saveCache();
+		const resultFileNames = this.cache.listCacheFiles();
+		for (const resultFile of resultFileNames) {
+			const { rawHash: rHash } = this.nameToHashes(resultFile);
+			if (rHash === rawHash) {
+				this.cache.deleteFile(resultFile);
+			}
+		}
+		this.saveCache();
 	}
 
-	private getHashesFromCacheForFile(file: TFile) {
-		const rawHashesSet = new Set<string>(), resolvedHashesSet = new Set<string>();
-		const path = file.path;
+	removeResultFileFromCache(basename: string): void {
+		this.cache.deleteFile(this.basenameToFileName(basename));
+		const { rawHash, depsHash } = this.nameToHashes(basename);
+		const entries = this.cacheMap.get(rawHash);
+		if (!entries) return;
+		const noEntries = entries.length === 0
+		const wasOnlyEntry = entries.length === 1 && entries[0].depsHash === depsHash;
+		if (noEntries||wasOnlyEntry) {
+			this.cacheMap.delete(rawHash);
+			return;
+		}
+	}
+
+	private removeReferencingFileFromCache(path: string): void {
+		const referencingEntries: { rawHash: string, entry: CacheEntry }[] = [];
+		for (const [rawHash, entries] of this.cacheMap.entries()) {
+			const entry = entries.find(e => e.referencedBy.has(path));
+			if (entry) {
+				referencingEntries.push({ rawHash, entry });
+			}
+		}
+
+		for (const { rawHash, entry } of referencingEntries) {
+			entry.referencedBy.delete(path);
+			if (entry.referencedBy.size === 0) {
+				this.removeResultFileFromCache(this.getFileBaseName(rawHash, entry.depsHash));
+			}
+		}
+	}
+	
+	private getRawHashesFromCacheForReferencingFile(file: TFile) {
+		const rawHashesSet = new Set<string>(), depHashesSet = new Set<string>();
 
 		for (const [k, v] of this.cacheMap.entries()) {
-			for (const [innerK, innerV] of v.entries()) {
-				// Check if the Set for the inner hash contains the file path
-				if (innerV.has(path)) {
-					resolvedHashesSet.add(innerK);
+			for (const entry of v) {
+				if (entry.referencedBy.has(file.path)) {
 					rawHashesSet.add(k);
+					depHashesSet.add(entry.depsHash);
 				}
 			}
 		}
 
-		return { rawHashes: [...rawHashesSet], resolvedHashes: [...resolvedHashesSet] };
+		return { rawHashes: [...rawHashesSet], depHashes: [...depHashesSet] };
 	}
 
 	/**
@@ -355,82 +396,26 @@ export default class ResultFileCache {
 	 * Returns a map of all cached files with their names and content.
 	 * The key is the file name (with extension), and the value is the file content.
 	 */
-	getCachedFiles() {
+	private getCachedFiles() {
 		return this.cache.getFiles();
 	}
 
-	private hashToFileName(hash: string): string {
+	private basenameToFileName(hash: string): string {
 		return `${hash}.${cacheFileFormat}`;
+	}
+	private getFileBaseName(rawHash: string, depsHash: string): string {
+		return `${rawHash}-${depsHash}`;
+	}
+	private nameToHashes(fileName: string) {
+		const parts = fileName.split(/[\\/]/).pop()?.split(".").shift();
+		if (!parts) throw new Error(`Invalid file name: ${fileName}`);
+		const [rawHash, depsHash] = parts?.split("-");
+		if (!rawHash || !depsHash) {
+			throw new Error(`Invalid file name format: ${fileName}`);
+		}
+		return { rawHash, depsHash };
 	}
 	private getResolvedHashes() {
 		return [...this.cacheMap.values()].map(innerMap => [...innerMap.keys()]).flat();
-	}
-}
-// This is just for naming consistency with the physical cache.
-class CompiledFileVirtualCache extends VirtualCacheBase {}
-
-class CompiledFilePhysicalCache extends PhysicalCacheBase {
-
-	extractFileName(filePath: string): string {
-		const fileName = path.basename(filePath);
-		if (fileName.endsWith(`.${cacheFileFormat}`)) {
-			return fileName.slice(0, -cacheFileFormat.length - 1);
-		}
-		return fileName;
-	}
-	isValidCacheFile(fileName: string): boolean {
-		return fileName.endsWith(`.${cacheFileFormat}`);
-	}
-
-	setCacheFolderPath() {
-		let folderPath = "";
-		const cacheDir = this.plugin.settings.physicalCacheLocation;
-		const basePath = this.plugin.getVaultPath();
-		if (cacheDir)
-			folderPath = path.join(basePath, cacheDir === "/" ? "" : cacheDir);
-		else
-			folderPath = path.join(
-				basePath,
-				app.vault.configDir,
-				"swiftlatex-render-cache",
-			);
-
-		folderPath = path.join(folderPath, "pdf-cache");
-		this.cacheFolderPath = folderPath;
-	}
-
-	/**
-	 * Changes the cache directory location.
-	 */
-	changeCacheDirectory() {
-		if (!this.plugin.settings.physicalCache) {
-			new Notice(
-				"Physical cache is not enabled, cannot change cache directory.",
-			);
-			return;
-		}
-
-		const oldCacheFiles = this.listCacheFiles();
-		const oldCacheFolderPath = this.cacheFolderPath;
-		this.setCacheFolderPath();
-		const newCacheFolderPath = this.getCacheFolderPath();
-
-		if (newCacheFolderPath === oldCacheFolderPath) {
-			new Notice("Cache directory is already set to the specified location.");
-			return;
-		}
-		if (!fs.existsSync(newCacheFolderPath)) {
-			fs.mkdirSync(newCacheFolderPath, { recursive: true });
-		}
-		for (const file of oldCacheFiles) {
-			const oldPath = path.join(oldCacheFolderPath, file);
-			const newPath = path.join(newCacheFolderPath, file);
-			try {
-				fs.renameSync(oldPath, newPath);
-			} catch (err) {
-				console.error(`Failed to move file ${file}:`, err);
-			}
-		}
-		fs.rmdirSync(oldCacheFolderPath, { recursive: true });
 	}
 }

@@ -1,24 +1,21 @@
 import Moshe from "src/main";
-import { hashLatexContent, } from "../swiftlatexRender";
 import { VirtualFileSystem } from "../VirtualFileSystem";
 import { MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownView, TFile } from "obsidian";
 import { getFileSections, getFileSectionsFromPath } from "../resolvers/sectionCache";
-import {
-  extractCodeBlockMetadata,
-  extractCodeBlockName,
-  findRelativeFile,
-} from "../resolvers/latexSourceFromFile";
+import { extractCodeBlockMetadata, extractCodeBlockName } from "../resolvers/latexSourceFromFile";
 import {
   createDpendency,
   isExtensionTex,
   LatexAbstractSyntaxTree,
   LatexDependency,
-} from "../parse/parse";
-import { String as StringClass } from "../parse/typs/ast-types-post";
+} from "../../ast/parse";
+import { String as StringClass } from "../../ast/typs/ast-types-post";
 import path from "path";
 import { getSectionsFromMatching } from "../resolvers/findSection";
-import { getLatexTaskSectionInfosFromString, TaskSectionInformation } from "../resolvers/taskSectionInformation";
+import { TaskSectionInformation } from "../resolvers/taskSectionInformation";
 import { codeBlockToContent, sectionToTaskSectionInfo } from "../resolvers/sectionUtils";
+import { hashLatexContent } from "../cache/resultFileCache";
+import { extractBasenameAndExtension, findRelativeFile, getFileContent, isValidFileBasename, resolvePathRelToVault } from "../resolvers/paths";
 /**
  * Be careful of catching this as the file may change and until you don't generate a new one it will be static.
  */
@@ -44,7 +41,11 @@ type InputFile = {
 };
 
 type VFSLatexDependency = LatexDependency & { inVFS: boolean };
-
+interface VFSLatexBaseDependency extends LatexDependency {
+  basename: string;
+  extension: string;
+  isTex: boolean;
+}
 
 export function createTask(plugin: Moshe, process: boolean, content: string, el: HTMLElement): LatexTask | ProcessableLatexTask {
   return process
@@ -80,7 +81,7 @@ export class LatexTask {
   isError() {
     return !!this.error;
   }
-  static baseCreate(plugin: Moshe, process: boolean, content: string, el: HTMLElement, sourcePath: string, sectionInfo: TaskSectionInformation| TaskSectionInformation[]): LatexTask {
+  static baseCreate(plugin: Moshe, process: boolean, content: string, el: HTMLElement, sourcePath: string, sectionInfo: TaskSectionInformation | TaskSectionInformation[]): LatexTask {
     const task = createTask(plugin, process, content, el);
     task.sourcePath = sourcePath;
     const sectionInfos = Array.isArray(sectionInfo) ? sectionInfo : [sectionInfo];
@@ -159,7 +160,7 @@ export class LatexTask {
     this.sectionInfos!.sort((a, b) => a.lineStart - b.lineStart);
 
     const numberKey = this.sectionInfos!.map(sec => sec.lineStart).join("|");
-    this.blockId = this.sourcePath.replace(/ /g, "_") + "::" + numberKey;
+    this.blockId = this.sourcePath.replace(/ /g, "_") + "||" + numberKey;
   }
   getBlockId() {
     if (!this.blockId) {
@@ -182,20 +183,20 @@ export class LatexTask {
     const fileText = editor?.getValue() ?? (await app.vault.cachedRead(file));
     // i want to move the logger to the plugin thats why i have the err for now, as a reminder
     let sectionInfos = getSectionsFromMatching(sections, fileText, this.content);
-    
+
     if (!sectionInfos) {
-      console.warn(sectionInfos,sections, fileText.split("\n"), this.content.split("\n"));
+      console.warn(sectionInfos, sections, fileText.split("\n"), this.content.split("\n"));
       throw new Error("No section information found for the task. This might be due to virtual rendering or nested codeBlock environments.")
     }
 
     this.setSectionInfos(sectionInfos);
-    const sectionInfosContent = this.sectionInfos?.map(sec => codeBlockToContent(sec.codeBlock))||[];
+    const sectionInfosContent = this.sectionInfos?.map(sec => codeBlockToContent(sec.codeBlock)) || [];
     if (sectionInfosContent.some(secContent => secContent !== this.content)) {
       throw new Error("Section information does not match the task content. This might be due to virtual rendering or nested codeBlock environments.");
     }
   }
   getDependencyPaths(): string[] {
-    
+    return []
   }
 }
 //Create a block ID that is generated from all possible solutions. 
@@ -216,18 +217,23 @@ export class ProcessableLatexTask extends LatexTask {
   static create(plugin: Moshe, content: string, el: HTMLElement, sourcePath: string, info: TaskSectionInformation): ProcessableLatexTask {
     return super.baseCreate(plugin, true, content, el, sourcePath, info) as ProcessableLatexTask;
   }
-  /**
-   * returns the content code of the task. 
-   * @param fromAst - if true, returns the content from the AST, otherwise returns the original content. defaults to true.
-   * @returns 
-   */
-  getContent(): string {
-    return this.content;
-  }
+
   getProcessedContent(): string {
     if (!this.ast || !this.astContent) throw new Error("AST is not set for this task.");
     return this.astContent;
   }
+  getDependencyPaths(): string[] {
+    if (!this.ast) throw new Error("AST is not set for this task.");
+    const dependencies = [...this.ast.dependencies.values()].filter((dep) => !dep.autoUse);
+
+    const paths = dependencies.map((dep) => dep.path);
+    if (!paths) throw new Error("No dependencies found for this task.");
+    if (paths.length !== new Set(paths).size) {
+      throw new Error("Duplicate dependency paths found: " + paths);
+    }
+    return paths;
+  }
+
   setAst(ast: LatexAbstractSyntaxTree) {
     this.ast = ast;
     this.astContent = ast.toString();
@@ -276,36 +282,29 @@ export class LatexTaskProcessor {
     this.err = err;
     this.isError = true;
   }
-  private isNameConflict(name: string): boolean {
-    return this.task.possibleNames !== undefined && this.task.possibleNames.includes(name);
+  private isNameConflict(basename: string): boolean {
+    return isValidFileBasename(basename) && this.task.possibleNames !== undefined && this.task.possibleNames.includes(basename);
   }
-  /**
-   * 
-   * @param file 
-   * @param remainingPath 
-   * @returns 
-   */
-  private async getFileContent(file: TFile, remainingPath?: string): Promise<string | void> {
-    const fileText = await app.vault.read(file);
-    if (!remainingPath) return fileText;
-    if (this.isNameConflict(remainingPath)) {
-      this.setError("Cannot reference the code block name directly (a code block cannot input itself). Use a different name or path.");
-      return;
+
+  private async resolveDependency(filePath: string, basePath: string) {
+    let path = resolvePathRelToVault(filePath, basePath);
+    const codeBlockName = path.split("::").pop();
+    if (codeBlockName) {
+      if (!isValidFileBasename(codeBlockName)) {
+        throw new Error(`Invalid code block name: ${codeBlockName}`);
+      }
     }
-    const sections = await getFileSections(file, true);
-    const err = "No code block found with name: " + remainingPath + " in file: " + file.path;;
-    if (!sections) { this.setError(err); return; };
-    //error it returns 3 times the same code block
-    const codeBlocks = await getLatexTaskSectionInfosFromString(fileText, sections!);
-    const potentialTargets = codeBlocks.filter((block) => extractCodeBlockName(block.codeBlock) === remainingPath);
-    const target = potentialTargets.shift();
-    if (!target) { this.setError(err); return; };
-    if (potentialTargets.length > 0) {
-      this.setError(`Multiple code blocks found with name: ${remainingPath} in file: ${file.path}`);
-      return;
+    const { basename, extension } = extractBasenameAndExtension(path);
+    if (this.isNameConflict(basename)) {
+      throw new Error(`Name conflict detected for code block: ${codeBlockName}`);
     }
-    return codeBlockToContent(target.codeBlock);
+    const content = await getFileContent(path);
+
+    const dependency = createDpendency(content, path, { isTex: isExtensionTex(extension) });
+    console.log("Resolved dependency:", dependency,basename, extension);
+    return dependency;
   }
+
   /**
    * Processes input files in the LaTeX AST, extracting dependencies and
    * normalizing file names.
@@ -313,51 +312,34 @@ export class LatexTaskProcessor {
    * @param basePath The base path for resolving relative file paths.
    * @returns An array of dependencies found in the input files.
    */
-  private async processInputFiles(ast: LatexAbstractSyntaxTree, basePath: string): Promise<VFSLatexDependency[] | void> {
+  private async processInputFiles(ast: LatexAbstractSyntaxTree, basePath: string): Promise<VFSLatexDependency[]| undefined> {
     const usedFiles: VFSLatexDependency[] = [];
     const inputFilesMacros = ast.usdInputFiles()
       .filter((macro) => macro.args && macro.args.length === 1);
     for (const macro of inputFilesMacros) {
       const args = macro.args!;
       const filePath = args[0].content.map((node) => node.toString()).join("").trim();
-      const dir = findRelativeFile(filePath, app.vault.getAbstractFileByPath(basePath),);
-      const name = (dir.remainingPath || dir.file.basename) + ".tex";
+      const dependency = await this.resolveDependency(filePath, basePath);
+      const name = dependency.basename + "." + dependency.extension;
       // Replace the macro argument with normalized name
       args[0].content = [new StringClass(name)];
 
       // Avoid circular includes
       if (this.vfs.hasFile(name)) continue;
-      const content = await this.getFileContent(dir.file, dir.remainingPath);
-      if (!content) { return; }
 
-      const ext = path.extname(name);
-      const baseDependency: Partial<VFSLatexDependency> & {
-        name: string; extension: string; isTex: boolean;
-      } = { name, extension: ext, isTex: isExtensionTex(ext), };
-
-      if (baseDependency.isTex) {
+      if (dependency.isTex) {
         // Recursively process the content
-        const nestedAst = LatexAbstractSyntaxTree.parse(content);
-        const processedFiles = await this.processInputFiles(nestedAst, dir.file.path)
+        const nestedAst = LatexAbstractSyntaxTree.parse(dependency.content);
+        const processedFiles = await this.processInputFiles(nestedAst, basePath);
         if (!processedFiles) { return; }
         usedFiles.push(...processedFiles);
-        baseDependency.ast = nestedAst;
-        baseDependency.source = nestedAst.toString();
-      } else {
-        baseDependency.source = content;
+        dependency.ast = nestedAst;
+        dependency.content = nestedAst.toString();
       }
-      const { source, name: depName, extension } = baseDependency;
-      const dependency = {
-        ...createDpendency(source, depName, extension, baseDependency),
-        inVFS: false,
-      };
-      usedFiles.push(dependency);
-      ast.addDependency(
-        content,
-        dependency.name,
-        dependency.extension,
-        dependency,
-      );
+
+      const vfsDep = { ...dependency, inVFS: false }
+      usedFiles.push(vfsDep);
+      ast.addDependency(dependency);
     }
 
     return usedFiles;
@@ -409,12 +391,10 @@ export class LatexTaskProcessor {
     this.vfs.getAutoUseFileNames().forEach((name) => {
       ast.addInputFileToPramble(name);
       const file = this.vfs.getFile(name).content;
-      const dependency = {
-        ...createDpendency(file, name, path.extname(name), { isTex: true, autoUse: true }),
-        inVFS: true,
-      };
-      files.push(dependency);
-      ast.addDependency(file, dependency.name, dependency.extension, dependency);
+      const dependency = createDpendency(file, name, { isTex: true, autoUse: true });
+      const vfsDep = { ...dependency, inVFS: true };
+      files.push(vfsDep);
+      ast.addDependency(dependency);
     });
     return files
   }
@@ -423,7 +403,7 @@ export class LatexTaskProcessor {
     await this.processTaskSource();
     if (this.isError) { return false; }
     for (const dep of this.dependencies) {
-      if (!dep.inVFS) this.vfs.addVirtualFileSystemFile({ name: dep.name, content: dep.source });
+      if (!dep.inVFS) this.vfs.addVirtualFileSystemFile({ name: dep.basename +"."+ dep.extension, content: dep.content });
     }
     return true;
   }
@@ -434,4 +414,3 @@ export class LatexTaskProcessor {
     return latexTask;
   }
 }
-

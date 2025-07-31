@@ -1,8 +1,8 @@
 import { MarkdownSectionInformation, SectionCache, TFile } from "obsidian";
 import { getFileSections } from "./sectionCache";
 import Moshe from "src/main";
-import { hashLatexContent, latexCodeBlockNamesRegex } from "../swiftlatexRender";
-import ResultFileCache from "../cache/resultFileCache";
+import { latexCodeBlockNamesRegex } from "../swiftlatexRender";
+import ResultFileCache, { hashLatexContent } from "../cache/resultFileCache";
 import { codeBlockToContent } from "./sectionUtils";
 export interface TaskSectionInformation {
     /**
@@ -91,7 +91,7 @@ export async function getLatexTaskSectionInfosFromFile(file: TFile) {
  * @param sections - An array of SectionCache items representing code block positions.
  * @returns An array of TaskSectionInformation one for each LaTeX/TikZ code block.
  */
-export function getLatexTaskSectionInfosFromString(string: string, sections: SectionCache[]): TaskSectionInformation[] {
+function getLatexTaskSectionInfosFromString(string: string, sections: SectionCache[]): TaskSectionInformation[] {
     const lines = string.split("\n");
     // Filter sections that are code blocks with latex or tikz language hints.
     sections = sections.filter((section: SectionCache) => section.type === "code");

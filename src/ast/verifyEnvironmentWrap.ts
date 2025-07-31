@@ -95,36 +95,36 @@ export class EnvironmentWrap {
     const firstBracketIndex = this.content.findIndex(
       (node) => node.isString?.() && node.content === "["
     );
-  
+
     const controlIndexes = [
       this.content.findIndex((node) => {
         if (!(node instanceof Macro)) return false;
         if (node.content !== "input") return true;
-  
+
         const name = node.args?.[0]?.content.map((n) => n.toString()).join("");
         return name === undefined || this.ast.dependencies.get(name)?.autoUse !== false;
       }),
       this.content.findIndex((node) => node instanceof Environment),
       firstBracketIndex,
     ].filter((i) => i !== -1);
-  
+
     const isArgListLikely = firstBracketIndex !== -1 &&
       controlIndexes.length > 0 &&
       firstBracketIndex === Math.min(...controlIndexes);
-  
+
     if (!isArgListLikely) return undefined;
-  
+
     const args: Argument[] = [];
     let openIndex = firstBracketIndex;
-    
+
     while (openIndex !== -1) {
       const closeIndex = findMatchingBracket(this.content, openIndex);
       if (closeIndex === -1) break;
 
-      const rawNodes = this.content.splice(openIndex, 1+closeIndex - openIndex);
+      const rawNodes = this.content.splice(openIndex, 1 + closeIndex - openIndex);
       const start = rawNodes.findIndex((n) => !n.isWhitespaceLike?.());
       const end = rawNodes.findLastIndex((n) => !n.isWhitespaceLike?.());
-  
+
       rawNodes.shift(); // Remove "["
       rawNodes.pop(); // Remove "]"
       // Trim leading/trailing whitespace
@@ -135,7 +135,7 @@ export class EnvironmentWrap {
       const range = this.content.slice(firstBracketIndex, openIndex);
       if (openIndex !== -1 && !range.every((n) => n.isWhitespaceLike?.())) break;
     }
-  
+
     return args;
   }
   getEnvironmentStructure() {
