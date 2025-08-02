@@ -30,16 +30,16 @@ function generatePrefix(svg: string): string {
     return hash + random;
 }
 
-export function optimizeSVG(svg: string, base: boolean): string {
+export function optimizeSVG(svg: string, full: boolean): string {
     const config: Config = {
-        multipass: !base,
-        plugins: [{ name: "prefixIds", params: { prefix: generatePrefix(svg) } }, ...fastSVGOConfigPlugins, ...(base ? [] : fullSVGOConfigPluginsAddOn)],
+        multipass: full,
+        plugins: [{ name: "prefixIds", params: { prefix: generatePrefix(svg) } }, ...fastSVGOConfigPlugins, ...(full ? fullSVGOConfigPluginsAddOn: [])],
     }
     try {
         const { width, height } = extractDimensions(svg);
         let optimizedSvg = optimize(svg, config).data;
-        if (width === "0" && height === "0") {
-            optimizedSvg = optimizedSvg.replace(/<svg/, `<svg width="0" height="0"`);
+        if (width && height ) {
+            optimizedSvg = optimizedSvg.replace(/<svg/, `<svg width="${width}" height="${height}"`); // Ensure dimensions are preserved
         }
         return optimizedSvg;
     } catch (e) {
