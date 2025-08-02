@@ -15,6 +15,7 @@ import { PdfXeTeXCompiler } from "./compiler/swiftlatexxetex/pdfXeTeXCompiler";
 import LatexCompiler from "./compiler/base/compilerBase/compiler";
 import CompilerCache from "./cache/compilerCache";
 import { hashLatexContent } from "./cache/resultFileCache";
+import { SVG_ID_KEY } from "src/svg/nodes";
 
 temp.track();
 export enum RenderLoaderClasses {
@@ -111,7 +112,6 @@ export class SwiftlatexRender {
     el.classList.remove(...["block-language-tikz", "block-language-latex"]);
     el.classList.add(...["block-language-latexsvg", `overflow-${this.plugin.settings.overflowStrategy}`]);
     const md5Hash = hashLatexContent(source);
-    addMenu(this.plugin, el, ctx.sourcePath);
 
     // PDF file has already been cached
     // Could have a case where pdfCache has the key but the cached file has been deleted
@@ -234,7 +234,7 @@ export class SwiftlatexRender {
     } else {
       child = errorDiv({ title: err })
     };
-    if (options.hash) child.id = options.hash;
+    if (options.hash) child.setAttribute(SVG_ID_KEY,options.hash);
     el.appendChild(child);
     if (options.throw) throw err;
   }
@@ -249,7 +249,8 @@ export class SwiftlatexRender {
     try {
       const result = await this.renderLatexToPDF(source, { md5Hash: rawHash });
       el.innerHTML = "";
-      await this.translatePDF(result.pdf, el, rawHash);
+      await this.translatePDF(result.pdf, el, this.cache.resultFileCache.getFileBaseName(rawHash,dependencyPaths));
+      addMenu(this.plugin, el, sourcePath);
       this.cache.resultFileCache.addFile(el.innerHTML, rawHash, dependencyPaths, sourcePath);
     } catch (err) {
       this.handleError(el, err as string, { parseErr: true, hash: rawHash });
@@ -301,7 +302,8 @@ export class SwiftlatexRender {
     return new Promise<void>((resolve) => {
       const config = {
         invertColorsInDarkMode: this.plugin.settings.invertColorsInDarkMode,
-        sourceHash: hash
+        autoRemoveWhitespace: this.plugin.settings.autoRemoveWhitespace,
+        sourceHash: hash,
       };
       if (outputSVG) pdfToSVG(pdfData, config).then((svg: string) => { el.innerHTML = svg; resolve(); });
       else pdfToHtml(pdfData).then((htmlData) => { el.createEl("object", htmlData); resolve(); });

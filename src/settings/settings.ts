@@ -41,11 +41,14 @@ export type CacheMap = Map<string, CacheEntry[]>;
 /**
  * JSON-serializable version of a CacheEntry (Set → Array).
  */
-export type CacheEntryJson = {
+export type CacheEntryJson = [deps: string[], depsHash: string, referencedBy: string[]];
+// OR for common case:
+export type ShortCacheEntryJson = string[]; // means nodeps
+/*export type CacheEntryJson = [string[], string, string[]]{
   dependencies: string[];
   depsHash: string;
   referencedBy: string[];
-};
+};*/
 
 /**
  * JSON-safe cache structure for persisting CacheMap to disk.
@@ -53,8 +56,7 @@ export type CacheEntryJson = {
  * Structure:
  * - Array of [RawHash, CacheEntryJson[]] tuples.
  */
-export type CacheJson = Array<[string, CacheEntryJson[]]>;
-
+export type CacheJson = Array<[rawHash: string, entries: (CacheEntryJson | ShortCacheEntryJson)[]]>;
 
 export interface MosheMathPluginSettings {
   mathjaxPreambleEnabled: boolean;
@@ -64,6 +66,9 @@ export interface MosheMathPluginSettings {
   virtualFilesFromCodeBlocks: boolean;
 
   invertColorsInDarkMode: boolean;
+  autoRemoveWhitespace: boolean;
+
+  dirtyResultFiles: string[];
 
   package_url: string;
   physicalCache: boolean;
@@ -97,8 +102,10 @@ export const DEFAULT_SETTINGS: MosheMathPluginSettings = {
   compilerVfsEnabled: false,
   autoloadedVfsFilesDir: "",
   virtualFilesFromCodeBlocks: false,
-  // stile settings
+  // style settings
   invertColorsInDarkMode: true,
+  autoRemoveWhitespace: true,
+  dirtyResultFiles: [],
 
   package_url: "http://46.101.255.60:3000/"/*`https://texlive2.swiftlatex.com/`*/,
   physicalCache: true,

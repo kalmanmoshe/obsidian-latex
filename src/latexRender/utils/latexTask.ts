@@ -15,7 +15,7 @@ import { getSectionsFromMatching } from "../resolvers/findSection";
 import { TaskSectionInformation } from "../resolvers/taskSectionInformation";
 import { codeBlockToContent, sectionToTaskSectionInfo } from "../resolvers/sectionUtils";
 import { hashLatexContent } from "../cache/resultFileCache";
-import { extractBasenameAndExtension, findRelativeFile, getFileContent, isValidFileBasename, resolvePathRelToVault } from "../resolvers/paths";
+import { CODE_BLOCK_NAME_SEPARATOR, extractBasenameAndExtension, findRelativeFile, getFileContent, isValidFileBasename, resolvePathRelToVault } from "../resolvers/paths";
 /**
  * Be careful of catching this as the file may change and until you don't generate a new one it will be static.
  */
@@ -288,7 +288,7 @@ export class LatexTaskProcessor {
 
   private async resolveDependency(filePath: string, basePath: string) {
     let path = resolvePathRelToVault(filePath, basePath);
-    const codeBlockName = path.split("::").pop();
+    const codeBlockName = path.split(CODE_BLOCK_NAME_SEPARATOR).pop();
     if (codeBlockName) {
       if (!isValidFileBasename(codeBlockName)) {
         throw new Error(`Invalid code block name: ${codeBlockName}`);

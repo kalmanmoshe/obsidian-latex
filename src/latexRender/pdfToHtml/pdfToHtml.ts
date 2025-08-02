@@ -1,44 +1,35 @@
 import { PDFDocument } from "pdf-lib";
 import { SVGroot } from "src/svg/nodes";
-import { Config, optimize } from "svgo";
+import { optimizeSVG } from "./optimizeSVG";
 const PdfToCairo = require("./pdftocairo.js");
-import { Md5 } from "ts-md5";
+
 
 export async function pdfToSVG(
   pdfData: Buffer<ArrayBufferLike>,
-  config: { invertColorsInDarkMode: boolean; sourceHash: string },
+  config: { invertColorsInDarkMode: boolean; autoRemoveWhitespace: boolean; sourceHash: string },
 ) {
-  const hashSVG = (svg: string) => {
-    const id = Md5.hashStr(svg.trim()).toString();
-    const randomString = Math.random().toString(36).substring(2, 10);
-    return id.concat(randomString);
-  };
-  const pdftocairo = await PdfToCairo();
-  pdftocairo.FS.writeFile("input.pdf", pdfData);
-  pdftocairo._convertPdfToSvg();
+	const pdftocairo = await PdfToCairo();
+	pdftocairo.FS.writeFile("input.pdf", pdfData);
+	pdftocairo._convertPdfToSvg();
+	let svg = pdftocairo.FS.readFile("input.svg", { encoding: "utf8" }) as string;
 
-  let svg = pdftocairo.FS.readFile("input.svg", { encoding: "utf8" });
-  const svgoConfig: Config = {
-    multipass: true,
-    plugins: [
-      { name: "removeMetadata" },
-      { name: "convertPathData", params: { floatPrecision: 3 } },
-      { name: "cleanupNumericValues", params: { floatPrecision: 3 } },
-      { name: "sortAttrs" },
-      { name: "prefixIds", params: { prefix: hashSVG(svg) } },
-    ],
-  };
+	if (config.autoRemoveWhitespace) {
+		svg = cropSVGWhitespace(svg);
+	}
 
-  svg = optimize(svg, svgoConfig).data;
+	svg = optimizeSVG(svg, false);
 
-  if (config.invertColorsInDarkMode) {
-    svg = colorSVGinDarkMode(svg);
-  }
-  const parsedSVG = await SVGroot.parse(svg);
-  parsedSVG.idSvg(config.sourceHash);
-  svg = parsedSVG.toString();
-  return svg;
+	if (config.invertColorsInDarkMode) {
+		svg = colorSVGinDarkMode(svg);
+	}
+	const parsedSVG = await SVGroot.parse(svg);
+	parsedSVG.idSvg(config.sourceHash);
+	svg = parsedSVG.toString();
+	return svg;
 }
+
+
+
 
 function colorSVGinDarkMode(svg: string) {
   // Replace the color "black" with currentColor (the current text color)
@@ -56,6 +47,59 @@ function colorSVGinDarkMode(svg: string) {
 
   return svg;
 }
+
+function cropSVGWhitespace(svgString: string): string {
+	const parser = new DOMParser();
+	const doc = parser.parseFromString(svgString, "image/svg+xml");
+	const svg = doc.querySelector("svg");
+
+	if (!svg) return svgString;
+
+	// Clone the SVG and insert it into a hidden live DOM container
+	const tempSvg = svg.cloneNode(true) as SVGSVGElement;
+	tempSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+	tempSvg.style.position = "absolute";
+	tempSvg.style.visibility = "hidden";
+	tempSvg.style.pointerEvents = "none";
+	tempSvg.style.width = "auto";
+	tempSvg.style.height = "auto";
+
+	document.body.appendChild(tempSvg);
+
+	try {
+		const bbox = tempSvg.getBBox();
+		if (bbox.x === 0 && bbox.y === 0 && bbox.width === 0 && bbox.height === 0) {
+			document.body.removeChild(tempSvg);
+			svg.innerHTML = ""; // If bbox is empty, clear the SVG content
+			svg.setAttribute("viewBox", "0 0 0 0");
+			svg.setAttribute("width", "0");
+			svg.setAttribute("height", "0");
+			console.log("svg", svg.cloneNode(true), svg.outerHTML);
+			return svg.outerHTML;
+		}
+		
+		// Now apply transform and viewBox
+		const g = doc.createElementNS("http://www.w3.org/2000/svg", "g");
+		while (svg.firstChild) {
+			g.appendChild(svg.firstChild);
+		}
+		g.setAttribute("transform", `translate(${-bbox.x}, ${-bbox.y})`);
+		svg.appendChild(g);
+
+		svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`);
+
+		// Clean up
+		document.body.removeChild(tempSvg);
+
+		return svg.outerHTML;
+	} catch (err) {
+		console.error("Failed to compute bbox:", err);
+		document.body.removeChild(tempSvg);
+		return svgString;
+	}
+}
+
+
 
 export async function pdfToHtml(pdfData: Buffer<ArrayBufferLike>) {
   const { width, height } = await getPdfDimensions(pdfData);
@@ -80,3 +124,4 @@ async function getPdfDimensions(
   const { width, height } = firstPage.getSize();
   return { width, height };
 }
+

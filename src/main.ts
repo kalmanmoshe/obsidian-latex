@@ -25,6 +25,7 @@ import { temp } from "./LaTeX_js/latex";
 import { createTransactionLogger } from "./latexRender/cache/transactionLogger";
 import { EditorView } from "@codemirror/view";
 import { StateEffect } from "@codemirror/state";
+import { CompileStatus } from "./latexRender/compiler/base/compilerBase/engine";
 
 declare global {
   const app: App;
@@ -85,6 +86,7 @@ export default class Moshe extends Plugin {
   swiftlatexRender: SwiftlatexRender = new SwiftlatexRender();
   logger = createTransactionLogger();
   async onload() {
+    const startTime = performance.now();
     console.log("Loading Moshe math plugin");
     checkWebStatis("https://texlive2.swiftlatex.com/");
     await this.loadSettings();
@@ -92,10 +94,15 @@ export default class Moshe extends Plugin {
     this.addEditorCommands();
     this.addSyntaxHighlighting();
     app.workspace.onLayoutReady(
-      async () => await this.loadLayoutReadyDependencies(),
+      async () => {
+        const onStart = performance.now();
+        await this.loadLayoutReadyDependencies()
+        console.warn("Moshe Math Plugin layout ready in " + (performance.now() - onStart) + "ms");
+      },
     );
     this.addSettingTab(new MosheMathSettingTab(this));
     temp();
+    console.warn("Moshe Math Plugin loaded in " + (performance.now() - startTime) + "ms");
     //this.registerEditorSuggest()
   }
   async onunload() {

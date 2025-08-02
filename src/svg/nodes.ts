@@ -1,6 +1,6 @@
 import { parse } from "./parseSvg";
 import { stringify } from "./stringifySvgAst";
-
+export const SVG_ID_KEY = "data-id";
 export type svgNode = genericNode | SVGroot;
 
 export class genericNode {
@@ -58,6 +58,7 @@ export class SVGroot {
     return stringify(this);
   }
   idSvg(id: string) {
-    this.attributes["id"] = id;
+    this.attributes["data-id"] = id;
   }
+
 }
