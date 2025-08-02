@@ -1,10 +1,12 @@
 
-import pathA from "path";
-import fs from "fs";
 import { TAbstractFile, TFile, TFolder } from "obsidian";
 import { getLatexTaskSectionInfosFromFile } from "./taskSectionInformation";
 import { extractCodeBlockName } from "./latexSourceFromFile";
 import { codeBlockToContent } from "./sectionUtils";
+
+export const CODE_BLOCK_NAME_SEPARATOR = "::";
+const PATH_SEPARATORS = ["\/", "\\", CODE_BLOCK_NAME_SEPARATOR];
+export const PATH_SEPARATORS_REGEX = new RegExp(PATH_SEPARATORS.join("|"), "g");
 
 export function resolvePathRelToVault(path: string, currentPath: string): string {
     const { file, remainingPath } = findRelativeFile(path, currentPath);
@@ -18,7 +20,7 @@ export function resolvePathRelToVault(path: string, currentPath: string): string
         throw new Error(`Invalid file basename: ${remainingPath}`);
     }
     const codeBlockName = remainingPath + ".tex";
-    return absPath + "::" + codeBlockName;
+    return absPath + CODE_BLOCK_NAME_SEPARATOR + codeBlockName;
 }
 
 /**
@@ -27,10 +29,9 @@ export function resolvePathRelToVault(path: string, currentPath: string): string
  * @returns 
  */
 export async function getFileContent(path: string): Promise<string> {
-    const parts = path.split("::");
-    const ogParts = [...parts];
+    const parts = path.split(CODE_BLOCK_NAME_SEPARATOR);
     if (parts.length > 2|| parts.length === 0) {
-        throw new Error("Invalid path format. Use '::' to separate file path and code block name.");
+        throw new Error("Invalid path format. Use '" + CODE_BLOCK_NAME_SEPARATOR +"' to separate file path and code block name.");
     }
     const filePath = parts.shift()!;
     const file = app.vault.getAbstractFileByPath(filePath);
@@ -119,23 +120,16 @@ export function findRelativeFile(filePath: string, currentPath: string) {
 
 
 export function extractBasenameAndExtension(path: string) {
-    const parts = path.split(/\/|\\|::/).pop()?.split(".")!;
+    const parts = path.split(PATH_SEPARATORS_REGEX).pop()?.split(".")!;
     const extension = parts.pop()!;
     const basename = parts.join(".");
     return {basename, extension};
 }
 
-function extractDirBasenameAndExtension(path: string): { dir: string, basename: string, extension: string } {
-  const parts = path.split("/");
-  const fileName = parts.pop() || "";
-  const dir = parts.join("/");
-  const nameParts = fileName.split(".");
-  if (nameParts.length < 2) {
-    throw new Error("File name must contain at least a basename and an extension.");
-  }
-  const extension = nameParts.pop() || "";
-  const basename = nameParts.join(".");
-  return { dir, basename, extension };
+export function extractDir(path: string): string {
+    const parts = path.split(PATH_SEPARATORS_REGEX);
+    parts.pop();
+    return parts.join("/");
 }
 
 export function isValidFileBasename(basename: any): boolean {

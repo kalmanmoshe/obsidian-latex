@@ -4,11 +4,14 @@ import { Notice, TFile } from "obsidian";
 import { getLatexHashesFromFile } from "../resolvers/latexSourceFromFile";
 import * as path from "path";
 import { CacheBase } from "./cacheBase/cacheBase";
-import { CacheEntry, CacheJson, CacheMap } from "src/settings/settings";
+import { CacheEntry, CacheEntryJson, CacheJson, CacheMap } from "src/settings/settings";
 
 export const cacheFileFormat = "svg";
 import crypto from "crypto";
 import { ResultFilePhysicalCache, ResultFileVirtualCache } from "./resultFileCacheTypes";
+import { CODE_BLOCK_NAME_SEPARATOR, extractDir } from "../resolvers/paths";
+import { optimizeSVG } from "../pdfToHtml/optimizeSVG";
+import { addMenu } from "../swiftlatexRender";
 
 export function hashString(input: string, length: number = 16): string {
 	return crypto.createHash("sha256")
@@ -41,8 +44,35 @@ export default class ResultFileCache {
 			this.cache = this.virtualCache;
 		}
 
-		this.loadCache();
+		this.onload();
 	}
+
+	private async onload() {
+		this.loadCache();
+		await this.cleanUpCache();
+		// Remember i need to remove this, its only here for testing purposes.
+		this.removeAllCached();
+		await this.finishProcessDirtyFiles();
+	}
+
+	private async finishProcessDirtyFiles() {
+		const dirtyFiles = this.plugin.settings.dirtyResultFiles;
+		for (const fileName of dirtyFiles) {
+			const content = this.cache.getFile(fileName);
+			if (!content) {
+				throw new Error(`File ${fileName} not found in cache, cannot process dirty file.`);
+			}
+			try {
+				const cleanSvg = optimizeSVG(content, true);
+				this.cache.addFile(fileName, cleanSvg);
+			} catch (err) {
+				console.warn(`Failed to process ${fileName}:`, err);
+			}
+		}
+		this.plugin.settings.dirtyResultFiles = [];
+		await this.plugin.saveSettings();
+	}
+
 
 	changeCacheDirectory() {
 		if (this.physicalCache) {
@@ -105,29 +135,57 @@ export default class ResultFileCache {
 	}
 
 	private loadCache() {
+		const raw: CacheJson = this.plugin.settings.cache || [];
 		const cache: CacheMap = new Map();
-		for (const [k, v] of this.plugin.settings.cache || []) {
-			const cacheEntries = v.map((entry) => ({ ...entry, referencedBy: new Set(entry.referencedBy) }));
-			cache.set(k, cacheEntries);
+
+		for (const [hash, entryList] of raw) {
+			const parsedEntries: CacheEntry[] = entryList.map(entry => {
+				if (Array.isArray(entry[0])) {
+					const [dependencies, depsHash, referencedBy] = entry as CacheEntryJson;
+					return {
+						dependencies,
+						depsHash,
+						referencedBy: new Set(referencedBy),
+					};
+				} else {
+					// Short form: referencedBy only
+					const referencedBy = entry as string[];
+					return {
+						dependencies: [],
+						depsHash: "nodeps",
+						referencedBy: new Set(referencedBy),
+					};
+				}
+			});
+
+			cache.set(hash, parsedEntries);
 		}
+
 		this.cacheMap = cache;
-		this.cleanUpCache();
 	}
 
 	private async saveCache() {
-		const arr: CacheJson = []
-		for (const [k, v] of this.cacheMap) {
-			const cacheEntriesJson = [];
-			for (const entry of v) {
-				cacheEntriesJson.push({
-					dependencies: entry.dependencies,
-					depsHash: entry.depsHash,
-					referencedBy: [...entry.referencedBy],
-				});
-			}
-			arr.push([k, cacheEntriesJson]);
+		const result: CacheJson = [];
+
+		for (const [hash, entries] of this.cacheMap) {
+			const serializedEntries = entries.map(entry => {
+				if (entry.dependencies.length === 0 && entry.depsHash === "nodeps") {
+					// Short form
+					return [...entry.referencedBy];
+				} else {
+					// Full form
+					return [
+						entry.dependencies,
+						entry.depsHash,
+						[...entry.referencedBy],
+					] as CacheEntryJson;
+				}
+			});
+
+			result.push([hash, serializedEntries]);
 		}
-		this.plugin.settings.cache = arr;
+
+		this.plugin.settings.cache = result;
 		await this.plugin.saveSettings();
 	}
 
@@ -170,62 +228,44 @@ export default class ResultFileCache {
 		if (this.cacheMap.get(rawHash)?.filter(e => e.referencedBy.has(filePath)).length !== 1) {
 			throw new Error(`File ${filePath} is already referenced by another hash or dependency combination.`);
 		}
-		this.cache.addFile(this.basenameToFileName(basename), content);
+		const fileName = this.basenameToFileName(basename);
+		this.cache.addFile(fileName, content);
+		if (!this.plugin.settings.dirtyResultFiles.includes(fileName))
+			this.plugin.settings.dirtyResultFiles.push(fileName);
 		await this.saveCache();
 	}
+
+
+	
 	
 	private getResultFileFromRawHash(rawHash: string, path: string): string | undefined {
 		const cacheEntries = this.cacheMap.get(rawHash);
 		if (!cacheEntries || cacheEntries.length === 0) { return undefined; }
-		let entry = cacheEntries.find(e => e.referencedBy.has(path)) || this.tempName(cacheEntries, path);
-		// i need to add dep to file problom mathcing
-		//if (!entry) { return undefined } // No entry found for this path
-		const depsHash = entry ? entry.depsHash : this.getDependencyHash([]);
-		const basename = this.getFileBaseName(rawHash, depsHash);
+		let entry = this.findEntryForPath(cacheEntries, path)
+		if (!entry) { return undefined } // No entry found for this path
+		const basename = this.getFileBaseName(rawHash, entry.depsHash);
 		return this.cache.getFile(this.basenameToFileName(basename));
 	}
-	private tempName(cacheEntries: CacheEntry[], filePath: string): CacheEntry|undefined {
+
+	private findEntryForPath(cacheEntries: CacheEntry[], filePath: string): CacheEntry | undefined {
+		if (cacheEntries[0]?.dependencies.length === 0) {
+			if (cacheEntries.length > 1) throw new Error("Cant have multiple entries with no dependencies");
+			cacheEntries[0].referencedBy.add(filePath);
+			return cacheEntries[0];
+		}
 		// if a dependency is a code block within the file, it cant be a match
 		// it can be that the code block useis in absolute path, but because we cannot check that, we will just return undefined.
 		for (const entry of cacheEntries) {
 			if (entry.referencedBy.has(filePath)) {
 				return entry;
 			}
-			this.isDependencyCodeBlock(entry.dependencies[0])
+			const directory = extractDir(filePath);
+			if (entry.dependencies.every(dep => path.dirname(dep) === directory)) {
+				entry.referencedBy.add(filePath);
+				return entry; // Found an entry that matches the file path
+			}
 		}
 	}
-
-	private isDependencyCodeBlock(dependency: string): boolean {
-		const name = path.basename(dependency);
-		const dir = path.dirname(dependency);
-		const vaultPath = this.plugin.getVaultPath();
-		const relativePath = path.relative(vaultPath, dir);
-		const dirT = app.vault.getAbstractFileByPath(relativePath);
-		throw new Error(`Dependency ${dependency} is not a valid file in the vault.`);
-	}
-
-	/**
-	 * Given a file path that may be relative or absolute, returns the directory path
-	 * relative to the vault base path.
-	 *
-	 * @param filePath - The file path (can be absolute or relative to the vault)
-	 * @returns The directory containing the file, as a path relative to the vault
-	 */
-	private dirFromFilePath(filePath: string): string {
-		const basePath = path.normalize(this.plugin.getVaultPath());
-
-		const absolutePath = path.isAbsolute(filePath)
-			? path.normalize(filePath)
-			: path.normalize(path.join(basePath, filePath));
-
-		if (!fs.existsSync(absolutePath)) {
-			throw new Error(`File path ${absolutePath} does not exist in vault`);
-		}
-
-		const dir = path.dirname(absolutePath);
-		return path.relative(basePath, path.normalize(dir));
-	}
-
 
 	/**
 	 * Restores the cached content for a given element and hash.
@@ -239,6 +279,7 @@ export default class ResultFileCache {
 		const data = this.getResultFileFromRawHash(rawHash, filePath);
 		if (data === undefined) return false;
 		el.innerHTML = data;
+		addMenu(this.plugin, el, filePath);
 		return true;
 	}
 
@@ -389,6 +430,7 @@ export default class ResultFileCache {
 	removeAllCached(): void {
 		this.cache.clearCache();
 		this.cacheMap.clear();
+		this.plugin.settings.dirtyResultFiles = [];
 		this.saveCache();
 	}
 
@@ -403,10 +445,11 @@ export default class ResultFileCache {
 	private basenameToFileName(hash: string): string {
 		return `${hash}.${cacheFileFormat}`;
 	}
-	private getFileBaseName(rawHash: string, depsHash: string): string {
+	getFileBaseName(rawHash: string, deps: string | string[]): string {
+		const depsHash = Array.isArray(deps) ? this.getDependencyHash(deps) : deps;
 		return `${rawHash}-${depsHash}`;
 	}
-	private nameToHashes(fileName: string) {
+	nameToHashes(fileName: string) {
 		const parts = fileName.split(/[\\/]/).pop()?.split(".").shift();
 		if (!parts) throw new Error(`Invalid file name: ${fileName}`);
 		const [rawHash, depsHash] = parts?.split("-");
@@ -414,8 +457,5 @@ export default class ResultFileCache {
 			throw new Error(`Invalid file name format: ${fileName}`);
 		}
 		return { rawHash, depsHash };
-	}
-	private getResolvedHashes() {
-		return [...this.cacheMap.values()].map(innerMap => [...innerMap.keys()]).flat();
 	}
 }
