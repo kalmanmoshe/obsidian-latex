@@ -50,8 +50,6 @@ export default class ResultFileCache {
 	private async onload() {
 		this.loadCache();
 		await this.cleanUpCache();
-		// Remember i need to remove this, its only here for testing purposes.
-		this.removeAllCached();
 		await this.finishProcessDirtyFiles();
 	}
 
