@@ -12,16 +12,17 @@ export async function pdfToSVG(
 	pdftocairo.FS.writeFile("input.pdf", pdfData);
 	pdftocairo._convertPdfToSvg();
 	let svg = pdftocairo.FS.readFile("input.svg", { encoding: "utf8" }) as string;
-
+	
 	if (config.autoRemoveWhitespace) {
 		svg = cropSVGWhitespace(svg);
 	}
 
 	svg = optimizeSVG(svg, false);
-
+	
 	if (config.invertColorsInDarkMode) {
 		svg = colorSVGinDarkMode(svg);
 	}
+	
 	const parsedSVG = await SVGroot.parse(svg);
 	parsedSVG.idSvg(config.sourceHash);
 	svg = parsedSVG.toString();
@@ -74,7 +75,6 @@ function cropSVGWhitespace(svgString: string): string {
 			svg.setAttribute("viewBox", "0 0 0 0");
 			svg.setAttribute("width", "0");
 			svg.setAttribute("height", "0");
-			console.log("svg", svg.cloneNode(true), svg.outerHTML);
 			return svg.outerHTML;
 		}
 		
@@ -85,8 +85,10 @@ function cropSVGWhitespace(svgString: string): string {
 		}
 		g.setAttribute("transform", `translate(${-bbox.x}, ${-bbox.y})`);
 		svg.appendChild(g);
-
+		console.warn("bbox", bbox);
 		svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`);
+		svg.setAttribute("width", bbox.width.toString());
+		svg.setAttribute("height", bbox.height.toString());
 
 		// Clean up
 		document.body.removeChild(tempSvg);

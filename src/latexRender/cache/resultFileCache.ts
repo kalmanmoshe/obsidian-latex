@@ -1,5 +1,4 @@
 import Moshe from "src/main";
-import * as fs from "fs";
 import { Notice, TFile } from "obsidian";
 import { getLatexHashesFromFile } from "../resolvers/latexSourceFromFile";
 import * as path from "path";
@@ -9,7 +8,7 @@ import { CacheEntry, CacheEntryJson, CacheJson, CacheMap } from "src/settings/se
 export const cacheFileFormat = "svg";
 import crypto from "crypto";
 import { ResultFilePhysicalCache, ResultFileVirtualCache } from "./resultFileCacheTypes";
-import { CODE_BLOCK_NAME_SEPARATOR, extractDir } from "../resolvers/paths";
+import { extractDir } from "../resolvers/paths";
 import { optimizeSVG } from "../pdfToHtml/optimizeSVG";
 import { addMenu } from "../swiftlatexRender";
 
