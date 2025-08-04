@@ -93,6 +93,7 @@ export class SvgContextMenu extends Menu {
     this.basename = basename;
     ({ rawHash: this.rawHash, depsHash: this.depsHash } = this.plugin.swiftlatexRender.cache.resultFileCache.nameToHashes(this.basename));
   }
+
   private addDisplayItems() {
     if (!this.isError)
       this.addItem((item) => {
@@ -137,9 +138,7 @@ export class SvgContextMenu extends Menu {
       });
     });
   }
-  private getCodeBlockLanguage() {
-    if (!this.source) return undefined;
-  }
+  
   private async showLogs() {
     this.assignLatexSource();
     let log = this.plugin.swiftlatexRender.cache.getLog(this.basename);
@@ -151,6 +150,7 @@ export class SvgContextMenu extends Menu {
     const modal = new LogDisplayModal(log);
     modal.open();
   }
+
   assignLatexSource(): Promise<boolean> {
     if (this.source !== undefined) return Promise.resolve(true);
     if (!this.sourceAssignmentPromise) {
@@ -196,10 +196,13 @@ export class SvgContextMenu extends Menu {
    * Can't be saved as contains dynamic content.
   */
   private async removeAndReRender() {
-    const name = this.basename + "." + cacheFileFormat;
+
     const parentEl = this.blockEl;
-    if (!this.isError && this.basename) {
-      this.plugin.swiftlatexRender.cache.resultFileCache.removeResultFileFromCache(name);
+    if (!this.isError) {
+      const success = this.plugin.swiftlatexRender.cache.resultFileCache.removeResultFileFromCache(this.basename);
+      if (!success){
+        console.error("Failed to remove result file from cache:", this.basename);
+      }
     }
     this.cleanBlockEl();
     const sectionInfo = await this.getSectionInfo();
