@@ -25,11 +25,9 @@ import { temp } from "./LaTeX_js/latex";
 import { createTransactionLogger } from "./latexRender/cache/transactionLogger";
 import { EditorView } from "@codemirror/view";
 import { StateEffect } from "@codemirror/state";
-import { CompileStatus } from "./latexRender/compiler/base/compilerBase/engine";
 
 declare global {
   const app: App;
-  she
 }
 async function isInternetAvailable(): Promise<boolean> {
   try {

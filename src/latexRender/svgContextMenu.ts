@@ -213,7 +213,6 @@ export class SvgContextMenu extends Menu {
   }
   async getSectionInfo(): Promise<TaskSectionInformation> {
     const file = await this.getFile();
-    if (!file) throw new Error("No file found");
     const sectionInfo = await findTaskSectionInfoFromHashInFile(file, this.rawHash);
     if (!sectionInfo) throw new Error("No section info found for hash: " + this.rawHash + " in file: " + file.path);
     this.source = codeBlockToContent(sectionInfo.codeBlock);
