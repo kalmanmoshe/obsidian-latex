@@ -1,4 +1,4 @@
-import { Menu, Notice, TFile } from "obsidian";
+import { Menu, Notice, TFile,Platform } from "obsidian";
 import Moshe from "src/main";
 import { extractCodeBlockLanguage } from "./resolvers/latexSourceFromFile";
 import { addMenu } from "./swiftlatexRender";
@@ -8,9 +8,28 @@ import { ErrorClasses } from "./logs/HumanReadableLogs";
 import { findTaskSectionInfoFromHashInFile, TaskSectionInformation } from "./resolvers/taskSectionInformation";
 import { codeBlockToContent } from "./resolvers/sectionUtils";
 import { SVG_ID_KEY } from "src/svg/nodes";
-import { cacheFileFormat } from "./cache/resultFileCache";
+import { shell } from 'electron';
+import { exec } from 'child_process';
+
+function revealFileWithFocus(path: string) {
+	if (Platform.isWin) {
+		exec(`explorer.exe /select,"${path.replace(/\//g, '\\')}"`);
+	} else if (Platform.isMacOS) {
+		const script = `
+			tell application "Finder"
+				reveal POSIX file "${path}"
+				activate
+			end tell
+		`;
+		exec(`osascript -e '${script.replace(/\n/g, '')}'`);
+	} else {
+		// Fallback for Linux or just use shell.showItemInFolder
+		const { shell } = require('electron');
+		shell.showItemInFolder(path);
+	}
+}
+
 /**add:
- * - Reveal in file explorer
  * - show log
  * - show logs (soch as \print{} \message{"hello world"} and more)
  * - properties (such as size, dependencies, hash, date created, )
@@ -124,7 +143,6 @@ export class SvgContextMenu extends Menu {
           console.log("properties");
         });
       });
-
     this.addItem((item) => {
       item.setTitle("remove & re-render");
       item.setIcon("trash");
@@ -137,8 +155,30 @@ export class SvgContextMenu extends Menu {
         this.showLogs();
       });
     });
+    if (!this.isError)
+    this.addItem((item) => {
+      item.setTitle("Reveal in file explorer");
+      item.setIcon("folder");
+      item.onClick(async () => {
+        this.revealFileInExplorer();
+      });
+    });
   }
-  
+  private revealFileInExplorer() {
+    if (this.isError) {
+      throw new Error("Can't reveal file in explorer, this is an error container.");
+    }
+    try{
+      if (!this.plugin.swiftlatexRender.cache.resultFileCache.isPhysicalCatch()){
+        new Notice("Result file cache is not physical, can't open file in explorer.");
+        return;
+      }
+      const filePath = this.plugin.swiftlatexRender.cache.resultFileCache.getAbsolutePathFromBasename(this.basename);
+      revealFileWithFocus(filePath);
+    } catch (err) {
+      console.error("Failed to open file in explorer:", err);
+    }
+  }
   private async showLogs() {
     this.assignLatexSource();
     let log = this.plugin.swiftlatexRender.cache.getLog(this.basename);
