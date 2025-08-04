@@ -376,17 +376,18 @@ export default class ResultFileCache {
 		this.saveCache();
 	}
 
-	removeResultFileFromCache(basename: string): void {
-		this.cache.deleteFile(this.basenameToFileName(basename));
+	removeResultFileFromCache(basename: string): boolean {
+		const catchRemoveSuccess = this.cache.deleteFile(this.basenameToFileName(basename));
 		const { rawHash, depsHash } = this.nameToHashes(basename);
 		const entries = this.cacheMap.get(rawHash);
-		if (!entries) return;
+		if (!entries) return false;
 		const noEntries = entries.length === 0
 		const wasOnlyEntry = entries.length === 1 && entries[0].depsHash === depsHash;
 		if (noEntries||wasOnlyEntry) {
 			this.cacheMap.delete(rawHash);
-			return;
+			return wasOnlyEntry;
 		}
+		return catchRemoveSuccess;
 	}
 
 	private removeReferencingFileFromCache(path: string): void {

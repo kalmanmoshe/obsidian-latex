@@ -12,7 +12,6 @@ export async function pdfToSVG(
 	pdftocairo.FS.writeFile("input.pdf", pdfData);
 	pdftocairo._convertPdfToSvg();
 	let svg = pdftocairo.FS.readFile("input.svg", { encoding: "utf8" }) as string;
-	
 	if (config.autoRemoveWhitespace) {
 		svg = cropSVGWhitespace(svg);
 	}
@@ -77,6 +76,12 @@ function cropSVGWhitespace(svgString: string): string {
 			svg.setAttribute("height", "0");
 			return svg.outerHTML;
 		}
+		const boundingClient = tempSvg.getBoundingClientRect();
+		console.warn("boundingClient", boundingClient, "bbox", bbox);
+		// if the content overflows the container
+		if (boundingClient.width < bbox.width || boundingClient.height < bbox.height) {
+			return svgString; // No need to crop if the content is already smaller than the bounding box
+		}
 		
 		// Now apply transform and viewBox
 		const g = doc.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -85,14 +90,12 @@ function cropSVGWhitespace(svgString: string): string {
 		}
 		g.setAttribute("transform", `translate(${-bbox.x}, ${-bbox.y})`);
 		svg.appendChild(g);
-		console.warn("bbox", bbox);
+		console.warn("bbox", bbox,"og", svgString.match(/<svg[^>]+>/i)?.[0]);
 		svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`);
 		svg.setAttribute("width", bbox.width.toString());
-		svg.setAttribute("height", bbox.height.toString());
-
+		svg.setAttribute("height",bbox.height.toString())
 		// Clean up
 		document.body.removeChild(tempSvg);
-
 		return svg.outerHTML;
 	} catch (err) {
 		console.error("Failed to compute bbox:", err);
@@ -101,6 +104,21 @@ function cropSVGWhitespace(svgString: string): string {
 	}
 }
 
+
+function extractDimensions(svg: string): { width?: string; height?: string } {
+	const headerMatch = svg.match(/<svg[^>]+>/i);
+	if (!headerMatch) return {};
+
+	const header = headerMatch[0];
+
+	const widthMatch = header.match(/width="([^"]+)"/i);
+	const heightMatch = header.match(/height="([^"]+)"/i);
+
+	return {
+		width: widthMatch?.[1],
+		height: heightMatch?.[1],
+	};
+}
 
 
 export async function pdfToHtml(pdfData: Buffer<ArrayBufferLike>) {

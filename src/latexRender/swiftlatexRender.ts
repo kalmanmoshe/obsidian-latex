@@ -154,7 +154,7 @@ export class SwiftlatexRender {
    */
   async processAndRenderLatexTask(task: LatexTask): Promise<boolean> {
     if (this.cache.resultFileCache.restoreFromCache(task.el, task.rawHash, task.sourcePath)) {
-      console.log("fund in catch for", task.getBlockId());
+      console.log("Found in catch for", task.getBlockId());
       return false;
     }
     if (task.isProcess()) {

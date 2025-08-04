@@ -7,7 +7,7 @@ const fastSVGOConfigPlugins: PluginConfig[] = [
     { name: "removeComments" },
     { name: "removeMetadata" },
     { name: "removeTitle" },
-    { name: "removeDesc" },
+    { name: "removeDesc" }, { name: "convertTransform" },
     { name: "removeEmptyAttrs" },
     { name: "removeEmptyText" },
     { name: "convertPathData", params: { floatPrecision: 3 } },

@@ -28,12 +28,12 @@ export abstract class VirtualCacheBase extends CacheBase {
         content = typeof content === "string" ? content : new TextDecoder().decode(content);
         this.cache.set(fileName, content);
     }
-    deleteFile(fileName: string): void {
+    deleteFile(fileName: string) {
         if (this.cache.has(fileName)) {
             this.cache.delete(fileName);
-        } else {
-            new Notice(`File ${fileName} does not exist in the cache.`);
+            return true;
         }
+        return false;
     }
 
     listCacheFiles() {

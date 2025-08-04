@@ -60,7 +60,9 @@ export abstract class PhysicalCacheBase extends CacheBase {
         const filePath = this.getCacheFilePath(fileName);
         if (fs.existsSync(filePath)) {
             fs.rmSync(filePath);
+            return true;
         }
+        return false;
     }
 
     /**

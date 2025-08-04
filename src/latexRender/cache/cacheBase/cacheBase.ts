@@ -26,8 +26,12 @@ export abstract class CacheBase {
   abstract fileExists(fileName: string): boolean;
 
   abstract getFile(fileName: string): string | undefined;
-
-  abstract deleteFile(fileName: string): Promise<void> | void;
+  /**
+   * 
+   * @param fileName - the name of the file to delete including extension.
+   * Returns true if the file was successfully deleted, false otherwise or if didn't exist.
+   */
+  abstract deleteFile(fileName: string): boolean;
 
   abstract addFile(fileName: string, content: string | Uint8Array<ArrayBuffer>,)
     : Promise<void> | void;
