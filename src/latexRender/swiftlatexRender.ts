@@ -35,13 +35,7 @@ export const waitFor = async (condFunc: () => boolean) => {
     }
   });
 };
-/**
- * add command to rerender all fils using (\input{}) this file
- * add resove tab indentasins setting
- * The goust bubble happens when I do ctrl z
- * add replac all & replace in selection
- *
- */
+
 
 export const latexCodeBlockNamesRegex = /(`|~){3,} *(latex|tikz)/;
 
@@ -59,6 +53,13 @@ type QueueObject<T> = async.QueueObject<T> & {
   };
 };
 
+/**
+ * add command to rerender all fils using (\input{}) this file
+ * add resove tab indentasins setting
+ * The goust bubble happens when I do ctrl z
+ * add replac all & replace in selection
+ *
+ */
 /**
  * add option for Persistent preamble.so it won't get deleted.after use Instead, saved until overwritten
  */
@@ -128,6 +129,7 @@ export class SwiftlatexRender {
       this.addToQueue(task);
     }
   }
+
   addToQueue(task: LatexTask) {
     const blockId = task.getBlockId();
     this.queue.remove((node) => node.data.getBlockId() === blockId);
@@ -343,7 +345,7 @@ function abortAllTasks(queue: QueueObject<LatexTask>) {
   }
 }
 
-export function createWaitingCountdown(index: number) {
+function createWaitingCountdown(index: number) {
   const parentContainer = Object.assign(document.createElement("div"), {
     className: RenderLoaderClasses.ParentContainer,
   });
