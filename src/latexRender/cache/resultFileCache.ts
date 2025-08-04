@@ -11,6 +11,7 @@ import { ResultFilePhysicalCache, ResultFileVirtualCache } from "./resultFileCac
 import { extractDir } from "../resolvers/paths";
 import { optimizeSVG } from "../pdfToHtml/optimizeSVG";
 import { addMenu } from "../swiftlatexRender";
+import { PhysicalCacheBase } from "./cacheBase/physicalCacheBase";
 
 export function hashString(input: string, length: number = 16): string {
 	return crypto.createHash("sha256")
@@ -50,6 +51,10 @@ export default class ResultFileCache {
 		this.loadCache();
 		await this.cleanUpCache();
 		await this.finishProcessDirtyFiles();
+	}
+
+	isPhysicalCatch(): boolean {
+		return this.physicalCache !== undefined && this.cache instanceof PhysicalCacheBase;
 	}
 
 	private async finishProcessDirtyFiles() {
@@ -455,5 +460,12 @@ export default class ResultFileCache {
 			throw new Error(`Invalid file name format: ${fileName}`);
 		}
 		return { rawHash, depsHash };
+	}
+
+	getAbsolutePathFromBasename(basename: string): string {
+		if (!this.isPhysicalCatch()) 
+			throw new Error("Physical cache is not enabled, cannot get absolute path from basename.");
+		const fileName = this.basenameToFileName(basename);
+		return this.physicalCache!.getCacheFilePath(fileName);
 	}
 }

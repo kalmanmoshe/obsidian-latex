@@ -29,6 +29,7 @@ import { CompileStatus } from "./latexRender/compiler/base/compilerBase/engine";
 
 declare global {
   const app: App;
+  she
 }
 async function isInternetAvailable(): Promise<boolean> {
   try {
