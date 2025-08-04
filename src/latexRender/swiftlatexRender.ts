@@ -330,8 +330,7 @@ const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
 export function addMenu(plugin: Moshe, el: HTMLElement, filePath: string) {
   el.addEventListener("contextmenu", (event) => {
     if (!event.target) return;
-    const clickedElement = event.target as HTMLElement;
-    const menu = new SvgContextMenu(plugin, clickedElement, filePath);
+    const menu = new SvgContextMenu(plugin, el, filePath);
     menu.open(event);
   });
 }
@@ -343,6 +342,7 @@ function abortAllTasks(queue: QueueObject<LatexTask>) {
     head = head.next;
   }
 }
+
 export function createWaitingCountdown(index: number) {
   const parentContainer = Object.assign(document.createElement("div"), {
     className: RenderLoaderClasses.ParentContainer,
