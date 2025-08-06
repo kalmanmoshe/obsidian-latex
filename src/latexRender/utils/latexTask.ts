@@ -81,6 +81,7 @@ export class LatexTask {
   isError() {
     return !!this.error;
   }
+  
   static baseCreate(plugin: Moshe, process: boolean, content: string, el: HTMLElement, sourcePath: string, sectionInfo: TaskSectionInformation | TaskSectionInformation[]): LatexTask {
     const task = createTask(plugin, process, content, el);
     task.sourcePath = sourcePath;
@@ -150,7 +151,7 @@ export class LatexTask {
   }
   getContent() { return this.content; }
   getProcessedContent() { return this.getContent(); }
-  setSectionInfos(infos: (TaskSectionInformation | MarkdownSectionInformation)[]) {
+  private setSectionInfos(infos: (TaskSectionInformation | MarkdownSectionInformation)[]) {
     for (const info of infos) {
       const taskInfo = "text" in info ? sectionToTaskSectionInfo(info) : info;
       this.sectionInfos ??= [];
@@ -198,6 +199,9 @@ export class LatexTask {
   getDependencyPaths(): string[] {
     return []
   }
+  getBaseName(){
+    return this.plugin.swiftlatexRender.cache.resultFileCache.getFileBaseName(this.rawHash, this.getDependencyPaths());
+  }
 }
 //Create a block ID that is generated from all possible solutions. 
 
@@ -211,12 +215,14 @@ export class ProcessableLatexTask extends LatexTask {
   private ast: LatexAbstractSyntaxTree | null = null;
   sectionInfos: TaskSectionInformation[];
   private astContent: string | null = null;
+  private dependencyPaths: string[] = [];
   constructor(plugin: Moshe, content: string, el: HTMLElement) {
     super(plugin, content, el);
   }
   static create(plugin: Moshe, content: string, el: HTMLElement, sourcePath: string, info: TaskSectionInformation): ProcessableLatexTask {
     return super.baseCreate(plugin, true, content, el, sourcePath, info) as ProcessableLatexTask;
   }
+  
 
   getProcessedContent(): string {
     if (!this.ast || !this.astContent) throw new Error("AST is not set for this task.");
@@ -231,13 +237,15 @@ export class ProcessableLatexTask extends LatexTask {
     if (paths.length !== new Set(paths).size) {
       throw new Error("Duplicate dependency paths found: " + paths);
     }
-    return paths;
+    this.dependencyPaths = paths;
+    return this.dependencyPaths;
   }
 
   setAst(ast: LatexAbstractSyntaxTree) {
     this.ast = ast;
     this.astContent = ast.toString();
     this.resolvedHash = hashLatexContent(this.astContent);
+    this.getDependencyPaths();
   }
   /**
    * Logs the task information to the console.

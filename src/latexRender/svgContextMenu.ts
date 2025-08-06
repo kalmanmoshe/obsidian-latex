@@ -30,7 +30,6 @@ function revealFileWithFocus(path: string) {
 }
 
 /**add:
- * - show log
  * - show logs (soch as \print{} \message{"hello world"} and more)
  * - properties (such as size, dependencies, hash, date created, )
  */
@@ -53,6 +52,7 @@ export class SvgContextMenu extends Menu {
   basename: string;
   rawHash: string
   depsHash: string;
+  private resultFileCache;
   constructor(
     plugin: Moshe,
     trigeringElement: HTMLElement,
@@ -60,6 +60,7 @@ export class SvgContextMenu extends Menu {
   ) {
     super();
     this.plugin = plugin;
+    this.resultFileCache = this.plugin.swiftlatexRender.cache.resultFileCache;
     this.assignElements(trigeringElement);
     this.sourcePath = sourcePath;
     this.addDisplayItems();
@@ -110,7 +111,7 @@ export class SvgContextMenu extends Menu {
       throw new Error("No basename found for SVG element")
     };
     this.basename = basename;
-    ({ rawHash: this.rawHash, depsHash: this.depsHash } = this.plugin.swiftlatexRender.cache.resultFileCache.nameToHashes(this.basename));
+    ({ rawHash: this.rawHash, depsHash: this.depsHash } = this.resultFileCache.basenameToHashes(this.basename));
   }
 
   private addDisplayItems() {
@@ -169,11 +170,11 @@ export class SvgContextMenu extends Menu {
       throw new Error("Can't reveal file in explorer, this is an error container.");
     }
     try{
-      if (!this.plugin.swiftlatexRender.cache.resultFileCache.isPhysicalCatch()){
+      if (!this.resultFileCache.isPhysicalCatch()){
         new Notice("Result file cache is not physical, can't open file in explorer.");
         return;
       }
-      const filePath = this.plugin.swiftlatexRender.cache.resultFileCache.getAbsolutePathFromBasename(this.basename);
+      const filePath = this.resultFileCache.getAbsolutePathFromBasename(this.basename);
       revealFileWithFocus(filePath);
     } catch (err) {
       console.error("Failed to open file in explorer:", err);
@@ -238,7 +239,7 @@ export class SvgContextMenu extends Menu {
 
     const parentEl = this.blockEl;
     if (!this.isError) {
-      const success = this.plugin.swiftlatexRender.cache.resultFileCache.removeResultFileFromCache(this.basename);
+      const success = this.resultFileCache.removeResultFileFromCache(this.basename);
       if (!success){
         console.error("Failed to remove result file from cache:", this.basename);
       }
@@ -246,7 +247,6 @@ export class SvgContextMenu extends Menu {
     this.cleanBlockEl();
     const sectionInfo = await this.getSectionInfo();
     const shouldProcess = this.codeBlockLanguage === "tikz";
-    addMenu(this.plugin, parentEl, this.sourcePath);
     const task = LatexTask.baseCreate(this.plugin, shouldProcess, this.source, this.blockEl, this.sourcePath, sectionInfo);
     this.plugin.swiftlatexRender.addToQueue(task);
     new Notice("SVG removed from cache. Re-rendering...");

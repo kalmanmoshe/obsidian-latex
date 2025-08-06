@@ -121,7 +121,7 @@ export class SwiftlatexRender {
       const createResult = await LatexTask.createAsync(this.plugin, isLangTikz, source, el, ctx)
       if (createResult.isError) {
         const errorMessage = "Error creating task: " + createResult.result;
-        this.handleError(el, errorMessage, { hash: md5Hash });
+        this.handleError(el, errorMessage, { hash: this.cache.resultFileCache.getFileBaseName(md5Hash,[]) });
         return;
       }
       const task = createResult.result as LatexTask;
@@ -134,6 +134,7 @@ export class SwiftlatexRender {
     const blockId = task.getBlockId();
     this.queue.remove((node) => node.data.getBlockId() === blockId);
     task.el.appendChild(createWaitingCountdown(this.queue.length()));
+    addMenu(this.plugin, task.el, task.sourcePath);
     this.queue.push(task);
   }
 
@@ -248,14 +249,14 @@ export class SwiftlatexRender {
     dependencyPaths: string[],
     sourcePath: string,
   ): Promise<void> {
+    const basename = this.cache.resultFileCache.getFileBaseName(rawHash,dependencyPaths);
     try {
       const result = await this.renderLatexToPDF(source, { md5Hash: rawHash });
       el.innerHTML = "";
-      await this.translatePDF(result.pdf, el, this.cache.resultFileCache.getFileBaseName(rawHash,dependencyPaths));
-      addMenu(this.plugin, el, sourcePath);
+      await this.translatePDF(result.pdf, el, basename);
       this.cache.resultFileCache.addFile(el.innerHTML, rawHash, dependencyPaths, sourcePath);
     } catch (err) {
-      this.handleError(el, err as string, { parseErr: true, hash: rawHash });
+      this.handleError(el, err as string, { parseErr: true, hash: basename });
     } finally {
       await waitFor(() => this.compiler.isReady());
     }
