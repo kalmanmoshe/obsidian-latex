@@ -4,7 +4,12 @@ export enum CompilerType {
   TeX = "tex",
   XeTeX = "xetex",
 }
-
+/**
+ * What to do when the content overflows the container.
+ * "Downscale" - downscale the content.
+ * "scroll" - add a scrollbar.
+ * "hidden" - do nothing, content will overflow.
+ */
 export enum OverflowStrategy {
   Downscale = "downscale",
   Scroll = "scroll",
@@ -86,12 +91,6 @@ export interface MosheMathPluginSettings {
   packageCache: Array<StringMap>;
   pdfEngineCooldown: number;
   saveLogs: boolean;
-  /**
-   * What to do when the content overflows the container.
-   * "auto" - downscale the content.
-   * "scroll" - add a scrollbar.
-   * "hidden" - do nothing, content will overflow.
-   */
   overflowStrategy: OverflowStrategy;
   compiler: CompilerType;
 }

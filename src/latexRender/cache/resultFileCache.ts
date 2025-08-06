@@ -8,7 +8,7 @@ import { CacheEntry, CacheEntryJson, CacheJson, CacheMap } from "src/settings/se
 export const cacheFileFormat = "svg";
 import crypto from "crypto";
 import { ResultFilePhysicalCache, ResultFileVirtualCache } from "./resultFileCacheTypes";
-import { extractDir } from "../resolvers/paths";
+import { extractDir, isValidFileBasename } from "../resolvers/paths";
 import { optimizeSVG } from "../pdfToHtml/optimizeSVG";
 import { addMenu } from "../swiftlatexRender";
 import { PhysicalCacheBase } from "./cacheBase/physicalCacheBase";
@@ -448,18 +448,29 @@ export default class ResultFileCache {
 	private basenameToFileName(hash: string): string {
 		return `${hash}.${cacheFileFormat}`;
 	}
+	
 	getFileBaseName(rawHash: string, deps: string | string[]): string {
 		const depsHash = Array.isArray(deps) ? this.getDependencyHash(deps) : deps;
 		return `${rawHash}-${depsHash}`;
 	}
-	nameToHashes(fileName: string) {
-		const parts = fileName.split(/[\\/]/).pop()?.split(".").shift();
-		if (!parts) throw new Error(`Invalid file name: ${fileName}`);
-		const [rawHash, depsHash] = parts?.split("-");
-		if (!rawHash || !depsHash) {
-			throw new Error(`Invalid file name format: ${fileName}`);
+
+	basenameToHashes(basename: string) {
+		if (!isValidFileBasename(basename)) {
+			throw new Error(`Invalid file basename: ${basename}`);
 		}
+		const parts = basename.split("-")
+		if (parts.length !== 2) {
+			throw new Error(`Invalid file basename format: ${basename}`);
+		}
+		const [rawHash, depsHash] = parts;
 		return { rawHash, depsHash };
+	}
+	
+	nameToHashes(fileName: string) {
+		const parts = fileName.split(/[\\/]/).pop()?.split(".");
+		parts?.pop(); // Remove the file extension
+		if (!parts) throw new Error(`Invalid file name: ${fileName}`);
+		return this.basenameToHashes(parts.join("."));
 	}
 
 	getAbsolutePathFromBasename(basename: string): string {
