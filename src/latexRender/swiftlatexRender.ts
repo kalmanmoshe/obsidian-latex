@@ -4,7 +4,7 @@ import { CompileResult, CompileStatus } from "./compiler/base/compilerBase/engin
 import Moshe from "../main";
 import { CompilerType } from "src/settings/settings.js";
 import async from "async";
-import { pdfToHtml, pdfToSVG } from "./pdfToHtml/pdfToHtml";
+import { pdfToHtml, pdfToOptimizedSVG, pdfToSVG } from "./pdfToHtml/pdfToHtml";
 import parseLatexLog, { createErrorDisplay, errorDiv } from "./logs/HumanReadableLogs";
 import { VirtualFileSystem } from "./VirtualFileSystem";
 import { SvgContextMenu } from "./svgContextMenu";
@@ -174,6 +174,7 @@ export class SwiftlatexRender {
     this.reCheckQueue(); // only re-check the queue after a valide rendering
     return true;
   }
+
   async detachedProcessAndRender(task: LatexTask) {
     if (task.isProcess()) {
       const processor = await task.process();
@@ -187,6 +188,14 @@ export class SwiftlatexRender {
     } catch (err) {
       return new CompileResult(undefined, CompileStatus.CompileError, err as string);
     }
+  }
+  async detachedProcessAndRenderToResultFile(task: LatexTask){
+    const compileResult = await this.detachedProcessAndRender(task);
+    if (compileResult.status === CompileStatus.CompileError) {
+      return;
+    }
+    const resultFile = pdfToSVG(compileResult.pdf);
+    return resultFile
   }
 
   configQueue() {
@@ -306,9 +315,9 @@ export class SwiftlatexRender {
       const config = {
         invertColorsInDarkMode: this.plugin.settings.invertColorsInDarkMode,
         autoRemoveWhitespace: this.plugin.settings.autoRemoveWhitespace,
-        sourceHash: hash,
+        basename: hash,
       };
-      if (outputSVG) pdfToSVG(pdfData, config).then((svg: string) => { el.innerHTML = svg; resolve(); });
+      if (outputSVG) pdfToOptimizedSVG(pdfData, config).then((svg: string) => { el.innerHTML = svg; resolve(); });
       else pdfToHtml(pdfData).then((htmlData) => { el.createEl("object", htmlData); resolve(); });
     });
   }

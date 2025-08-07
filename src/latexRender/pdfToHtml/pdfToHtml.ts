@@ -3,17 +3,21 @@ import { SVGroot } from "src/svg/nodes";
 import { optimizeSVG } from "./optimizeSVG";
 const PdfToCairo = require("./pdftocairo.js");
 
-
-export async function pdfToSVG(
-  pdfData: Buffer<ArrayBufferLike>,
-  config: { invertColorsInDarkMode: boolean; autoRemoveWhitespace: boolean; sourceHash: string },
-) {
+export async function pdfToSVG(pdfData: Buffer<ArrayBufferLike>) {
 	const pdftocairo = await PdfToCairo();
 	pdftocairo.FS.writeFile("input.pdf", pdfData);
 	pdftocairo._convertPdfToSvg();
-	let svg = pdftocairo.FS.readFile("input.svg", { encoding: "utf8" }) as string;
+	return pdftocairo.FS.readFile("input.svg", { encoding: "utf8" }) as string;
+}
+
+export async function pdfToOptimizedSVG(
+  pdfData: Buffer<ArrayBufferLike>,
+  config: { invertColorsInDarkMode: boolean; autoRemoveWhitespace: boolean; basename: string },
+) {
+	let svg = await pdfToSVG(pdfData)
+
 	if (config.autoRemoveWhitespace) {
-		svg = cropSVGWhitespace(svg);
+		svg = await cropSvgByPixels(svg);
 	}
 
 	svg = optimizeSVG(svg, false);
@@ -21,14 +25,14 @@ export async function pdfToSVG(
 	if (config.invertColorsInDarkMode) {
 		svg = colorSVGinDarkMode(svg);
 	}
+
+	
 	
 	const parsedSVG = await SVGroot.parse(svg);
-	parsedSVG.idSvg(config.sourceHash);
+	parsedSVG.idSvg(config.basename);
 	svg = parsedSVG.toString();
 	return svg;
 }
-
-
 
 
 function colorSVGinDarkMode(svg: string) {
@@ -48,93 +52,111 @@ function colorSVGinDarkMode(svg: string) {
   return svg;
 }
 
-function cropSVGWhitespace(svgString: string): string {
-	const parser = new DOMParser();
-	const doc = parser.parseFromString(svgString, "image/svg+xml");
-	const svg = doc.querySelector("svg");
 
-	if (!svg) return svgString;
-
-	// Clone the SVG and insert it into a hidden live DOM container
-	const tempSvg = svg.cloneNode(true) as SVGSVGElement;
-	tempSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-	tempSvg.style.position = "absolute";
-	tempSvg.style.visibility = "hidden";
-	tempSvg.style.pointerEvents = "none";
-	tempSvg.style.width = "auto";
-	tempSvg.style.height = "auto";
-
-	document.body.appendChild(tempSvg);
-
-	try {
-		const bbox = tempSvg.getBBox();
-		if (bbox.x === 0 && bbox.y === 0 && bbox.width === 0 && bbox.height === 0) {
-			document.body.removeChild(tempSvg);
-			svg.innerHTML = ""; // If bbox is empty, clear the SVG content
-			svg.setAttribute("viewBox", "0 0 0 0");
-			svg.setAttribute("width", "0");
-			svg.setAttribute("height", "0");
-			return svg.outerHTML;
-		}
-		const boundingClient = tempSvg.getBoundingClientRect();
-		console.warn("boundingClient", boundingClient, "bbox", bbox);
-		// if the content overflows the container
-		if (boundingClient.width < bbox.width || boundingClient.height < bbox.height) {
-			return svgString; // No need to crop if the content is already smaller than the bounding box
-		}
-		
-		// Now apply transform and viewBox
-		const g = doc.createElementNS("http://www.w3.org/2000/svg", "g");
-		while (svg.firstChild) {
-			g.appendChild(svg.firstChild);
-		}
-		g.setAttribute("transform", `translate(${-bbox.x}, ${-bbox.y})`);
-		svg.appendChild(g);
-		console.warn("bbox", bbox,"og", svgString.match(/<svg[^>]+>/i)?.[0]);
-		svg.setAttribute("viewBox", `0 0 ${bbox.width} ${bbox.height}`);
-		svg.setAttribute("width", bbox.width.toString());
-		svg.setAttribute("height",bbox.height.toString())
-		// Clean up
-		document.body.removeChild(tempSvg);
-		return svg.outerHTML;
-	} catch (err) {
-		console.error("Failed to compute bbox:", err);
-		document.body.removeChild(tempSvg);
-		return svgString;
-	}
-}
-
-
-function extractDimensions(svg: string): { width?: string; height?: string } {
-	const headerMatch = svg.match(/<svg[^>]+>/i);
-	if (!headerMatch) return {};
-
-	const header = headerMatch[0];
-
-	const widthMatch = header.match(/width="([^"]+)"/i);
-	const heightMatch = header.match(/height="([^"]+)"/i);
-
+export async function pdfToHtml(pdfData: Buffer<ArrayBufferLike>) {
+	const { width, height } = await getPdfDimensions(pdfData);
+	const ratio = width / height;
+	const pdfblob = new Blob([pdfData], { type: "application/pdf" });
+	const objectURL = URL.createObjectURL(pdfblob);
 	return {
-		width: widthMatch?.[1],
-		height: heightMatch?.[1],
+	  attr: {
+		data: `${objectURL}#view=FitH&toolbar=0`,
+		type: "application/pdf",
+		class: "block-lanuage-latex",
+		style: `width:100%; aspect-ratio:${ratio}`,
+	  },
 	};
 }
 
+async function cropSvgByPixels(svgString: string): Promise<string> {
+	return new Promise((resolve) => {
+		const svgBlob = new Blob([svgString], { type: "image/svg+xml" });
+		const url = URL.createObjectURL(svgBlob);
+		const img = new Image();
 
-export async function pdfToHtml(pdfData: Buffer<ArrayBufferLike>) {
-  const { width, height } = await getPdfDimensions(pdfData);
-  const ratio = width / height;
-  const pdfblob = new Blob([pdfData], { type: "application/pdf" });
-  const objectURL = URL.createObjectURL(pdfblob);
-  return {
-    attr: {
-      data: `${objectURL}#view=FitH&toolbar=0`,
-      type: "application/pdf",
-      class: "block-lanuage-latex",
-      style: `width:100%; aspect-ratio:${ratio}`,
-    },
-  };
+		img.onload = () => {
+			const canvas = document.createElement("canvas");
+			canvas.width = img.width;
+			canvas.height = img.height;
+			const ctx = canvas.getContext("2d");
+			if (!ctx) {
+				URL.revokeObjectURL(url);
+				resolve(svgString);
+				return;
+			}
+
+			ctx.drawImage(img, 0, 0);
+
+			const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+			const pixels = imageData.data;
+
+			let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
+			for (let y = 0; y < canvas.height; y++) {
+				let minXinRow = undefined, maxXinRow = undefined;
+			
+				// Left to right — find first visible pixel in row
+				for (let x = 0; x < canvas.width; x++) {
+					const i = (y * canvas.width + x) * 4;
+					if (pixels[i + 3] > 0) {
+						minXinRow = x;
+						break;
+					}
+				}
+			
+				// Skip if row is fully transparent
+				if (minXinRow === undefined) continue;
+			
+				// Right to left — find last visible pixel in row
+				for (let x = canvas.width - 1; x >= 0; x--) {
+					const i = (y * canvas.width + x) * 4;
+					if (pixels[i + 3] > 0) {
+						maxXinRow = x;
+						break;
+					}
+				}
+			
+				minX = Math.min(minX, minXinRow);
+				maxX = Math.max(maxX, maxXinRow!);
+				minY = Math.min(minY, y);
+				maxY = Math.max(maxY, y);
+			}
+
+			// Handle empty image case
+			if (maxX < minX || maxY < minY) {
+				URL.revokeObjectURL(url);
+				resolve(svgString);
+				return;
+			}
+
+			const cropWidth = maxX - minX + 1;
+			const cropHeight = maxY - minY + 1;
+
+			// Modify the SVG viewBox
+			const parser = new DOMParser();
+			const doc = parser.parseFromString(svgString, "image/svg+xml");
+			const svg = doc.querySelector("svg");
+
+			if (svg) {
+				svg.setAttribute("viewBox", `${minX} ${minY} ${cropWidth} ${cropHeight}`);
+				svg.setAttribute("width", cropWidth.toString());
+				svg.setAttribute("height", cropHeight.toString());
+				resolve(svg.outerHTML);
+			} else {
+				resolve(svgString);
+			}
+			URL.revokeObjectURL(url);
+		};
+
+		img.onerror = () => {
+			URL.revokeObjectURL(url);
+			resolve(svgString);
+		};
+
+		img.src = url;
+	});
 }
+
+
 
 async function getPdfDimensions(
   pdf: any,
