@@ -94,7 +94,7 @@ async function cropSvgByPixels(svgString: string): Promise<string> {
 			for (let y = 0; y < canvas.height; y++) {
 				let minXinRow = undefined, maxXinRow = undefined;
 			
-				// Left to right — find first visible pixel in row
+				// Left to right -> find first visible pixel in row
 				for (let x = 0; x < canvas.width; x++) {
 					const i = (y * canvas.width + x) * 4;
 					if (pixels[i + 3] > 0) {
@@ -106,7 +106,7 @@ async function cropSvgByPixels(svgString: string): Promise<string> {
 				// Skip if row is fully transparent
 				if (minXinRow === undefined) continue;
 			
-				// Right to left — find last visible pixel in row
+				// Right to left -> find last visible pixel in row
 				for (let x = canvas.width - 1; x >= 0; x--) {
 					const i = (y * canvas.width + x) * 4;
 					if (pixels[i + 3] > 0) {
@@ -166,4 +166,3 @@ async function getPdfDimensions(
   const { width, height } = firstPage.getSize();
   return { width, height };
 }
-
