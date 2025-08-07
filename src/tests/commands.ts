@@ -6,8 +6,29 @@ import { CompileResult, CompileStatus } from "src/latexRender/compiler/base/comp
 import { getLatexTaskSectionInfosFromFile, TaskSectionInformation } from "src/latexRender/resolvers/taskSectionInformation";
 
 export function getTestCommands(plugin: Moshe): Command[] {
-    return [createTestLatexCommand(plugin)];
+    return [createTestLatexCommand(plugin),createTestOnClipboard(plugin)];
 }
+
+function createTestOnClipboard(plugin: Moshe): Command {
+    return {
+        id: "test-clipboard",
+        name: "Test Clipboard (runs function on its content and writes back to clipboard)",
+        callback: async () => {
+            const clipboardText = await navigator.clipboard.readText();
+            if (!clipboardText) {
+                new Notice("Clipboard is empty or not accessible.");
+                return;
+            }
+            try{
+                //const result = cropSvgByPixels(clipboardText);
+               // navigator.clipboard.writeText(result);
+            } catch (err){
+                console.error("Error processing clipboard text:", err);
+            }
+        }
+    }
+}
+
 
 function createTestLatexCommand(plugin: Moshe): Command {
     return {

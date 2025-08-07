@@ -13,7 +13,9 @@ import { exec } from 'child_process';
 
 function revealFileWithFocus(path: string) {
 	if (Platform.isWin) {
-		exec(`explorer.exe /select,"${path.replace(/\//g, '\\')}"`);
+    const winPath = path.replace(/\//g, "\\");
+    exec(`start "" explorer.exe /select,"${winPath}"`);
+		//exec(`explorer.exe /select,"${path.replace(/\//g, '\\')}"`);
 	} else if (Platform.isMacOS) {
 		const script = `
 			tell application "Finder"
@@ -128,14 +130,6 @@ export class SvgContextMenu extends Menu {
           }
         });
       });
-    this.addItem((item) => {
-      item.setTitle("Copy parsed source");
-      item.setIcon("copy");
-      item.onClick(async () => {
-        const source = await this.getParsedSource();
-        await navigator.clipboard.writeText(source);
-      });
-    });
     if (!this.isError)
       this.addItem((item) => {
         item.setTitle("properties");
@@ -164,7 +158,31 @@ export class SvgContextMenu extends Menu {
         this.revealFileInExplorer();
       });
     });
+    this.addDebugDisplayItems();
   }
+  private addDebugDisplayItems() {
+    this.addItem((item) => {
+      item.setTitle("Copy parsed source");
+      item.setIcon("copy");
+      item.onClick(async () => {
+        const source = await this.getParsedSource();
+        await navigator.clipboard.writeText(source);
+      });
+    });
+    this.addItem((item) => {
+      item.setTitle("copy raw svg")
+      item.setIcon("copy");
+      item.onClick(async () => {
+        const rawSvg = await this.getRawSvg();
+        if (!rawSvg) {
+          new Notice("Failed to get raw SVG content.");
+          return;
+        }
+        await navigator.clipboard.writeText(rawSvg);
+      })
+    })
+  }
+  
   private revealFileInExplorer() {
     if (this.isError) {
       throw new Error("Can't reveal file in explorer, this is an error container.");
@@ -255,11 +273,20 @@ export class SvgContextMenu extends Menu {
   async open(event: MouseEvent) {
     this.showAtPosition({ x: event.pageX, y: event.pageY });
   }
+
   private async getParsedSource() {
     await this.assignLatexSource();
     const sectionInfo = await this.getSectionInfo();
     const task = LatexTask.fromSectionInfo(this.plugin, this.sourcePath, sectionInfo);
     if (task.isProcess()) await task.process();
     return task.getProcessedContent();
+  }
+
+  private async getRawSvg() {
+    await this.assignLatexSource();
+    const sectionInfo = await this.getSectionInfo();
+    const task = LatexTask.fromSectionInfo(this.plugin, this.sourcePath, sectionInfo);
+    const result = await this.plugin.swiftlatexRender.detachedProcessAndRenderToResultFile(task);
+    return result;
   }
 }

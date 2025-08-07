@@ -383,7 +383,7 @@ export default class ResultFileCache {
 
 	removeResultFileFromCache(basename: string): boolean {
 		const catchRemoveSuccess = this.cache.deleteFile(this.basenameToFileName(basename));
-		const { rawHash, depsHash } = this.nameToHashes(basename);
+		const { rawHash, depsHash } = this.basenameToHashes(basename);
 		const entries = this.cacheMap.get(rawHash);
 		if (!entries) return false;
 		const noEntries = entries.length === 0
@@ -465,7 +465,7 @@ export default class ResultFileCache {
 		const [rawHash, depsHash] = parts;
 		return { rawHash, depsHash };
 	}
-	
+
 	nameToHashes(fileName: string) {
 		const parts = fileName.split(/[\\/]/).pop()?.split(".");
 		parts?.pop(); // Remove the file extension
