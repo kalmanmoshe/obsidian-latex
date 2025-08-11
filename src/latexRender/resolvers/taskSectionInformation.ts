@@ -3,7 +3,7 @@ import { getFileSections } from "./sectionCache";
 import Moshe from "src/main";
 import { latexCodeBlockNamesRegex } from "../swiftlatexRender";
 import ResultFileCache, { hashLatexContent } from "../cache/resultFileCache";
-import { codeBlockToContent } from "./sectionUtils";
+import { codeBlockToContent } from "obsidian-dev-utils";
 export interface TaskSectionInformation {
     /**
      * The line start of the source in the file. (zero-based index)

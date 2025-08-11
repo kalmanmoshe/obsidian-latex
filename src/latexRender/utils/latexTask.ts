@@ -10,12 +10,12 @@ import {
   LatexDependency,
 } from "../../ast/parse";
 import { String as StringClass } from "../../ast/typs/ast-types-post";
-import path from "path";
 import { getSectionsFromMatching } from "../resolvers/findSection";
 import { TaskSectionInformation } from "../resolvers/taskSectionInformation";
-import { codeBlockToContent, sectionToTaskSectionInfo } from "../resolvers/sectionUtils";
 import { hashLatexContent } from "../cache/resultFileCache";
 import { CODE_BLOCK_NAME_SEPARATOR, extractBasenameAndExtension, findRelativeFile, getFileContent, isValidFileBasename, resolvePathRelToVault } from "../resolvers/paths";
+import { codeBlockToContent } from "obsidian-dev-utils";
+import { sectionToTaskSectionInfo } from "../resolvers/sectionUtils";
 /**
  * Be careful of catching this as the file may change and until you don't generate a new one it will be static.
  */

@@ -1,15 +1,14 @@
 import { Menu, Notice, TFile,Platform } from "obsidian";
 import Moshe from "src/main";
-import { extractCodeBlockLanguage } from "./resolvers/latexSourceFromFile";
 import { addMenu } from "./swiftlatexRender";
 import { LogDisplayModal } from "./logs/logDisplayModal";
 import { LatexTask } from "./utils/latexTask";
 import { ErrorClasses } from "./logs/HumanReadableLogs";
 import { findTaskSectionInfoFromHashInFile, TaskSectionInformation } from "./resolvers/taskSectionInformation";
-import { codeBlockToContent } from "./resolvers/sectionUtils";
 import { SVG_ID_KEY } from "src/svg/nodes";
 import { shell } from 'electron';
 import { exec } from 'child_process';
+import { codeBlockToContent, extractCodeBlockLanguage } from "obsidian-dev-utils";
 
 function revealFileWithFocus(path: string) {
 	if (Platform.isWin) {

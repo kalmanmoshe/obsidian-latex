@@ -1,5 +1,6 @@
 import { SectionCache, TFile } from "obsidian";
 import { parseNestedCodeBlocks, shiftSections } from "obsidian-dev-utils";
+
 /**
  * get the sections of a file from the metadata cache with the option to account for nested code blocks.
  * @param file
@@ -51,11 +52,7 @@ async function getFileSectionsWithNested(file: TFile, sectionsBase: SectionCache
   return sections.sort((a, b) => a.position.start.line - b.position.start.line);
 }
 
-function createSectionCache(
-  source: string,
-  startLine: number,
-  endLine: number,
-): SectionCache {
+function createSectionCache( source: string, startLine: number, endLine: number ): SectionCache {
   return {
     type: "code",
     position: {
@@ -72,6 +69,7 @@ function createSectionCache(
     },
   };
 }
+
 function getOffsetForLine(source: string, lineNumber: number): number {
   return source
     .split("\n")
