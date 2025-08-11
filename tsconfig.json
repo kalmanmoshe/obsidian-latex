@@ -4,6 +4,8 @@
     "inlineSourceMap": true,
     "inlineSources": true,
     "module": "NodeNext",
+    "moduleResolution": "nodenext",
+    "skipLibCheck": true,
     "target": "ES6",
     "allowJs": true,
     "noEmit": true,

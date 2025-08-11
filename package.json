@@ -11,7 +11,6 @@
     "update-utils": "npm uninstall obsidian-dev-utils && npm install kalmanmoshe/obsidian-dev-utils#main"
   },
   "keywords": [],
-  "author": "gboyd068/fenjalien",
   "license": "MIT",
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^15.2.3",
