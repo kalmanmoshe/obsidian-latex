@@ -2,7 +2,7 @@
 import { TAbstractFile, TFile, TFolder } from "obsidian";
 import { getLatexTaskSectionInfosFromFile } from "./taskSectionInformation";
 import { extractCodeBlockName } from "./latexSourceFromFile";
-import { codeBlockToContent } from "./sectionUtils";
+import { codeBlockToContent } from "obsidian-dev-utils";
 
 export const CODE_BLOCK_NAME_SEPARATOR = "::";
 const PATH_SEPARATORS = ["\/", "\\", CODE_BLOCK_NAME_SEPARATOR];

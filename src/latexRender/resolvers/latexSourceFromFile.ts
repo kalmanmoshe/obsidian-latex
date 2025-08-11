@@ -1,8 +1,8 @@
 import { TFile } from "obsidian";
 import { latexCodeBlockNamesRegex } from "../swiftlatexRender";
 import { getLatexTaskSectionInfosFromFile } from "./taskSectionInformation";
-import { codeBlockToContent } from "./sectionUtils";
 import { hashLatexContent } from "../cache/resultFileCache";
+import { codeBlockLanguageRegex, codeBlockToContent } from "obsidian-dev-utils";
 /** rooles: 
  * - find = Might be undefined
  * - get = Will always return a value or throw an error
@@ -32,20 +32,12 @@ export async function extractAllSectionsByFile() {
 	return sectionsByFile
 }
 
-export const codeBlockLanguageRegex = /[`~]{3,} *([a-zA-Z0-9_\-+.#\/]+)/;
-
 export function extractCodeBlockMetadata(text: string): { language?: string; name?: string; } {
 	const language = text.match(codeBlockLanguageRegex)?.[1];
 	const name = extractCodeBlockName(text);
 	return { language, name };
 }
-/**
- * Extracts the language of a code block from its opening line.
- */
-export function extractCodeBlockLanguage(codeBlock: string): string | undefined {
-	const match = codeBlock.match(codeBlockLanguageRegex);
-	return match ? match[1] : undefined;
-}
+
 /**
  * Attempts to extract the name of a LaTeX code block from the first line of the given text.
  * @param codeBlock - The full text of the code block

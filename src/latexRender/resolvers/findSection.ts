@@ -6,10 +6,8 @@ import {
   TFile,
 } from "obsidian";
 import { TransactionLogger } from "../cache/transactionLogger";
-import { getFileSections, } from "./sectionCache";
 import { EditorView } from "@codemirror/view";
-import { extractSectionSource } from "./sectionUtils";
-
+import { extractSectionContent, getFileSections } from "obsidian-dev-utils"
 /**
  * Tries to resolve the relevant section using the latest transaction log entry (source mode only).
  */
@@ -31,7 +29,7 @@ function getSectionFromTransaction(
     lineStart: section.position.start.line,
     lineEnd: section.position.end.line,
     text: fileText,
-    source: extractSectionSource(fileText, section),
+    source: extractSectionContent(fileText, section),
   };
 }
 

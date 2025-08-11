@@ -10,8 +10,8 @@ import { getTestCommands } from "src/tests/commands";
 import { extractAllSectionsByFile } from "src/latexRender/resolvers/latexSourceFromFile";
 import { CacheStatus } from "src/latexRender/cache/compilerCache";
 import { LatexTask } from "src/latexRender/utils/latexTask";
-import { codeBlockToContent } from "src/latexRender/resolvers/sectionUtils";
 import { hashLatexContent } from "src/latexRender/cache/resultFileCache";
+import { codeBlockToContent } from "obsidian-dev-utils";
 
 function getCodeBlockNamer(plugin: Moshe) {
   return {
