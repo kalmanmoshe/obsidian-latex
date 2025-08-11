@@ -26,9 +26,6 @@ import { createTransactionLogger } from "./latexRender/cache/transactionLogger";
 import { EditorView } from "@codemirror/view";
 import { StateEffect } from "@codemirror/state";
 
-declare global {
-  const app: App;
-}
 async function isInternetAvailable(): Promise<boolean> {
   try {
     const response = await fetch("https://www.google.com", { method: "HEAD", mode: "no-cors" });
