@@ -1,12 +1,12 @@
 
 import { Command, Modal, Notice, TFile } from "obsidian";
-import { LatexTask } from "src/latexRender/utils/latexTask";
+import { LatexTask } from "src/latexRender/task/latexTask";
 import Moshe from "src/main";
 import { CompileResult, CompileStatus } from "src/latexRender/compiler/base/compilerBase/engine";
 import { getLatexTaskSectionInfosFromFile, TaskSectionInformation } from "src/latexRender/resolvers/taskSectionInformation";
 
 export function getTestCommands(plugin: Moshe): Command[] {
-    return [createTestLatexCommand(plugin),createTestOnClipboard(plugin)];
+    return [createTestLatexCommand(plugin), createTestOnClipboard(plugin)];
 }
 
 function createTestOnClipboard(plugin: Moshe): Command {
@@ -19,10 +19,10 @@ function createTestOnClipboard(plugin: Moshe): Command {
                 new Notice("Clipboard is empty or not accessible.");
                 return;
             }
-            try{
+            try {
                 //const result = cropSvgByPixels(clipboardText);
-               // navigator.clipboard.writeText(result);
-            } catch (err){
+                // navigator.clipboard.writeText(result);
+            } catch (err) {
                 console.error("Error processing clipboard text:", err);
             }
         }

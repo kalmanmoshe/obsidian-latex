@@ -47,9 +47,9 @@ export async function getCurrentCursorLocationSection(file: TFile, editor: Edito
  * Tries to find a section by exact or fuzzy string match against the file content.
  * i need to faze this out
  */
-export function getSectionsFromMatching(sections: SectionCache[], fileText: string, source: string,): MarkdownSectionInformation[] | undefined {
+export function getSectionsFromMatching(sections: SectionCache[], fileText: string, codeBlock: string,): MarkdownSectionInformation[] | undefined {
   const sectionCache: SectionCache[] | undefined =
-    extractPossibleSectionCatchesOfString(sections, fileText, source)
+    extractPossibleSectionCatchesOfString(sections, fileText, codeBlock)
       ?.filter((sec) => sec.position);
   console.log("sectionCache", sectionCache);
   if (!sectionCache || sectionCache.length === 0) return;

@@ -1,4 +1,4 @@
-import {MarkdownPostProcessorContext } from "obsidian";
+import { MarkdownPostProcessorContext } from "obsidian";
 import * as temp from "temp";
 import { CompileResult, CompileStatus } from "./compiler/base/compilerBase/engine";
 import Moshe from "../main";
@@ -7,15 +7,15 @@ import async from "async";
 import { pdfToHtml, pdfToOptimizedSVG, pdfToSVG } from "./pdfToHtml/pdfToHtml";
 import parseLatexLog, { createErrorDisplay, errorDiv } from "./logs/HumanReadableLogs";
 import { VirtualFileSystem } from "./VirtualFileSystem";
-import { SvgContextMenu } from "./svgContextMenu";
 import { ProcessedLog } from "./logs/latex-log-parser";
 import PdfTeXCompiler from "./compiler/swiftlatexpdftex/PdfTeXEngine";
-import { LatexTask } from "./utils/latexTask";
+import { LatexTask } from "./task/latexTask";
 import { PdfXeTeXCompiler } from "./compiler/swiftlatexxetex/pdfXeTeXCompiler";
 import LatexCompiler from "./compiler/base/compilerBase/compiler";
 import CompilerCache from "./cache/compilerCache";
 import { hashLatexContent } from "./cache/resultFileCache";
 import { SVG_ID_KEY } from "src/svg/nodes";
+import { SvgContextMenu } from "./svgContextMenu";
 
 temp.track();
 export enum RenderLoaderClasses {
@@ -121,7 +121,7 @@ export class SwiftlatexRender {
       const createResult = await LatexTask.createAsync(this.plugin, isLangTikz, source, el, ctx)
       if (createResult.isError) {
         const errorMessage = "Error creating task: " + createResult.result;
-        this.handleError(el, errorMessage, { hash: this.cache.resultFileCache.getFileBaseName(md5Hash,[]) });
+        this.handleError(el, errorMessage, { hash: this.cache.resultFileCache.getFileBaseName(md5Hash, []) });
         return;
       }
       const task = createResult.result as LatexTask;
@@ -160,6 +160,11 @@ export class SwiftlatexRender {
       console.log("Found in catch for", task.getBlockId());
       return false;
     }
+
+    if (task.hasSourceChangeTimeExceededMargin() && !(await task.verifySource())) {
+      return false; // If the source change time exceeds the margin and the source could not be resolved, skip processing.
+    }
+
     if (task.isProcess()) {
       const processor = await task.process();
       task.log()
@@ -189,7 +194,8 @@ export class SwiftlatexRender {
       return new CompileResult(undefined, CompileStatus.CompileError, err as string);
     }
   }
-  async detachedProcessAndRenderToResultFile(task: LatexTask){
+
+  async detachedProcessAndRenderToResultFile(task: LatexTask) {
     const compileResult = await this.detachedProcessAndRender(task);
     if (compileResult.status === CompileStatus.CompileError) {
       return;
@@ -246,7 +252,7 @@ export class SwiftlatexRender {
     } else {
       child = errorDiv({ title: err })
     };
-    if (options.hash) child.setAttribute(SVG_ID_KEY,options.hash);
+    if (options.hash) child.setAttribute(SVG_ID_KEY, options.hash);
     el.appendChild(child);
     if (options.throw) throw err;
   }
@@ -254,11 +260,11 @@ export class SwiftlatexRender {
   private async renderLatexToElement(
     source: string,
     el: HTMLElement,
-    rawHash: string, 
+    rawHash: string,
     dependencyPaths: string[],
     sourcePath: string,
   ): Promise<void> {
-    const basename = this.cache.resultFileCache.getFileBaseName(rawHash,dependencyPaths);
+    const basename = this.cache.resultFileCache.getFileBaseName(rawHash, dependencyPaths);
     try {
       const result = await this.renderLatexToPDF(source, { md5Hash: rawHash });
       el.innerHTML = "";
@@ -328,7 +334,7 @@ const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
   let index = 0;
   while (taskNode) {
     const task = taskNode.data;
-    const countdown = task.el.querySelector("."+RenderLoaderClasses.Countdown);
+    const countdown = task.el.querySelector("." + RenderLoaderClasses.Countdown);
     if (countdown) countdown.textContent = index.toString();
     else console.warn(`Countdown not found for task ${index}`);
     taskNode = taskNode.next;
