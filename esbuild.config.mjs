@@ -24,7 +24,7 @@ const args = {
   bundle: true,
   external: [
     "obsidian",
-    "electron",
+    "electron", 'fs', 'path', 'os', 'crypto', 'worker_threads', 'child_process', 'module',
     "@codemirror/autocomplete",
     "@codemirror/closebrackets",
     "@codemirror/collab",
