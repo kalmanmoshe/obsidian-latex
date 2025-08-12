@@ -61,9 +61,7 @@ export default class ResultFileCache {
 		const dirtyFiles = this.plugin.settings.dirtyResultFiles;
 		for (const fileName of dirtyFiles) {
 			const content = this.cache.getFile(fileName);
-			if (!content) {
-				throw new Error(`File ${fileName} not found in cache, cannot process dirty file.`);
-			}
+			if (!content) { continue;}
 			try {
 				const cleanSvg = optimizeSVG(content, true);
 				this.cache.addFile(fileName, cleanSvg);
