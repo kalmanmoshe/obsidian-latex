@@ -9,7 +9,7 @@ import { assignCodeBlockName } from "./codeBlockNamer";
 import { getTestCommands } from "src/tests/commands";
 import { extractAllSectionsByFile } from "src/latexRender/resolvers/latexSourceFromFile";
 import { CacheStatus } from "src/latexRender/cache/compilerCache";
-import { LatexTask } from "src/latexRender/utils/latexTask";
+import { LatexTask } from "src/latexRender/task/latexTask";
 import { hashLatexContent } from "src/latexRender/cache/resultFileCache";
 import { codeBlockToContent } from "obsidian-dev-utils";
 

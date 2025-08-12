@@ -3,7 +3,7 @@ import { ProcessedLog } from "../logs/latex-log-parser";
 import parseLatexLog from "../logs/HumanReadableLogs";
 import { MarkdownView, Notice } from "obsidian";
 import { getSectionsFromMatching } from "../resolvers/findSection";
-import { LatexTask } from "../utils/latexTask";
+import { LatexTask } from "../task/latexTask";
 import { getFileSectionsFromPath } from "../resolvers/sectionCache";
 import { sectionToTaskSectionInfo } from "../resolvers/sectionUtils";
 

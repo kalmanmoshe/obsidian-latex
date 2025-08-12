@@ -1,8 +1,8 @@
-import { Menu, Notice, TFile,Platform } from "obsidian";
+import { Menu, Notice, TFile, Platform } from "obsidian";
 import Moshe from "src/main";
 import { addMenu } from "./swiftlatexRender";
 import { LogDisplayModal } from "./logs/logDisplayModal";
-import { LatexTask } from "./utils/latexTask";
+import { LatexTask } from "./task/latexTask";
 import { ErrorClasses } from "./logs/HumanReadableLogs";
 import { findTaskSectionInfoFromHashInFile, TaskSectionInformation } from "./resolvers/taskSectionInformation";
 import { SVG_ID_KEY } from "src/svg/nodes";
@@ -11,23 +11,23 @@ import { exec } from 'child_process';
 import { codeBlockToContent, extractCodeBlockLanguage } from "obsidian-dev-utils";
 
 function revealFileWithFocus(path: string) {
-	if (Platform.isWin) {
+  if (Platform.isWin) {
     const winPath = path.replace(/\//g, "\\");
     exec(`start "" explorer.exe /select,"${winPath}"`);
-		//exec(`explorer.exe /select,"${path.replace(/\//g, '\\')}"`);
-	} else if (Platform.isMacOS) {
-		const script = `
+    //exec(`explorer.exe /select,"${path.replace(/\//g, '\\')}"`);
+  } else if (Platform.isMacOS) {
+    const script = `
 			tell application "Finder"
 				reveal POSIX file "${path}"
 				activate
 			end tell
 		`;
-		exec(`osascript -e '${script.replace(/\n/g, '')}'`);
-	} else {
-		// Fallback for Linux or just use shell.showItemInFolder
-		const { shell } = require('electron');
-		shell.showItemInFolder(path);
-	}
+    exec(`osascript -e '${script.replace(/\n/g, '')}'`);
+  } else {
+    // Fallback for Linux or just use shell.showItemInFolder
+    const { shell } = require('electron');
+    shell.showItemInFolder(path);
+  }
 }
 
 /**add:
@@ -150,13 +150,13 @@ export class SvgContextMenu extends Menu {
       });
     });
     if (!this.isError)
-    this.addItem((item) => {
-      item.setTitle("Reveal in file explorer");
-      item.setIcon("folder");
-      item.onClick(async () => {
-        this.revealFileInExplorer();
+      this.addItem((item) => {
+        item.setTitle("Reveal in file explorer");
+        item.setIcon("folder");
+        item.onClick(async () => {
+          this.revealFileInExplorer();
+        });
       });
-    });
     this.addDebugDisplayItems();
   }
   private addDebugDisplayItems() {
@@ -181,13 +181,13 @@ export class SvgContextMenu extends Menu {
       })
     })
   }
-  
+
   private revealFileInExplorer() {
     if (this.isError) {
       throw new Error("Can't reveal file in explorer, this is an error container.");
     }
-    try{
-      if (!this.resultFileCache.isPhysicalCatch()){
+    try {
+      if (!this.resultFileCache.isPhysicalCatch()) {
         new Notice("Result file cache is not physical, can't open file in explorer.");
         return;
       }
@@ -257,7 +257,7 @@ export class SvgContextMenu extends Menu {
     const parentEl = this.blockEl;
     if (!this.isError) {
       const success = this.resultFileCache.removeResultFileFromCache(this.basename);
-      if (!success){
+      if (!success) {
         console.error("Failed to remove result file from cache:", this.basename);
       }
     }
