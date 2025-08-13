@@ -6,9 +6,18 @@ import {
   createDpendency,
   isExtensionTex,
   LatexAbstractSyntaxTree,
+  LatexDependency,
 } from "../../ast/parse";
 import { String as StringClass } from "../../ast/typs/ast-types-post";
 import { CODE_BLOCK_NAME_SEPARATOR, extractBasenameAndExtension, findRelativeFile, getFileContent, isValidFileBasename, resolvePathRelToVault } from "../resolvers/paths";
+import { ProcessableLatexTask } from "./latexTask";
+
+type VFSLatexDependency = LatexDependency & { inVFS: boolean };
+interface VFSLatexBaseDependency extends LatexDependency {
+  basename: string;
+  extension: string;
+  isTex: boolean;
+}
 
 /**
  * Class to handle LaTeX tasks, processing the source code,
@@ -38,6 +47,7 @@ export class LatexTaskProcessor {
     this.isError = true;
   }
   private isNameConflict(basename: string): boolean {
+    console.log("Checking name conflict for basename:", basename, "Possible names:", this.task.possibleNames);
     return isValidFileBasename(basename) && this.task.possibleNames !== undefined && this.task.possibleNames.includes(basename);
   }
 
@@ -74,6 +84,7 @@ export class LatexTaskProcessor {
     for (const macro of inputFilesMacros) {
       const args = macro.args!;
       const filePath = args[0].content.map((node) => node.toString()).join("").trim();
+      console.log("Processing input file:", filePath);
       const dependency = await this.resolveDependency(filePath, basePath);
       const name = dependency.basename + "." + dependency.extension;
       // Replace the macro argument with normalized name

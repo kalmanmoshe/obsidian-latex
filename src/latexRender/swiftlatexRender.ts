@@ -161,7 +161,7 @@ export class SwiftlatexRender {
       return false;
     }
 
-    if (task.hasSourceChangeTimeExceededMargin() && !(await task.verifySource())) {
+    if (false&&task.hasSourceChangeTimeExceededMargin() && !(await task.verifySource())) {
       return false; // If the source change time exceeds the margin and the source could not be resolved, skip processing.
     }
 
