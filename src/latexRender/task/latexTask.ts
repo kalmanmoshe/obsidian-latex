@@ -41,13 +41,6 @@ type InputFile = {
 	dependencies: InputFile[];
 };
 
-type VFSLatexDependency = LatexDependency & { inVFS: boolean };
-interface VFSLatexBaseDependency extends LatexDependency {
-	basename: string;
-	extension: string;
-	isTex: boolean;
-}
-
 export function createTask(plugin: Moshe, process: boolean, content: string, el: HTMLElement): LatexTask | ProcessableLatexTask {
 	return process
 		? new ProcessableLatexTask(plugin, content, el)

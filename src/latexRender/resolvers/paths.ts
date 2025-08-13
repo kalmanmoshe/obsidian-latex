@@ -5,8 +5,10 @@ import { extractCodeBlockName } from "./latexSourceFromFile";
 import { codeBlockToContent } from "obsidian-dev-utils";
 
 export const CODE_BLOCK_NAME_SEPARATOR = "::";
-const PATH_SEPARATORS = ["\/", "\\", CODE_BLOCK_NAME_SEPARATOR];
+const TRADITIONAL_PATH_SEPARATORS = ["/", "\\"];
+const PATH_SEPARATORS = [...TRADITIONAL_PATH_SEPARATORS,CODE_BLOCK_NAME_SEPARATOR];
 export const PATH_SEPARATORS_REGEX = new RegExp(PATH_SEPARATORS.join("|"), "g");
+const CODE_BLOCK_NAME_SEPARATOR_REGEX = new RegExp(CODE_BLOCK_NAME_SEPARATOR, "g");
 
 export function resolvePathRelToVault(path: string, currentPath: string): string {
     const { file, remainingPath } = findRelativeFile(path, currentPath);
@@ -120,9 +122,13 @@ export function findRelativeFile(filePath: string, currentPath: string) {
 
 
 export function extractBasenameAndExtension(path: string) {
-    const parts = path.split(PATH_SEPARATORS_REGEX).pop()?.split(".")!;
+    if(path.split(CODE_BLOCK_NAME_SEPARATOR).length > 2 ) {
+        throw new Error("Invalid path format. Use '" + CODE_BLOCK_NAME_SEPARATOR + "' to separate file path and code block name.");
+    }
+    const parts = path.split(CODE_BLOCK_NAME_SEPARATOR_REGEX).pop()!.split(PATH_SEPARATORS_REGEX).pop()?.split(".")!;
     const extension = parts.pop()!;
     const basename = parts.join(".");
+
     return {basename, extension};
 }
 
