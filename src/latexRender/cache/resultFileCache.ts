@@ -213,6 +213,7 @@ export default class ResultFileCache {
 			this.cacheMap.set(rawHash, entries);
 		}
 
+		this.removeNonExistentEntry(rawHash, entries);
 		let entry = entries.find(e => e.depsHash === depsHash);
 
 		if (entry) {
@@ -225,14 +226,38 @@ export default class ResultFileCache {
 			};
 			entries.push(entry);
 		}
+
 		if (this.cacheMap.get(rawHash)?.filter(e => e.referencedBy.has(filePath)).length !== 1) {
 			throw new Error(`File ${filePath} is already referenced by another hash or dependency combination.`);
 		}
+
 		const fileName = this.basenameToFileName(basename);
 		this.cache.addFile(fileName, content);
 		if (!this.plugin.settings.dirtyResultFiles.includes(fileName))
 			this.plugin.settings.dirtyResultFiles.push(fileName);
 		await this.saveCache();
+	}
+
+	private removeNonExistentEntry(rawHash: string, entries: CacheEntry[]){
+		const depsHashesToRemove: string[] = [];
+		for (const entry of entries) {
+			if (entry.referencedBy.size === 0) {
+				this.cache.deleteFile(this.hashesToFileName(rawHash, entry.depsHash));
+				depsHashesToRemove.push(entry.depsHash);
+				continue;
+			}
+
+			if(!this.cache.fileExists(this.hashesToFileName(entry.depsHash, entry.depsHash))) {
+				depsHashesToRemove.push(entry.depsHash);
+				continue;
+			}
+		}
+
+		const indexes = entries.map((e, i) => depsHashesToRemove.includes(e.depsHash) ? i : -1).filter(i => i !== -1);
+
+		for (const index of indexes.reverse()) {
+			entries.splice(index, 1);
+		}
 	}
 
 
@@ -450,6 +475,10 @@ export default class ResultFileCache {
 	getFileBaseName(rawHash: string, deps: string | string[]): string {
 		const depsHash = Array.isArray(deps) ? this.getDependencyHash(deps) : deps;
 		return `${rawHash}-${depsHash}`;
+	}
+
+	hashesToFileName(rawHash: string, depsHash: string): string {
+		return this.basenameToFileName(this.getFileBaseName(rawHash, depsHash));
 	}
 
 	basenameToHashes(basename: string) {
