@@ -68,6 +68,7 @@ export class VirtualFileSystem {
     }
     return false;
   }
+
   /**
    * set the coor virtual files
    * @param files
@@ -81,6 +82,7 @@ export class VirtualFileSystem {
     for (const file of files)
       throw new Error("File not found in virtual file system: " + file);
   }
+
   /**
    * get the coor virtual files
    */
@@ -97,10 +99,12 @@ export class VirtualFileSystem {
     this.files = files;
     this.status = VFSstatus.outdated;
   }
+
   hasFile(name: string) {
     this.checkEnabled();
     return this.files.some((file) => file.name === name);
   }
+
   getFile(name: string) {
     this.checkEnabled();
     const file = this.files.find((file) => file.name === name);
@@ -108,6 +112,7 @@ export class VirtualFileSystem {
       throw new Error("File not found in virtual file system: " + name);
     return file;
   }
+
   /**
    * add a virtual file system file
    * @param file
@@ -164,4 +169,16 @@ export class VirtualFileSystem {
     vfs.setVirtualFileSystemFiles([...this.files]);
     return vfs;
   }
+  
+  getClonedFiles() {
+    return this.clone().getFiles();
+  }
+  
+  /**
+   * this is only used for testing purposes
+   */
+  getFiles() {
+    return this.files;
+  }
+  
 }

@@ -18,11 +18,13 @@ import { SVG_ID_KEY } from "src/svg/nodes";
 import { SvgContextMenu } from "./svgContextMenu";
 
 temp.track();
+
 export enum RenderLoaderClasses {
   ParentContainer = "moshe-latex-render-loader-parent-container",
   Loader = "moshe-latex-render-loader",
   Countdown = "moshe-latex-render-countdown",
 }
+
 export const waitFor = async (condFunc: () => boolean) => {
   return new Promise<void>((resolve) => {
     if (condFunc()) {
@@ -44,6 +46,7 @@ type InternalTask<T> = {
   callback: Function;
   next: InternalTask<T> | null;
 };
+
 type QueueObject<T> = async.QueueObject<T> & {
   _tasks: {
     head: InternalTask<T> | null;
@@ -52,6 +55,16 @@ type QueueObject<T> = async.QueueObject<T> & {
     remove: (testFn: (node: InternalTask<T>) => boolean) => void;
   };
 };
+type HandleErrorOptions = {
+  /**
+   * If true, the error will be parsed and displayed as a log.
+   */
+  parseErr?: boolean;
+  /**
+   * If true, the error will be thrown after handling.
+   */
+  throw?: boolean;
+}
 
 /**
  * add command to rerender all fils using (\input{}) this file
@@ -121,7 +134,7 @@ export class SwiftlatexRender {
       const createResult = await LatexTask.createAsync(this.plugin, isLangTikz, source, el, ctx)
       if (createResult.isError) {
         const errorMessage = "Error creating task: " + createResult.result;
-        this.handleError(el, errorMessage, { hash: this.cache.resultFileCache.getFileBaseName(md5Hash, []) });
+        this.handleError(el, errorMessage,this.cache.resultFileCache.getFileBaseName(md5Hash, []), ctx.sourcePath);
         return;
       }
       const task = createResult.result as LatexTask;
@@ -134,7 +147,6 @@ export class SwiftlatexRender {
     const blockId = task.getBlockId();
     this.queue.remove((node) => node.data.getBlockId() === blockId);
     task.el.appendChild(createWaitingCountdown(this.queue.length()));
-    addMenu(this.plugin, task.el, task.sourcePath);
     this.queue.push(task);
   }
 
@@ -161,21 +173,21 @@ export class SwiftlatexRender {
       return false;
     }
 
-    if (false&&task.hasSourceChangeTimeExceededMargin() && !(await task.verifySource())) {
+    if (task.hasSourceChangeTimeExceededMargin() && !(await task.verifySource())) {
       return false; // If the source change time exceeds the margin and the source could not be resolved, skip processing.
     }
 
     if (task.isProcess()) {
       const processor = await task.process();
       task.log()
-      const { el, rawHash: md5Hash } = processor.task;
       if (processor.isError) {
         const errorMessage = "Error processing task: " + processor.err;
-        this.handleError(el, errorMessage, { hash: md5Hash, });
+        this.handleErrorForTask(task, errorMessage);
         return false
       }
     }
-    await this.renderLatexToElement(task.getProcessedContent(), task.el, task.rawHash, task.getDependencyPaths(), task.sourcePath,);
+    console.log("Processing and rendering task:", task.getDebugInfo());
+    await this.renderLatexToElement(task);
     this.reCheckQueue(); // only re-check the queue after a valide rendering
     return true;
   }
@@ -242,36 +254,39 @@ export class SwiftlatexRender {
     this.compiler.closeWorker();
   }
 
-  private handleError(el: HTMLElement, err: string, options: { parseErr?: boolean; hash?: string; throw?: boolean } = {}): void {
+  private handleErrorForTask(task: LatexTask, err: string, options: HandleErrorOptions = {}): void {
+    const el = task.el;
+    const basename = task.getBaseName();
+    const path = task.sourcePath;
+    this.handleError(el, err, basename, path, options);
+  }
+    
+  private handleError(el: HTMLElement, err: string, hash: string, path: string, options: HandleErrorOptions = {}): void {
     el.innerHTML = "";
     let child: HTMLElement;
     if (options.parseErr) {
-      const processedError: ProcessedLog = (options.hash && this.cache.getLog(options.hash)) || parseLatexLog(err);
-      console.error("Parsing error:", options.hash, processedError);
+      const processedError: ProcessedLog = this.cache.getLog(hash) || parseLatexLog(err);
+      console.error("Parsing error:", hash, processedError);
       child = createErrorDisplay(processedError);
     } else {
       child = errorDiv({ title: err })
     };
-    if (options.hash) child.setAttribute(SVG_ID_KEY, options.hash);
+    child.setAttribute(SVG_ID_KEY, hash);
     el.appendChild(child);
+    addMenu(this.plugin, el, path);
     if (options.throw) throw err;
   }
 
-  private async renderLatexToElement(
-    source: string,
-    el: HTMLElement,
-    rawHash: string,
-    dependencyPaths: string[],
-    sourcePath: string,
-  ): Promise<void> {
-    const basename = this.cache.resultFileCache.getFileBaseName(rawHash, dependencyPaths);
+  private async renderLatexToElement( task: LatexTask ): Promise<void> {
+    const  { el, content, rawHash, sourcePath, dependencyPaths, basename} = task.getRenderData();
     try {
-      const result = await this.renderLatexToPDF(source, { md5Hash: rawHash });
+      const result = await this.renderLatexToPDF(content, { md5Hash: rawHash });
       el.innerHTML = "";
       await this.translatePDF(result.pdf, el, basename);
+      addMenu(this.plugin, el, sourcePath);
       this.cache.resultFileCache.addFile(el.innerHTML, rawHash, dependencyPaths, sourcePath);
     } catch (err) {
-      this.handleError(el, err as string, { parseErr: true, hash: basename });
+      this.handleErrorForTask(task, err as string, { parseErr: true });
     } finally {
       await waitFor(() => this.compiler.isReady());
     }

@@ -5,7 +5,7 @@ import {
   Path,
   Node,
   ContentNode,
-} from "./typs/ast-types-post";
+} from "./typs/astNodes";
 
 /**
  * the main cleanUpAst function that will be used to clean up the AST

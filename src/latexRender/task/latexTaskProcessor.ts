@@ -8,7 +8,7 @@ import {
   LatexAbstractSyntaxTree,
   LatexDependency,
 } from "../../ast/parse";
-import { String as StringClass } from "../../ast/typs/ast-types-post";
+import { Macro, String as StringClass } from "../../ast/typs/astNodes";
 import { CODE_BLOCK_NAME_SEPARATOR, extractBasenameAndExtension, findRelativeFile, getFileContent, isValidFileBasename, resolvePathRelToVault } from "../resolvers/paths";
 import { ProcessableLatexTask } from "./latexTask";
 
@@ -46,12 +46,14 @@ export class LatexTaskProcessor {
     this.err = err;
     this.isError = true;
   }
+
   private isNameConflict(basename: string): boolean {
-    console.log("Checking name conflict for basename:", basename, "Possible names:", this.task.possibleNames);
-    return isValidFileBasename(basename) && this.task.possibleNames !== undefined && this.task.possibleNames.includes(basename);
+    console.log("Checking name conflict for basename:", basename, "Possible names:", this.task.getPossibleNames());
+    return isValidFileBasename(basename) && this.task.getPossibleNames().includes(basename);
   }
 
-  private async resolveDependency(filePath: string, basePath: string) {
+  private async resolveDependency(macro: Macro, filePath: string, basePath: string) {
+    // i need to check if the dep is in auto use file so i dont add it twice
     let path = resolvePathRelToVault(filePath, basePath);
     const codeBlockName = path.split(CODE_BLOCK_NAME_SEPARATOR).pop();
     if (codeBlockName) {
@@ -65,7 +67,7 @@ export class LatexTaskProcessor {
     }
     const content = await getFileContent(path);
 
-    const dependency = createDpendency(content, path, { isTex: isExtensionTex(extension) });
+    const dependency = createDpendency(content, path, { isTex: isExtensionTex(extension), macro });
     console.log("Resolved dependency:", dependency, basename, extension);
     return dependency;
   }
@@ -79,13 +81,12 @@ export class LatexTaskProcessor {
    */
   private async processInputFiles(ast: LatexAbstractSyntaxTree, basePath: string): Promise<VFSLatexDependency[] | undefined> {
     const usedFiles: VFSLatexDependency[] = [];
-    const inputFilesMacros = ast.usdInputFiles()
-      .filter((macro) => macro.args && macro.args.length === 1);
+    const inputFilesMacros = ast.getUnresolvedDependencyMacros();
     for (const macro of inputFilesMacros) {
       const args = macro.args!;
-      const filePath = args[0].content.map((node) => node.toString()).join("").trim();
+      const filePath = macro.toStringArgsContent();
       console.log("Processing input file:", filePath);
-      const dependency = await this.resolveDependency(filePath, basePath);
+      const dependency = await this.resolveDependency(macro, filePath, basePath);
       const name = dependency.basename + "." + dependency.extension;
       // Replace the macro argument with normalized name
       args[0].content = [new StringClass(name)];
@@ -105,7 +106,7 @@ export class LatexTaskProcessor {
 
       const vfsDep = { ...dependency, inVFS: false }
       usedFiles.push(vfsDep);
-      ast.addDependency(dependency);
+      ast.addDependencyDataForMacro(macro, dependency);
     }
 
     return usedFiles;
@@ -119,16 +120,16 @@ export class LatexTaskProcessor {
     const startTime = performance.now();
     try {
       const ast = LatexAbstractSyntaxTree.parse(this.task.getContent());
-      this.nameTaskCodeBlock();
       if (this.plugin.settings.compilerVfsEnabled) {
+        this.dependencies.push(...this.addAutoUseFilesToAst(ast));
         const files = await this.processInputFiles(ast, this.task.sourcePath)
         if (!files) { return }
         this.dependencies.push(...files);
-        this.dependencies.push(...this.addAutoUseFilesToAst(ast));
       }
       ast.verifyProperDocumentStructure();
       this.task.setAst(ast);
       this.task.processingTime = performance.now() - startTime;
+      this.task.processed = true;
       // ── Final task update ────────────────────────
     } catch (e) {
       if (typeof e !== "string" && "abort" in e) {
@@ -137,30 +138,16 @@ export class LatexTaskProcessor {
       this.setError(e);
     }
   }
-  private nameTaskCodeBlock() {
-    const file = app.vault.getAbstractFileByPath(this.task.sourcePath);
-    if (!file || !(file instanceof TFile)) {
-      this.setError("Source path is not a valid file.");
-      return;
-    }
-    const names = []
-    for (const section of this.task.sectionInfos) {
-      const line = section.codeBlock.split("\n")[0];
-      const name = extractCodeBlockName(line);
-      if (name) names.push(name);
-    }
-    this.task.possibleNames = names;
-  }
 
   private addAutoUseFilesToAst(ast: LatexAbstractSyntaxTree) {
     const files: VFSLatexDependency[] = [];
     this.vfs.getAutoUseFileNames().forEach((name) => {
-      ast.addInputFileToPramble(name);
       const file = this.vfs.getFile(name).content;
       const dependency = createDpendency(file, name, { isTex: true, autoUse: true });
+      ast.addDependencyToPramble(dependency);
       const vfsDep = { ...dependency, inVFS: true };
       files.push(vfsDep);
-      ast.addDependency(dependency);
+      //ast.addDependency(dependency);
     });
     return files
   }

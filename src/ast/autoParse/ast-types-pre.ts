@@ -37,7 +37,7 @@ import {
   Ast as AstClass,
   Node as NodeClass,
   BaseNode as BaseNodeClass,
-} from "../typs/ast-types-post";
+} from "../typs/astNodes";
 
 export type GenericAst = GenericNode | GenericNode[];
 
@@ -162,13 +162,13 @@ function validateNodeContent<T extends BaseNodeClass>(
   if (!isNodeClassArray(content)) {
     throw new Error(
       errorMessagePrefix +
-        " node content must be an array of BaseNode instances/children, got: " +
-        content,
+      " node content must be an array of BaseNode instances/children, got: " +
+      content,
     );
   }
   return content;
 }
-function addRenderInfo(macro: string,renderInfo: object) {
+function addRenderInfo(macro: string, renderInfo: object) {
   console.log("Adding render info for macro:", macro, renderInfo);
   //if (renderInfo.breakAfter!(macro.match(/(input)/))) return;
   renderInfo

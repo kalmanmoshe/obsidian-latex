@@ -6,7 +6,7 @@ import {
   Argument,
   Ast,
   Node,
-} from "./typs/ast-types-post";
+} from "./typs/astNodes";
 
 export class MathJaxAbstractSyntaxTree {
   ast: Node[];

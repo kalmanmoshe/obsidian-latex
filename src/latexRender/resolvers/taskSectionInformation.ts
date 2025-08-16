@@ -46,7 +46,7 @@ export async function findTaskSectionInfoFromContentInFile(file: TFile, content:
     }
 }
 
-export async function getTaskSectionInfoFromHash(cache: ResultFileCache, hash: string): Promise<TaskSectionInformation> {
+export async function getTaskSectionInfosFromHash(cache: ResultFileCache, hash: string): Promise<TaskSectionInformation[]> {
     const filePathsCache = new Set<string>();
     // Use cache to narrow down file paths.
     const cachedFilePaths = cache.getCachedFilePathsForRawHash(hash);
@@ -111,10 +111,9 @@ function getLatexTaskSectionInfosFromString(string: string, sections: SectionCac
 
 export async function findTaskSectionInfoFromHashInFile(file: TFile, hash: string) {
     const blockSections = await getLatexTaskSectionInfosFromFile(file)
-    for (const section of blockSections) {
-        const sectionContent = codeBlockToContent(section.codeBlock);
-        if (hashLatexContent(sectionContent) === hash) {
-            return section;
-        }
+    const matchedSections = blockSections.filter(section => hashLatexContent(codeBlockToContent(section.codeBlock)) === hash);
+    if (matchedSections.length === 0) {
+        return undefined;
     }
+    return matchedSections
 }
