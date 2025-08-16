@@ -85,7 +85,7 @@ export function errorDiv(info: ErrorMessage): HTMLElement {
   const errorDetails = [
     [ErrorClasses.Title, title],
     [ErrorClasses.Explanation, explanation],
-    [ErrorClasses.Cause, `Triggered from ${cause}`],
+    [ErrorClasses.Cause, cause&&`Triggered from ${cause}`],
     [
       ErrorClasses.Package,
       triggeringPackage ? `Package: ${triggeringPackage}` : undefined,

@@ -119,8 +119,6 @@ export function findRelativeFile(filePath: string, currentPath: string) {
     };
 }
 
-
-
 export function extractBasenameAndExtension(path: string) {
     if(path.split(CODE_BLOCK_NAME_SEPARATOR).length > 2 ) {
         throw new Error("Invalid path format. Use '" + CODE_BLOCK_NAME_SEPARATOR + "' to separate file path and code block name.");

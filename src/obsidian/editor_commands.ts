@@ -59,7 +59,7 @@ async function renderAllUnrenderedCodeBlocks(plugin: Moshe) {
   console.log("Unrendered sections found:", sectionInfosByFile, sectionInfosByFile.length);
   for (const { file, codeBlockSections } of sectionInfosByFile) {
     for (const codeBlock of codeBlockSections) {
-      const task = LatexTask.fromSectionInfo(plugin, file.path, codeBlock);
+      const task = LatexTask.fromSectionInfos(plugin, file.path, [codeBlock]);
       plugin.swiftlatexRender.addToQueue(task);
     }
   }

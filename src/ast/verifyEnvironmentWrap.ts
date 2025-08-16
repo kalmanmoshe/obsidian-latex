@@ -3,7 +3,7 @@ import {
   Environment,
   Argument,
   Node,
-} from "./typs/ast-types-post";
+} from "./typs/astNodes";
 import { LatexAbstractSyntaxTree } from "./parse";
 import { Notice } from "obsidian";
 export class EnvironmentWrap {

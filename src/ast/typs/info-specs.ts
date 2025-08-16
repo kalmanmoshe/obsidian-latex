@@ -1,4 +1,4 @@
-import * as Ast from "./ast-types-post";
+import * as Ast from "./astNodes";
 
 export type ArgumentParser = (
   nodes: Ast.Node[],

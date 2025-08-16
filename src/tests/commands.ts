@@ -74,7 +74,7 @@ async function getAllMarkdownLatexSections(plugin: Moshe) {
 
 
 async function analyzeCompileResult(plugin: Moshe, file: TFile, section: TaskSectionInformation) {
-    const task = LatexTask.fromSectionInfo(plugin, file.path, section);
+    const task = LatexTask.fromSectionInfos(plugin, file.path, [section]);
     const previousStatus = task.getCacheStatusAsNum();
     const compileResult = await plugin.swiftlatexRender.detachedProcessAndRender(task);
     const isSuccess = compileResult.status === CompileStatus.Success;
@@ -178,7 +178,7 @@ class CompileTest {
     }
 
     static async analyzeSection(file: TFile, section: TaskSectionInformation): Promise<CompileAnalysisResult> {
-        const task = LatexTask.fromSectionInfo(this.plugin, file.path, section);
+        const task = LatexTask.fromSectionInfos(this.plugin, file.path, [section]);
         const compileResult = await this.plugin.swiftlatexRender.detachedProcessAndRender(task);
         return { compileResult, task, section };
     }
