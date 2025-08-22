@@ -1,4 +1,4 @@
-import Moshe from "src/main";
+import LatexRender from "src/main";
 import { CacheBase } from "./cacheBase";
 import * as fs from "fs";
 import { Notice } from "obsidian";
@@ -6,7 +6,7 @@ import path from "path";
 
 export abstract class PhysicalCacheBase extends CacheBase {
     protected cacheFolderPath: string;
-    constructor(plugin: Moshe, cacheFileExtensions: string[]) {
+    constructor(plugin: LatexRender, cacheFileExtensions: string[]) {
         super(plugin, cacheFileExtensions);
         this.validateDir();
     }
@@ -118,6 +118,6 @@ export abstract class PhysicalCacheBase extends CacheBase {
                 const filePath = path.join(this.getCacheFolderPath(), file);
                 fs.rmSync(filePath);
             }
-        } 
+        }
     }
 }

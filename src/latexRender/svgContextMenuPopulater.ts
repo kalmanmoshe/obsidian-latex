@@ -1,5 +1,5 @@
 import { Menu, Notice, TFile, Platform } from "obsidian";
-import Moshe from "src/main";
+import LatexRender from "src/main";
 import { LogDisplayModal } from "./logs/logDisplayModal";
 import { LatexTask } from "./task/latexTask";
 import { ErrorClasses } from "./logs/HumanReadableLogs";
@@ -33,7 +33,7 @@ function revealFileWithFocus(path: string) {
  * - properties (such as size, dependencies, hash, date created, )
  */
 export class SvgContextMenuPopulater {
-	plugin: Moshe;
+	plugin: LatexRender;
 	menu: Menu;
 	svgEl?: SVGElement;
 	/**
@@ -53,7 +53,7 @@ export class SvgContextMenuPopulater {
 	depsHash: string;
 	private resultFileCache;
 	constructor(
-		plugin: Moshe,
+		plugin: LatexRender,
 		menu: Menu,
 		trigeringElement: HTMLElement,
 		sourcePath: string,
@@ -64,7 +64,7 @@ export class SvgContextMenuPopulater {
 		this.assignElements(trigeringElement);
 		this.sourcePath = sourcePath;
 		this.addDisplayItems();
-		console.log("SvgContextMenu created for", this.blockEl,this.menu, this.svgEl, this.containerEl, this.basename);
+		console.log("SvgContextMenu created for", this.blockEl, this.menu, this.svgEl, this.containerEl, this.basename);
 	}
 
 	private isSvgContainer(el: HTMLElement) {
@@ -119,7 +119,7 @@ export class SvgContextMenuPopulater {
 
 
 	private addDisplayItems() {
-		
+
 		if (!this.isError)
 			this.menu.addItem((item) => {
 				item.setTitle("Copy SVG");
@@ -176,17 +176,17 @@ export class SvgContextMenuPopulater {
 		});
 		if (!this.isError)
 			this.menu.addItem((item) => {
-			item.setTitle("copy raw svg")
-			item.setIcon("copy");
-			item.onClick(async () => {
-				const rawSvg = await this.getRawSvg();
-				if (!rawSvg) {
-					new Notice("Failed to get raw SVG content.");
-					return;
-				}
-				await navigator.clipboard.writeText(rawSvg);
+				item.setTitle("copy raw svg")
+				item.setIcon("copy");
+				item.onClick(async () => {
+					const rawSvg = await this.getRawSvg();
+					if (!rawSvg) {
+						new Notice("Failed to get raw SVG content.");
+						return;
+					}
+					await navigator.clipboard.writeText(rawSvg);
+				})
 			})
-		})
 	}
 
 	private revealFileInExplorer() {
@@ -245,7 +245,7 @@ export class SvgContextMenuPopulater {
 		const file = await this.getFile();
 		const sectionInfos = await findTaskSectionInfoFromHashInFile(file, this.rawHash);
 		if (!sectionInfos) throw new Error("No section info found for hash: " + this.rawHash + " in file: " + file.path);
-		const task = LatexTask.fromSectionInfos(this.plugin, this.sourcePath, sectionInfos,this.blockEl);
+		const task = LatexTask.fromSectionInfos(this.plugin, this.sourcePath, sectionInfos, this.blockEl);
 		return task;
 	}
 
@@ -253,7 +253,7 @@ export class SvgContextMenuPopulater {
 		const file = await this.getFile();
 		const sectionInfos = await findTaskSectionInfoFromHashInFile(file, this.rawHash);
 		if (!sectionInfos) throw new Error("No section info found for hash: " + this.rawHash + " in file: " + file.path);
-		const sectionInfo = sectionInfos[0]; 
+		const sectionInfo = sectionInfos[0];
 		this.content = codeBlockToContent(sectionInfo.codeBlock);
 		return sectionInfo;
 	}
@@ -283,7 +283,7 @@ export class SvgContextMenuPopulater {
 		new Notice("SVG removed from cache. Re-rendering...");
 	}
 
-	
+
 
 	private async getParsedSource() {
 		const task = await this.getTask();
@@ -299,7 +299,7 @@ export class SvgContextMenuPopulater {
 	}
 
 	private async getRawSvg() {
-		
+
 		const task = await this.getTask();
 		const result = await this.plugin.swiftlatexRender.detachedProcessAndRenderToResultFile(task);
 		return result;

@@ -4,7 +4,7 @@ import {
   Notice,
 } from "obsidian";
 
-import Moshe from "src/main";
+import LatexRender from "src/main";
 import { assignCodeBlockName } from "./codeBlockNamer";
 import { getTestCommands } from "src/tests/commands";
 import { extractAllSectionsByFile } from "src/latexRender/resolvers/latexSourceFromFile";
@@ -13,7 +13,7 @@ import { LatexTask } from "src/latexRender/task/latexTask";
 import { hashLatexContent } from "src/latexRender/cache/resultFileCache";
 import { codeBlockToContent } from "obsidian-dev-utils";
 
-function getCodeBlockNamer(plugin: Moshe) {
+function getCodeBlockNamer(plugin: LatexRender) {
   return {
     id: "name-code-block",
     name: "Name Current Code Block",
@@ -22,7 +22,7 @@ function getCodeBlockNamer(plugin: Moshe) {
 }
 
 
-function removeAllCachedPackages(plugin: Moshe): Command {
+function removeAllCachedPackages(plugin: LatexRender): Command {
   return {
     id: "remove-all-cached-packages",
     name: "Remove all cached packages",
@@ -33,7 +33,7 @@ function removeAllCachedPackages(plugin: Moshe): Command {
   };
 }
 
-async function extractAllUnrenderedSectionsByFile(plugin: Moshe) {
+async function extractAllUnrenderedSectionsByFile(plugin: LatexRender) {
   const sectionsByFile = await extractAllSectionsByFile();
   const sectionInfosByFile = [];
 
@@ -54,7 +54,7 @@ async function extractAllUnrenderedSectionsByFile(plugin: Moshe) {
   }
   return sectionInfosByFile;
 }
-async function renderAllUnrenderedCodeBlocks(plugin: Moshe) {
+async function renderAllUnrenderedCodeBlocks(plugin: LatexRender) {
   const sectionInfosByFile = await extractAllUnrenderedSectionsByFile(plugin);
   console.log("Unrendered sections found:", sectionInfosByFile, sectionInfosByFile.length);
   for (const { file, codeBlockSections } of sectionInfosByFile) {
@@ -66,7 +66,7 @@ async function renderAllUnrenderedCodeBlocks(plugin: Moshe) {
   console.log("All unrendered code blocks are being processed", plugin.swiftlatexRender.queue);
 }
 
-function getRenderAllUnrenderedCodeBlocks(plugin: Moshe) {
+function getRenderAllUnrenderedCodeBlocks(plugin: LatexRender) {
   return {
     id: "render-all-unrendered-code-blocks",
     name: "Render All Unrendered Code Blocks",
@@ -76,7 +76,7 @@ function getRenderAllUnrenderedCodeBlocks(plugin: Moshe) {
     }
   };
 }
-function getRebuildQueue(plugin: Moshe) {
+function getRebuildQueue(plugin: LatexRender) {
   return {
     id: "rebuild-queue",
     name: "Rebuild Render Queue",
@@ -87,7 +87,7 @@ function getRebuildQueue(plugin: Moshe) {
   };
 }
 
-function getAbortTasks(plugin: Moshe) {
+function getAbortTasks(plugin: LatexRender) {
   return {
     id: "abort-latex-tasks",
     name: "Abort All LaTeX Tasks",
@@ -99,7 +99,7 @@ function getAbortTasks(plugin: Moshe) {
 }
 
 
-export const getEditorCommands = (plugin: Moshe): (Command | undefined)[] => {
+export const getEditorCommands = (plugin: LatexRender): (Command | undefined)[] => {
   return [
     ...getTestCommands(plugin),
     getCodeBlockNamer(plugin),

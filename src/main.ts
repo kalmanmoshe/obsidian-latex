@@ -6,9 +6,9 @@
 //git pull --all#Pull all branches
 //git push --all#Push all branches
 
-import { Plugin, Notice, FileSystemAdapter, MarkdownView, App,requireApiVersion  } from "obsidian";
+import { Plugin, Notice, FileSystemAdapter, MarkdownView,  } from "obsidian";
 
-import { MosheMathPluginSettings, DEFAULT_SETTINGS } from "./settings/settings";
+import { MosheMathPluginSettings as LatexRenderPluginSettings, DEFAULT_SETTINGS } from "./settings/settings";
 import { MosheMathSettingTab } from "./settings/settings_tab";
 
 import { getEditorCommands } from "./obsidian/editor_commands";
@@ -75,8 +75,8 @@ async function checkWebStatis(url: string) {
  * With Corprieambol whatever is loaded is loaded if explicit. I have to make sure that.only the files is specified are loaded To the engine.
  */
 
-export default class Moshe extends Plugin {
-	settings: MosheMathPluginSettings;
+export default class LatexRender extends Plugin {
+	settings: LatexRenderPluginSettings;
 	swiftlatexRender: SwiftlatexRender = new SwiftlatexRender();
 	menuDecider: SvgContextMenuDecider;
 	async onload() {
@@ -100,7 +100,7 @@ export default class Moshe extends Plugin {
 		console.warn("Moshe Math Plugin loaded in " + (performance.now() - startTime) + "ms");
 		//this.registerEditorSuggest()
 	}
-	
+
 	async onunload() {
 		this.removeSyntaxHighlighting();
 		this.swiftlatexRender.onunload();
@@ -184,7 +184,7 @@ export default class Moshe extends Plugin {
 			? await this.getMathjaxPreamble()
 			: "";
 		//this isnt really needed all it dose is make it of type any so thar are no errors
-		const MJ: any = MathJax;
+		const MJ = (window as any).MathJax;
 		if (typeof MJ.tex2chtml !== "undefined") {
 			if (!MJ._originalTex2chtml) {
 				MJ._originalTex2chtml = MJ.tex2chtml;

@@ -1,4 +1,4 @@
-import Moshe from "src/main";
+import LatexRender from "src/main";
 import { ProcessedLog } from "../logs/latex-log-parser";
 import parseLatexLog from "../logs/HumanReadableLogs";
 import { MarkdownView, Notice } from "obsidian";
@@ -8,9 +8,9 @@ import { getFileSectionsFromPath } from "../resolvers/sectionCache";
 import { sectionToTaskSectionInfo } from "../resolvers/sectionUtils";
 
 export default class LogCache {
-  private plugin: Moshe;
+  private plugin: LatexRender;
   private cache?: Map<string, ProcessedLog>;
-  constructor(plugin: Moshe) {
+  constructor(plugin: LatexRender) {
     this.plugin = plugin;
   }
 

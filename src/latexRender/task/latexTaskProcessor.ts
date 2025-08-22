@@ -1,4 +1,4 @@
-import Moshe from "src/main";
+import LatexRender from "src/main";
 import { VirtualFileSystem } from "../VirtualFileSystem";
 import { TFile } from "obsidian";
 import { extractCodeBlockName } from "../resolvers/latexSourceFromFile";
@@ -25,12 +25,12 @@ interface VFSLatexBaseDependency extends LatexDependency {
  */
 export class LatexTaskProcessor {
   task: ProcessableLatexTask;
-  plugin: Moshe;
+  plugin: LatexRender;
   vfs: VirtualFileSystem;
   isError: boolean = false;
   err: string | null = null;
   dependencies: VFSLatexDependency[] = [];
-  static create(plugin: Moshe, task: ProcessableLatexTask) {
+  static create(plugin: LatexRender, task: ProcessableLatexTask) {
     const latexTask = new LatexTaskProcessor();
     latexTask.task = task;
     latexTask.plugin = plugin;
@@ -161,7 +161,7 @@ export class LatexTaskProcessor {
     return true;
   }
 
-  static async processTask(plugin: Moshe, task: ProcessableLatexTask) {
+  static async processTask(plugin: LatexRender, task: ProcessableLatexTask) {
     const latexTask = LatexTaskProcessor.create(plugin, task);
     await latexTask.processTask();
     return latexTask;

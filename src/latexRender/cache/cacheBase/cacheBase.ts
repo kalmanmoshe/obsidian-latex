@@ -1,17 +1,17 @@
-import Moshe from "src/main";
+import LatexRender from "src/main";
 import { Notice } from "obsidian";
 import path from "path";
 import { extractBasenameAndExtension, isValidFileBasename } from "src/latexRender/resolvers/paths";
 
 export abstract class CacheBase {
 
-  constructor(protected plugin: Moshe, protected cacheFileExtensions: string[]) {}
+  constructor(protected plugin: LatexRender, protected cacheFileExtensions: string[]) { }
   /**
    * Extracts the file name from a full cache file path.
    * Example: "/home/user/.obsidian/latex-render-cache/someFile.pdf" -> "someFile.pdf"
    * @param filePath The full path to the cache file.
    */
-  extractFileName(filePath: string): string{
+  extractFileName(filePath: string): string {
     return path.basename(filePath);
   };
   /**
@@ -35,7 +35,7 @@ export abstract class CacheBase {
 
   abstract addFile(fileName: string, content: string | Uint8Array<ArrayBuffer>,)
     : Promise<void> | void;
-  
+
   /**
    * Returns list of cached file names (with extension).
    */
@@ -44,7 +44,7 @@ export abstract class CacheBase {
   abstract clearCache(): void;
   abstract deleteCache(): void;
 
-  
+
   isValidFileName(fileName: any) {
     if (!fileName || typeof fileName !== "string" || fileName.trim() === "") {
       return false;
@@ -59,10 +59,10 @@ export abstract class CacheBase {
    * @returns The validated file name.
    */
   ensureIsValidFileName(fileName: string): string {
-    const {basename, extension} = extractBasenameAndExtension(fileName);
+    const { basename, extension } = extractBasenameAndExtension(fileName);
     this.ensureIsValidFileExtension(extension);
     this.ensureIsValidFileBasename(basename);
-    
+
     return fileName;
   }
 

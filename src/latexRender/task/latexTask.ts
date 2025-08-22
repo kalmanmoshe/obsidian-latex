@@ -1,7 +1,7 @@
-import Moshe from "src/main";
+import LatexRender from "src/main";
 import { MarkdownPostProcessorContext, MarkdownSectionInformation, MarkdownView, TFile } from "obsidian";
 import { getFileSectionsFromPath } from "../resolvers/sectionCache";
-import { extractCodeBlockMetadata, extractCodeBlockName  } from "../resolvers/latexSourceFromFile";
+import { extractCodeBlockMetadata, extractCodeBlockName } from "../resolvers/latexSourceFromFile";
 import {
 	LatexAbstractSyntaxTree,
 } from "../../ast/parse";
@@ -36,13 +36,13 @@ type InputFile = {
 	dependencies: InputFile[];
 };
 
-export function createTask(plugin: Moshe, process: boolean, content: string, el: HTMLElement, sourcePath: string, infos: TaskSectionInformation[]): LatexTask | ProcessableLatexTask {
+export function createTask(plugin: LatexRender, process: boolean, content: string, el: HTMLElement, sourcePath: string, infos: TaskSectionInformation[]): LatexTask | ProcessableLatexTask {
 	return process
 		? new ProcessableLatexTask(plugin, content, el, sourcePath, infos)
 		: new LatexTask(plugin, content, el, sourcePath, infos);
 }
 export class BaseTask {
-	plugin: Moshe;
+	plugin: LatexRender;
 	content: string;
 	sourcePath: string;
 	md5Hash: string;
@@ -73,7 +73,7 @@ async function mdSecInfosFromMdPostProcessorCtx(ctx: MarkdownPostProcessorContex
 	return sectionInfos;
 }
 export class LatexTask {
-	plugin: Moshe;
+	plugin: LatexRender;
 	protected content: string;
 	sourcePath: string;
 	rawHash: string;
@@ -88,7 +88,7 @@ export class LatexTask {
 	private error: string;
 	private lastSectionInfoVerificationTime: number = Date.now();
 
-	constructor(plugin: Moshe, source: string, el: HTMLElement,sourcePath: string, sectionInfos: TaskSectionInformation[]) {
+	constructor(plugin: LatexRender, source: string, el: HTMLElement, sourcePath: string, sectionInfos: TaskSectionInformation[]) {
 		this.plugin = plugin;
 		this.setSource(source);
 		this.el = el;
@@ -104,7 +104,7 @@ export class LatexTask {
 		return !!this.error;
 	}
 
-	hasSourceChangeTimeExceededMargin(){
+	hasSourceChangeTimeExceededMargin() {
 		return Date.now() - this.lastSectionInfoVerificationTime > this.plugin.settings.pdfEngineCooldown;
 	}
 
@@ -135,7 +135,7 @@ export class LatexTask {
 			}
 		}
 
-		if( verifiedSectionInfos.length === this.sectionInfos.length ) {return returnVerify(true);}
+		if (verifiedSectionInfos.length === this.sectionInfos.length) { return returnVerify(true); }
 
 		return returnVerify(await this.rebuildTaskFromContent());
 	}
@@ -162,9 +162,9 @@ export class LatexTask {
 		return true;
 	}
 
-	static baseCreate(plugin: Moshe, process: boolean, content: string, el: HTMLElement, sourcePath: string, sectionInfo: TaskSectionInformation | TaskSectionInformation[]): LatexTask {
+	static baseCreate(plugin: LatexRender, process: boolean, content: string, el: HTMLElement, sourcePath: string, sectionInfo: TaskSectionInformation | TaskSectionInformation[]): LatexTask {
 		const sectionInfos = Array.isArray(sectionInfo) ? sectionInfo : [sectionInfo];
-		const task = createTask(plugin, process, content, el,sourcePath, sectionInfos);
+		const task = createTask(plugin, process, content, el, sourcePath, sectionInfos);
 		return task;
 	}
 
@@ -175,7 +175,7 @@ export class LatexTask {
 	 * @param sectionInfo 
 	 * @returns 
 	 */
-	static fromSectionInfos(plugin: Moshe, path: string, sectionInfos: TaskSectionInformation[], el?: HTMLElement): LatexTask {
+	static fromSectionInfos(plugin: LatexRender, path: string, sectionInfos: TaskSectionInformation[], el?: HTMLElement): LatexTask {
 		if (sectionInfos.length === 0) {
 			throw new Error("No section information provided for creating a task.");
 		}
@@ -192,7 +192,7 @@ export class LatexTask {
 		return LatexTask.baseCreate(plugin, isProcess, content, el ?? document.createElement("div"), path, sectionInfos);
 	}
 
-	static async createAsync(plugin: Moshe, process: boolean, content: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
+	static async createAsync(plugin: LatexRender, process: boolean, content: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
 		try {
 			const mdSectionInfos = await mdSecInfosFromMdPostProcessorCtx(ctx, content);
 			const infos = mdSectionInfos.map(sec => sectionToTaskSectionInfo(sec));
@@ -202,7 +202,7 @@ export class LatexTask {
 			console.error("Error while ensuring section info for task:", err);
 			return { isError: true, result: err };
 		}
-		
+
 	}
 
 	isProcess(): this is ProcessableLatexTask { return this instanceof ProcessableLatexTask; }
@@ -210,7 +210,7 @@ export class LatexTask {
 	getCacheStatus() {
 		return this.plugin.swiftlatexRender.cache.cacheStatusForHash(this.rawHash);
 	}
-	
+
 	getCacheStatusAsNum() {
 		return this.plugin.swiftlatexRender.cache.cacheStatusForHashAsNum(this.rawHash);
 	}
@@ -226,7 +226,7 @@ export class LatexTask {
 			this.resolvedHash = this.rawHash;
 		}
 	}
-	
+
 	getContent() { return this.content; }
 	getProcessedContent() { return this.getContent(); }
 
@@ -253,7 +253,7 @@ export class LatexTask {
 		}
 		return this.blockId
 	}
-	
+
 	getDependencyPaths(): string[] {
 		return []
 	}
@@ -304,8 +304,8 @@ export class ProcessableLatexTask extends LatexTask {
 	private astContent: string | null = null;
 	private dependencyPaths: string[] = [];
 
-	constructor(plugin: Moshe, content: string, el: HTMLElement, sourcePath: string, infos: TaskSectionInformation[]) {
-		super(plugin, content, el,sourcePath, infos);
+	constructor(plugin: LatexRender, content: string, el: HTMLElement, sourcePath: string, infos: TaskSectionInformation[]) {
+		super(plugin, content, el, sourcePath, infos);
 	}
 
 
@@ -314,7 +314,7 @@ export class ProcessableLatexTask extends LatexTask {
 		return this.astContent;
 	}
 
-	private setDependencyPaths(){
+	private setDependencyPaths() {
 		if (!this.ast) throw new Error("AST is not set for this task.");
 		const dependencies = this.ast.getDependencies().filter((dep) => !dep.autoUse);
 
@@ -341,8 +341,8 @@ export class ProcessableLatexTask extends LatexTask {
 		this.possibleNames = names;
 	}
 
-	getPossibleNames() {return this.possibleNames; }
-	
+	getPossibleNames() { return this.possibleNames; }
+
 
 	setAst(ast: LatexAbstractSyntaxTree) {
 		this.ast = ast;
@@ -355,7 +355,7 @@ export class ProcessableLatexTask extends LatexTask {
 	 * (for debugging purposes rm later)
 	 */
 	log() {
-		console.log(`[TIMER] Total processing time: ${(this.processingTime||NaN).toFixed(2)} ms`);
+		console.log(`[TIMER] Total processing time: ${(this.processingTime || NaN).toFixed(2)} ms`);
 		console.log("ast", this.ast?.clone());
 		console.log("task", this);
 	}
@@ -364,16 +364,16 @@ export class ProcessableLatexTask extends LatexTask {
 		console.log("finished processing task", processor);
 		return processor;
 	}
-	getDebugInfo()  {
+	getDebugInfo() {
 		return {
-				...super.getDebugInfo(),
-				ast: this.ast ? this.ast.clone() : null,
-				astContent: this.astContent,
-				dependencyPaths: this.dependencyPaths,
-				processed: this.processed,
-				processingTime: this.processingTime,
-				possibleNames: this.possibleNames,
-			}
+			...super.getDebugInfo(),
+			ast: this.ast ? this.ast.clone() : null,
+			astContent: this.astContent,
+			dependencyPaths: this.dependencyPaths,
+			processed: this.processed,
+			processingTime: this.processingTime,
+			possibleNames: this.possibleNames,
+		}
 	}
 }
 

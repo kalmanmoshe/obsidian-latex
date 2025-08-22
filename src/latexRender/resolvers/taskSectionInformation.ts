@@ -1,6 +1,6 @@
 import { MarkdownSectionInformation, SectionCache, TFile } from "obsidian";
 import { getFileSections } from "./sectionCache";
-import Moshe from "src/main";
+import LatexRender from "src/main";
 import { latexCodeBlockNamesRegex } from "../swiftlatexRender";
 import ResultFileCache, { hashLatexContent } from "../cache/resultFileCache";
 import { codeBlockToContent } from "obsidian-dev-utils";

@@ -1,15 +1,15 @@
 
 import { Command, Modal, Notice, TFile } from "obsidian";
 import { LatexTask } from "src/latexRender/task/latexTask";
-import Moshe from "src/main";
+import LatexRender from "src/main";
 import { CompileResult, CompileStatus } from "src/latexRender/compiler/base/compilerBase/engine";
 import { getLatexTaskSectionInfosFromFile, TaskSectionInformation } from "src/latexRender/resolvers/taskSectionInformation";
 
-export function getTestCommands(plugin: Moshe): Command[] {
+export function getTestCommands(plugin: LatexRender): Command[] {
     return [createTestLatexCommand(plugin), createTestOnClipboard(plugin)];
 }
 
-function createTestOnClipboard(plugin: Moshe): Command {
+function createTestOnClipboard(plugin: LatexRender): Command {
     return {
         id: "test-clipboard",
         name: "Test Clipboard (runs function on its content and writes back to clipboard)",
@@ -30,14 +30,14 @@ function createTestOnClipboard(plugin: Moshe): Command {
 }
 
 
-function createTestLatexCommand(plugin: Moshe): Command {
+function createTestLatexCommand(plugin: LatexRender): Command {
     return {
         id: "test-latex-code-blocks",
         name: "Test LaTeX Code Blocks (if the test is allrdy running, it will continue)",
         callback: () => CompileTest.startOrContinueTest(plugin)
     };
 }
-function createNewTestLatexCommand(plugin: Moshe): Command {
+function createNewTestLatexCommand(plugin: LatexRender): Command {
     return {
         id: "start-new-test-latex-code-blocks",
         name: "Start new est LaTeX Code Blocks",
@@ -60,7 +60,7 @@ interface CompileAnalysisResult {
     section: TaskSectionInformation;
 }
 
-async function getAllMarkdownLatexSections(plugin: Moshe) {
+async function getAllMarkdownLatexSections(plugin: LatexRender) {
     const files = app.vault.getFiles().filter(f => f.extension === "md");
     const sectionsOfFiles = await Promise.all(
         files.map(async file => ({
@@ -73,7 +73,7 @@ async function getAllMarkdownLatexSections(plugin: Moshe) {
 
 
 
-async function analyzeCompileResult(plugin: Moshe, file: TFile, section: TaskSectionInformation) {
+async function analyzeCompileResult(plugin: LatexRender, file: TFile, section: TaskSectionInformation) {
     const task = LatexTask.fromSectionInfos(plugin, file.path, [section]);
     const previousStatus = task.getCacheStatusAsNum();
     const compileResult = await plugin.swiftlatexRender.detachedProcessAndRender(task);
@@ -89,7 +89,7 @@ async function analyzeCompileResult(plugin: Moshe, file: TFile, section: TaskSec
 
 
 class CompileTest {
-    static plugin: Moshe;
+    static plugin: LatexRender;
     static displayModal: TestResultModal;
     static tracker: CompileTracker;
     static sectionsByFile: { file: TFile; codeBlockSections: TaskSectionInformation[]; }[] = [];
@@ -107,13 +107,13 @@ class CompileTest {
         }
         new Notice("Previous test was cancelled.");
     }
-    static cancelAndStartNewTest(plugin: Moshe) {
+    static cancelAndStartNewTest(plugin: LatexRender) {
         if (this.isActive()) {
             this.cancelCurrentTest(); // cancel running test safely
         }
         this.startTest(plugin);
     }
-    static startOrContinueTest(plugin: Moshe) {
+    static startOrContinueTest(plugin: LatexRender) {
         if (this.isActive()) {
             this.displayModal.open();
             new Notice("Test is already running. Continuing with the current test.");
@@ -121,7 +121,7 @@ class CompileTest {
         }
         this.startTest(plugin);
     }
-    private static async startTest(plugin: Moshe) {
+    private static async startTest(plugin: LatexRender) {
         this.plugin = plugin;
         this.activeToken = crypto.randomUUID(); // unique token per run
         const token = this.activeToken;

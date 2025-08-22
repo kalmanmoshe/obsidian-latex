@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production",
     "build-worker": "esbuild src/latexRender/swiftlatexpdftex.worker.js --bundle --outfile=dist/s.worker.js --format=esm",
     "version": "node version-bump.mjs && git add manifest.json versions.json",
     "update-utils": "npm uninstall obsidian-dev-utils && npm install kalmanmoshe/obsidian-dev-utils#main"
@@ -42,7 +42,6 @@
     "@popperjs/core": "^2.11.8",
     "@resvg/resvg-wasm": "^2.6.2",
     "@types/async": "^3.2.24",
-    "@types/mathjax": "^0.0.40",
     "@types/md5": "^2.3.5",
     "@unified-latex/unified-latex-util-parse": "^1.8.1",
     "async": "^3.2.6",
@@ -50,7 +49,6 @@
     "canvg": "^4.0.2",
     "chokidar": "^4.0.3",
     "clear-module": "^4.1.2",
-    "electron": "^37.2.5",
     "esbuild-plugin-inline-import": "^1.1.0",
     "hebcal": "^2.3.2",
     "import-fresh": "^3.3.0",
@@ -58,7 +56,6 @@
     "js-beautify": "^1.15.1",
     "jsdom": "^26.1.0",
     "localforage": "^1.10.0",
-    "mathjax": "^3.2.2",
     "md5": "^2.3.0",
     "nerdamer": "^1.1.13",
     "nerdamer-prime": "^1.2.4",
