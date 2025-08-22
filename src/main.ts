@@ -6,7 +6,7 @@
 //git pull --all#Pull all branches
 //git push --all#Push all branches
 
-import { Plugin, Notice, FileSystemAdapter, MarkdownView, App } from "obsidian";
+import { Plugin, Notice, FileSystemAdapter, MarkdownView, App,requireApiVersion  } from "obsidian";
 
 import { MosheMathPluginSettings, DEFAULT_SETTINGS } from "./settings/settings";
 import { MosheMathSettingTab } from "./settings/settings_tab";
@@ -15,46 +15,44 @@ import { getEditorCommands } from "./obsidian/editor_commands";
 import { SwiftlatexRender } from "./latexRender/swiftlatexRender";
 import { MathJaxAbstractSyntaxTree } from "./ast/mathJaxAbstractSyntaxTree";
 import {
-  getFileSets,
-  getPreambleFromFiles,
-  onFileChange,
-  onFileCreate,
-  onFileDelete,
+	getFileSets,
+	getPreambleFromFiles,
+	onFileChange,
+	onFileCreate,
+	onFileDelete,
 } from "./obsidian/file_watch";
 import { temp } from "./LaTeX_js/latex";
-import { createTransactionLogger } from "./latexRender/cache/transactionLogger";
-import { EditorView } from "@codemirror/view";
-import { StateEffect } from "@codemirror/state";
+import { SvgContextMenuDecider } from "./latexRender/contextMenu/svgContextMenuDecider";
 
 async function isInternetAvailable(): Promise<boolean> {
-  try {
-    const response = await fetch("https://www.google.com", { method: "HEAD", mode: "no-cors" });
-    return true; // If it doesn't throw, assume internet is available
-  } catch {
-    return false;
-  }
+	try {
+		const response = await fetch("https://www.google.com", { method: "HEAD", mode: "no-cors" });
+		return true; // If it doesn't throw, assume internet is available
+	} catch {
+		return false;
+	}
 }
 
 async function isWebsiteOnline(url: string): Promise<boolean> {
-  const internet = await isInternetAvailable();
-  if (!internet) {
-    console.log("No internet connection.");
-    return false;
-  }
-  try {
-    const response = await fetch(url, { method: "HEAD" });
-    return response.ok;
-  } catch (error) {
-    return false;
-  }
+	const internet = await isInternetAvailable();
+	if (!internet) {
+		console.log("No internet connection.");
+		return false;
+	}
+	try {
+		const response = await fetch(url, { method: "HEAD" });
+		return response.ok;
+	} catch (error) {
+		return false;
+	}
 }
 async function checkWebStatis(url: string) {
-  const online = await isWebsiteOnline(url)
-  if (!online) console.error(`${url} is offline or unreachable.`);
-  else {
-    console.log(`${url} is online.`)
-    new Notice(`Moshe Math Plugin: ${url} is online.`, 5000);
-  };
+	const online = await isWebsiteOnline(url)
+	if (!online) console.error(`${url} is offline or unreachable.`);
+	else {
+		console.log(`${url} is online.`)
+		new Notice(`Moshe Math Plugin: ${url} is online.`, 5000);
+	};
 }
 
 /**
@@ -78,240 +76,233 @@ async function checkWebStatis(url: string) {
  */
 
 export default class Moshe extends Plugin {
-  settings: MosheMathPluginSettings;
-  swiftlatexRender: SwiftlatexRender = new SwiftlatexRender();
-  logger = createTransactionLogger();
-  async onload() {
-    const startTime = performance.now();
-    console.log("Loading Moshe math plugin");
-    checkWebStatis("https://texlive2.swiftlatex.com/");
-    await this.loadSettings();
+	settings: MosheMathPluginSettings;
+	swiftlatexRender: SwiftlatexRender = new SwiftlatexRender();
+	menuDecider: SvgContextMenuDecider;
+	async onload() {
+		const startTime = performance.now();
+		this.menuDecider = new SvgContextMenuDecider(this);
+		console.log("Loading Moshe math plugin");
+		checkWebStatis("https://texlive2.swiftlatex.com/");
+		await this.loadSettings();
 
-    this.addEditorCommands();
-    this.addSyntaxHighlighting();
-    app.workspace.onLayoutReady(
-      async () => {
-        const onStart = performance.now();
-        await this.loadLayoutReadyDependencies()
-        console.warn("Moshe Math Plugin layout ready in " + (performance.now() - onStart) + "ms");
-      },
-    );
-    this.addSettingTab(new MosheMathSettingTab(this));
-    temp();
-    console.warn("Moshe Math Plugin loaded in " + (performance.now() - startTime) + "ms");
-    //this.registerEditorSuggest()
-  }
-  async onunload() {
-    this.removeSyntaxHighlighting();
-    this.swiftlatexRender.onunload();
-  }
+		this.addEditorCommands();
+		this.addSyntaxHighlighting();
+		app.workspace.onLayoutReady(
+			async () => {
+				const onStart = performance.now();
+				await this.loadLayoutReadyDependencies()
+				console.warn("Moshe Math Plugin layout ready in " + (performance.now() - onStart) + "ms");
+			},
+		);
+		this.addSettingTab(new MosheMathSettingTab(this));
+		temp();
+		console.warn("Moshe Math Plugin loaded in " + (performance.now() - startTime) + "ms");
+		//this.registerEditorSuggest()
+	}
+	
+	async onunload() {
+		this.removeSyntaxHighlighting();
+		this.swiftlatexRender.onunload();
+	}
 
-  private async loadLayoutReadyDependencies() {
-    this.loadMathJax();
-    this.bindTransactionLogger();
-    // we need to use await here because the codeBlock processor
-    // needs to be loaded before the codeBlocks are processed
-    await this.loadSwiftLatexRender();
-    // processing of the code blocks have layout dependencies
-    try {
-      this.setCodeblocks();
-    } catch (e) {
-      console.error("Error setting code blocks:", e);
-      new Notice(
-        "Error setting code blocks. Please check the console for more details.",
-      );
-    }
-    this.watchFiles();
-  }
-  private bindTransactionLogger() {
-    const markdownView =
-      app.workspace.getActiveViewOfType(MarkdownView);
-    if (!markdownView) return;
-    const editor = markdownView.editor;
-    const cmView = (editor as any).cm as EditorView;
+	private async loadLayoutReadyDependencies() {
+		this.loadMathJax();
+		// we need to use await here because the codeBlock processor
+		// needs to be loaded before the codeBlocks are processed
+		await this.loadSwiftLatexRender();
+		// processing of the code blocks have layout dependencies
+		try {
+			this.setCodeblocks();
+		} catch (e) {
+			console.error("Error setting code blocks:", e);
+			new Notice(
+				"Error setting code blocks. Please check the console for more details.",
+			);
+		}
+		this.watchFiles();
+	}
 
-    cmView.dispatch({
-      effects: StateEffect.appendConfig.of([this.logger.extension]),
-    });
-  }
-  private setCodeblocks() {
-    this.registerMarkdownCodeBlockProcessor("tikz",
-      this.swiftlatexRender.codeBlockProcessor.bind(this.swiftlatexRender),
-    );
-    this.registerMarkdownCodeBlockProcessor("latex",
-      this.swiftlatexRender.codeBlockProcessor.bind(this.swiftlatexRender),
-    );
-  }
-  private async loadSwiftLatexRender() {
-    await this.swiftlatexRender.onload(this);
-  }
 
-  private addSyntaxHighlighting() {
-    if (!window.CodeMirror) return;
+	private setCodeblocks() {
+		this.registerMarkdownCodeBlockProcessor("tikz",
+			this.swiftlatexRender.codeBlockProcessor.bind(this.swiftlatexRender),
+		);
+		this.registerMarkdownCodeBlockProcessor("latex",
+			this.swiftlatexRender.codeBlockProcessor.bind(this.swiftlatexRender),
+		);
+	}
 
-    // @ts-ignore
-    const codeMirrorCodeBlocksSyntaxHighlighting = window.CodeMirror.modeInfo;
-    if (
-      !codeMirrorCodeBlocksSyntaxHighlighting.some(
-        (el: any) => el.name === "latexsvg",
-      )
-    ) {
-      codeMirrorCodeBlocksSyntaxHighlighting.push({
-        name: "latexsvg",
-        mime: "text/x-latex",
-        mode: "stex",
-      });
-    }
-    if (
-      !codeMirrorCodeBlocksSyntaxHighlighting.some(
-        (el: any) => el.name === "Tikz",
-      )
-    ) {
-      codeMirrorCodeBlocksSyntaxHighlighting.push({
-        name: "Tikz",
-        mime: "text/x-latex",
-        mode: "stex",
-      });
-    }
-  }
+	private async loadSwiftLatexRender() {
+		await this.swiftlatexRender.onload(this);
+	}
 
-  private removeSyntaxHighlighting() {
-    //@ts-ignore
-    window.CodeMirror.modeInfo = window.CodeMirror.modeInfo.filter((el) => el.name != "Tikz",);
-  }
+	private addSyntaxHighlighting() {
+		if (!window.CodeMirror) return;
 
-  private addEditorCommands() {
-    const editorCommands = getEditorCommands(this).filter(
-      (command) => command !== undefined,
-    );
-    for (const command of editorCommands) {
-      this.addCommand(command);
-    }
-  }
-  async loadMathJax(): Promise<void> {
-    const preamble = this.settings.mathjaxPreambleEnabled
-      ? await this.getMathjaxPreamble()
-      : "";
-    //this isnt really needed all it dose is make it of type any so thar are no errors
-    const MJ: any = MathJax;
-    if (typeof MJ.tex2chtml !== "undefined") {
-      if (!MJ._originalTex2chtml) {
-        MJ._originalTex2chtml = MJ.tex2chtml;
-      }
+		// @ts-ignore
+		const codeMirrorCodeBlocksSyntaxHighlighting = window.CodeMirror.modeInfo;
+		if (
+			!codeMirrorCodeBlocksSyntaxHighlighting.some(
+				(el: any) => el.name === "latexsvg",
+			)
+		) {
+			codeMirrorCodeBlocksSyntaxHighlighting.push({
+				name: "latexsvg",
+				mime: "text/x-latex",
+				mode: "stex",
+			});
+		}
+		if (
+			!codeMirrorCodeBlocksSyntaxHighlighting.some(
+				(el: any) => el.name === "Tikz",
+			)
+		) {
+			codeMirrorCodeBlocksSyntaxHighlighting.push({
+				name: "Tikz",
+				mime: "text/x-latex",
+				mode: "stex",
+			});
+		}
+	}
 
-      MJ.tex2chtml = (input: string, options: { display: boolean }): any => {
-        const processedInput = this.processMathJax(input);
-        return MJ._originalTex2chtml.call(MJ, processedInput, options);
-      };
-      //by redoing the preamble, mathjax will add it to its catch and than be
-      MJ.tex2chtml(preamble, { display: false });
-    } else {
-      MJ.startup.ready = () => {
-        MJ.startup.defaultReady();
-        MJ.tex2chtml(preamble, { display: false });
-      };
-    }
-    this.refreshAllWindows();
-  }
+	private removeSyntaxHighlighting() {
+		//@ts-ignore
+		window.CodeMirror.modeInfo = window.CodeMirror.modeInfo.filter((el) => el.name != "Tikz",);
+	}
 
-  private refreshAllWindows() {
-    app.workspace.iterateAllLeaves((leaf) => {
-      if (leaf.view instanceof MarkdownView) {
-        const editor = leaf.view.editor;
-        if (editor) {
-          const cursor = editor.getCursor();
-          editor.setValue(editor.getValue());
-          editor.setCursor(cursor);
-        }
-      }
-    });
-  }
+	private addEditorCommands() {
+		const editorCommands = getEditorCommands(this).filter(
+			(command) => command !== undefined,
+		);
+		for (const command of editorCommands) {
+			this.addCommand(command);
+		}
+	}
+	async loadMathJax(): Promise<void> {
+		const preamble = this.settings.mathjaxPreambleEnabled
+			? await this.getMathjaxPreamble()
+			: "";
+		//this isnt really needed all it dose is make it of type any so thar are no errors
+		const MJ: any = MathJax;
+		if (typeof MJ.tex2chtml !== "undefined") {
+			if (!MJ._originalTex2chtml) {
+				MJ._originalTex2chtml = MJ.tex2chtml;
+			}
 
-  private async getMathjaxPreamble(): Promise<string> {
-    const mathjaxPreambleFiles = getFileSets(this).mathjaxPreambleFiles;
-    const preambles = await getPreambleFromFiles(this, mathjaxPreambleFiles);
-    return preambles.map((preamble) => preamble.content).join("\n");
-  }
+			MJ.tex2chtml = (input: string, options: { display: boolean }): any => {
+				const processedInput = this.processMathJax(input);
+				return MJ._originalTex2chtml.call(MJ, processedInput, options);
+			};
+			//by redoing the preamble, mathjax will add it to its catch and than be
+			MJ.tex2chtml(preamble, { display: false });
+		} else {
+			MJ.startup.ready = () => {
+				MJ.startup.defaultReady();
+				MJ.tex2chtml(preamble, { display: false });
+			};
+		}
+		this.refreshAllWindows();
+	}
 
-  private processMathJax(input: string): string {
-    //return input
-    if (!/[א-ת]/.test(input)) return input;
-    const ast = MathJaxAbstractSyntaxTree.parse(input);
-    ast.reverseRtl();
+	private refreshAllWindows() {
+		app.workspace.iterateAllLeaves((leaf) => {
+			if (leaf.view instanceof MarkdownView) {
+				const editor = leaf.view.editor;
+				if (editor) {
+					const cursor = editor.getCursor();
+					editor.setValue(editor.getValue());
+					editor.setCursor(cursor);
+				}
+			}
+		});
+	}
 
-    return ast.toString();
-  }
+	private async getMathjaxPreamble(): Promise<string> {
+		const mathjaxPreambleFiles = getFileSets(this).mathjaxPreambleFiles;
+		const preambles = await getPreambleFromFiles(this, mathjaxPreambleFiles);
+		return preambles.map((preamble) => preamble.content).join("\n");
+	}
 
-  private async loadSettings() {
-    let data = await this.loadData();
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
-    this.saveSettings(true);
-  }
+	private processMathJax(input: string): string {
+		//return input
+		if (!/[א-ת]/.test(input)) return input;
+		const ast = MathJaxAbstractSyntaxTree.parse(input);
+		ast.reverseRtl();
 
-  async saveSettings(didFileLocationChange = false) {
-    await this.saveData(this.settings);
-    if (didFileLocationChange) {
-      await this.swiftlatexRender.vfs.setEnabled(this.settings.compilerVfsEnabled);
-      if (this.settings.compilerVfsEnabled) {
-        app.workspace.onLayoutReady(async () => {
-          await this.processLatexPreambles(didFileLocationChange);
-        })
-      }
-    }
-  }
-  async processLatexPreambles(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
-    const coorPreambles = await this.getlatexPreambleFiles(becauseFileLocationUpdated, becauseFileUpdated);
-    this.swiftlatexRender.vfs.setVirtualFileSystemFiles(coorPreambles);
-    const fileNames = new Set(coorPreambles.map((file) => file.name))
-    this.swiftlatexRender.vfs.setCoorVirtualFiles(fileNames);
-  }
+		return ast.toString();
+	}
 
-  private async getlatexPreambleFiles(becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean) {
-    const files = getFileSets(this);
-    const coorFiles = await getPreambleFromFiles(this, files.latexVirtualFiles);
-    this.showPreambleLoadedNotice(coorFiles.length, becauseFileLocationUpdated, becauseFileUpdated);
-    return coorFiles;
-  }
+	private async loadSettings() {
+		let data = await this.loadData();
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
+		this.saveSettings(true);
+	}
 
-  private showPreambleLoadedNotice(
-    nExplicitPreambleFiles: number,
-    becauseFileLocationUpdated: boolean,
-    becauseFileUpdated: boolean,
-  ) {
-    if (!(becauseFileLocationUpdated || becauseFileUpdated)) return;
-    const prefix = becauseFileLocationUpdated
-      ? "Loaded "
-      : "Successfully reloaded ";
-    const body = [];
-    body.push(`${nExplicitPreambleFiles} explicit preamble files`);
-    const suffix = ".";
-    new Notice(prefix + body.join(" and ") + suffix, 5000);
-  }
-  getVaultPath() {
-    if (app.vault.adapter instanceof FileSystemAdapter) {
-      return app.vault.adapter.getBasePath();
-    } else {
-      throw new Error("Moshe: Could not get vault path.");
-    }
-  }
+	async saveSettings(didFileLocationChange = false) {
+		await this.saveData(this.settings);
+		if (didFileLocationChange) {
+			await this.swiftlatexRender.vfs.setEnabled(this.settings.compilerVfsEnabled);
+			if (this.settings.compilerVfsEnabled) {
+				app.workspace.onLayoutReady(async () => {
+					await this.processLatexPreambles(didFileLocationChange);
+				})
+			}
+		}
+	}
+	async processLatexPreambles(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
+		const coorPreambles = await this.getlatexPreambleFiles(becauseFileLocationUpdated, becauseFileUpdated);
+		this.swiftlatexRender.vfs.setVirtualFileSystemFiles(coorPreambles);
+		const fileNames = new Set(coorPreambles.map((file) => file.name))
+		this.swiftlatexRender.vfs.setCoorVirtualFiles(fileNames);
+	}
 
-  private watchFiles() {
-    // Only begin watching files once the layout is ready.
-    app.workspace.onLayoutReady(() => {
-      // Set up a Chokidar watcher for .sty files
-      const vaultEvents = {
-        modify: onFileChange,
-        delete: onFileDelete,
-        create: onFileCreate,
-      };
+	private async getlatexPreambleFiles(becauseFileLocationUpdated: boolean, becauseFileUpdated: boolean) {
+		const files = getFileSets(this);
+		const coorFiles = await getPreambleFromFiles(this, files.latexVirtualFiles);
+		this.showPreambleLoadedNotice(coorFiles.length, becauseFileLocationUpdated, becauseFileUpdated);
+		return coorFiles;
+	}
 
-      for (const [eventName, callback] of Object.entries(vaultEvents)) {
-        this.registerEvent(// @ts-expect-error
-          app.vault.on(eventName, (file: TAbstractFile) =>
-            callback(this, file),
-          ),
-        );
-      }
-    });
-  }
+	private showPreambleLoadedNotice(
+		nExplicitPreambleFiles: number,
+		becauseFileLocationUpdated: boolean,
+		becauseFileUpdated: boolean,
+	) {
+		if (!(becauseFileLocationUpdated || becauseFileUpdated)) return;
+		const prefix = becauseFileLocationUpdated
+			? "Loaded "
+			: "Successfully reloaded ";
+		const body = [];
+		body.push(`${nExplicitPreambleFiles} explicit preamble files`);
+		const suffix = ".";
+		new Notice(prefix + body.join(" and ") + suffix, 5000);
+	}
+	getVaultPath() {
+		if (app.vault.adapter instanceof FileSystemAdapter) {
+			return app.vault.adapter.getBasePath();
+		} else {
+			throw new Error("Moshe: Could not get vault path.");
+		}
+	}
+
+	private watchFiles() {
+		// Only begin watching files once the layout is ready.
+		app.workspace.onLayoutReady(() => {
+			// Set up a Chokidar watcher for .sty files
+			const vaultEvents = {
+				modify: onFileChange,
+				delete: onFileDelete,
+				create: onFileCreate,
+			};
+
+			for (const [eventName, callback] of Object.entries(vaultEvents)) {
+				this.registerEvent(// @ts-expect-error
+					app.vault.on(eventName, (file: TAbstractFile) =>
+						callback(this, file),
+					),
+				);
+			}
+		});
+	}
 }

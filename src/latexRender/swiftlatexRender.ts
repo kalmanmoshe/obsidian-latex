@@ -15,7 +15,6 @@ import LatexCompiler from "./compiler/base/compilerBase/compiler";
 import CompilerCache from "./cache/compilerCache";
 import { hashLatexContent } from "./cache/resultFileCache";
 import { SVG_ID_KEY } from "src/svg/nodes";
-import { SvgContextMenu } from "./svgContextMenu";
 
 temp.track();
 
@@ -361,11 +360,7 @@ const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
 
 
 export function addMenu(plugin: Moshe, el: HTMLElement, filePath: string) {
-  el.addEventListener("contextmenu", (event) => {
-    if (!event.target) return;
-    const menu = new SvgContextMenu(plugin, el, filePath);
-    menu.open(event);
-  });
+  plugin.menuDecider.add(el, filePath);
 }
 
 function abortAllTasks(queue: QueueObject<LatexTask>) {
