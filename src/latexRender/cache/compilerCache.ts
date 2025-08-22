@@ -1,4 +1,4 @@
-import Moshe from "src/main";
+import LatexRender from "src/main";
 import ResultFileCache from "./resultFileCache";
 import { ProcessedLog } from "../logs/latex-log-parser";
 import path from "path";
@@ -16,7 +16,7 @@ export enum CacheStatus {
  */
 export default class CompilerCache {
   /** Reference to the main plugin instance. */
-  private plugin: Moshe;
+  private plugin: LatexRender;
   /** Handles caching of compiled files. */
   resultFileCache: ResultFileCache;
   /** Handles caching of LaTeX packages. */
@@ -28,7 +28,7 @@ export default class CompilerCache {
    * Initializes the compiler cache and ensures the cache directory exists.
    * @param plugin The main plugin instance.
    */
-  constructor(plugin: Moshe) {
+  constructor(plugin: LatexRender) {
     this.plugin = plugin;
     this.validateCatchDirectory();
     this.resultFileCache = new ResultFileCache(this.plugin);

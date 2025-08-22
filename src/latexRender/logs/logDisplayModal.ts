@@ -1,5 +1,5 @@
 import { Modal } from "obsidian";
-import Moshe from "src/main";
+import LatexRender from "src/main";
 import { ProcessedLog, File, ErrorLevel } from "./latex-log-parser";
 export class LogDisplayModal extends Modal {
   log: ProcessedLog;

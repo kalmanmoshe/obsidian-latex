@@ -6,10 +6,10 @@ import {
 } from "obsidian";
 import { getCurrentCursorLocationSection } from "src/latexRender/resolvers/findSection";
 import { extractCodeBlockName } from "src/latexRender/resolvers/latexSourceFromFile";
-import Moshe from "src/main";
+import LatexRender from "src/main";
 const Hebcal = require("hebcal");
 const { HDate } = require("hebcal");
-export function getHeadingsForPos(plugin: Moshe, file: TFile, pos: EditorPosition) {
+export function getHeadingsForPos(plugin: LatexRender, file: TFile, pos: EditorPosition) {
   const cache = app.metadataCache.getFileCache(file);
 
   const headings = (cache?.headings ?? [])
@@ -21,7 +21,7 @@ export function getHeadingsForPos(plugin: Moshe, file: TFile, pos: EditorPositio
   }, new Map<number, (typeof headings)[number]>());
   return headingsByLevel;
 }
-export async function assignCodeBlockName(plugin: Moshe, editor: Editor) {
+export async function assignCodeBlockName(plugin: LatexRender, editor: Editor) {
   const file = app.workspace.getActiveFile();
   if (!file) return;
   const headingsByLevel = getHeadingsForPos(plugin, file, editor.getCursor());

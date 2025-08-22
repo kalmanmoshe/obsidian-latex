@@ -1,4 +1,4 @@
-import Moshe from "src/main";
+import LatexRender from "src/main";
 import { Notice, TFile } from "obsidian";
 import { getLatexHashesFromFile } from "../resolvers/latexSourceFromFile";
 import * as path from "path";
@@ -24,7 +24,7 @@ export function hashLatexContent(content: string) {
 }
 
 export default class ResultFileCache {
-	private plugin: Moshe;
+	private plugin: LatexRender;
 	/**
 	 * Map of cached files. hash -> Set of file paths that contain this hash.
 	 */
@@ -33,7 +33,7 @@ export default class ResultFileCache {
 	private physicalCache?: ResultFilePhysicalCache;
 	private cache: CacheBase;
 
-	constructor(plugin: Moshe) {
+	constructor(plugin: LatexRender) {
 		this.plugin = plugin;
 
 		if (this.plugin.settings.physicalCache) {
@@ -61,7 +61,7 @@ export default class ResultFileCache {
 		const dirtyFiles = this.plugin.settings.dirtyResultFiles;
 		for (const fileName of dirtyFiles) {
 			const content = this.cache.getFile(fileName);
-			if (!content) { continue;}
+			if (!content) { continue; }
 			try {
 				const cleanSvg = optimizeSVG(content, true);
 				this.cache.addFile(fileName, cleanSvg);
@@ -238,7 +238,7 @@ export default class ResultFileCache {
 		await this.saveCache();
 	}
 
-	private removeNonExistentEntry(rawHash: string, entries: CacheEntry[]){
+	private removeNonExistentEntry(rawHash: string, entries: CacheEntry[]) {
 		const depsHashesToRemove: string[] = [];
 		for (const entry of entries) {
 			if (entry.referencedBy.size === 0) {
@@ -247,7 +247,7 @@ export default class ResultFileCache {
 				continue;
 			}
 
-			if(!this.cache.fileExists(this.hashesToFileName(entry.depsHash, entry.depsHash))) {
+			if (!this.cache.fileExists(this.hashesToFileName(entry.depsHash, entry.depsHash))) {
 				depsHashesToRemove.push(entry.depsHash);
 				continue;
 			}
@@ -261,8 +261,8 @@ export default class ResultFileCache {
 	}
 
 
-	
-	
+
+
 	private getResultFileFromRawHash(rawHash: string, path: string): string | undefined {
 		const cacheEntries = this.cacheMap.get(rawHash);
 		if (!cacheEntries || cacheEntries.length === 0) { return undefined; }
@@ -411,7 +411,7 @@ export default class ResultFileCache {
 		if (!entries) return false;
 		const noEntries = entries.length === 0
 		const wasOnlyEntry = entries.length === 1 && entries[0].depsHash === depsHash;
-		if (noEntries||wasOnlyEntry) {
+		if (noEntries || wasOnlyEntry) {
 			this.cacheMap.delete(rawHash);
 			return wasOnlyEntry;
 		}
@@ -434,7 +434,7 @@ export default class ResultFileCache {
 			}
 		}
 	}
-	
+
 	private getRawHashesFromCacheForReferencingFile(file: TFile) {
 		const rawHashesSet = new Set<string>(), depHashesSet = new Set<string>();
 
@@ -471,7 +471,7 @@ export default class ResultFileCache {
 	private basenameToFileName(hash: string): string {
 		return `${hash}.${cacheFileFormat}`;
 	}
-	
+
 	getFileBaseName(rawHash: string, deps: string | string[]): string {
 		const depsHash = Array.isArray(deps) ? this.getDependencyHash(deps) : deps;
 		return `${rawHash}-${depsHash}`;
@@ -501,7 +501,7 @@ export default class ResultFileCache {
 	}
 
 	getAbsolutePathFromBasename(basename: string): string {
-		if (!this.isPhysicalCatch()) 
+		if (!this.isPhysicalCatch())
 			throw new Error("Physical cache is not enabled, cannot get absolute path from basename.");
 		const fileName = this.basenameToFileName(basename);
 		return this.physicalCache!.getCacheFilePath(fileName);

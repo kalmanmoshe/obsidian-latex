@@ -1,4 +1,4 @@
-import Moshe from "src/main";
+import LatexRender from "src/main";
 import { CacheBase } from "./cacheBase";
 import { Notice } from "obsidian";
 import { cacheFileFormat } from "../resultFileCache";
@@ -9,7 +9,7 @@ export abstract class VirtualCacheBase extends CacheBase {
      * @value: content of the file
      */
     protected cache: Map<string, string> = new Map();
-    constructor(plugin: Moshe) {
+    constructor(plugin: LatexRender) {
         super(plugin, [cacheFileFormat]);
         this.cache = new Map();
     }

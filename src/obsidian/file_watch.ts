@@ -3,7 +3,7 @@
 import { dir } from "console";
 import { on } from "events";
 import { Vault, TFile, TFolder, TAbstractFile, Notice, debounce, } from "obsidian";
-import Moshe from "src/main";
+import LatexRender from "src/main";
 
 /**
  * Checks if a file is located within a specified folder.
@@ -41,7 +41,7 @@ function isFileInDir(dir: TAbstractFile, file: TFile): boolean {
 }
 
 const refreshFromFiles = debounce(
-  async (plugin: Moshe, mathjax = false) => {
+  async (plugin: LatexRender, mathjax = false) => {
     if (!(plugin.settings.compilerVfsEnabled ||
       plugin.settings.mathjaxPreambleEnabled
     )) { return; }
@@ -58,7 +58,7 @@ const refreshFromFiles = debounce(
  * @param file 
  * @returns 
  */
-const filePathConfig = (plugin: Moshe, file: TFile) => {
+const filePathConfig = (plugin: LatexRender, file: TFile) => {
   const {
     compilerVfsEnabled,
     autoloadedVfsFilesDir,
@@ -85,7 +85,7 @@ const isDirMonitored = (match: {
   isInFolder: any;
 }): boolean => match.enabled && (match.isFile || match.isInFolder);
 
-export const onFileChange = (plugin: Moshe, file: TAbstractFile) => {
+export const onFileChange = (plugin: LatexRender, file: TAbstractFile) => {
   if (!(file instanceof TFile)) return;
   const fileConfig = filePathConfig(plugin, file);
   const shouldRefreshFile = Object.values(fileConfig).some(config => isDirMonitored(config));
@@ -94,11 +94,11 @@ export const onFileChange = (plugin: Moshe, file: TAbstractFile) => {
   }
 };
 
-export const onFileCreate = (plugin: Moshe, file: TAbstractFile) => {
+export const onFileCreate = (plugin: LatexRender, file: TAbstractFile) => {
   onFileChange(plugin, file);
 };
 
-function getActiveDirectories(plugin: Moshe): string[] {
+function getActiveDirectories(plugin: LatexRender): string[] {
   const {
     compilerVfsEnabled,
     autoloadedVfsFilesDir,
@@ -112,7 +112,7 @@ function getActiveDirectories(plugin: Moshe): string[] {
   ].filter((path): path is string => Boolean(path))// Chack if the dir is enabled;
 }
 
-export const onFileDelete = (plugin: Moshe, file: TAbstractFile) => {
+export const onFileDelete = (plugin: LatexRender, file: TAbstractFile) => {
   if (!(file instanceof TFile)) return;
   const directories = getActiveDirectories(plugin)
     .map((path) => app.vault.getAbstractFileByPath(path))// Get the TAbstractFile
@@ -147,7 +147,7 @@ interface FileSets {
   latexVirtualFiles: Set<TFile>;
 }
 
-export function getFileSets(plugin: Moshe): FileSets {
+export function getFileSets(plugin: LatexRender): FileSets {
   const locations = [
     plugin.settings.mathjaxPreambleFileLocation,
     plugin.settings.autoloadedVfsFilesDir
@@ -158,7 +158,7 @@ export function getFileSets(plugin: Moshe): FileSets {
 export type PreambleFile = { path: string; name: string; content: string };
 
 export async function getPreambleFromFiles(
-  plugin: Moshe,
+  plugin: LatexRender,
   files: Set<TFile>,
 ): Promise<PreambleFile[]> {
   const fileContents: { path: string; name: string; content: string }[] = [];

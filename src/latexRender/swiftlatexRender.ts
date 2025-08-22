@@ -1,7 +1,7 @@
 import { MarkdownPostProcessorContext } from "obsidian";
 import * as temp from "temp";
 import { CompileResult, CompileStatus } from "./compiler/base/compilerBase/engine";
-import Moshe from "../main";
+import LatexRender from "../main";
 import { CompilerType } from "src/settings/settings.js";
 import async from "async";
 import { pdfToHtml, pdfToOptimizedSVG, pdfToSVG } from "./pdfToHtml/pdfToHtml";
@@ -76,7 +76,7 @@ type HandleErrorOptions = {
  * add option for Persistent preamble.so it won't get deleted.after use Instead, saved until overwritten
  */
 export class SwiftlatexRender {
-  plugin: Moshe;
+  plugin: LatexRender;
   vfs: VirtualFileSystem = new VirtualFileSystem();
   pdfTexCompiler?: PdfTeXCompiler;
   pdfXetexCompiler?: PdfXeTeXCompiler;
@@ -84,7 +84,7 @@ export class SwiftlatexRender {
   cache: CompilerCache;
   queue: QueueObject<LatexTask>;
 
-  async onload(plugin: Moshe) {
+  async onload(plugin: LatexRender) {
     this.plugin = plugin;
     this.cache = new CompilerCache(this.plugin);
     await this.loadCompiler();
@@ -133,7 +133,7 @@ export class SwiftlatexRender {
       const createResult = await LatexTask.createAsync(this.plugin, isLangTikz, source, el, ctx)
       if (createResult.isError) {
         const errorMessage = "Error creating task: " + createResult.result;
-        this.handleError(el, errorMessage,this.cache.resultFileCache.getFileBaseName(md5Hash, []), ctx.sourcePath);
+        this.handleError(el, errorMessage, this.cache.resultFileCache.getFileBaseName(md5Hash, []), ctx.sourcePath);
         return;
       }
       const task = createResult.result as LatexTask;
@@ -259,7 +259,7 @@ export class SwiftlatexRender {
     const path = task.sourcePath;
     this.handleError(el, err, basename, path, options);
   }
-    
+
   private handleError(el: HTMLElement, err: string, hash: string, path: string, options: HandleErrorOptions = {}): void {
     el.innerHTML = "";
     let child: HTMLElement;
@@ -276,8 +276,8 @@ export class SwiftlatexRender {
     if (options.throw) throw err;
   }
 
-  private async renderLatexToElement( task: LatexTask ): Promise<void> {
-    const  { el, content, rawHash, sourcePath, dependencyPaths, basename} = task.getRenderData();
+  private async renderLatexToElement(task: LatexTask): Promise<void> {
+    const { el, content, rawHash, sourcePath, dependencyPaths, basename } = task.getRenderData();
     try {
       const result = await this.renderLatexToPDF(content, { md5Hash: rawHash });
       el.innerHTML = "";
@@ -359,7 +359,7 @@ const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
 
 
 
-export function addMenu(plugin: Moshe, el: HTMLElement, filePath: string) {
+export function addMenu(plugin: LatexRender, el: HTMLElement, filePath: string) {
   plugin.menuDecider.add(el, filePath);
 }
 
