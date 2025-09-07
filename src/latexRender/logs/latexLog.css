@@ -175,3 +175,8 @@ details summary {
   margin-left: 16px;
   padding: 2px 4px;
 }
+
+.moshe-swift-latex-log-modal {
+  width: 100%;
+  max-width: 1000px;
+}

@@ -6,10 +6,10 @@
 //git pull --all#Pull all branches
 //git push --all#Push all branches
 
-import { Plugin, Notice, FileSystemAdapter, MarkdownView,  } from "obsidian";
+import { Plugin, Notice, FileSystemAdapter, MarkdownView, } from "obsidian";
 
-import { MosheMathPluginSettings as LatexRenderPluginSettings, DEFAULT_SETTINGS } from "./settings/settings";
-import { MosheMathSettingTab } from "./settings/settings_tab";
+import { LatexRenderPluginSettings, DEFAULT_SETTINGS } from "./settings/settings";
+import { LatexRenderSettingTab } from "./settings/settings_tab";
 
 import { getEditorCommands } from "./obsidian/editor_commands";
 import { SwiftlatexRender } from "./latexRender/swiftlatexRender";
@@ -95,7 +95,7 @@ export default class LatexRender extends Plugin {
 				console.warn("Moshe Math Plugin layout ready in " + (performance.now() - onStart) + "ms");
 			},
 		);
-		this.addSettingTab(new MosheMathSettingTab(this));
+		this.addSettingTab(new LatexRenderSettingTab(this));
 		temp();
 		console.warn("Moshe Math Plugin loaded in " + (performance.now() - startTime) + "ms");
 		//this.registerEditorSuggest()
@@ -168,7 +168,7 @@ export default class LatexRender extends Plugin {
 
 	private removeSyntaxHighlighting() {
 		//@ts-ignore
-		window.CodeMirror.modeInfo = window.CodeMirror.modeInfo.filter((el) => el.name != "Tikz",);
+		window.CodeMirror.modeInfo = window.CodeMirror.modeInfo.filter((el) => el.name != "Tikz" || el.name != "latexsvg");
 	}
 
 	private addEditorCommands() {
@@ -179,12 +179,14 @@ export default class LatexRender extends Plugin {
 			this.addCommand(command);
 		}
 	}
+
 	async loadMathJax(): Promise<void> {
 		const preamble = this.settings.mathjaxPreambleEnabled
 			? await this.getMathjaxPreamble()
 			: "";
 		//this isnt really needed all it dose is make it of type any so thar are no errors
 		const MJ = (window as any).MathJax;
+		console.log("Loading MathJax with preamble:", preamble);
 		if (typeof MJ.tex2chtml !== "undefined") {
 			if (!MJ._originalTex2chtml) {
 				MJ._originalTex2chtml = MJ.tex2chtml;
@@ -220,6 +222,7 @@ export default class LatexRender extends Plugin {
 
 	private async getMathjaxPreamble(): Promise<string> {
 		const mathjaxPreambleFiles = getFileSets(this).mathjaxPreambleFiles;
+		console.warn("Loading MathJax preamble from files:", mathjaxPreambleFiles);
 		const preambles = await getPreambleFromFiles(this, mathjaxPreambleFiles);
 		return preambles.map((preamble) => preamble.content).join("\n");
 	}

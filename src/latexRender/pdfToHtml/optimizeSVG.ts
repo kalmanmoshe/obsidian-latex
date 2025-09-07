@@ -21,7 +21,6 @@ const fullSVGOConfigPluginsAddOn: PluginConfig[] = [
     { name: "removeUnusedNS" },
     { name: "reusePaths" },
     { name: "removeDimensions" },
-    { name: "removeOffCanvasPaths" },
 ]
 
 function generatePrefix(svg: string): string {
