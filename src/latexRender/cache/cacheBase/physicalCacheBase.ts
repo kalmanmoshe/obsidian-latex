@@ -6,7 +6,7 @@ import path from "path";
 
 export abstract class PhysicalCacheBase extends CacheBase {
     protected cacheFolderPath: string;
-    constructor(plugin: LatexRender, cacheFileExtensions: string[]) {
+    constructor(plugin: LatexRender, cacheFileExtensions?: string[]) {
         super(plugin, cacheFileExtensions);
         this.validateDir();
     }

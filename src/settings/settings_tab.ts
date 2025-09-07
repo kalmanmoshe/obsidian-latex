@@ -1,4 +1,4 @@
-import { EditorView,} from "@codemirror/view";
+import { EditorView, } from "@codemirror/view";
 import {
   App,
   Notice,
@@ -6,7 +6,7 @@ import {
   Setting,
   setIcon,
 } from "obsidian";
-import MosheMathPlugin from "../main";
+import LatexRenderPlugin from "../main";
 import { CompilerType, DEFAULT_SETTINGS, OverflowStrategy } from "./settings";
 import {
   addDropdownSetting,
@@ -17,13 +17,13 @@ import {
   addFileSearchSetting,
 } from "obsidian-dev-utils";
 
-export class MosheMathSettingTab extends PluginSettingTab {
-  plugin: MosheMathPlugin;
+export class LatexRenderSettingTab extends PluginSettingTab {
+  plugin: LatexRenderPlugin;
   snippetsEditor: EditorView;
   snippetsFileLocEl: HTMLElement;
   snippetVariablesFileLocEl: HTMLElement;
 
-  constructor(plugin: MosheMathPlugin) {
+  constructor(plugin: LatexRenderPlugin) {
     super(app, plugin);
     this.plugin = plugin;
     setPluginInstance(plugin);
@@ -154,13 +154,13 @@ export class MosheMathSettingTab extends PluginSettingTab {
         this.plugin.swiftlatexRender.cache.resultFileCache.changeCacheDirectory();
       },
       {
-      name: "Physical cache location",
-      description: "The directory where rendered diagrams are stored. Empty for default, \"/\" for the vault root, or a specific path.",
-      placeholder: DEFAULT_SETTINGS.physicalCacheLocation,
-      defValue: this.plugin.settings.physicalCacheLocation,
-      debounce: {timeout: 1000, resetTimer: true},
-    });
-    physicalCacheLocationSetting.settingEl.toggleClass("hidden",!this.plugin.settings.physicalCache);
+        name: "Physical cache location",
+        description: "The directory where rendered diagrams are stored. Empty for default, \"/\" for the vault root, or a specific path.",
+        placeholder: DEFAULT_SETTINGS.physicalCacheLocation,
+        defValue: this.plugin.settings.physicalCacheLocation,
+        debounce: { timeout: 1000, resetTimer: true },
+      });
+    physicalCacheLocationSetting.settingEl.toggleClass("hidden", !this.plugin.settings.physicalCache);
     addButtonSetting(
       containerEl,
       () => {
@@ -187,7 +187,7 @@ export class MosheMathSettingTab extends PluginSettingTab {
       (value: boolean) => {
         this.plugin.settings.mathjaxPreambleEnabled = value;
         this.plugin.saveSettings();
-        mathjaxPreambleFileLoc.settingEl.toggleClass("hidden",!this.plugin.settings.mathjaxPreambleEnabled,);
+        mathjaxPreambleFileLoc.settingEl.toggleClass("hidden", !this.plugin.settings.mathjaxPreambleEnabled,);
       },
       {
         name: "Mathjax preamble enabled.",
@@ -211,7 +211,7 @@ export class MosheMathSettingTab extends PluginSettingTab {
         debounce: { timeout: 1000, resetTimer: true },
       }
     )
-    mathjaxPreambleFileLoc.settingEl.toggleClass("hidden",!this.plugin.settings.mathjaxPreambleEnabled,);
+    mathjaxPreambleFileLoc.settingEl.toggleClass("hidden", !this.plugin.settings.mathjaxPreambleEnabled,);
     const virtualFilesDescription = document.createDocumentFragment();
 
     const description = document.createElement("span");
@@ -268,7 +268,7 @@ export class MosheMathSettingTab extends PluginSettingTab {
       {
         name: "Autoloaded virtual files",
         description:
-          "Specify a directory containing virtual files to automatically include in every LaTeX render. " ,
+          "Specify a directory containing virtual files to automatically include in every LaTeX render. ",
         placeholder: DEFAULT_SETTINGS.autoloadedVfsFilesDir,
         defValue: this.plugin.settings.autoloadedVfsFilesDir,
         debounce: { timeout: 1000, resetTimer: true },

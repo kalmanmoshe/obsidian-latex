@@ -63,7 +63,7 @@ export type ShortCacheEntryJson = string[]; // means nodeps
  */
 export type CacheJson = Array<[rawHash: string, entries: (CacheEntryJson | ShortCacheEntryJson)[]]>;
 
-export interface MosheMathPluginSettings {
+export interface LatexRenderPluginSettings {
   mathjaxPreambleEnabled: boolean;
   mathjaxPreambleFileLocation: string;
   compilerVfsEnabled: boolean;
@@ -95,7 +95,7 @@ export interface MosheMathPluginSettings {
   compiler: CompilerType;
 }
 
-export const DEFAULT_SETTINGS: MosheMathPluginSettings = {
+export const DEFAULT_SETTINGS: LatexRenderPluginSettings = {
   mathjaxPreambleEnabled: false,
   mathjaxPreambleFileLocation: "",
   compilerVfsEnabled: false,

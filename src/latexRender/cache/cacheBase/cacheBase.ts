@@ -5,7 +5,7 @@ import { extractBasenameAndExtension, isValidFileBasename } from "src/latexRende
 
 export abstract class CacheBase {
 
-  constructor(protected plugin: LatexRender, protected cacheFileExtensions: string[]) { }
+  constructor(protected plugin: LatexRender, protected cacheFileExtensions?: string[]) { }
   /**
    * Extracts the file name from a full cache file path.
    * Example: "/home/user/.obsidian/latex-render-cache/someFile.pdf" -> "someFile.pdf"
@@ -44,13 +44,20 @@ export abstract class CacheBase {
   abstract clearCache(): void;
   abstract deleteCache(): void;
 
-
+  
   isValidFileName(fileName: any) {
     if (!fileName || typeof fileName !== "string" || fileName.trim() === "") {
       return false;
     }
     const { basename, extension } = extractBasenameAndExtension(fileName);
-    return isValidFileBasename(basename) && this.cacheFileExtensions.includes(extension);
+    return isValidFileBasename(basename) && this.isValidFileExtension(extension);
+  }
+
+  isValidFileExtension(extension: any) {
+    if (!extension || typeof extension !== "string" || extension.trim() === "") {
+      return false;
+    }
+    return this.cacheFileExtensions===undefined||this.cacheFileExtensions.includes(extension);
   }
 
   /**
@@ -74,8 +81,9 @@ export abstract class CacheBase {
   }
 
   ensureIsValidFileExtension(extension: string): string {
-    if (!this.cacheFileExtensions.includes(extension)) {
-      throw new Error(`Invalid file extension: ${extension}. Valid extensions are: ${this.cacheFileExtensions.join(", ")}`);
+    if (!this.isValidFileExtension(extension)) {
+      console.warn(extension, this.cacheFileExtensions);
+      throw new Error(`Invalid file extension: ${extension}. Valid extensions are: ${this.cacheFileExtensions!.join(", ")}`);
     }
     return extension;
   }

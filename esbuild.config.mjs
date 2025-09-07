@@ -66,7 +66,6 @@ const args = {
   legalComments: "none",
   sourcemap: prod ? false : "inline",
   treeShaking: true,
-  metafile: true, // <— so we can visualize
 
   // DON’T inline wasm
   loader: {
@@ -92,7 +91,12 @@ const args = {
   logLevel: "info",
 };
 
-const result = await esbuild.build(args).catch(() => process.exit(1));
-// write metafile next to main.js
-writeFileSync("meta.json", JSON.stringify(result.metafile, null, 2));
-console.log("Built. metafile -> meta.json");
+const result = await esbuild.build({
+  ...args,
+  metafile: !prod, // no metafile in production
+});
+
+if (!prod && result.metafile) {
+  writeFileSync("meta.json", JSON.stringify(result.metafile, null, 2));
+  console.log("Built. metafile -> meta.json");
+}

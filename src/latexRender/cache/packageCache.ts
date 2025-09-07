@@ -18,10 +18,10 @@ export default class PackageCache extends PhysicalCacheBase {
   async loadPackageCache() {
     // add files in the package cache folder to the cache list
     const packageFiles = fs.readdirSync(this.getCacheFolderPath());
+    const packageValues = Object.values(this.plugin.settings.packageCache[1]);
     for (const file of packageFiles) {
       const filename = path.basename(file);
       const value = "/tex/" + filename;
-      const packageValues = Object.values(this.plugin.settings.packageCache[1]);
       if (!packageValues.includes(value)) {
         const key = "26/" + filename;
         this.plugin.settings.packageCache[1][key] = value;
@@ -65,11 +65,12 @@ export default class PackageCache extends PhysicalCacheBase {
   async fetchPackageCacheData(): Promise<void> {
     try {
       const cacheData: StringMap[] = await this.compiler().fetchCacheData();
-      console.log("Cache data fetched:", cacheData);
+      const mergedCacheData = Object.assign({},cacheData[1],cacheData[3]);
+      console.log("Cache data fetched:", cacheData,mergedCacheData);
 
       const newFileNames = getNewPackageFileNames(
         this.plugin.settings.packageCache[1] as Record<string, string>,
-        cacheData[1] as Record<string, string>,
+        mergedCacheData as Record<string, string>,
       );
       const files = await this.compiler().fetchTexFiles(newFileNames);
       for (const file of files) {

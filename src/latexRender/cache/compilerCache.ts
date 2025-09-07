@@ -32,7 +32,7 @@ export default class CompilerCache {
     this.plugin = plugin;
     this.validateCatchDirectory();
     this.resultFileCache = new ResultFileCache(this.plugin);
-    this.packageCache = new PackageCache(this.plugin, [".sty", ".cls", ".tex"]);
+    this.packageCache = new PackageCache(this.plugin);
     this.logCache = new LogCache(this.plugin);
   }
 

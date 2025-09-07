@@ -15,14 +15,10 @@ import LatexCompiler from "./compiler/base/compilerBase/compiler";
 import CompilerCache from "./cache/compilerCache";
 import { hashLatexContent } from "./cache/resultFileCache";
 import { SVG_ID_KEY } from "src/svg/nodes";
+import { CssClasses } from "src/util/cssClassesConstants";
 
 temp.track();
 
-export enum RenderLoaderClasses {
-  ParentContainer = "moshe-latex-render-loader-parent-container",
-  Loader = "moshe-latex-render-loader",
-  Countdown = "moshe-latex-render-countdown",
-}
 
 export const waitFor = async (condFunc: () => boolean) => {
   return new Promise<void>((resolve) => {
@@ -348,7 +344,7 @@ const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
   let index = 0;
   while (taskNode) {
     const task = taskNode.data;
-    const countdown = task.el.querySelector("." + RenderLoaderClasses.Countdown);
+    const countdown = task.el.querySelector("." + CssClasses.loader.renderCountdown);
     if (countdown) countdown.textContent = index.toString();
     else console.warn(`Countdown not found for task ${index}`);
     taskNode = taskNode.next;
@@ -373,15 +369,15 @@ function abortAllTasks(queue: QueueObject<LatexTask>) {
 
 function createWaitingCountdown(index: number) {
   const parentContainer = Object.assign(document.createElement("div"), {
-    className: RenderLoaderClasses.ParentContainer,
+    className: CssClasses.loader.loaderParentContainer,
   });
 
   const loader = Object.assign(document.createElement("div"), {
-    className: RenderLoaderClasses.Loader,
+    className: CssClasses.loader.renderLoader,
   });
 
   const countdown = Object.assign(document.createElement("div"), {
-    className: RenderLoaderClasses.Countdown,
+    className: CssClasses.loader.renderCountdown,
     textContent: index.toString(),
   });
   parentContainer.appendChild(loader);
