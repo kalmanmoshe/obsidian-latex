@@ -179,31 +179,72 @@ export default class LatexRender extends Plugin {
 			this.addCommand(command);
 		}
 	}
-
+	
 	async loadMathJax(): Promise<void> {
 		const preamble = this.settings.mathjaxPreambleEnabled
-			? await this.getMathjaxPreamble()
-			: "";
-		//this isnt really needed all it dose is make it of type any so thar are no errors
+		  ? await this.getMathjaxPreamble()
+		  : "";
+	  
 		const MJ = (window as any).MathJax;
-		console.log("Loading MathJax with preamble:", preamble);
-		if (typeof MJ.tex2chtml !== "undefined") {
-			if (!MJ._originalTex2chtml) {
-				MJ._originalTex2chtml = MJ.tex2chtml;
-			}
-
-			MJ.tex2chtml = (input: string, options: { display: boolean }): any => {
-				const processedInput = this.processMathJax(input);
-				return MJ._originalTex2chtml.call(MJ, processedInput, options);
-			};
-			//by redoing the preamble, mathjax will add it to its catch and than be
-			MJ.tex2chtml(preamble, { display: false });
-		} else {
-			MJ.startup.ready = () => {
-				MJ.startup.defaultReady();
-				MJ.tex2chtml(preamble, { display: false });
-			};
+	  
+		// nothing to do
+		if (!MJ) {
+		  console.warn("MathJax not found");
+		  this.refreshAllWindows();
+		  return;
 		}
+	  
+		// ---- v3 branch ----------------------------------------------------------
+		if (MJ?.startup?.promise && typeof MJ.tex2chtml === "function") {
+		  await MJ.startup.promise; // wait until v3 is fully ready
+	  
+		  if (!MJ.__patchedTex2Chtml) {
+			const original = MJ.tex2chtml.bind(MJ);
+	  
+			MJ.tex2chtml = (input: string, options: { display: boolean }): any => {
+			  const processed = this.processMathJax(input);
+			  // prepend preamble on every call (no $$ or \(...\) in preamble!)
+			  const withPreamble = preamble ? `${preamble}\n${processed}` : processed;
+			  return original(withPreamble, options);
+			};
+	  
+			MJ.__patchedTex2Chtml = true;
+		  }
+	  
+		  // ⚠️ do NOT call texReset(); it will erase definitions mid-session
+		  // If you previously seeded with tex2chtml(preamble), you can remove that too.
+	  
+		  this.refreshAllWindows();
+		  return;
+		}
+	  
+		// ---- v2 branch ----------------------------------------------------------
+		// Obsidian **usually** ships v3, but if someone has v2 injected, support it.
+		if (MJ?.Hub?.Queue) {
+		  // Hook TeX translator to inject the preamble text
+		  MJ.Hub.Register.StartupHook("TeX Jax Ready", () => {
+			const TeX = (MJ as any).InputJax.TeX;
+			if (!TeX.__patchedTranslate) {
+			  const orig = TeX.Translate;
+			  TeX.Translate = function (script: any, state: any) {
+				if (preamble && typeof script?.text === "string") {
+				  // Important: preamble must be macro defs only (no math delimiters)
+				  script.text = `${preamble}\n${script.text}`;
+				}
+				return orig.call(this, script, state);
+			  };
+			  TeX.__patchedTranslate = true;
+			}
+		  });
+	  
+		  // retrigger typesetting if needed
+		  MJ.Hub.Queue(["Typeset", MJ.Hub]);
+		  this.refreshAllWindows();
+		  return;
+		}
+	  
+		// unknown MathJax flavor
+		console.warn("Unknown MathJax flavor; not patching");
 		this.refreshAllWindows();
 	}
 
