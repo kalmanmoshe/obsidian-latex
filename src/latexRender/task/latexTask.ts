@@ -152,7 +152,6 @@ export class LatexTask {
 		const { sections } = await getFileSectionsFromPath(this.sourcePath);
 		const sectionInfos = getSectionsFromMatching(sections, upToDateFileText, this.content);
 
-		// BUGFIX from your compiled code: check sectionInfos, not verifiedSectionInfos
 		if (!sectionInfos || sectionInfos.length === 0) return false;
 
 		verifiedSectionInfos.push(

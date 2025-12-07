@@ -50,6 +50,7 @@ type QueueObject<T> = async.QueueObject<T> & {
     remove: (testFn: (node: InternalTask<T>) => boolean) => void;
   };
 };
+
 type HandleErrorOptions = {
   /**
    * If true, the error will be parsed and displayed as a log.
@@ -155,6 +156,7 @@ export class SwiftlatexRender {
     this.queue.kill();
     console.log("All tasks aborted.");
   }
+  
 
   /**
    * Processes and renders the given LaTeX task.
@@ -169,6 +171,8 @@ export class SwiftlatexRender {
     }
 
     if (task.hasSourceChangeTimeExceededMargin() && !(await task.verifySource())) {
+      const errorMessage = "Error processing task: " + "Source files have changed and could not be resolved.";
+      this.handleErrorForTask(task, errorMessage)
       return false; // If the source change time exceeds the margin and the source could not be resolved, skip processing.
     }
 
