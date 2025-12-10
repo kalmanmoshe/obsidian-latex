@@ -1,4 +1,4 @@
-////@ts-nocheck
+//@ts-nocheck
 import {
   intArrayFromString,
   lengthBytesUTF8,
@@ -160,7 +160,7 @@ export function compileLaTeXRoutine() {
   setMainFunction(self.mainfile);
   let status = _compileLaTeX();
   if (status === 0) {
-    let pdfArrayBuffer = null;
+    let pdfArrayBuffer: Uint8Array<any> | undefined | null = null;
     _compileBibtex();
     try {
       let pdfurl =
@@ -798,8 +798,8 @@ export var PATH = {
     if (lastSlash === -1) return path;
     return path.substr(lastSlash + 1);
   },
-  join: (...paths) => PATH.normalize(paths.join("/")),
-  join2: (l, r) => PATH.normalize(l + "/" + r),
+  join: (...paths: String[]) => PATH.normalize(paths.join("/")),
+  join2: (l: String, r: String[]) => PATH.normalize(l + "/" + r),
 };
 var initRandomFill = () => {
   if (
@@ -823,7 +823,7 @@ var initRandomFill = () => {
 export var randomFill = (view) => (randomFill = initRandomFill())(view);
 
 export var PATH_FS = {
-  resolve: (...args) => {
+  resolve: (...args: String[]) => {
     var resolvedPath = "",
       resolvedAbsolute = false;
     for (var i = args.length - 1; i >= -1 && !resolvedAbsolute; i--) {
@@ -842,10 +842,10 @@ export var PATH_FS = {
     ).join("/");
     return (resolvedAbsolute ? "/" : "") + resolvedPath || ".";
   },
-  relative: (from, to) => {
+  relative: (from: String, to: String) => {
     from = PATH_FS.resolve(from).substr(1);
     to = PATH_FS.resolve(to).substr(1);
-    function trim(arr) {
+    function trim(arr: String[]) {
       var start = 0;
       for (; start < arr.length; start++) {
         if (arr[start] !== "") break;
@@ -1812,7 +1812,7 @@ var addDays = (date, days) => {
   }
   return newDate;
 };
-var writeArrayToMemory = (array, buffer) => {
+var writeArrayToMemory = (array: ArrayLike<number>, buffer?: number) => {
   HEAP8.set(array, buffer);
 };
 var _strftime = (s, maxsize, format, tm) => {
@@ -2048,27 +2048,27 @@ var handleException = (e) => {
   }
   quit_(1, e);
 };
-var stringToUTF8OnStack = (str) => {
+var stringToUTF8OnStack = (str: String) => {
   var size = lengthBytesUTF8(str) + 1;
   var ret = stackAlloc(size);
   stringToUTF8(str, ret, size);
   return ret;
 };
-var wasmTableMirror = [];
+var wasmTableMirror: Function[] = [];
 var wasmTable;
-var getWasmTableEntry = (funcPtr) => {
+var getWasmTableEntry = (funcPtr: number): Function => {
   var func = wasmTableMirror[funcPtr];
   if (!func) {
     if (funcPtr >= wasmTableMirror.length) wasmTableMirror.length = funcPtr + 1;
     wasmTableMirror[funcPtr] = func = wasmTable.get(funcPtr);
   }
-  return func;
+  return func as Function;
 };
 var getCFunc = (ident) => {
   var func = Module["_" + ident];
   return func;
 };
-var ccall = (ident, returnType, argTypes, args, opts) => {
+var ccall = (ident: string, returnType: string, argTypes: (string | number)[], args: string | any[], opts: any) => {
   var toC = {
     string: (str) => {
       var ret = 0;
@@ -2187,7 +2187,7 @@ var stackSave = (...args: any[]) => wasmExports["T"](...args);
 var stackRestore = (...args: any[]) => wasmExports["U"](...args);
 var stackAlloc = (...args: any[]) => wasmExports["V"](...args);
 
-function invoke_ii(index, a1) {
+function invoke_ii(index: number, a1: number) {
   var sp = stackSave();
   try {
     return getWasmTableEntry(index)(a1);
@@ -2197,7 +2197,7 @@ function invoke_ii(index, a1) {
     _setThrew(1, 0);
   }
 }
-function invoke_v(index) {
+function invoke_v(index: number) {
   var sp = stackSave();
   try {
     getWasmTableEntry(index)();
@@ -2207,7 +2207,7 @@ function invoke_v(index) {
     _setThrew(1, 0);
   }
 }
-function invoke_iii(index, a1, a2) {
+function invoke_iii(index: number, a1: number, a2: number) {
   var sp = stackSave();
   try {
     return getWasmTableEntry(index)(a1, a2);
@@ -2217,7 +2217,7 @@ function invoke_iii(index, a1, a2) {
     _setThrew(1, 0);
   }
 }
-function invoke_iiiiii(index, a1, a2, a3, a4, a5) {
+function invoke_iiiiii(index: number, a1: number, a2: number, a3: number, a4: number, a5: number) {
   var sp = stackSave();
   try {
     return getWasmTableEntry(index)(a1, a2, a3, a4, a5);
@@ -2227,7 +2227,7 @@ function invoke_iiiiii(index, a1, a2, a3, a4, a5) {
     _setThrew(1, 0);
   }
 }
-function invoke_iiii(index, a1, a2, a3) {
+function invoke_iiii(index: number, a1: number, a2: number, a3: number) {
   var sp = stackSave();
   try {
     return getWasmTableEntry(index)(a1, a2, a3);
@@ -2237,7 +2237,7 @@ function invoke_iiii(index, a1, a2, a3) {
     _setThrew(1, 0);
   }
 }
-function invoke_iiiii(index, a1, a2, a3, a4) {
+function invoke_iiiii(index: number, a1: number, a2: number, a3: number, a4: number) {
   var sp = stackSave();
   try {
     return getWasmTableEntry(index)(a1, a2, a3, a4);
@@ -2247,7 +2247,7 @@ function invoke_iiiii(index, a1, a2, a3, a4) {
     _setThrew(1, 0);
   }
 }
-function invoke_vi(index, a1) {
+function invoke_vi(index: number, a1) {
   var sp = stackSave();
   try {
     getWasmTableEntry(index)(a1);
@@ -2257,7 +2257,7 @@ function invoke_vi(index, a1) {
     _setThrew(1, 0);
   }
 }
-function invoke_vii(index, a1, a2) {
+function invoke_vii(index: number, a1: number, a2: number) {
   var sp = stackSave();
   try {
     getWasmTableEntry(index)(a1, a2);
@@ -2267,7 +2267,7 @@ function invoke_vii(index, a1, a2) {
     _setThrew(1, 0);
   }
 }
-function invoke_i(index) {
+function invoke_i(index: number) {
   var sp = stackSave();
   try {
     return getWasmTableEntry(index)();

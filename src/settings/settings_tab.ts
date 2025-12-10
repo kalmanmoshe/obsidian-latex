@@ -158,7 +158,7 @@ export class LatexRenderSettingTab extends PluginSettingTab {
         description: "The directory where rendered diagrams are stored. Empty for default, \"/\" for the vault root, or a specific path.",
         placeholder: DEFAULT_SETTINGS.physicalCacheLocation,
         defValue: this.plugin.settings.physicalCacheLocation,
-        debounce: { timeout: 1000, resetTimer: true },
+        debounce: { timeout: 5000, resetTimer: true },
       });
     physicalCacheLocationSetting.settingEl.toggleClass("hidden", !this.plugin.settings.physicalCache);
     addButtonSetting(

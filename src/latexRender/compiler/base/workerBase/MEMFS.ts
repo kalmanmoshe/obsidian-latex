@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { HEAP8, mmapAlloc } from "../../swiftlatexpdftex/mainSwiftlatex.worker";
 import { FS, FSStream, StreamOps } from "./FS";
 import { FSNode, Mount } from "./FSNode";
