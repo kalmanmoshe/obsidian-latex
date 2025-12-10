@@ -194,7 +194,7 @@ export default class LatexRender extends Plugin {
 		  return;
 		}
 	  
-		// ---- v3 branch ----------------------------------------------------------
+		// v3 branch
 		if (MJ?.startup?.promise && typeof MJ.tex2chtml === "function") {
 		  await MJ.startup.promise; // wait until v3 is fully ready
 	  
@@ -211,14 +211,14 @@ export default class LatexRender extends Plugin {
 			MJ.__patchedTex2Chtml = true;
 		  }
 	  
-		  // ⚠️ do NOT call texReset(); it will erase definitions mid-session
+		  // do NOT call texReset(); it will erase definitions mid-session
 		  // If you previously seeded with tex2chtml(preamble), you can remove that too.
 	  
 		  this.refreshAllWindows();
 		  return;
 		}
 	  
-		// ---- v2 branch ----------------------------------------------------------
+		//  v2 branch
 		// Obsidian **usually** ships v3, but if someone has v2 injected, support it.
 		if (MJ?.Hub?.Queue) {
 		  // Hook TeX translator to inject the preamble text
@@ -294,6 +294,7 @@ export default class LatexRender extends Plugin {
 			}
 		}
 	}
+
 	async processLatexPreambles(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
 		const coorPreambles = await this.getlatexPreambleFiles(becauseFileLocationUpdated, becauseFileUpdated);
 		this.swiftlatexRender.vfs.setVirtualFileSystemFiles(coorPreambles);

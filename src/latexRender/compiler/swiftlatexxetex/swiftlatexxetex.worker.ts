@@ -11,7 +11,7 @@
 // Note that if you want to run closure, and also to use Module
 // after the generated code, you will need to define   var Module = {};
 // before the code. Then that object will be used in the code, and you
-
+//@ts-nocheck
 import { DefaultWorkerValues, WorkerWindow } from "../base/workerBase/self";
 import { Communicator } from "../base/workerBase/communication";
 import { wasmBinaryFileImport } from "./wasmBinaryStaticImport";
@@ -48,7 +48,7 @@ Module["printErr"] = function (a) {
   console.log(a);
 };
 
-function _allocate(content) {
+function _allocate(content: number[]) {
   let res = _malloc(content.length);
   HEAPU8.set(new Uint8Array(content), res);
   return res;
@@ -236,7 +236,7 @@ function compileFormatRoutine() {
   }
 }
 
-function mkdirRoutine(dirname) {
+function mkdirRoutine(dirname: String) {
   try {
     //console.log("removing " + item);
     FS.mkdir(self.constants.WORKROOT + "/" + dirname);
@@ -827,21 +827,21 @@ function assert(condition, text) {
 
 var HEAP,
   /** @type {!Int8Array} */
-  HEAP8,
+  HEAP8: Int8Array,
   /** @type {!Uint8Array} */
-  HEAPU8,
+  HEAPU8: Uint8Array,
   /** @type {!Int16Array} */
-  HEAP16,
+  HEAP16: Int16Array,
   /** @type {!Uint16Array} */
-  HEAPU16,
+  HEAPU16: Uint16Array,
   /** @type {!Int32Array} */
-  HEAP32,
+  HEAP32: Int32Array,
   /** @type {!Uint32Array} */
-  HEAPU32,
+  HEAPU32: Uint32Array,
   /** @type {!Float32Array} */
-  HEAPF32,
+  HEAPF32: Float32Array,
   /** @type {!Float64Array} */
-  HEAPF64;
+  HEAPF64: Float64Array;
 
 function updateMemoryViews() {
   var b = wasmMemory.buffer;
@@ -1106,7 +1106,7 @@ function removeRunDependency(id) {
 }
 
 /** @param {string|number=} what */
-function abort(what) {
+function abort(what: (string | number) | undefined) {
   Module["onAbort"]?.(what);
 
   what = "Aborted(" + what + ")";
@@ -1229,7 +1229,7 @@ function createWasm() {
   // handle a generated wasm instance, receiving its exports and
   // performing other necessary setup
   /** @param {WebAssembly.Module=} module*/
-  function receiveInstance(instance, module) {
+  function receiveInstance(instance, module: WebAssembly.Module | undefined) {
     wasmExports = instance.exports;
 
     wasmMemory = wasmExports["memory"];
@@ -1455,7 +1455,7 @@ var lengthBytesUTF8 = (str) => {
   return len;
 };
 
-var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
+var stringToUTF8Array = (str: String, heap, outIdx, maxBytesToWrite) => {
   assert(
     typeof str === "string",
     `stringToUTF8Array expects a string (got ${typeof str})`,
@@ -1535,7 +1535,7 @@ var UTF8Decoder =
  * @param {number=} maxBytesToRead
  * @return {string}
  */
-var UTF8ArrayToString = (heapOrArray, idx, maxBytesToRead) => {
+var UTF8ArrayToString = (heapOrArray, idx: number, maxBytesToRead: number | undefined): string => {
   var endIdx = idx + maxBytesToRead;
   var endPtr = idx;
   // TextDecoder needs to know the byte length in advance, it doesn't stop on
@@ -1605,7 +1605,7 @@ var UTF8ArrayToString = (heapOrArray, idx, maxBytesToRead) => {
  *   JS JIT optimizations off, so it is worth to consider consistently using one
  * @return {string}
  */
-var UTF8ToString = (ptr, maxBytesToRead) => {
+var UTF8ToString = (ptr: number, maxBytesToRead: number | undefined): string => {
   assert(
     typeof ptr == "number",
     `UTF8ToString expects a number (got ${typeof ptr})`,
@@ -1642,7 +1642,7 @@ var demangle = (func) => {
  * @param {number} ptr
  * @param {string} type
  */
-function getValue(ptr, type = "i8") {
+function getValue(ptr: number, type: string = "i8") {
   if (type.endsWith("*")) type = "*";
   switch (type) {
     case "i1":
@@ -1680,7 +1680,7 @@ var ptrToString = (ptr) => {
  * @param {number} value
  * @param {string} type
  */
-function setValue(ptr, value, type = "i8") {
+function setValue(ptr: number, value: number, type: string = "i8") {
   if (type.endsWith("*")) type = "*";
   switch (type) {
     case "i1":
@@ -1813,7 +1813,7 @@ var PATH = {
     }
     return root + dir;
   },
-  basename: (path) => {
+  basename: (path: String) => {
     // EMSCRIPTEN return '/'' for '/', not an empty string
     if (path === "/") return "/";
     path = PATH.normalize(path);
@@ -2492,7 +2492,7 @@ var MEMFS = {
 };
 
 /** @param {boolean=} noRunDep */
-var asyncLoad = (url, onload, onerror, noRunDep) => {
+var asyncLoad = (url, onload, onerror, noRunDep: boolean | undefined) => {
   var dep = !noRunDep ? getUniqueRunDependency(`al ${url}`) : "";
   readAsync(
     url,
@@ -2880,7 +2880,7 @@ var FS = {
   genericErrors: {},
   filesystems: null,
   syncFSRequests: 0,
-  lookupPath(path, opts = {}) {
+  lookupPath(path: String, opts: { follow_mount?: boolean; recurse_count?: number } = {}) {
     path = PATH_FS.resolve(path);
 
     if (!path) return { path: "", node: null };
@@ -2891,7 +2891,7 @@ var FS = {
     };
     opts = Object.assign(defaults, opts);
 
-    if (opts.recurse_count > 8) {
+    if ((opts.recurse_count || 0) > 8) {
       // max recursive lookup of 8
       throw new FS.ErrnoError(32);
     }
@@ -3368,7 +3368,7 @@ var FS = {
   lookup(parent, name) {
     return parent.node_ops.lookup(parent, name);
   },
-  mknod(path, mode, dev) {
+  mknod(path: String, mode, dev) {
     var lookup = FS.lookupPath(path, { parent: true });
     var parent = lookup.node;
     var name = PATH.basename(path);
@@ -3384,19 +3384,19 @@ var FS = {
     }
     return parent.node_ops.mknod(parent, name, mode, dev);
   },
-  create(path, mode) {
+  create(path: String, mode?: number) {
     mode = mode !== undefined ? mode : 438 /* 0666 */;
     mode &= 4095;
     mode |= 32768;
     return FS.mknod(path, mode, 0);
   },
-  mkdir(path, mode) {
+  mkdir(path: String, mode?: number) {
     mode = mode !== undefined ? mode : 511 /* 0777 */;
     mode &= 511 | 512;
     mode |= 16384;
     return FS.mknod(path, mode, 0);
   },
-  mkdirTree(path, mode) {
+  mkdirTree(path: String, mode?: number) {
     var dirs = path.split("/");
     var d = "";
     for (var i = 0; i < dirs.length; ++i) {
@@ -3409,7 +3409,7 @@ var FS = {
       }
     }
   },
-  mkdev(path, mode, dev) {
+  mkdev(path: String, mode, dev) {
     if (typeof dev == "undefined") {
       dev = mode;
       mode = 438 /* 0666 */;
@@ -5220,7 +5220,7 @@ var _proc_exit = (code) => {
 
 /** @suppress {duplicate } */
 /** @param {boolean|number=} implicit */
-var exitJS = (status, implicit) => {
+var exitJS = (status, implicit: (boolean | number) | undefined) => {
   EXITSTATUS = status;
 
   checkUnflushedContent();
@@ -5247,7 +5247,7 @@ function _fd_close(fd) {
 }
 
 /** @param {number=} offset */
-var doReadv = (stream, iov, iovcnt, offset) => {
+var doReadv = (stream, iov, iovcnt, offset: number | undefined) => {
   var ret = 0;
   for (var i = 0; i < iovcnt; i++) {
     var ptr = HEAPU32[iov >> 2];
@@ -5305,7 +5305,7 @@ function _fd_seek(fd, offset_low, offset_high, whence, newOffset) {
 }
 
 /** @param {number=} offset */
-var doWritev = (stream, iov, iovcnt, offset) => {
+var doWritev = (stream, iov, iovcnt, offset: number | undefined) => {
   var ret = 0;
   for (var i = 0; i < iovcnt; i++) {
     var ptr = HEAPU32[iov >> 2];
@@ -5725,7 +5725,7 @@ var getCFunc = (ident) => {
  * @param {Arguments|Array=} args
  * @param {Object=} opts
  */
-var ccall = (ident, returnType, argTypes, args, opts) => {
+var ccall = (ident, returnType: (string | null) | undefined, argTypes: Array<any> | undefined, args: (Arguments | Array<any>) | undefined, opts: object | undefined) => {
   // For fast lookup of conversion functions
   var toC = {
     string: (str) => {
@@ -5782,7 +5782,7 @@ var ccall = (ident, returnType, argTypes, args, opts) => {
  * @param {Array=} argTypes
  * @param {Object=} opts
  */
-var cwrap = (ident, returnType, argTypes, opts) => {
+var cwrap = (ident, returnType: string | undefined, argTypes: Array<any> | undefined, opts: object | undefined) => {
   return (...args) => ccall(ident, returnType, argTypes, args, opts);
 };
 

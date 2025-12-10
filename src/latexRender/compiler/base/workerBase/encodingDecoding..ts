@@ -93,7 +93,7 @@ export const UTF8ArrayToString = (
   // (As a tiny code save trick, compare endPtr against endIdx using a negation,
   // so that undefined means Infinity)
   while (heapOrArray[endPtr] && !(endPtr >= endIdx)) ++endPtr;
-  if (endPtr - idx > 16 && heapOrArray.buffer && UTF8Decoder) {
+  if (endPtr - idx > 16 && heapOrArray instanceof Uint8Array && heapOrArray.buffer && UTF8Decoder) {
     return UTF8Decoder.decode(heapOrArray.subarray(idx, endPtr));
   }
   var str = "";
