@@ -128,17 +128,20 @@ export class VirtualFileSystem {
    * @returns Promise<void>
    */
   async loadVirtualFileSystemFiles() {
-    if (!this.checkEnabled(false) ||
-      this.status === VFSstatus.uptodate) return;
+    if (!this.checkEnabled(false) || this.status === VFSstatus.uptodate) {
+      return;
+    }
 
     if (this.status === VFSstatus.undefined) {
-      await nonBlockingWaitUntil(() => this.status === VFSstatus.outdated,);
+      console.warn("Virtual file system status is undefined. Waiting until it is outdated.");
+      await nonBlockingWaitUntil(() => this.status === VFSstatus.outdated);
     }
     try {
       await this.compiler.flushWorkCache();
       for (const file of [this.files].flat()) {
         console.debug("Loading virtual file system file:", file.name);
         await this.compiler.writeMemFSFile(file.name, file.content);
+        console.debug("Loaded virtual file system file:", file.name);
       }
       this.status = VFSstatus.uptodate;
     } catch (err) {

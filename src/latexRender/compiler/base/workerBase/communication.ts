@@ -98,9 +98,11 @@ export class Communicator {
         self.postMessage({ result: "failed", cmd: cmd });
     }
   }
+
   private hasHandler(key: keyof CommandHandlers) {
     if (this.handlers[key] === undefined) {
       throw new Error(`Handler for command ${key} is not defined.`);
     }
   }
+  
 }

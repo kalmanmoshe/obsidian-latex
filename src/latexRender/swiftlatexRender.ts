@@ -134,16 +134,20 @@ export class SwiftlatexRender {
         return;
       }
       const task = createResult.result as LatexTask;
+      console.log("Registering task:", task.getDebugInfo());
       if (task.restoreFromCache()) return;
+      console.log("Adding task to queue:", task.getDebugInfo());
       this.addToQueue(task);
     }
   }
 
   addToQueue(task: LatexTask) {
     const blockId = task.getBlockId();
-    this.queue.remove((node) => node.data.getBlockId() === blockId);
+    console.log("Removing existing tasks with blockId:", blockId);
+    //this.queue.remove((node) => node.data.getBlockId() === blockId);
     task.el.appendChild(createWaitingCountdown(this.queue.length()));
     this.queue.push(task);
+    console.log("Task added to queue:", task.getDebugInfo(), "Current queue length:", this.queue.length());
   }
 
   rebuildQueue() {
@@ -157,7 +161,6 @@ export class SwiftlatexRender {
     console.log("All tasks aborted.");
   }
   
-
   /**
    * Processes and renders the given LaTeX task.
    *
@@ -202,7 +205,7 @@ export class SwiftlatexRender {
     try {
       return await this.renderLatexToPDF(task.getProcessedContent(), { strict: true, });
     } catch (err) {
-      return new CompileResult(undefined, CompileStatus.CompileError, err as string);
+      return new CompileResult(undefined, CompileStatus.CompileError, toErrorString(err));
     }
   }
 
@@ -216,15 +219,26 @@ export class SwiftlatexRender {
   }
 
   configQueue() {
-    this.queue = async.queue(async (task, done) => {
-      const didRender = await this.processAndRenderLatexTask(task);
-      updateQueueCountdown(this.queue);
-      if (didRender) {
-        setTimeout(() => done(), this.plugin.settings.pdfEngineCooldown);
-      } else {
+    this.queue = async.queue((task: LatexTask, done) => {
+      (async () => {
+        console.log("Starting task:", task.getDebugInfo());
+        const didRender = await withTimeout(
+          this.processAndRenderLatexTask(task),
+          25_000,
+          "LaTeX task processing timed out"
+        );
+        updateQueueCountdown(this.queue);
+  
+        if (didRender) {
+          setTimeout(done, this.plugin.settings.pdfEngineCooldown);
+        } else {
+          done();
+        }
+      })().catch((err) => {
+        console.error("Queue worker crashed:", err, task.getDebugInfo());
         done();
-      }
-    }, 1) as QueueObject<LatexTask>; // Concurrency is set to 1, so tasks run one at a time
+      });
+    }, 1) as QueueObject<LatexTask>;// Concurrency is set to 1, so tasks run one at a time
   }
 
   /**
@@ -245,7 +259,7 @@ export class SwiftlatexRender {
     }
     if (blockIdsToRemove.size === 0) return;
     console.log("Removing tasks from queue:", blockIdsToRemove);
-    this.queue._tasks.remove((node) => blockIdsToRemove.has(node.data.getBlockId()));
+    //this.queue._tasks.remove((node) => blockIdsToRemove.has(node.data.getBlockId()));
     console.log("Queue after removal:", this.queue._tasks.length);
   }
 
@@ -279,13 +293,17 @@ export class SwiftlatexRender {
   private async renderLatexToElement(task: LatexTask): Promise<void> {
     const { el, content, rawHash, sourcePath, dependencyPaths, basename } = task.getRenderData();
     try {
-      const result = await this.renderLatexToPDF(content, { md5Hash: rawHash });
+      const result = await withTimeout(
+        this.renderLatexToPDF(content, { md5Hash: rawHash }),
+        10_000,
+        "LaTeX compilation timed out"
+      );
       el.innerHTML = "";
       await this.translatePDF(result.pdf, el, basename);
       addMenu(this.plugin, el, sourcePath);
       this.cache.resultFileCache.addFile(el.innerHTML, rawHash, dependencyPaths, sourcePath);
     } catch (err) {
-      this.handleErrorForTask(task, err as string, { parseErr: true });
+      this.handleErrorForTask(task, toErrorString(err), { parseErr: true });
     } finally {
       await waitFor(() => this.compiler.isReady());
     }
@@ -300,18 +318,23 @@ export class SwiftlatexRender {
         }
 
         try {
+          console.log("Waiting for compiler to be ready...");
           await waitFor(() => this.compiler.isReady());
-
+          console.log("Compiler is ready.");
           if (this.vfs.getEnabled()) {
             console.log("Rendering LaTeX to PDF", source.split("\n"), this.vfs.clone());
           }
 
           await this.vfs.loadVirtualFileSystemFiles();
+          console.log("Compiling LaTeX source:", source);
           await this.compiler.writeMemFSFile("main.tex", source);
+          console.log("Written main.tex to virtual file system.");
           await this.compiler.setEngineMainFile("main.tex");
+          console.log("Set main.tex as the main file for compilation.");
           const result = await this.compiler.compileLaTeX();
-
+          console.log("Compilation result:", result);
           await this.vfs.removeVirtualFileSystemFiles();
+          console.log("Removed virtual file system files after compilation.");
 
           if (config.md5Hash) this.cache.addLog(result.log, config.md5Hash);
 
@@ -387,4 +410,40 @@ function createWaitingCountdown(index: number) {
   parentContainer.appendChild(loader);
   parentContainer.appendChild(countdown);
   return parentContainer;
+}
+
+
+
+export class TimeoutError extends Error {
+  constructor(message = "Timed out") {
+    super(message);
+    this.name = "TimeoutError";
+  }
+}
+
+export function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message?: string
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new TimeoutError(message)), ms);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  }) as Promise<T>;
+}
+
+
+function toErrorString(e: unknown): string {
+  if (typeof e === "string") return e;
+  if (e instanceof Error) return e.stack ?? e.message ?? String(e);
+  try {
+    return JSON.stringify(e, null, 2);
+  } catch {
+    return String(e);
+  }
 }

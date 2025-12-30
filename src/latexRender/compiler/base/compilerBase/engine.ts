@@ -69,6 +69,7 @@ export default abstract class LatexEngine {
     }
     return true;
   }
+
   async compileLaTeX(): Promise<CompileResult> {
     const startCompileTime = performance.now();
     const data = await this.task<{
@@ -87,6 +88,7 @@ export default abstract class LatexEngine {
       data.log,
     );
   }
+  
   async compilePDF(): Promise<CompileResult> {
     const startCompileTime = performance.now();
     const data = await this.task<{
@@ -195,7 +197,7 @@ export default abstract class LatexEngine {
               `Unexpected command: ${ev.data.cmd}, expected: ${command}`,
             );
           }
-          //console.log("Task completed:", ev.data);
+          console.log("Task completed:", ev.data);
           this.compilerStatus = EngineStatus.Ready;
           this.compiler.onmessage = null;
           this.compiler.onerror = null;
