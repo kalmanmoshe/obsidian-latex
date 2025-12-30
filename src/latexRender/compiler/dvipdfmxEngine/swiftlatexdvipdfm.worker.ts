@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { DefaultWorkerValues } from "../base/workerBase/self";
 import { Communicator } from "../base/workerBase/communication";
 import { wasmBinaryFileImport } from "./wasmBinaryStaticImport";
@@ -650,7 +651,7 @@ var initRandomFill = () => {
 };
 var randomFill = (view) => (randomFill = initRandomFill())(view);
 var PATH_FS = {
-  resolve: (...args) => {
+  resolve: (...args: String[]) => {
     var resolvedPath = "",
       resolvedAbsolute = false;
     for (var i = args.length - 1; i >= -1 && !resolvedAbsolute; i--) {
@@ -669,10 +670,10 @@ var PATH_FS = {
     ).join("/");
     return (resolvedAbsolute ? "/" : "") + resolvedPath || ".";
   },
-  relative: (from, to) => {
+  relative: (from: String, to: String) => {
     from = PATH_FS.resolve(from).substr(1);
     to = PATH_FS.resolve(to).substr(1);
-    function trim(arr) {
+    function trim(arr: String[]) {
       var start = 0;
       for (; start < arr.length; start++) {
         if (arr[start] !== "") break;
@@ -685,7 +686,7 @@ var PATH_FS = {
       return arr.slice(start, end - start + 1);
     }
     var fromParts = trim(from.split("/"));
-    var toParts = trim(to.split("/"));
+    var toParts: String[] = trim(to.split("/"));
     var length = Math.min(fromParts.length, toParts.length);
     var samePartsLength = length;
     for (var i = 0; i < length; i++) {
@@ -720,7 +721,7 @@ var lengthBytesUTF8 = (str) => {
   }
   return len;
 };
-var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
+var stringToUTF8Array = (str: String, heap, outIdx, maxBytesToWrite) => {
   if (!(maxBytesToWrite > 0)) return 0;
   var startIdx = outIdx;
   var endIdx = outIdx + maxBytesToWrite - 1;
@@ -1342,7 +1343,7 @@ var FS = {
   genericErrors: {},
   filesystems: null,
   syncFSRequests: 0,
-  lookupPath(path, opts = {}) {
+  lookupPath(path: String, opts = {}) {
     path = PATH_FS.resolve(path);
     if (!path) return { path: "", node: null };
     var defaults = { follow_mount: true, recurse_count: 0 };
