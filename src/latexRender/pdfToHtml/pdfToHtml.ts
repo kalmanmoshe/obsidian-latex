@@ -1,84 +1,84 @@
-import { PDFDocument } from "pdf-lib";
-import { SVGroot } from "src/svg/nodes";
-import { optimizeSVG } from "./optimizeSVG";
-const PdfToCairo = require("./pdftocairo.js");
+import { PDFDocument } from 'pdf-lib';
+import { SVGroot } from 'src/svg/nodes';
+import { optimizeSVG } from './optimizeSVG';
+const PdfToCairo = require('./pdftocairo.js');
 
 export async function pdfToSVG(pdfData: Buffer<ArrayBufferLike>) {
 	const pdftocairo = await PdfToCairo();
-	pdftocairo.FS.writeFile("input.pdf", pdfData);
+	pdftocairo.FS.writeFile('input.pdf', pdfData);
 	pdftocairo._convertPdfToSvg();
-	return pdftocairo.FS.readFile("input.svg", { encoding: "utf8" }) as string;
+	return pdftocairo.FS.readFile('input.svg', { encoding: 'utf8' }) as string;
 }
 
 export async function pdfToOptimizedSVG(
-  pdfData: Buffer<ArrayBufferLike>,
-  config: { invertColorsInDarkMode: boolean; autoRemoveWhitespace: boolean; basename: string },
+	pdfData: Buffer<ArrayBufferLike>,
+	config: {
+		invertColorsInDarkMode: boolean;
+		autoRemoveWhitespace: boolean;
+		basename: string;
+	},
 ) {
-	let svg = await pdfToSVG(pdfData)
+	let svg = await pdfToSVG(pdfData);
 
 	if (config.autoRemoveWhitespace) {
 		svg = await cropSvgByPixels(svg);
 	}
 
 	svg = optimizeSVG(svg, false);
-	
+
 	if (config.invertColorsInDarkMode) {
 		svg = colorSVGinDarkMode(svg);
 	}
 
-	
-	
 	const parsedSVG = await SVGroot.parse(svg);
 	parsedSVG.idSvg(config.basename);
 	svg = parsedSVG.toString();
 	return svg;
 }
 
-
 function colorSVGinDarkMode(svg: string) {
-  // Replace the color "black" with currentColor (the current text color)
-  // so that diagram axes, etc are visible in dark mode
-  // and replace "white" with the background color
-  if (document.body.classList.contains("theme-dark")) {
-    svg = svg
-      .replace(/rgb\(0%, 0%, 0%\)/g, "currentColor")
-      .replace(/rgb\(100%, 100%, 100%\)/g, "var(--background-primary)");
-  } else {
-    svg = svg
-      .replace(/rgb\(100%, 100%, 100%\)/g, "currentColor")
-      .replace(/rgb\(0%, 0%, 0%\)/g, "var(--background-primary)");
-  }
+	// Replace the color "black" with currentColor (the current text color)
+	// so that diagram axes, etc are visible in dark mode
+	// and replace "white" with the background color
+	if (document.body.classList.contains('theme-dark')) {
+		svg = svg
+			.replace(/rgb\(0%, 0%, 0%\)/g, 'currentColor')
+			.replace(/rgb\(100%, 100%, 100%\)/g, 'var(--background-primary)');
+	} else {
+		svg = svg
+			.replace(/rgb\(100%, 100%, 100%\)/g, 'currentColor')
+			.replace(/rgb\(0%, 0%, 0%\)/g, 'var(--background-primary)');
+	}
 
-  return svg;
+	return svg;
 }
-
 
 export async function pdfToHtml(pdfData: Buffer<ArrayBufferLike>) {
 	const { width, height } = await getPdfDimensions(pdfData);
 	const ratio = width / height;
-	const pdfblob = new Blob([pdfData], { type: "application/pdf" });
+	const pdfblob = new Blob([pdfData], { type: 'application/pdf' });
 	const objectURL = URL.createObjectURL(pdfblob);
 	return {
-	  attr: {
-		data: `${objectURL}#view=FitH&toolbar=0`,
-		type: "application/pdf",
-		class: "block-lanuage-latex",
-		style: `width:100%; aspect-ratio:${ratio}`,
-	  },
+		attr: {
+			data: `${objectURL}#view=FitH&toolbar=0`,
+			type: 'application/pdf',
+			class: 'block-lanuage-latex',
+			style: `width:100%; aspect-ratio:${ratio}`,
+		},
 	};
 }
 
 async function cropSvgByPixels(svgString: string): Promise<string> {
 	return new Promise((resolve) => {
-		const svgBlob = new Blob([svgString], { type: "image/svg+xml" });
+		const svgBlob = new Blob([svgString], { type: 'image/svg+xml' });
 		const url = URL.createObjectURL(svgBlob);
 		const img = new Image();
 
 		img.onload = () => {
-			const canvas = document.createElement("canvas");
+			const canvas = document.createElement('canvas');
 			canvas.width = img.width;
 			canvas.height = img.height;
-			const ctx = canvas.getContext("2d");
+			const ctx = canvas.getContext('2d');
 			if (!ctx) {
 				URL.revokeObjectURL(url);
 				resolve(svgString);
@@ -87,13 +87,22 @@ async function cropSvgByPixels(svgString: string): Promise<string> {
 
 			ctx.drawImage(img, 0, 0);
 
-			const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+			const imageData = ctx.getImageData(
+				0,
+				0,
+				canvas.width,
+				canvas.height,
+			);
 			const pixels = imageData.data;
 
-			let minX = canvas.width, minY = canvas.height, maxX = 0, maxY = 0;
+			let minX = canvas.width,
+				minY = canvas.height,
+				maxX = 0,
+				maxY = 0;
 			for (let y = 0; y < canvas.height; y++) {
-				let minXinRow = undefined, maxXinRow = undefined;
-			
+				let minXinRow = undefined,
+					maxXinRow = undefined;
+
 				// Left to right -> find first visible pixel in row
 				for (let x = 0; x < canvas.width; x++) {
 					const i = (y * canvas.width + x) * 4;
@@ -102,10 +111,10 @@ async function cropSvgByPixels(svgString: string): Promise<string> {
 						break;
 					}
 				}
-			
+
 				// Skip if row is fully transparent
 				if (minXinRow === undefined) continue;
-			
+
 				// Right to left -> find last visible pixel in row
 				for (let x = canvas.width - 1; x >= 0; x--) {
 					const i = (y * canvas.width + x) * 4;
@@ -114,7 +123,7 @@ async function cropSvgByPixels(svgString: string): Promise<string> {
 						break;
 					}
 				}
-			
+
 				minX = Math.min(minX, minXinRow);
 				maxX = Math.max(maxX, maxXinRow!);
 				minY = Math.min(minY, y);
@@ -133,13 +142,16 @@ async function cropSvgByPixels(svgString: string): Promise<string> {
 
 			// Modify the SVG viewBox
 			const parser = new DOMParser();
-			const doc = parser.parseFromString(svgString, "image/svg+xml");
-			const svg = doc.querySelector("svg");
+			const doc = parser.parseFromString(svgString, 'image/svg+xml');
+			const svg = doc.querySelector('svg');
 
 			if (svg) {
-				svg.setAttribute("viewBox", `${minX} ${minY} ${cropWidth} ${cropHeight}`);
-				svg.setAttribute("width", cropWidth.toString());
-				svg.setAttribute("height", cropHeight.toString());
+				svg.setAttribute(
+					'viewBox',
+					`${minX} ${minY} ${cropWidth} ${cropHeight}`,
+				);
+				svg.setAttribute('width', cropWidth.toString());
+				svg.setAttribute('height', cropHeight.toString());
 				resolve(svg.outerHTML);
 			} else {
 				resolve(svgString);
@@ -156,13 +168,11 @@ async function cropSvgByPixels(svgString: string): Promise<string> {
 	});
 }
 
-
-
 async function getPdfDimensions(
-  pdf: any,
+	pdf: any,
 ): Promise<{ width: number; height: number }> {
-  const pdfDoc = await PDFDocument.load(pdf);
-  const firstPage = pdfDoc.getPages()[0];
-  const { width, height } = firstPage.getSize();
-  return { width, height };
+	const pdfDoc = await PDFDocument.load(pdf);
+	const firstPage = pdfDoc.getPages()[0];
+	const { width, height } = firstPage.getSize();
+	return { width, height };
 }

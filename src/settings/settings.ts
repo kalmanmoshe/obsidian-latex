@@ -1,8 +1,8 @@
 export type StringMap = Record<string, string | number>;
 
 export enum CompilerType {
-  TeX = "tex",
-  XeTeX = "xetex",
+	TeX = 'tex',
+	XeTeX = 'xetex',
 }
 /**
  * What to do when the content overflows the container.
@@ -11,25 +11,23 @@ export enum CompilerType {
  * "hidden" - do nothing, content will overflow.
  */
 export enum OverflowStrategy {
-  Downscale = "downscale",
-  Scroll = "scroll",
-  Hidden = "hidden",
+	Downscale = 'downscale',
+	Scroll = 'scroll',
+	Hidden = 'hidden',
 }
-
-
 
 /**
  * Represents a single compilation entry for a code block.
  */
 export type CacheEntry = {
-  /** List of resolved file paths that this code block depends on */
-  dependencies: string[];
+	/** List of resolved file paths that this code block depends on */
+	dependencies: string[];
 
-  /** A deterministic hash computed from the sorted list of dependencies */
-  depsHash: string;
+	/** A deterministic hash computed from the sorted list of dependencies */
+	depsHash: string;
 
-  /** Set of file paths that reference this specific source+dependency combination */
-  referencedBy: Set<string>;
+	/** Set of file paths that reference this specific source+dependency combination */
+	referencedBy: Set<string>;
 };
 
 /**
@@ -46,7 +44,11 @@ export type CacheMap = Map<string, CacheEntry[]>;
 /**
  * JSON-serializable version of a CacheEntry (Set → Array).
  */
-export type CacheEntryJson = [deps: string[], depsHash: string, referencedBy: string[]];
+export type CacheEntryJson = [
+	deps: string[],
+	depsHash: string,
+	referencedBy: string[],
+];
 // OR for common case:
 export type ShortCacheEntryJson = string[]; // means nodeps
 /*export type CacheEntryJson = [string[], string, string[]]{
@@ -61,58 +63,61 @@ export type ShortCacheEntryJson = string[]; // means nodeps
  * Structure:
  * - Array of [RawHash, CacheEntryJson[]] tuples.
  */
-export type CacheJson = Array<[rawHash: string, entries: (CacheEntryJson | ShortCacheEntryJson)[]]>;
+export type CacheJson = Array<
+	[rawHash: string, entries: (CacheEntryJson | ShortCacheEntryJson)[]]
+>;
 
 export interface LatexRenderPluginSettings {
-  mathjaxPreambleEnabled: boolean;
-  mathjaxPreambleFileLocation: string;
-  compilerVfsEnabled: boolean;
-  autoloadedVfsFilesDir: string;
-  virtualFilesFromCodeBlocks: boolean;
+	mathjaxPreambleEnabled: boolean;
+	mathjaxPreambleFileLocation: string;
+	compilerVfsEnabled: boolean;
+	autoloadedVfsFilesDir: string;
+	virtualFilesFromCodeBlocks: boolean;
 
-  invertColorsInDarkMode: boolean;
-  autoRemoveWhitespace: boolean;
+	invertColorsInDarkMode: boolean;
+	autoRemoveWhitespace: boolean;
 
-  dirtyResultFiles: string[];
+	dirtyResultFiles: string[];
 
-  package_url: string;
-  physicalCache: boolean;
-  physicalCacheLocation: string;
-  cache: CacheJson;
-  /**
-   * There are four catches:
-   * 1. texlive404_cache - Not found files
-   * 2. texlive200_cache
-   * 3. pk404_cache - Not found files
-   * 4. pk200_cache - idk
-   *
-   * currently only dealing with texlive200_cache
-   */
-  packageCache: Array<StringMap>;
-  pdfEngineCooldown: number;
-  saveLogs: boolean;
-  overflowStrategy: OverflowStrategy;
-  compiler: CompilerType;
+	package_url: string;
+	physicalCache: boolean;
+	physicalCacheLocation: string;
+	cache: CacheJson;
+	/**
+	 * There are four catches:
+	 * 1. texlive404_cache - Not found files
+	 * 2. texlive200_cache
+	 * 3. pk404_cache - Not found files
+	 * 4. pk200_cache - idk
+	 *
+	 * currently only dealing with texlive200_cache
+	 */
+	packageCache: Array<StringMap>;
+	pdfEngineCooldown: number;
+	saveLogs: boolean;
+	overflowStrategy: OverflowStrategy;
+	compiler: CompilerType;
 }
 
 export const DEFAULT_SETTINGS: LatexRenderPluginSettings = {
-  mathjaxPreambleEnabled: false,
-  mathjaxPreambleFileLocation: "",
-  compilerVfsEnabled: false,
-  autoloadedVfsFilesDir: "",
-  virtualFilesFromCodeBlocks: false,
-  // style settings
-  invertColorsInDarkMode: true,
-  autoRemoveWhitespace: true,
-  dirtyResultFiles: [],
+	mathjaxPreambleEnabled: false,
+	mathjaxPreambleFileLocation: '',
+	compilerVfsEnabled: false,
+	autoloadedVfsFilesDir: '',
+	virtualFilesFromCodeBlocks: false,
+	// style settings
+	invertColorsInDarkMode: true,
+	autoRemoveWhitespace: true,
+	dirtyResultFiles: [],
 
-  package_url: "http://46.101.255.60:3000/"/*`https://texlive2.swiftlatex.com/`*/,
-  physicalCache: true,
-  physicalCacheLocation: "",
-  cache: [],
-  packageCache: [{}, {}, {}, {}],
-  pdfEngineCooldown: 1000,
-  saveLogs: false,
-  overflowStrategy: OverflowStrategy.Downscale,
-  compiler: CompilerType.TeX,
+	package_url:
+		'http://46.101.255.60:3000/' /*`https://texlive2.swiftlatex.com/`*/,
+	physicalCache: true,
+	physicalCacheLocation: '',
+	cache: [],
+	packageCache: [{}, {}, {}, {}],
+	pdfEngineCooldown: 1000,
+	saveLogs: false,
+	overflowStrategy: OverflowStrategy.Downscale,
+	compiler: CompilerType.TeX,
 };
