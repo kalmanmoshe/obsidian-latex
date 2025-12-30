@@ -1,20 +1,20 @@
-const fs = require("fs").promises;
-import { parse, stringify } from "svgson";
+const fs = require('fs').promises;
+import { parse, stringify } from 'svgson';
 
 export async function readAndParseSVG() {
-  try {
-    const svgContent = svg;
-    // Parse the SVG content into a JSON object
-    const svgJSON = await parse(svgContent);
+	try {
+		const svgContent = svg;
+		// Parse the SVG content into a JSON object
+		const svgJSON = await parse(svgContent);
 
-    // Optionally, convert the JSON back into an SVG string
-    const svgString = stringify(svgJSON);
+		// Optionally, convert the JSON back into an SVG string
+		const svgString = stringify(svgJSON);
 
-    return { svgContent, svgJSON, svgString };
-  } catch (error) {
-    console.error("Error processing SVG:", error);
-    throw error;
-  }
+		return { svgContent, svgJSON, svgString };
+	} catch (error) {
+		console.error('Error processing SVG:', error);
+		throw error;
+	}
 }
 const svg = `<!--?xml version="1.0" encoding="UTF-8"?-->
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="57.689" height="43.516" viewBox="0 0 57.689 43.516">

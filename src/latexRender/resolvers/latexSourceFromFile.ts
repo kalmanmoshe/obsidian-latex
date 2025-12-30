@@ -1,9 +1,9 @@
-import { TFile } from "obsidian";
-import { latexCodeBlockNamesRegex } from "../swiftlatexRender";
-import { getLatexTaskSectionInfosFromFile } from "./taskSectionInformation";
-import { hashLatexContent } from "../cache/resultFileCache";
-import { codeBlockLanguageRegex, codeBlockToContent } from "obsidian-dev-utils";
-/** rooles: 
+import { TFile } from 'obsidian';
+import { latexCodeBlockNamesRegex } from '../swiftlatexRender';
+import { getLatexTaskSectionInfosFromFile } from './taskSectionInformation';
+import { hashLatexContent } from '../cache/resultFileCache';
+import { codeBlockLanguageRegex, codeBlockToContent } from 'obsidian-dev-utils';
+/** rooles:
  * - find = Might be undefined
  * - get = Will always return a value or throw an error
  * - getAll = Will always return an array, might be empty
@@ -14,25 +14,29 @@ import { codeBlockLanguageRegex, codeBlockToContent } from "obsidian-dev-utils";
  * - taskSectionInfo = TaskSectionInformation
  */
 /**
- * 
- * 
- * @param section 
- * @returns 
+ *
+ *
+ * @param section
+ * @returns
  */
 
-
 export async function extractAllSectionsByFile() {
-	const files = app.vault.getFiles().filter(f => f.extension === "md");
+	const files = app.vault.getFiles().filter((f) => f.extension === 'md');
 	const sectionsByFile = await Promise.all(
-		files.map(async file => ({
+		files.map(async (file) => ({
 			file,
-			codeBlockSections: await getLatexTaskSectionInfosFromFile(file as TFile)
-		}))
+			codeBlockSections: await getLatexTaskSectionInfosFromFile(
+				file as TFile,
+			),
+		})),
 	);
-	return sectionsByFile
+	return sectionsByFile;
 }
 
-export function extractCodeBlockMetadata(text: string): { language?: string; name?: string; } {
+export function extractCodeBlockMetadata(text: string): {
+	language?: string;
+	name?: string;
+} {
 	const language = text.match(codeBlockLanguageRegex)?.[1];
 	const name = extractCodeBlockName(text);
 	return { language, name };
@@ -44,20 +48,23 @@ export function extractCodeBlockMetadata(text: string): { language?: string; nam
  * @returns The extracted name if matched, otherwise undefined
  */
 export function extractCodeBlockName(codeBlock: string): string | undefined {
-	const nameMatch = codeBlock.split("\n")[0]
-		.replace(latexCodeBlockNamesRegex, "")
+	const nameMatch = codeBlock
+		.split('\n')[0]
+		.replace(latexCodeBlockNamesRegex, '')
 		.trim()
 		.match(/name: *([\w-]+)/); // Match names with letters, numbers, underscores, and dashes
 	return nameMatch ? nameMatch[1] : undefined;
 }
 /**
  * Extracts all latex code blocks from a file and returns their hashes.
- * @param file 
- * @param app 
- * @returns 
+ * @param file
+ * @param app
+ * @returns
  */
 export async function getLatexHashesFromFile(file: TFile) {
 	const codeBlocks = await getLatexTaskSectionInfosFromFile(file);
-	const hashes = codeBlocks.map((block) => hashLatexContent(codeBlockToContent(block.codeBlock)));
+	const hashes = codeBlocks.map((block) =>
+		hashLatexContent(codeBlockToContent(block.codeBlock)),
+	);
 	return hashes;
 }

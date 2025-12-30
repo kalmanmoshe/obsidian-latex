@@ -1,86 +1,101 @@
-import { MarkdownSectionInformation, SectionCache, TFile } from "obsidian";
-import { getFileSections } from "./sectionCache";
-import LatexRender from "src/main";
-import { latexCodeBlockNamesRegex } from "../swiftlatexRender";
-import ResultFileCache, { hashLatexContent } from "../cache/resultFileCache";
-import { codeBlockToContent } from "obsidian-dev-utils";
+import { MarkdownSectionInformation, SectionCache, TFile } from 'obsidian';
+import { getFileSections } from './sectionCache';
+import LatexRender from 'src/main';
+import { latexCodeBlockNamesRegex } from '../swiftlatexRender';
+import ResultFileCache, { hashLatexContent } from '../cache/resultFileCache';
+import { codeBlockToContent } from 'obsidian-dev-utils';
 export interface TaskSectionInformation {
-    /**
-     * The line start of the source in the file. (zero-based index)
-     */
-    lineStart: number;
-    /**
-     * The line end of the source in the file. (zero-based index)
-     */
-    lineEnd: number;
-    /**
-     * the source code of the task (the code block) including the delimiters.
-     */
-    codeBlock: string;
+	/**
+	 * The line start of the source in the file. (zero-based index)
+	 */
+	lineStart: number;
+	/**
+	 * The line end of the source in the file. (zero-based index)
+	 */
+	lineEnd: number;
+	/**
+	 * the source code of the task (the code block) including the delimiters.
+	 */
+	codeBlock: string;
 }
 
 /**
  * Returns the most nested (deepest) section info that contains a given line.
  */
 export function findInnermostSectionInfo(
-    sectionInfos: TaskSectionInformation[],
-    lineIndex: number,
-    lineEnd?: number,
+	sectionInfos: TaskSectionInformation[],
+	lineIndex: number,
+	lineEnd?: number,
 ): TaskSectionInformation | undefined {
-    return sectionInfos.filter((sec) =>
-        sec.lineStart <= lineIndex &&
-        sec.lineEnd >= lineIndex &&
-        (lineEnd ? sec.lineEnd <= lineEnd : true)
-    ).sort((a, b) => b.lineStart - a.lineStart)[0];
+	return sectionInfos
+		.filter(
+			(sec) =>
+				sec.lineStart <= lineIndex &&
+				sec.lineEnd >= lineIndex &&
+				(lineEnd ? sec.lineEnd <= lineEnd : true),
+		)
+		.sort((a, b) => b.lineStart - a.lineStart)[0];
 }
 
-
-
-export async function findTaskSectionInfoFromContentInFile(file: TFile, content: string) {
-    const blockSections = await getLatexTaskSectionInfosFromFile(file)
-    for (const section of blockSections) {
-        const sectionContent = codeBlockToContent(section.codeBlock);
-        if (sectionContent === content) {
-            return section;
-        }
-    }
+export async function findTaskSectionInfoFromContentInFile(
+	file: TFile,
+	content: string,
+) {
+	const blockSections = await getLatexTaskSectionInfosFromFile(file);
+	for (const section of blockSections) {
+		const sectionContent = codeBlockToContent(section.codeBlock);
+		if (sectionContent === content) {
+			return section;
+		}
+	}
 }
 
-export async function getTaskSectionInfosFromHash(cache: ResultFileCache, hash: string): Promise<TaskSectionInformation[]> {
-    const filePathsCache = new Set<string>();
-    // Use cache to narrow down file paths.
-    const cachedFilePaths = cache.getCachedFilePathsForRawHash(hash);
-    for (const filePath of cachedFilePaths) {
-        if (filePathsCache.has(filePath)) continue;
-        filePathsCache.add(filePath);
-        const fileFromCache = app.metadataCache.getFirstLinkpathDest(filePath, "");
-        if (!fileFromCache) continue;
-        const info = await findTaskSectionInfoFromHashInFile(fileFromCache, hash);
-        if (info) return info;
-    }
+export async function getTaskSectionInfosFromHash(
+	cache: ResultFileCache,
+	hash: string,
+): Promise<TaskSectionInformation[]> {
+	const filePathsCache = new Set<string>();
+	// Use cache to narrow down file paths.
+	const cachedFilePaths = cache.getCachedFilePathsForRawHash(hash);
+	for (const filePath of cachedFilePaths) {
+		if (filePathsCache.has(filePath)) continue;
+		filePathsCache.add(filePath);
+		const fileFromCache = app.metadataCache.getFirstLinkpathDest(
+			filePath,
+			'',
+		);
+		if (!fileFromCache) continue;
+		const info = await findTaskSectionInfoFromHashInFile(
+			fileFromCache,
+			hash,
+		);
+		if (info) return info;
+	}
 
-    // If still not found, search all files in parallel.
-    const allFiles = app.vault.getFiles();
-    for (const file of allFiles) {
-        if (filePathsCache.has(file.path)) continue; // Skip already checked files
-        filePathsCache.add(file.path);
-        const info = await findTaskSectionInfoFromHashInFile(file, hash);
-        if (info) { return info }
-    }
-    throw new Error("Latex info not found for hash: " + hash);
+	// If still not found, search all files in parallel.
+	const allFiles = app.vault.getFiles();
+	for (const file of allFiles) {
+		if (filePathsCache.has(file.path)) continue; // Skip already checked files
+		filePathsCache.add(file.path);
+		const info = await findTaskSectionInfoFromHashInFile(file, hash);
+		if (info) {
+			return info;
+		}
+	}
+	throw new Error('Latex info not found for hash: ' + hash);
 }
 
 /**
  * extracts all latex code blocks from a file.
- * @param plugin 
- * @param file 
- * @returns 
+ * @param plugin
+ * @param file
+ * @returns
  */
 export async function getLatexTaskSectionInfosFromFile(file: TFile) {
-    const sections = await getFileSections(file, true);
-    if (!sections) return [];
-    const fileText = await app.vault.read(file);
-    return getLatexTaskSectionInfosFromString(fileText, sections);
+	const sections = await getFileSections(file, true);
+	if (!sections) return [];
+	const fileText = await app.vault.read(file);
+	return getLatexTaskSectionInfosFromString(fileText, sections);
 }
 
 /**
@@ -91,29 +106,46 @@ export async function getLatexTaskSectionInfosFromFile(file: TFile) {
  * @param sections - An array of SectionCache items representing code block positions.
  * @returns An array of TaskSectionInformation one for each LaTeX/TikZ code block.
  */
-function getLatexTaskSectionInfosFromString(string: string, sections: SectionCache[]): TaskSectionInformation[] {
-    const lines = string.split("\n");
-    // Filter sections that are code blocks with latex or tikz language hints.
-    sections = sections.filter((section: SectionCache) => section.type === "code");
-    let codeBlocks: { lineStart: number; lineEnd: number; codeBlock: string }[] = [];
-    for (const section of sections) {
-        const codeBlock = lines.slice(section.position.start.line, section.position.end.line + 1).join("\n");
-        if (!codeBlock.split("\n")[0].match(latexCodeBlockNamesRegex)) continue;
-        codeBlocks.push({
-            lineStart: section.position.start.line,
-            lineEnd: section.position.end.line,
-            codeBlock: codeBlock,
-        });
-    }
-    codeBlocks = codeBlocks.sort((a, b) => a.lineStart - b.lineStart);
-    return codeBlocks;
+function getLatexTaskSectionInfosFromString(
+	string: string,
+	sections: SectionCache[],
+): TaskSectionInformation[] {
+	const lines = string.split('\n');
+	// Filter sections that are code blocks with latex or tikz language hints.
+	sections = sections.filter(
+		(section: SectionCache) => section.type === 'code',
+	);
+	let codeBlocks: {
+		lineStart: number;
+		lineEnd: number;
+		codeBlock: string;
+	}[] = [];
+	for (const section of sections) {
+		const codeBlock = lines
+			.slice(section.position.start.line, section.position.end.line + 1)
+			.join('\n');
+		if (!codeBlock.split('\n')[0].match(latexCodeBlockNamesRegex)) continue;
+		codeBlocks.push({
+			lineStart: section.position.start.line,
+			lineEnd: section.position.end.line,
+			codeBlock: codeBlock,
+		});
+	}
+	codeBlocks = codeBlocks.sort((a, b) => a.lineStart - b.lineStart);
+	return codeBlocks;
 }
 
-export async function findTaskSectionInfoFromHashInFile(file: TFile, hash: string) {
-    const blockSections = await getLatexTaskSectionInfosFromFile(file)
-    const matchedSections = blockSections.filter(section => hashLatexContent(codeBlockToContent(section.codeBlock)) === hash);
-    if (matchedSections.length === 0) {
-        return undefined;
-    }
-    return matchedSections
+export async function findTaskSectionInfoFromHashInFile(
+	file: TFile,
+	hash: string,
+) {
+	const blockSections = await getLatexTaskSectionInfosFromFile(file);
+	const matchedSections = blockSections.filter(
+		(section) =>
+			hashLatexContent(codeBlockToContent(section.codeBlock)) === hash,
+	);
+	if (matchedSections.length === 0) {
+		return undefined;
+	}
+	return matchedSections;
 }

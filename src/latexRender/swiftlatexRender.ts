@@ -1,66 +1,70 @@
-import { MarkdownPostProcessorContext } from "obsidian";
-import * as temp from "temp";
-import { CompileResult, CompileStatus } from "./compiler/base/compilerBase/engine";
-import LatexRender from "../main";
-import { CompilerType } from "src/settings/settings.js";
-import async from "async";
-import { pdfToHtml, pdfToOptimizedSVG, pdfToSVG } from "./pdfToHtml/pdfToHtml";
-import parseLatexLog, { createErrorDisplay, errorDiv } from "./logs/HumanReadableLogs";
-import { VirtualFileSystem } from "./VirtualFileSystem";
-import { ProcessedLog } from "./logs/latex-log-parser";
-import PdfTeXCompiler from "./compiler/swiftlatexpdftex/PdfTeXEngine";
-import { LatexTask } from "./task/latexTask";
-import { PdfXeTeXCompiler } from "./compiler/swiftlatexxetex/pdfXeTeXCompiler";
-import LatexCompiler from "./compiler/base/compilerBase/compiler";
-import CompilerCache from "./cache/compilerCache";
-import { hashLatexContent } from "./cache/resultFileCache";
-import { SVG_ID_KEY } from "src/svg/nodes";
-import { CssClasses } from "src/util/cssClassesConstants";
+import { MarkdownPostProcessorContext } from 'obsidian';
+import * as temp from 'temp';
+import {
+	CompileResult,
+	CompileStatus,
+} from './compiler/base/compilerBase/engine';
+import LatexRender from '../main';
+import { CompilerType } from 'src/settings/settings.js';
+import async from 'async';
+import { pdfToHtml, pdfToOptimizedSVG, pdfToSVG } from './pdfToHtml/pdfToHtml';
+import parseLatexLog, {
+	createErrorDisplay,
+	errorDiv,
+} from './logs/HumanReadableLogs';
+import { VirtualFileSystem } from './VirtualFileSystem';
+import { ProcessedLog } from './logs/latex-log-parser';
+import PdfTeXCompiler from './compiler/swiftlatexpdftex/PdfTeXEngine';
+import { LatexTask } from './task/latexTask';
+import { PdfXeTeXCompiler } from './compiler/swiftlatexxetex/pdfXeTeXCompiler';
+import LatexCompiler from './compiler/base/compilerBase/compiler';
+import CompilerCache from './cache/compilerCache';
+import { hashLatexContent } from './cache/resultFileCache';
+import { SVG_ID_KEY } from 'src/svg/nodes';
+import { CssClasses } from 'src/util/cssClassesConstants';
 
 temp.track();
 
-
 export const waitFor = async (condFunc: () => boolean) => {
-  return new Promise<void>((resolve) => {
-    if (condFunc()) {
-      resolve();
-    } else {
-      setTimeout(async () => {
-        await waitFor(condFunc);
-        resolve();
-      }, 100);
-    }
-  });
+	return new Promise<void>((resolve) => {
+		if (condFunc()) {
+			resolve();
+		} else {
+			setTimeout(async () => {
+				await waitFor(condFunc);
+				resolve();
+			}, 100);
+		}
+	});
 };
-
 
 export const latexCodeBlockNamesRegex = /(`|~){3,} *(latex|tikz)/;
 
 type InternalTask<T> = {
-  data: T;
-  callback: Function;
-  next: InternalTask<T> | null;
+	data: T;
+	callback: Function;
+	next: InternalTask<T> | null;
 };
 
 type QueueObject<T> = async.QueueObject<T> & {
-  _tasks: {
-    head: InternalTask<T> | null;
-    tail: InternalTask<T> | null;
-    length: number;
-    remove: (testFn: (node: InternalTask<T>) => boolean) => void;
-  };
+	_tasks: {
+		head: InternalTask<T> | null;
+		tail: InternalTask<T> | null;
+		length: number;
+		remove: (testFn: (node: InternalTask<T>) => boolean) => void;
+	};
 };
 
 type HandleErrorOptions = {
-  /**
-   * If true, the error will be parsed and displayed as a log.
-   */
-  parseErr?: boolean;
-  /**
-   * If true, the error will be thrown after handling.
-   */
-  throw?: boolean;
-}
+	/**
+	 * If true, the error will be parsed and displayed as a log.
+	 */
+	parseErr?: boolean;
+	/**
+	 * If true, the error will be thrown after handling.
+	 */
+	throw?: boolean;
+};
 
 /**
  * add command to rerender all fils using (\input{}) this file
@@ -73,377 +77,491 @@ type HandleErrorOptions = {
  * add option for Persistent preamble.so it won't get deleted.after use Instead, saved until overwritten
  */
 export class SwiftlatexRender {
-  plugin: LatexRender;
-  vfs: VirtualFileSystem = new VirtualFileSystem();
-  pdfTexCompiler?: PdfTeXCompiler;
-  pdfXetexCompiler?: PdfXeTeXCompiler;
-  compiler: LatexCompiler;
-  cache: CompilerCache;
-  queue: QueueObject<LatexTask>;
+	plugin: LatexRender;
+	vfs: VirtualFileSystem = new VirtualFileSystem();
+	pdfTexCompiler?: PdfTeXCompiler;
+	pdfXetexCompiler?: PdfXeTeXCompiler;
+	compiler: LatexCompiler;
+	cache: CompilerCache;
+	queue: QueueObject<LatexTask>;
 
-  async onload(plugin: LatexRender) {
-    this.plugin = plugin;
-    this.cache = new CompilerCache(this.plugin);
-    await this.loadCompiler();
-    this.configQueue();
-    console.log("SwiftlatexRender loaded");
-  }
+	async onload(plugin: LatexRender) {
+		this.plugin = plugin;
+		this.cache = new CompilerCache(this.plugin);
+		await this.loadCompiler();
+		this.configQueue();
+		console.log('SwiftlatexRender loaded');
+	}
 
-  switchCompiler(): Promise<void> {
-    if (this.compiler === undefined) return this.loadCompiler();
-    const isTex =
-      this.compiler instanceof PdfTeXCompiler &&
-      this.plugin.settings.compiler === CompilerType.TeX;
-    const isXeTeX =
-      this.compiler instanceof PdfXeTeXCompiler &&
-      this.plugin.settings.compiler === CompilerType.XeTeX;
-    if (isTex || isXeTeX) return Promise.resolve();
-    this.compiler.closeWorker();
-    this.compiler = undefined as any;
-    this.pdfTexCompiler = undefined;
-    this.pdfXetexCompiler = undefined;
-    return this.loadCompiler();
-  }
+	switchCompiler(): Promise<void> {
+		if (this.compiler === undefined) return this.loadCompiler();
+		const isTex =
+			this.compiler instanceof PdfTeXCompiler &&
+			this.plugin.settings.compiler === CompilerType.TeX;
+		const isXeTeX =
+			this.compiler instanceof PdfXeTeXCompiler &&
+			this.plugin.settings.compiler === CompilerType.XeTeX;
+		if (isTex || isXeTeX) return Promise.resolve();
+		this.compiler.closeWorker();
+		this.compiler = undefined as any;
+		this.pdfTexCompiler = undefined;
+		this.pdfXetexCompiler = undefined;
+		return this.loadCompiler();
+	}
 
-  async loadCompiler() {
-    if (this.plugin.settings.compiler === CompilerType.TeX) {
-      this.compiler = this.pdfTexCompiler = new PdfTeXCompiler();
-    } else {
-      this.compiler = this.pdfXetexCompiler = new PdfXeTeXCompiler();
-    }
-    this.vfs.setPdfCompiler(this.compiler);
-    await this.compiler.loadEngine();
-    await this.cache.loadPackageCache();
-    await this.compiler.setTexliveEndpoint(this.plugin.settings.package_url);
-  }
-  // i have to also cache the files refrenced my the hash and thar loction becose thar can i a file that is Referencing the same files.But because it's in a different directory, those files in actuality are different, leading to a different render. 
-  async codeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
-    const isLangTikz = el.classList.contains("block-language-tikz");
-    el.classList.remove(...["block-language-tikz", "block-language-latex"]);
-    el.classList.add(...["block-language-latexsvg", `overflow-${this.plugin.settings.overflowStrategy}`]);
-    const md5Hash = hashLatexContent(source);
+	async loadCompiler() {
+		if (this.plugin.settings.compiler === CompilerType.TeX) {
+			this.compiler = this.pdfTexCompiler = new PdfTeXCompiler();
+		} else {
+			this.compiler = this.pdfXetexCompiler = new PdfXeTeXCompiler();
+		}
+		this.vfs.setPdfCompiler(this.compiler);
+		await this.compiler.loadEngine();
+		await this.cache.loadPackageCache();
+		await this.compiler.setTexliveEndpoint(
+			this.plugin.settings.package_url,
+		);
+	}
+	// i have to also cache the files refrenced my the hash and thar loction becose thar can i a file that is Referencing the same files.But because it's in a different directory, those files in actuality are different, leading to a different render.
+	async codeBlockProcessor(
+		source: string,
+		el: HTMLElement,
+		ctx: MarkdownPostProcessorContext,
+	) {
+		const isLangTikz = el.classList.contains('block-language-tikz');
+		el.classList.remove(...['block-language-tikz', 'block-language-latex']);
+		el.classList.add(
+			...[
+				'block-language-latexsvg',
+				`overflow-${this.plugin.settings.overflowStrategy}`,
+			],
+		);
+		const md5Hash = hashLatexContent(source);
 
-    // PDF file has already been cached
-    // Could have a case where pdfCache has the key but the cached file has been deleted
-    if (!this.cache.resultFileCache.restoreFromCache(el, md5Hash, ctx.sourcePath)) {
-      //Reliable enough for repeated entries
-      const createResult = await LatexTask.createAsync(this.plugin, isLangTikz, source, el, ctx)
-      if (createResult.isError) {
-        const errorMessage = "Error creating task: " + createResult.result;
-        this.handleError(el, errorMessage, this.cache.resultFileCache.getFileBaseName(md5Hash, []), ctx.sourcePath);
-        return;
-      }
-      const task = createResult.result as LatexTask;
-      console.log("Registering task:", task.getDebugInfo());
-      if (task.restoreFromCache()) return;
-      console.log("Adding task to queue:", task.getDebugInfo());
-      this.addToQueue(task);
-    }
-  }
+		// PDF file has already been cached
+		// Could have a case where pdfCache has the key but the cached file has been deleted
+		if (
+			!this.cache.resultFileCache.restoreFromCache(
+				el,
+				md5Hash,
+				ctx.sourcePath,
+			)
+		) {
+			//Reliable enough for repeated entries
+			const createResult = await LatexTask.createAsync(
+				this.plugin,
+				isLangTikz,
+				source,
+				el,
+				ctx,
+			);
+			if (createResult.isError) {
+				const errorMessage =
+					'Error creating task: ' + createResult.result;
+				this.handleError(
+					el,
+					errorMessage,
+					this.cache.resultFileCache.getFileBaseName(md5Hash, []),
+					ctx.sourcePath,
+				);
+				return;
+			}
+			const task = createResult.result as LatexTask;
+			console.log('Registering task:', task.getDebugInfo());
+			if (task.restoreFromCache()) return;
+			console.log('Adding task to queue:', task.getDebugInfo());
+			this.addToQueue(task);
+		}
+	}
 
-  addToQueue(task: LatexTask) {
-    const blockId = task.getBlockId();
-    console.log("Removing existing tasks with blockId:", blockId);
-    //this.queue.remove((node) => node.data.getBlockId() === blockId);
-    task.el.appendChild(createWaitingCountdown(this.queue.length()));
-    this.queue.push(task);
-    console.log("Task added to queue:", task.getDebugInfo(), "Current queue length:", this.queue.length());
-  }
+	addToQueue(task: LatexTask) {
+		const blockId = task.getBlockId();
+		console.log('Removing existing tasks with blockId:', blockId);
+		//this.queue.remove((node) => node.data.getBlockId() === blockId);
+		task.el.appendChild(createWaitingCountdown(this.queue.length()));
+		this.queue.push(task);
+		console.log(
+			'Task added to queue:',
+			task.getDebugInfo(),
+			'Current queue length:',
+			this.queue.length(),
+		);
+	}
 
-  rebuildQueue() {
-    this.abortAllTasks();
-    this.configQueue();
-  }
+	rebuildQueue() {
+		this.abortAllTasks();
+		this.configQueue();
+	}
 
-  abortAllTasks() {
-    abortAllTasks(this.queue);
-    this.queue.kill();
-    console.log("All tasks aborted.");
-  }
-  
-  /**
-   * Processes and renders the given LaTeX task.
-   *
-   * @param task The task to process and render.
-   * @returns `true` if the task was compiled and rendered; `false` if it was restored from cache or failed during processing.
-   */
-  async processAndRenderLatexTask(task: LatexTask): Promise<boolean> {
-    if (this.cache.resultFileCache.restoreFromCache(task.el, task.rawHash, task.sourcePath)) {
-      console.log("Found in catch for", task.getBlockId());
-      return false;
-    }
+	abortAllTasks() {
+		abortAllTasks(this.queue);
+		this.queue.kill();
+		console.log('All tasks aborted.');
+	}
 
-    if (task.hasSourceChangeTimeExceededMargin() && !(await task.verifySource())) {
-      const errorMessage = "Error processing task: " + "Source files have changed and could not be resolved.";
-      this.handleErrorForTask(task, errorMessage)
-      return false; // If the source change time exceeds the margin and the source could not be resolved, skip processing.
-    }
+	/**
+	 * Processes and renders the given LaTeX task.
+	 *
+	 * @param task The task to process and render.
+	 * @returns `true` if the task was compiled and rendered; `false` if it was restored from cache or failed during processing.
+	 */
+	async processAndRenderLatexTask(task: LatexTask): Promise<boolean> {
+		if (
+			this.cache.resultFileCache.restoreFromCache(
+				task.el,
+				task.rawHash,
+				task.sourcePath,
+			)
+		) {
+			console.log('Found in catch for', task.getBlockId());
+			return false;
+		}
 
-    if (task.isProcess()) {
-      const processor = await task.process();
-      task.log()
-      if (processor.isError) {
-        const errorMessage = "Error processing task: " + processor.err;
-        this.handleErrorForTask(task, errorMessage);
-        return false
-      }
-    }
-    console.log("Processing and rendering task:", task.getDebugInfo());
-    await this.renderLatexToElement(task);
-    this.reCheckQueue(); // only re-check the queue after a valide rendering
-    return true;
-  }
+		if (
+			task.hasSourceChangeTimeExceededMargin() &&
+			!(await task.verifySource())
+		) {
+			const errorMessage =
+				'Error processing task: ' +
+				'Source files have changed and could not be resolved.';
+			this.handleErrorForTask(task, errorMessage);
+			return false; // If the source change time exceeds the margin and the source could not be resolved, skip processing.
+		}
 
-  async detachedProcessAndRender(task: LatexTask) {
-    if (task.isProcess()) {
-      const processor = await task.process();
-      task.log()
-      if (processor.isError) {
-        return new CompileResult(undefined, CompileStatus.PocessingError, processor.err!);
-      }
-    }
-    try {
-      return await this.renderLatexToPDF(task.getProcessedContent(), { strict: true, });
-    } catch (err) {
-      return new CompileResult(undefined, CompileStatus.CompileError, toErrorString(err));
-    }
-  }
+		if (task.isProcess()) {
+			const processor = await task.process();
+			task.log();
+			if (processor.isError) {
+				const errorMessage = 'Error processing task: ' + processor.err;
+				this.handleErrorForTask(task, errorMessage);
+				return false;
+			}
+		}
+		console.log('Processing and rendering task:', task.getDebugInfo());
+		await this.renderLatexToElement(task);
+		this.reCheckQueue(); // only re-check the queue after a valide rendering
+		return true;
+	}
 
-  async detachedProcessAndRenderToResultFile(task: LatexTask) {
-    const compileResult = await this.detachedProcessAndRender(task);
-    if (compileResult.status === CompileStatus.CompileError) {
-      return;
-    }
-    const resultFile = pdfToSVG(compileResult.pdf);
-    return resultFile
-  }
+	async detachedProcessAndRender(task: LatexTask) {
+		if (task.isProcess()) {
+			const processor = await task.process();
+			task.log();
+			if (processor.isError) {
+				return new CompileResult(
+					undefined,
+					CompileStatus.PocessingError,
+					processor.err!,
+				);
+			}
+		}
+		try {
+			return await this.renderLatexToPDF(task.getProcessedContent(), {
+				strict: true,
+			});
+		} catch (err) {
+			return new CompileResult(
+				undefined,
+				CompileStatus.CompileError,
+				toErrorString(err),
+			);
+		}
+	}
 
-  configQueue() {
-    this.queue = async.queue((task: LatexTask, done) => {
-      (async () => {
-        console.log("Starting task:", task.getDebugInfo());
-        const didRender = await withTimeout(
-          this.processAndRenderLatexTask(task),
-          25_000,
-          "LaTeX task processing timed out"
-        );
-        updateQueueCountdown(this.queue);
-  
-        if (didRender) {
-          setTimeout(done, this.plugin.settings.pdfEngineCooldown);
-        } else {
-          done();
-        }
-      })().catch((err) => {
-        console.error("Queue worker crashed:", err, task.getDebugInfo());
-        done();
-      });
-    }, 1) as QueueObject<LatexTask>;// Concurrency is set to 1, so tasks run one at a time
-  }
+	async detachedProcessAndRenderToResultFile(task: LatexTask) {
+		const compileResult = await this.detachedProcessAndRender(task);
+		if (compileResult.status === CompileStatus.CompileError) {
+			return;
+		}
+		const resultFile = pdfToSVG(compileResult.pdf);
+		return resultFile;
+	}
 
-  /**
-   * Re-checks the queue to see if any tasks can be removed based on whether their PDF has been restored from cache.
-   * If a task's PDF cannot be restored, it is removed from the queue.
-   * solves edge case where head is in the processing state.when a similar task is registered to the universal method
-   */
-  private reCheckQueue() {
-    const blockIdsToRemove = new Set<string>();
-    let taskNode = this.queue._tasks.head;
+	configQueue() {
+		this.queue = async.queue((task: LatexTask, done) => {
+			(async () => {
+				console.log('Starting task:', task.getDebugInfo());
+				const didRender = await withTimeout(
+					this.processAndRenderLatexTask(task),
+					25_000,
+					'LaTeX task processing timed out',
+				);
+				updateQueueCountdown(this.queue);
 
-    while (taskNode) {
-      const task = taskNode.data;
-      if (this.cache.resultFileCache.restoreFromCache(task.el, task.rawHash, task.sourcePath)) {
-        blockIdsToRemove.add(task.getBlockId());
-      }
-      taskNode = taskNode.next;
-    }
-    if (blockIdsToRemove.size === 0) return;
-    console.log("Removing tasks from queue:", blockIdsToRemove);
-    //this.queue._tasks.remove((node) => blockIdsToRemove.has(node.data.getBlockId()));
-    console.log("Queue after removal:", this.queue._tasks.length);
-  }
+				if (didRender) {
+					setTimeout(done, this.plugin.settings.pdfEngineCooldown);
+				} else {
+					done();
+				}
+			})().catch((err) => {
+				console.error(
+					'Queue worker crashed:',
+					err,
+					task.getDebugInfo(),
+				);
+				done();
+			});
+		}, 1) as QueueObject<LatexTask>; // Concurrency is set to 1, so tasks run one at a time
+	}
 
-  async onunload() {
-    this.compiler.closeWorker();
-  }
+	/**
+	 * Re-checks the queue to see if any tasks can be removed based on whether their PDF has been restored from cache.
+	 * If a task's PDF cannot be restored, it is removed from the queue.
+	 * solves edge case where head is in the processing state.when a similar task is registered to the universal method
+	 */
+	private reCheckQueue() {
+		const blockIdsToRemove = new Set<string>();
+		let taskNode = this.queue._tasks.head;
 
-  private handleErrorForTask(task: LatexTask, err: string, options: HandleErrorOptions = {}): void {
-    const el = task.el;
-    const basename = task.getBaseName();
-    const path = task.sourcePath;
-    this.handleError(el, err, basename, path, options);
-  }
+		while (taskNode) {
+			const task = taskNode.data;
+			if (
+				this.cache.resultFileCache.restoreFromCache(
+					task.el,
+					task.rawHash,
+					task.sourcePath,
+				)
+			) {
+				blockIdsToRemove.add(task.getBlockId());
+			}
+			taskNode = taskNode.next;
+		}
+		if (blockIdsToRemove.size === 0) return;
+		console.log('Removing tasks from queue:', blockIdsToRemove);
+		//this.queue._tasks.remove((node) => blockIdsToRemove.has(node.data.getBlockId()));
+		console.log('Queue after removal:', this.queue._tasks.length);
+	}
 
-  private handleError(el: HTMLElement, err: string, hash: string, path: string, options: HandleErrorOptions = {}): void {
-    el.innerHTML = "";
-    let child: HTMLElement;
-    if (options.parseErr) {
-      const processedError: ProcessedLog = this.cache.getLog(hash) || parseLatexLog(err);
-      console.error("Parsing error:", hash, processedError);
-      child = createErrorDisplay(processedError);
-    } else {
-      child = errorDiv({ title: err })
-    };
-    child.setAttribute(SVG_ID_KEY, hash);
-    el.appendChild(child);
-    addMenu(this.plugin, el, path);
-    if (options.throw) throw err;
-  }
+	async onunload() {
+		this.compiler.closeWorker();
+	}
 
-  private async renderLatexToElement(task: LatexTask): Promise<void> {
-    const { el, content, rawHash, sourcePath, dependencyPaths, basename } = task.getRenderData();
-    try {
-      const result = await withTimeout(
-        this.renderLatexToPDF(content, { md5Hash: rawHash }),
-        10_000,
-        "LaTeX compilation timed out"
-      );
-      el.innerHTML = "";
-      await this.translatePDF(result.pdf, el, basename);
-      addMenu(this.plugin, el, sourcePath);
-      this.cache.resultFileCache.addFile(el.innerHTML, rawHash, dependencyPaths, sourcePath);
-    } catch (err) {
-      this.handleErrorForTask(task, toErrorString(err), { parseErr: true });
-    } finally {
-      await waitFor(() => this.compiler.isReady());
-    }
-  }
+	private handleErrorForTask(
+		task: LatexTask,
+		err: string,
+		options: HandleErrorOptions = {},
+	): void {
+		const el = task.el;
+		const basename = task.getBaseName();
+		const path = task.sourcePath;
+		this.handleError(el, err, basename, path, options);
+	}
 
-  renderLatexToPDF(source: string, config: { strict?: boolean, md5Hash?: string } = {}): Promise<CompileResult> {
-    return new Promise((resolve, reject) => {
-      temp.mkdir("obsidian-swiftlatex-renderer", async (mkdirErr: any) => {
-        if (mkdirErr) {
-          reject(mkdirErr);
-          return;
-        }
+	private handleError(
+		el: HTMLElement,
+		err: string,
+		hash: string,
+		path: string,
+		options: HandleErrorOptions = {},
+	): void {
+		el.innerHTML = '';
+		let child: HTMLElement;
+		if (options.parseErr) {
+			const processedError: ProcessedLog =
+				this.cache.getLog(hash) || parseLatexLog(err);
+			console.error('Parsing error:', hash, processedError);
+			child = createErrorDisplay(processedError);
+		} else {
+			child = errorDiv({ title: err });
+		}
+		child.setAttribute(SVG_ID_KEY, hash);
+		el.appendChild(child);
+		addMenu(this.plugin, el, path);
+		if (options.throw) throw err;
+	}
 
-        try {
-          console.log("Waiting for compiler to be ready...");
-          await waitFor(() => this.compiler.isReady());
-          console.log("Compiler is ready.");
-          if (this.vfs.getEnabled()) {
-            console.log("Rendering LaTeX to PDF", source.split("\n"), this.vfs.clone());
-          }
+	private async renderLatexToElement(task: LatexTask): Promise<void> {
+		const { el, content, rawHash, sourcePath, dependencyPaths, basename } =
+			task.getRenderData();
+		try {
+			const result = await withTimeout(
+				this.renderLatexToPDF(content, { md5Hash: rawHash }),
+				10_000,
+				'LaTeX compilation timed out',
+			);
+			el.innerHTML = '';
+			await this.translatePDF(result.pdf, el, basename);
+			addMenu(this.plugin, el, sourcePath);
+			this.cache.resultFileCache.addFile(
+				el.innerHTML,
+				rawHash,
+				dependencyPaths,
+				sourcePath,
+			);
+		} catch (err) {
+			this.handleErrorForTask(task, toErrorString(err), {
+				parseErr: true,
+			});
+		} finally {
+			await waitFor(() => this.compiler.isReady());
+		}
+	}
 
-          await this.vfs.loadVirtualFileSystemFiles();
-          console.log("Compiling LaTeX source:", source);
-          await this.compiler.writeMemFSFile("main.tex", source);
-          console.log("Written main.tex to virtual file system.");
-          await this.compiler.setEngineMainFile("main.tex");
-          console.log("Set main.tex as the main file for compilation.");
-          const result = await this.compiler.compileLaTeX();
-          console.log("Compilation result:", result);
-          await this.vfs.removeVirtualFileSystemFiles();
-          console.log("Removed virtual file system files after compilation.");
+	renderLatexToPDF(
+		source: string,
+		config: { strict?: boolean; md5Hash?: string } = {},
+	): Promise<CompileResult> {
+		return new Promise((resolve, reject) => {
+			temp.mkdir(
+				'obsidian-swiftlatex-renderer',
+				async (mkdirErr: any) => {
+					if (mkdirErr) {
+						reject(mkdirErr);
+						return;
+					}
 
-          if (config.md5Hash) this.cache.addLog(result.log, config.md5Hash);
+					try {
+						console.log('Waiting for compiler to be ready...');
+						await waitFor(() => this.compiler.isReady());
+						console.log('Compiler is ready.');
+						if (this.vfs.getEnabled()) {
+							console.log(
+								'Rendering LaTeX to PDF',
+								source.split('\n'),
+								this.vfs.clone(),
+							);
+						}
 
-          if (result.status !== 0) {
-            reject(result.log);
-            return;
-          }
+						await this.vfs.loadVirtualFileSystemFiles();
+						console.log('Compiling LaTeX source:', source);
+						await this.compiler.writeMemFSFile('main.tex', source);
+						console.log('Written main.tex to virtual file system.');
+						await this.compiler.setEngineMainFile('main.tex');
+						console.log(
+							'Set main.tex as the main file for compilation.',
+						);
+						const result = await this.compiler.compileLaTeX();
+						console.log('Compilation result:', result);
+						await this.vfs.removeVirtualFileSystemFiles();
+						console.log(
+							'Removed virtual file system files after compilation.',
+						);
 
-          if (!config.strict) await this.cache.fetchPackageCacheData();
+						if (config.md5Hash)
+							this.cache.addLog(result.log, config.md5Hash);
 
-          resolve(result);
-        } catch (e) {
-          reject(e);
-        }
-      });
-    });
-  }
+						if (result.status !== 0) {
+							reject(result.log);
+							return;
+						}
 
-  private async translatePDF(pdfData: Buffer<ArrayBufferLike>, el: HTMLElement, hash: string, outputSVG = true,): Promise<void> {
-    return new Promise<void>((resolve) => {
-      const config = {
-        invertColorsInDarkMode: this.plugin.settings.invertColorsInDarkMode,
-        autoRemoveWhitespace: this.plugin.settings.autoRemoveWhitespace,
-        basename: hash,
-      };
-      if (outputSVG) pdfToOptimizedSVG(pdfData, config).then((svg: string) => { el.innerHTML = svg; resolve(); });
-      else pdfToHtml(pdfData).then((htmlData) => { el.createEl("object", htmlData); resolve(); });
-    });
-  }
+						if (!config.strict)
+							await this.cache.fetchPackageCacheData();
+
+						resolve(result);
+					} catch (e) {
+						reject(e);
+					}
+				},
+			);
+		});
+	}
+
+	private async translatePDF(
+		pdfData: Buffer<ArrayBufferLike>,
+		el: HTMLElement,
+		hash: string,
+		outputSVG = true,
+	): Promise<void> {
+		return new Promise<void>((resolve) => {
+			const config = {
+				invertColorsInDarkMode:
+					this.plugin.settings.invertColorsInDarkMode,
+				autoRemoveWhitespace: this.plugin.settings.autoRemoveWhitespace,
+				basename: hash,
+			};
+			if (outputSVG)
+				pdfToOptimizedSVG(pdfData, config).then((svg: string) => {
+					el.innerHTML = svg;
+					resolve();
+				});
+			else
+				pdfToHtml(pdfData).then((htmlData) => {
+					el.createEl('object', htmlData);
+					resolve();
+				});
+		});
+	}
 }
 
 const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
-  let taskNode = queue._tasks.head;
-  let index = 0;
-  while (taskNode) {
-    const task = taskNode.data;
-    const countdown = task.el.querySelector("." + CssClasses.loader.renderCountdown);
-    if (countdown) countdown.textContent = index.toString();
-    else console.warn(`Countdown not found for task ${index}`);
-    taskNode = taskNode.next;
-    index++;
-  }
+	let taskNode = queue._tasks.head;
+	let index = 0;
+	while (taskNode) {
+		const task = taskNode.data;
+		const countdown = task.el.querySelector(
+			'.' + CssClasses.loader.renderCountdown,
+		);
+		if (countdown) countdown.textContent = index.toString();
+		else console.warn(`Countdown not found for task ${index}`);
+		taskNode = taskNode.next;
+		index++;
+	}
 };
 
-
-
-
-export function addMenu(plugin: LatexRender, el: HTMLElement, filePath: string) {
-  plugin.menuDecider.add(el, filePath);
+export function addMenu(
+	plugin: LatexRender,
+	el: HTMLElement,
+	filePath: string,
+) {
+	plugin.menuDecider.add(el, filePath);
 }
 
 function abortAllTasks(queue: QueueObject<LatexTask>) {
-  let head = queue._tasks.head;
-  while (head) {
-    head.data.el.innerHTML = "";
-    head = head.next;
-  }
+	let head = queue._tasks.head;
+	while (head) {
+		head.data.el.innerHTML = '';
+		head = head.next;
+	}
 }
 
 function createWaitingCountdown(index: number) {
-  const parentContainer = Object.assign(document.createElement("div"), {
-    className: CssClasses.loader.loaderParentContainer,
-  });
+	const parentContainer = Object.assign(document.createElement('div'), {
+		className: CssClasses.loader.loaderParentContainer,
+	});
 
-  const loader = Object.assign(document.createElement("div"), {
-    className: CssClasses.loader.renderLoader,
-  });
+	const loader = Object.assign(document.createElement('div'), {
+		className: CssClasses.loader.renderLoader,
+	});
 
-  const countdown = Object.assign(document.createElement("div"), {
-    className: CssClasses.loader.renderCountdown,
-    textContent: index.toString(),
-  });
-  parentContainer.appendChild(loader);
-  parentContainer.appendChild(countdown);
-  return parentContainer;
+	const countdown = Object.assign(document.createElement('div'), {
+		className: CssClasses.loader.renderCountdown,
+		textContent: index.toString(),
+	});
+	parentContainer.appendChild(loader);
+	parentContainer.appendChild(countdown);
+	return parentContainer;
 }
 
-
-
 export class TimeoutError extends Error {
-  constructor(message = "Timed out") {
-    super(message);
-    this.name = "TimeoutError";
-  }
+	constructor(message = 'Timed out') {
+		super(message);
+		this.name = 'TimeoutError';
+	}
 }
 
 export function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  message?: string
+	promise: Promise<T>,
+	ms: number,
+	message?: string,
 ): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
+	let timer: ReturnType<typeof setTimeout> | undefined;
 
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new TimeoutError(message)), ms);
-  });
+	const timeout = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => reject(new TimeoutError(message)), ms);
+	});
 
-  return Promise.race([promise, timeout]).finally(() => {
-    if (timer) clearTimeout(timer);
-  }) as Promise<T>;
+	return Promise.race([promise, timeout]).finally(() => {
+		if (timer) clearTimeout(timer);
+	}) as Promise<T>;
 }
 
-
 function toErrorString(e: unknown): string {
-  if (typeof e === "string") return e;
-  if (e instanceof Error) return e.stack ?? e.message ?? String(e);
-  try {
-    return JSON.stringify(e, null, 2);
-  } catch {
-    return String(e);
-  }
+	if (typeof e === 'string') return e;
+	if (e instanceof Error) return e.stack ?? e.message ?? String(e);
+	try {
+		return JSON.stringify(e, null, 2);
+	} catch {
+		return String(e);
+	}
 }

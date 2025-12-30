@@ -1,16 +1,19 @@
-import { Menu, Notice, TFile, Platform } from "obsidian";
-import LatexRender from "src/main";
-import { LogDisplayModal } from "./logs/logDisplayModal";
-import { LatexTask } from "./task/latexTask";
-import { ErrorClasses } from "./logs/HumanReadableLogs";
-import { findTaskSectionInfoFromHashInFile, TaskSectionInformation } from "./resolvers/taskSectionInformation";
-import { SVG_ID_KEY } from "src/svg/nodes";
+import { Menu, Notice, TFile, Platform } from 'obsidian';
+import LatexRender from 'src/main';
+import { LogDisplayModal } from './logs/logDisplayModal';
+import { LatexTask } from './task/latexTask';
+import { ErrorClasses } from './logs/HumanReadableLogs';
+import {
+	findTaskSectionInfoFromHashInFile,
+	TaskSectionInformation,
+} from './resolvers/taskSectionInformation';
+import { SVG_ID_KEY } from 'src/svg/nodes';
 import { exec } from 'child_process';
-import { codeBlockToContent } from "obsidian-dev-utils";
+import { codeBlockToContent } from 'obsidian-dev-utils';
 
 function revealFileWithFocus(path: string) {
 	if (Platform.isWin) {
-		const winPath = path.replace(/\//g, "\\");
+		const winPath = path.replace(/\//g, '\\');
 		exec(`start "" explorer.exe /select,"${winPath}"`);
 		//exec(`explorer.exe /select,"${path.replace(/\//g, '\\')}"`);
 	} else if (Platform.isMacOS) {
@@ -49,7 +52,7 @@ export class SvgContextMenuPopulater {
 	content: string;
 	private sourceAssignmentPromise: Promise<boolean> | null = null;
 	basename: string;
-	rawHash: string
+	rawHash: string;
 	depsHash: string;
 	private resultFileCache;
 	constructor(
@@ -60,15 +63,23 @@ export class SvgContextMenuPopulater {
 	) {
 		this.plugin = plugin;
 		this.menu = menu;
-		this.resultFileCache = this.plugin.swiftlatexRender.cache.resultFileCache;
+		this.resultFileCache =
+			this.plugin.swiftlatexRender.cache.resultFileCache;
 		this.assignElements(trigeringElement);
 		this.sourcePath = sourcePath;
 		this.addDisplayItems();
-		console.log("SvgContextMenu created for", this.blockEl, this.menu, this.svgEl, this.containerEl, this.basename);
+		console.log(
+			'SvgContextMenu created for',
+			this.blockEl,
+			this.menu,
+			this.svgEl,
+			this.containerEl,
+			this.basename,
+		);
 	}
 
 	private isSvgContainer(el: HTMLElement) {
-		return el.classList.contains("block-language-latexsvg");
+		return el.classList.contains('block-language-latexsvg');
 	}
 
 	/**
@@ -84,79 +95,98 @@ export class SvgContextMenuPopulater {
 		and none of its children are SVG containers, keep climbing up the DOM.
 		*/
 		while (
-			el && !this.isSvgContainer(el) &&
-			!Array.from(el.children).some((child) => this.isSvgContainer(child as HTMLElement))
+			el &&
+			!this.isSvgContainer(el) &&
+			!Array.from(el.children).some((child) =>
+				this.isSvgContainer(child as HTMLElement),
+			)
 		) {
 			if (!el.parentElement) break;
 			el = el.parentElement;
 		}
 
 		if (!this.isSvgContainer(el) && el) {
-			const childContainer = Array.from(el.children).find((child) => this.isSvgContainer(child as HTMLElement)) as HTMLElement | undefined;
+			const childContainer = Array.from(el.children).find((child) =>
+				this.isSvgContainer(child as HTMLElement),
+			) as HTMLElement | undefined;
 			if (childContainer) el = childContainer;
 		}
 		if (!this.isSvgContainer(el) && el) {
-			throw new Error("No valid SVG container found in the hierarchy. Please ensure the element is a valid SVG container.")
+			throw new Error(
+				'No valid SVG container found in the hierarchy. Please ensure the element is a valid SVG container.',
+			);
 		}
-		const svg = Array.from(el.children).find((child) => child instanceof SVGElement);
-		const errorContainer = Array.from(el.children).find((child) => child.classList.contains(ErrorClasses.Container));
+		const svg = Array.from(el.children).find(
+			(child) => child instanceof SVGElement,
+		);
+		const errorContainer = Array.from(el.children).find((child) =>
+			child.classList.contains(ErrorClasses.Container),
+		);
 		if (!svg && !errorContainer) {
-			throw new Error("No SVG element or error container found in the provided element.");
+			throw new Error(
+				'No SVG element or error container found in the provided element.',
+			);
 		}
 		this.blockEl = el;
 		this.isError = !svg;
-		this.svgEl = svg
-		this.containerEl = errorContainer as HTMLElement || undefined;
-		const basename = this.svgEl?.getAttribute(SVG_ID_KEY) ?? this.containerEl?.getAttribute(SVG_ID_KEY);
+		this.svgEl = svg;
+		this.containerEl = (errorContainer as HTMLElement) || undefined;
+		const basename =
+			this.svgEl?.getAttribute(SVG_ID_KEY) ??
+			this.containerEl?.getAttribute(SVG_ID_KEY);
 		if (!basename) {
-			console.error("No basename found for SVG element", this.svgEl, this.containerEl);
-			throw new Error("No basename found for SVG element")
-		};
+			console.error(
+				'No basename found for SVG element',
+				this.svgEl,
+				this.containerEl,
+			);
+			throw new Error('No basename found for SVG element');
+		}
 		this.basename = basename;
-		({ rawHash: this.rawHash, depsHash: this.depsHash } = this.resultFileCache.basenameToHashes(this.basename));
+		({ rawHash: this.rawHash, depsHash: this.depsHash } =
+			this.resultFileCache.basenameToHashes(this.basename));
 	}
 
-
-
 	private addDisplayItems() {
-
 		if (!this.isError)
 			this.menu.addItem((item) => {
-				item.setTitle("Copy SVG");
-				item.setIcon("copy");
+				item.setTitle('Copy SVG');
+				item.setIcon('copy');
 				item.onClick(async () => {
 					const svg = this.svgEl;
-					console.log("svg", svg);
+					console.log('svg', svg);
 					if (svg) {
-						const svgString = new XMLSerializer().serializeToString(svg);
+						const svgString = new XMLSerializer().serializeToString(
+							svg,
+						);
 						await navigator.clipboard.writeText(svgString);
 					}
 				});
 			});
 		if (!this.isError)
 			this.menu.addItem((item) => {
-				item.setTitle("properties");
-				item.setIcon("settings");
+				item.setTitle('properties');
+				item.setIcon('settings');
 				item.onClick(async () => {
-					console.log("properties");
+					console.log('properties');
 				});
 			});
 		this.menu.addItem((item) => {
-			item.setTitle("remove & re-render");
-			item.setIcon("trash");
+			item.setTitle('remove & re-render');
+			item.setIcon('trash');
 			item.onClick(async () => await this.removeAndReRender());
 		});
 		this.menu.addItem((item) => {
-			item.setTitle("Show logs");
-			item.setIcon("info");
+			item.setTitle('Show logs');
+			item.setIcon('info');
 			item.onClick(async () => {
 				this.showLogs();
 			});
 		});
 		if (!this.isError)
 			this.menu.addItem((item) => {
-				item.setTitle("Reveal in file explorer");
-				item.setIcon("folder");
+				item.setTitle('Reveal in file explorer');
+				item.setIcon('folder');
 				item.onClick(async () => {
 					this.revealFileInExplorer();
 				});
@@ -166,8 +196,8 @@ export class SvgContextMenuPopulater {
 
 	private addDebugDisplayItems() {
 		this.menu.addItem((item) => {
-			item.setTitle("Copy parsed source");
-			item.setIcon("copy");
+			item.setTitle('Copy parsed source');
+			item.setIcon('copy');
 			item.onClick(async () => {
 				const source = await this.getParsedSource();
 				if (!source) return;
@@ -176,32 +206,38 @@ export class SvgContextMenuPopulater {
 		});
 		if (!this.isError)
 			this.menu.addItem((item) => {
-				item.setTitle("copy raw svg")
-				item.setIcon("copy");
+				item.setTitle('copy raw svg');
+				item.setIcon('copy');
 				item.onClick(async () => {
 					const rawSvg = await this.getRawSvg();
 					if (!rawSvg) {
-						new Notice("Failed to get raw SVG content.");
+						new Notice('Failed to get raw SVG content.');
 						return;
 					}
 					await navigator.clipboard.writeText(rawSvg);
-				})
-			})
+				});
+			});
 	}
 
 	private revealFileInExplorer() {
 		if (this.isError) {
-			throw new Error("Can't reveal file in explorer, this is an error container.");
+			throw new Error(
+				"Can't reveal file in explorer, this is an error container.",
+			);
 		}
 		try {
 			if (!this.resultFileCache.isPhysicalCatch()) {
-				new Notice("Result file cache is not physical, can't open file in explorer.");
+				new Notice(
+					"Result file cache is not physical, can't open file in explorer.",
+				);
 				return;
 			}
-			const filePath = this.resultFileCache.getAbsolutePathFromBasename(this.basename);
+			const filePath = this.resultFileCache.getAbsolutePathFromBasename(
+				this.basename,
+			);
 			revealFileWithFocus(filePath);
 		} catch (err) {
-			console.error("Failed to open file in explorer:", err);
+			console.error('Failed to open file in explorer:', err);
 		}
 	}
 	private async showLogs() {
@@ -209,9 +245,12 @@ export class SvgContextMenuPopulater {
 		let log = this.plugin.swiftlatexRender.cache.getLog(this.basename);
 		if (!log) {
 			await this.assignLatexContent();
-			log = await this.plugin.swiftlatexRender.cache.forceGetLog(this.basename, { source: this.content, sourcePath: this.sourcePath })
+			log = await this.plugin.swiftlatexRender.cache.forceGetLog(
+				this.basename,
+				{ source: this.content, sourcePath: this.sourcePath },
+			);
 		}
-		console.log("log", log);
+		console.log('log', log);
 		const modal = new LogDisplayModal(log);
 		modal.open();
 	}
@@ -229,30 +268,51 @@ export class SvgContextMenuPopulater {
 	}
 
 	private async getFile() {
-		console.log("Getting file for source path:", this.sourcePath);
+		console.log('Getting file for source path:', this.sourcePath);
 		const file = app.vault.getAbstractFileByPath(this.sourcePath);
-		if (!file) throw new Error("File not found");
-		if (!(file instanceof TFile)) throw new Error("File is not a TFile");
+		if (!file) throw new Error('File not found');
+		if (!(file instanceof TFile)) throw new Error('File is not a TFile');
 		return file;
 	}
 
-	private async assignMetadata() {
-
-	}
+	private async assignMetadata() {}
 
 	async getTask(): Promise<LatexTask> {
 		await this.assignLatexContent();
 		const file = await this.getFile();
-		const sectionInfos = await findTaskSectionInfoFromHashInFile(file, this.rawHash);
-		if (!sectionInfos) throw new Error("No section info found for hash: " + this.rawHash + " in file: " + file.path);
-		const task = LatexTask.fromSectionInfos(this.plugin, this.sourcePath, sectionInfos, this.blockEl);
+		const sectionInfos = await findTaskSectionInfoFromHashInFile(
+			file,
+			this.rawHash,
+		);
+		if (!sectionInfos)
+			throw new Error(
+				'No section info found for hash: ' +
+					this.rawHash +
+					' in file: ' +
+					file.path,
+			);
+		const task = LatexTask.fromSectionInfos(
+			this.plugin,
+			this.sourcePath,
+			sectionInfos,
+			this.blockEl,
+		);
 		return task;
 	}
 
 	async getSectionInfo(): Promise<TaskSectionInformation> {
 		const file = await this.getFile();
-		const sectionInfos = await findTaskSectionInfoFromHashInFile(file, this.rawHash);
-		if (!sectionInfos) throw new Error("No section info found for hash: " + this.rawHash + " in file: " + file.path);
+		const sectionInfos = await findTaskSectionInfoFromHashInFile(
+			file,
+			this.rawHash,
+		);
+		if (!sectionInfos)
+			throw new Error(
+				'No section info found for hash: ' +
+					this.rawHash +
+					' in file: ' +
+					file.path,
+			);
 		const sectionInfo = sectionInfos[0];
 		this.content = codeBlockToContent(sectionInfo.codeBlock);
 		return sectionInfo;
@@ -268,30 +328,32 @@ export class SvgContextMenuPopulater {
 	}
 	/**
 	 * Can't be saved as contains dynamic content.
-	*/
+	 */
 	private async removeAndReRender() {
-
 		if (!this.isError) {
-			const success = this.resultFileCache.removeResultFileFromCache(this.basename);
+			const success = this.resultFileCache.removeResultFileFromCache(
+				this.basename,
+			);
 			if (!success) {
-				console.error("Failed to remove result file from cache:", this.basename);
+				console.error(
+					'Failed to remove result file from cache:',
+					this.basename,
+				);
 			}
 		}
 		this.cleanBlockEl();
 		const task = await this.getTask();
 		this.plugin.swiftlatexRender.addToQueue(task);
-		new Notice("SVG removed from cache. Re-rendering...");
+		new Notice('SVG removed from cache. Re-rendering...');
 	}
-
-
 
 	private async getParsedSource() {
 		const task = await this.getTask();
 		if (task.isProcess()) {
 			const processor = await task.process();
 			if (processor.isError) {
-				new Notice("Failed to process task");
-				console.error("Failed to process task:", processor.err);
+				new Notice('Failed to process task');
+				console.error('Failed to process task:', processor.err);
 				return undefined;
 			}
 		}
@@ -299,9 +361,11 @@ export class SvgContextMenuPopulater {
 	}
 
 	private async getRawSvg() {
-
 		const task = await this.getTask();
-		const result = await this.plugin.swiftlatexRender.detachedProcessAndRenderToResultFile(task);
+		const result =
+			await this.plugin.swiftlatexRender.detachedProcessAndRenderToResultFile(
+				task,
+			);
 		return result;
 	}
 }
