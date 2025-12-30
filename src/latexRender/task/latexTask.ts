@@ -194,8 +194,11 @@ export class LatexTask {
 	static async createAsync(plugin: LatexRender, process: boolean, content: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
 		try {
 			const mdSectionInfos = await mdSecInfosFromMdPostProcessorCtx(ctx, content);
+			console.log("mdSectionInfos", mdSectionInfos);
 			const infos = mdSectionInfos.map(sec => sectionToTaskSectionInfo(sec));
+			console.log("taskSectionInfos", infos);
 			const task = createTask(plugin, process, content, el, ctx.sourcePath, infos);
+			console.log("Created task from context:", task);
 			return { isError: false, result: task };
 		} catch (err) {
 			console.error("Error while ensuring section info for task:", err);
