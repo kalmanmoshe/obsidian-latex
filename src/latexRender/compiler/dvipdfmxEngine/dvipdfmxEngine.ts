@@ -7,21 +7,21 @@ import Worker from './swiftlatexdvipdfm.worker';
 
 export class DvipdfmxEngine extends LatexEngine {
 	async loadEngine(): Promise<void> {
-		if (this.compiler) {
+		if (this.worker) {
 			throw new Error('Other instance is running, abort()');
 		}
 
-		this.compilerStatus = EngineStatus.Init;
+		this.engineStatus = EngineStatus.Init;
 
 		await new Promise<void>((resolve, reject) => {
-			this.compiler = new Worker(Worker);
-			this.compiler!.onmessage = (ev: MessageEvent<any>) => {
+			this.worker = new Worker(Worker);
+			this.worker!.onmessage = (ev: MessageEvent<any>) => {
 				const data = ev.data;
 				if (data.result === 'ok') {
-					this.compilerStatus = EngineStatus.Ready;
+					this.engineStatus = EngineStatus.Ready;
 					resolve();
 				} else {
-					this.compilerStatus = EngineStatus.Error;
+					this.engineStatus = EngineStatus.Error;
 					reject();
 				}
 			};

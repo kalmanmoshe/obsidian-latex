@@ -97,10 +97,12 @@ export default abstract class LatexCompiler {
 			font200_cache,
 		);
 	}
+	
 	removeMemFSFile(filename: string) {
 		this.validate();
 		return this.engines[0].removeMemFSFile(filename);
 	}
+
 	setEngineMainFile(filename: string) {
 		this.validate();
 		return this.engines[0].setEngineMainFile(filename);
