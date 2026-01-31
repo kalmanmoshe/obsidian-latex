@@ -81,6 +81,10 @@ export default class CompilerCache {
 		return this.packageCache.loadPackageCache();
 	}
 
+	reloadPackageCache() {
+		return this.packageCache.writePackageCache();
+	}
+
 	/**
 	 * Removes all cached packages.
 	 */
@@ -118,6 +122,7 @@ export default class CompilerCache {
 				return CacheStatus.NotCached;
 		}
 	}
+
 	cacheStatusForHashAsNum(hash: string): number {
 		const status = this.cacheStatusForHash(hash);
 		const statusToNum: Record<CacheStatus, number> = {
@@ -134,6 +139,7 @@ export default class CompilerCache {
 	private compiler() {
 		return this.plugin.swiftlatexRender.compiler;
 	}
+
 	/**
 	 * Unloads the cache and flushes the compiler cache.
 	 */

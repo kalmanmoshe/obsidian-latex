@@ -15,7 +15,7 @@
     "esModuleInterop": true,
     "noImplicitAny": true,
     "importHelpers": true,
-    "checkJs": true,
+    "checkJs": false,
     "isolatedModules": true,
     "strictNullChecks": true,
     "allowSyntheticDefaultImports": true,

@@ -2,11 +2,6 @@ import { DefaultWorkerValues } from '../base/workerBase/self';
 import { Communicator } from '../base/workerBase/communication';
 
 var Module = typeof Module != 'undefined' ? Module : {};
-const TEXCACHEROOT = '/tex';
-const WORKROOT = '/work';
-var Module = {};
-self.memlog = '';
-self.initmem = undefined;
 Module['print'] = function (a) {
 	self.memlog += a + '\n';
 };
@@ -15,8 +10,8 @@ Module['printErr'] = function (a) {
 	console.log(a);
 };
 Module['preRun'] = function () {
-	FS.mkdir(TEXCACHEROOT);
-	FS.mkdir(WORKROOT);
+	FS.mkdir(self.constants.TEXCACHEROOT);
+	FS.mkdir(self.constants.WORKROOT);
 };
 
 const handlers = {
@@ -70,7 +65,7 @@ function prepareExecutionContext() {
 	self.memlog = '';
 	restoreHeapMemory();
 	closeFSStreams();
-	FS.chdir(WORKROOT);
+	FS.chdir(self.constants.WORKROOT);
 }
 
 Module['postRun'] = function () {
@@ -124,10 +119,19 @@ export function cleanDir(dir) {
 }
 
 export function compileLaTeXRoutine() {
+	console.log('Starting LaTeX compilation for ' + self.mainfile);
     prepareExecutionContext();
+	console.log('Set main file to ' + self.mainfile);
     const setMainFunction = cwrap('setMainEntry', 'number', ['string']);
     setMainFunction(self.mainfile);
-    let status = _compileLaTeX();
+	console.log('Main file set to ' + self.mainfile);
+	let status
+	try {
+		status = _compileLaTeX();
+	} catch (err) {
+		console.error('Fetch content failed.');
+	}
+	console.log('Compilation status: ' + status);
     if (status === 0) {
         let pdfArrayBuffer = null;
         _compileBibtex();
@@ -210,6 +214,7 @@ export function compileFormatRoutine() {
         });
     }
 }
+
 export function mkdirRoutine(dirname) {
     try {
         FS.mkdir(self.constants.WORKROOT + '/' + dirname);
@@ -219,6 +224,7 @@ export function mkdirRoutine(dirname) {
         self.postMessage({ result: 'failed', cmd: 'mkdir' });
     }
 }
+
 export function writeFileRoutine(filename, content) {
     try {
         FS.writeFile(self.constants.WORKROOT + '/' + filename, content);
@@ -228,6 +234,8 @@ export function writeFileRoutine(filename, content) {
         self.postMessage({ result: 'failed', cmd: 'writefile' });
     }
 }
+
+
 export function removeFileRoutine(filename) {
     try {
         FS.unlink(self.constants.WORKROOT + '/' + filename);
@@ -417,7 +425,7 @@ function kpse_find_pk_impl(nameptr, dpi) {
 	if (xhr.status === 200) {
 		let arraybuffer = xhr.response;
 		const pkid = xhr.getResponseHeader('pkid');
-		const savepath = TEXCACHEROOT + '/' + pkid;
+		const savepath = self.constants.TEXCACHEROOT + '/' + pkid;
 		FS.writeFile(savepath, new Uint8Array(arraybuffer));
 		self.cacheRecord.font200[cacheKey] = savepath;
 		return _allocate(intArrayFromString(savepath));
