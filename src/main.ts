@@ -24,37 +24,6 @@ import {
 import { temp } from "./LaTeX_js/latex";
 import { SvgContextMenuDecider } from "./latexRender/contextMenu/svgContextMenuDecider";
 
-async function isInternetAvailable(): Promise<boolean> {
-	try {
-		const response = await fetch("https://www.google.com", { method: "HEAD", mode: "no-cors" });
-		return true; // If it doesn't throw, assume internet is available
-	} catch {
-		return false;
-	}
-}
-
-async function isWebsiteOnline(url: string): Promise<boolean> {
-	const internet = await isInternetAvailable();
-	if (!internet) {
-		console.log("No internet connection.");
-		return false;
-	}
-	try {
-		const response = await fetch(url, { method: "HEAD" });
-		return response.ok;
-	} catch (error) {
-		return false;
-	}
-}
-async function checkWebStatis(url: string) {
-	const online = await isWebsiteOnline(url)
-	if (!online) console.error(`${url} is offline or unreachable.`);
-	else {
-		console.log(`${url} is online.`)
-		new Notice(`Moshe Math Plugin: ${url} is online.`, 5000);
-	};
-}
-
 /**
  * Assignments:
  * - Create code that will auto-insert metadata into files. You can use this:
@@ -83,7 +52,6 @@ export default class LatexRender extends Plugin {
 		const startTime = performance.now();
 		this.menuDecider = new SvgContextMenuDecider(this);
 		console.log("Loading Moshe math plugin");
-		checkWebStatis("https://texlive2.swiftlatex.com/");
 		await this.loadSettings();
 
 		this.addEditorCommands();
