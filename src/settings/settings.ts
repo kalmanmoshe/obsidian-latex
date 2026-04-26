@@ -106,7 +106,7 @@ export const DEFAULT_SETTINGS: LatexRenderPluginSettings = {
   autoRemoveWhitespace: true,
   dirtyResultFiles: [],
 
-  package_url: "http://46.101.255.60:3000/"/*`https://texlive2.swiftlatex.com/`*/,
+  package_url: "http://152.53.207.1/texlive/",
   physicalCache: true,
   physicalCacheLocation: "",
   cache: [],
