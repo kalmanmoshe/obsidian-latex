@@ -1,9 +1,9 @@
 import { Menu, Notice, TFile, Platform } from "obsidian";
 import LatexRender from "src/main";
-import { LogDisplayModal } from "./logs/logDisplayModal";
-import { LatexTask } from "./task/latexTask";
-import { ErrorClasses } from "./logs/HumanReadableLogs";
-import { findTaskSectionInfoFromHashInFile, TaskSectionInformation } from "./resolvers/taskSectionInformation";
+import { LogDisplayModal } from "../logs/logDisplayModal";
+import { LatexTask } from "../task/latexTask";
+import { ErrorClasses } from "../logs/HumanReadableLogs";
+import { findTaskSectionInfoFromHashInFile, TaskSectionInformation } from "../resolvers/taskSectionInformation";
 import { SVG_ID_KEY } from "src/svg/nodes";
 import { exec } from 'child_process';
 import { codeBlockToContent } from "obsidian-dev-utils";

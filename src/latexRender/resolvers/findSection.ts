@@ -53,7 +53,6 @@ export function getSectionsFromMatching(sections: SectionCache[], fileText: stri
       ?.filter((sec) => sec.position);
   console.log("sectionCache", sectionCache);
   if (!sectionCache || sectionCache.length === 0) return;
-
   return sectionCache.map((sectionCache) => ({
     lineStart: sectionCache.position.start.line,
     lineEnd: sectionCache.position.end.line,

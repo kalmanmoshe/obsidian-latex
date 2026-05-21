@@ -36,11 +36,19 @@ type InputFile = {
 	dependencies: InputFile[];
 };
 
-export function createTask(plugin: LatexRender, process: boolean, content: string, el: HTMLElement, sourcePath: string, infos: TaskSectionInformation[]): LatexTask | ProcessableLatexTask {
+export function createTask(
+	plugin: LatexRender, 
+	process: boolean, 
+	content: string, 
+	el: HTMLElement, 
+	sourcePath: string, 
+	infos: TaskSectionInformation[]
+): LatexTask | ProcessableLatexTask {
 	return process
 		? new ProcessableLatexTask(plugin, content, el, sourcePath, infos)
 		: new LatexTask(plugin, content, el, sourcePath, infos);
 }
+
 export class BaseTask {
 	plugin: LatexRender;
 	content: string;
@@ -65,13 +73,13 @@ async function mdSecInfosFromMdPostProcessorCtx(ctx: MarkdownPostProcessorContex
 	const fileText = editor?.getValue() ?? (await app.vault.cachedRead(file));
 	// i want to move the logger to the plugin thats why i have the err for now, as a reminder
 	let sectionInfos = getSectionsFromMatching(sections, fileText, content);
-
 	if (!sectionInfos) {
 		console.warn(sectionInfos, sections, fileText.split("\n"), content.split("\n"));
 		throw new Error("No section information found for the task. This might be due to virtual rendering or nested codeBlock environments.")
 	}
 	return sectionInfos;
 }
+
 export class LatexTask {
 	plugin: LatexRender;
 	protected content: string;

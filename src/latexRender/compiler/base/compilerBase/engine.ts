@@ -4,6 +4,7 @@ export enum EngineStatus {
   Busy,
   Error,
 }
+
 export enum CompileStatus {
   Success = 0,
   PocessingError,
@@ -11,6 +12,7 @@ export enum CompileStatus {
   FileNotFound = -253,
   EngineCrashed = -254, 
 }
+
 export class CompileResult {
   pdf: Buffer<ArrayBufferLike>;
   status: number = -254;

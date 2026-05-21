@@ -115,6 +115,7 @@ export class SwiftlatexRender {
     await this.cache.loadPackageCache();
     await this.compiler.setTexliveEndpoint(this.plugin.settings.package_url);
   }
+  
   // i have to also cache the files refrenced my the hash and thar loction becose thar can i a file that is Referencing the same files.But because it's in a different directory, those files in actuality are different, leading to a different render. 
   async codeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
     const isLangTikz = el.classList.contains("block-language-tikz");
@@ -140,6 +141,7 @@ export class SwiftlatexRender {
 
   addToQueue(task: LatexTask) {
     const blockId = task.getBlockId();
+    console.log("Adding task to queue:", blockId);
     this.queue.remove((node) => node.data.getBlockId() === blockId);
     task.el.appendChild(createWaitingCountdown(this.queue.length()));
     this.queue.push(task);

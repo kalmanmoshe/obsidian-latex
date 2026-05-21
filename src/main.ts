@@ -21,7 +21,6 @@ import {
 	onFileCreate,
 	onFileDelete,
 } from "./obsidian/file_watch";
-import { temp } from "./LaTeX_js/latex";
 import { SvgContextMenuDecider } from "./latexRender/contextMenu/svgContextMenuDecider";
 
 /**
@@ -64,7 +63,7 @@ export default class LatexRender extends Plugin {
 			},
 		);
 		this.addSettingTab(new LatexRenderSettingTab(this));
-		temp();
+
 		console.warn("Moshe Math Plugin loaded in " + (performance.now() - startTime) + "ms");
 		//this.registerEditorSuggest()
 	}
@@ -217,6 +216,7 @@ export default class LatexRender extends Plugin {
 	}
 
 	private refreshAllWindows() {
+		console.log("Refreshing all markdown windows to apply MathJax changes"); 
 		app.workspace.iterateAllLeaves((leaf) => {
 			if (leaf.view instanceof MarkdownView) {
 				const editor = leaf.view.editor;

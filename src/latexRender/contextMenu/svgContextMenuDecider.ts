@@ -1,6 +1,6 @@
 import LatexRender from "src/main";
 import { Menu, MarkdownView } from "obsidian";
-import { SvgContextMenuPopulater } from "../svgContextMenuPopulater";
+import { SvgContextMenuPopulater } from "./svgContextMenuPopulater";
 
 type Pending = {
     id: number;
