@@ -13,6 +13,7 @@ import { extractBasenameAndExtension } from 'src/latexRender/resolvers/paths';
 function insureRenderInfoexists(node: Node) {
 	if (!node.renderInfo) node.renderInfo = {};
 }
+
 /**
  * Dependencies themselves and the final source of the AST are not referenced by the path but only by base name and extension.IE. somePath/dir/file.tex -> file.tex So if multiple files are referenced.With same names.This will cause a conflict and they will be overridden.Even if the paths are different.This is just because I was lazy and I didn't want to implement.Directories in the VFS.
  */
@@ -30,17 +31,22 @@ export interface LatexDependency {
 	ref: Macro;
 }
 
+class LatexPipeline{
+
+}
 //I need to Stop using the AST for inputs and only add and remove inputs through the dependencies.
 export class LatexAbstractSyntaxTree {
 	private content: Node[];
 	/**
 	 * @key {string} The name of the file, e.g. "file.tex"
 	 */
-	private dependencies: Map<string, LatexDependency> = new Map();
+	//private dependencies: Map<string, LatexDependency> = new Map();
+
 	constructor(content: Node[], dependencies?: Map<string, LatexDependency>) {
 		this.content = content;
 		if (dependencies) this.dependencies = dependencies;
 	}
+
 	static parse(latex: string) {
 		const autoAst = parse(latex);
 		const classAst = migrateToClassStructure(autoAst);
@@ -48,13 +54,15 @@ export class LatexAbstractSyntaxTree {
 		const content = classAst.content;
 		return new LatexAbstractSyntaxTree(content);
 	}
+
 	verifyProperDocumentStructure() {
 		this.content = new EnvironmentWrap(this).verify();
 		this.verifyDocumentclass();
 		this.cleanUp();
 	}
-	verifydocstructure() {}
-	parseArguments() {}
+
+	verifydocstructure() { }
+	parseArguments() { }
 
 	hasDocumentclass() {
 		return this.content.some(
@@ -127,19 +135,19 @@ export class LatexAbstractSyntaxTree {
 	 * @param macro
 	 * @param dependency
 	 */
-	addDependencyDataForMacro(macro: Macro, dependency: LatexDependency) {}
+	addDependencyDataForMacro(macro: Macro, dependency: LatexDependency) { }
 
 	cleanUp() {
 		claenUpPaths(this.content);
 	}
-	removeAllWhitespace() {}
+	removeAllWhitespace() { }
 	/**
 	 * In latex empty lines can cause errors
 	 * This methd remove all empty lines from the document.
 	 */
-	removeEmptyLines() {}
-	usdPackages() {}
-	usdLibraries() {}
+	removeEmptyLines() { }
+	usdPackages() { }
+	usdLibraries() { }
 
 	getUnresolvedDependencyMacros() {
 		return findUsdInputFiles(this.content).filter(
@@ -180,7 +188,7 @@ export class LatexAbstractSyntaxTree {
 		);
 	}
 
-	isAutoUseFile(basename: string) {}
+	isAutoUseFile(basename: string) { }
 
 	getDependencies() {
 		return Array.from(this.dependencies.values());
@@ -199,8 +207,8 @@ export class LatexAbstractSyntaxTree {
 		return this.getInputFilesPaths().some((path) => filePath === path);
 	}
 
-	usdCommands() {}
-	usdEnvironments() {}
+	usdCommands() { }
+	usdEnvironments() { }
 	clone() {
 		return new LatexAbstractSyntaxTree(
 			this.content.map((node) => node.clone()),

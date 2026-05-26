@@ -6,6 +6,7 @@ export enum VFSstatus {
 	uptodate,
 	error,
 }
+
 /**
  * Pauses without blocking external code execution until a given condition returns true, or until a timeout occurs.
  */
@@ -37,16 +38,27 @@ export class VirtualFileSystem {
 	private autoUseEnabled: boolean = false;
 	private compiler: LatexCompiler;
 	constructor() {}
+
 	/**
 	 * update the pointer to the PDF engine
 	 * @param pdfEngine
 	 */
 	setPdfCompiler(compiler: LatexCompiler) {
+		if (compiler !== this.compiler) {
+			console.log('New compiler instance attached');
+			// Compiler memory is fresh/empty now,
+			// so the VFS contents must be reloaded.
+			this.status = VFSstatus.outdated;
+		} else {
+			console.log("proceding vps like normal")
+		}
 		this.compiler = compiler;
 	}
+
 	getEnabled() {
 		return this.vfsEnabled;
 	}
+
 	/**
 	 * enable or disable the virtual file system
 	 * @param enabled
@@ -69,6 +81,7 @@ export class VirtualFileSystem {
 		}
 		return false;
 	}
+
 	private checkAutoUseState(force = true) {
 		if (force) {
 			throw new Error(
@@ -77,6 +90,23 @@ export class VirtualFileSystem {
 		}
 		return false;
 	}
+
+	getSnapshot() {
+	return {
+		enabled: this.vfsEnabled,
+		autoUseEnabled: this.autoUseEnabled,
+		status: this.status,
+		fileCount: this.files.length,
+		files: this.files.map((file) => ({
+			name: file.name,
+			autoUse: !!file.autoUse,
+			contentLength: file.content.length,
+		})),
+		autoUseFiles: this.files
+			.filter((file) => file.autoUse)
+			.map((file) => file.name),
+	};
+}
 
 	/**
 	 * set the coor virtual files
@@ -101,6 +131,7 @@ export class VirtualFileSystem {
 			.filter((file) => file.autoUse)
 			.map((file) => file.name);
 	}
+	
 	/**
 	 * set the virtual file system files
 	 * @param files
@@ -134,6 +165,7 @@ export class VirtualFileSystem {
 		this.files.push(file);
 		this.status = VFSstatus.outdated;
 	}
+
 	/**
 	 * if a file is not in the pdf engine or is outdated. load the virtual file system files into the pdf engine.
 	 * @returns Promise<void>
@@ -165,6 +197,7 @@ export class VirtualFileSystem {
 			throw err;
 		}
 	}
+
 	async removeVirtualFileSystemFiles() {
 		if (!this.checkEnabled(false)) return;
 		const remove: string[] = [];

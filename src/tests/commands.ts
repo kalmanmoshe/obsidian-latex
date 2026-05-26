@@ -243,6 +243,7 @@ class TestResultModal extends Modal {
 			cls: 'mod-cta',
 		}).onclick = () => this.saveReport();
 	}
+	
 	setTestStartTime(startTime: number) {
 		this.testStartTime = startTime;
 		const dateStr = new Date(startTime).toLocaleString();

@@ -98,10 +98,12 @@ async function mdSecInfosFromMdPostProcessorCtx(
 	}
 	return sectionInfos;
 }
+
 export class LatexTask {
 	plugin: LatexRender;
 	protected content: string;
 	sourcePath: string;
+	uuid = crypto.randomUUID();
 	rawHash: string;
 	/**
 	 * The resolved hash is the hash of the content after it has been processed and the dependencies have been resolved.

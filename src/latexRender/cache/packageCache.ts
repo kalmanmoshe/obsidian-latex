@@ -48,11 +48,11 @@ export default class PackageCache extends PhysicalCacheBase {
 		await this.plugin.saveSettings();
 
 		// write cache data to the VFS, except don't write the texlive404_cache because this will cause problems when switching between texlive sources
-		await this.writePackageCache();
+		await this.writePackageCacheIndex();
 	}
-	
-	async writePackageCache() {
-		return this.compiler().writeCacheData(
+
+	async writePackageCacheIndex() {
+		return this.compiler().writePackageCacheIndex(
 			{},
 			this.plugin.settings.packageCache[1],
 			this.plugin.settings.packageCache[2],

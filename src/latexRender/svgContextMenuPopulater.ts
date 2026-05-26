@@ -343,7 +343,7 @@ export class SvgContextMenuPopulater {
 		}
 		this.cleanBlockEl();
 		const task = await this.getTask();
-		this.plugin.swiftlatexRender.addToQueue(task);
+		this.plugin.swiftlatexRender.queue.push(task);
 		new Notice('SVG removed from cache. Re-rendering...');
 	}
 
