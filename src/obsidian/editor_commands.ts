@@ -64,7 +64,7 @@ async function renderAllUnrenderedCodeBlocks(plugin: LatexRender) {
 			const task = LatexTask.fromSectionInfos(plugin, file.path, [
 				codeBlock,
 			]);
-			plugin.swiftlatexRender.addToQueue(task);
+			plugin.swiftlatexRender.queue.push(task);
 		}
 	}
 	console.log(
@@ -83,12 +83,13 @@ function getRenderAllUnrenderedCodeBlocks(plugin: LatexRender) {
 		},
 	};
 }
+
 function getRebuildQueue(plugin: LatexRender) {
 	return {
 		id: 'rebuild-queue',
 		name: 'Rebuild Render Queue',
 		callback: async () => {
-			plugin.swiftlatexRender.rebuildQueue();
+			plugin.swiftlatexRender.queue.rebuild();
 			new Notice('Render queue rebuilt');
 		},
 	};
@@ -99,8 +100,19 @@ function getAbortTasks(plugin: LatexRender) {
 		id: 'abort-latex-tasks',
 		name: 'Abort All LaTeX Tasks',
 		callback: () => {
-			plugin.swiftlatexRender.abortAllTasks();
+			plugin.swiftlatexRender.queue.abortAllWaiting();
 			new Notice('All tasks aborted');
+		},
+	};
+}
+
+function getRestartCompilerCommand(plugin: LatexRender) {
+	return {
+		id: 'restart-compiler',
+		name: 'Restart LaTeX Compiler',
+		callback: async () => {
+			await plugin.swiftlatexRender.restartCompiler();
+			new Notice('LaTeX compiler restarted');
 		},
 	};
 }
@@ -112,7 +124,9 @@ export const getEditorCommands = (
 		...getTestCommands(plugin),
 		getCodeBlockNamer(plugin),
 		removeAllCachedPackages(plugin),
+		getRebuildQueue(plugin),
 		getAbortTasks(plugin),
 		getRenderAllUnrenderedCodeBlocks(plugin),
+		getRestartCompilerCommand(plugin),
 	];
 };

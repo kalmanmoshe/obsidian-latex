@@ -50,6 +50,7 @@ export default class CompilerCache {
 	getLog(hash: string) {
 		return this.logCache.getLog(hash);
 	}
+	
 	async forceGetLog(
 		hash: string,
 		config: { source: string; sourcePath: string },
@@ -79,10 +80,6 @@ export default class CompilerCache {
 	 */
 	loadPackageCache() {
 		return this.packageCache.loadPackageCache();
-	}
-
-	reloadPackageCache() {
-		return this.packageCache.writePackageCache();
 	}
 
 	/**

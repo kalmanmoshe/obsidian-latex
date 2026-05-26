@@ -1,3 +1,4 @@
+
 export enum EngineStatus {
   Init,
   Ready,
@@ -48,11 +49,50 @@ export enum EngineCommands {
   Compilepdf = 'compilepdf',
 }
 
-export default abstract class LatexEngine {
+export default class LatexEngine {
+
   protected worker: Worker | undefined;
   protected engineStatus: EngineStatus = EngineStatus.Init;
-  abstract loadEngine(): Promise<void>;
   protected tasks: string[] = [];
+
+  constructor(
+		private readonly WorkerClass: any,
+	) {}
+
+  async loadEngine(): Promise<void> {
+    if (this.worker) {
+      throw new Error('Other instance is running, abort()');
+    }
+
+    this.engineStatus = EngineStatus.Init;
+
+    await new Promise<void>((resolve, reject) => {
+      this.worker = new this.WorkerClass();
+
+      this.worker!.onmessage = (ev: MessageEvent<any>) => {
+        const data = ev.data;
+
+        this.worker!.onmessage = null;
+        this.worker!.onerror = null;
+
+        if (data.result === 'ok') {
+          this.engineStatus = EngineStatus.Ready;
+          resolve();
+        } else {
+          this.engineStatus = EngineStatus.Error;
+          reject(new Error('Engine failed to initialize'));
+        }
+      };
+
+      this.worker!.onerror = (err) => {
+        this.worker!.onmessage = null;
+        this.worker!.onerror = null;
+
+        this.engineStatus = EngineStatus.Error;
+        reject(new Error(`Worker init error: ${err.message}`));
+      };
+    });
+  }
 
   isReady(): boolean {
     return this.engineStatus === EngineStatus.Ready;
@@ -103,6 +143,7 @@ export default abstract class LatexEngine {
       status: number;
       log: string;
     }>({ cmd: EngineCommands.Compilepdf });
+
     console.log(
       'Engine compilation finish ' +
       (performance.now() - startCompileTime),
@@ -122,7 +163,7 @@ export default abstract class LatexEngine {
     const data = await this.task<{ pdf: Uint8Array; log?: string }>({
       cmd: EngineCommands.Compileformat,
     });
-    const formatBlob = new Blob([data.pdf], {
+    const formatBlob = new Blob([new Uint8Array(data.pdf)], {
       type: 'application/octet-stream',
     });
     const formatURL = URL.createObjectURL(formatBlob);
@@ -229,14 +270,8 @@ export default abstract class LatexEngine {
       };
   
       const timer = window.setTimeout(() => {
-        if (settled) return;
-        settled = true;
-  
-        cleanup();
-  
         // Mark as unresponsive so closeWorker() terminates.
         this.engineStatus = EngineStatus.Unresponsive;
-  
         fail(new Error(`Engine timeout on cmd=${command} after ${timeoutMs}ms`));
       }, timeoutMs);
   

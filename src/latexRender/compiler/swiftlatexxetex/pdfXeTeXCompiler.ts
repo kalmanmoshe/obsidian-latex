@@ -1,20 +1,21 @@
-import XeTeXEngine from './xeTeXEngine';
-import { DvipdfmxEngine } from '../dvipdfmxEngine/dvipdfmxEngine';
-import { CompileResult } from '../base/compilerBase/engine';
+import XeTeXWorker from './swiftlatexxetex.worker';
+import DvipdfmxWorker from '../dvipdfmxEngine/swiftlatexdvipdfm.worker';
+import LatexEngine, { CompileResult } from '../base/compilerBase/engine';
 import LatexCompiler from '../base/compilerBase/compiler';
 
 export class PdfXeTeXCompiler extends LatexCompiler {
-	xetEng: XeTeXEngine;
-	dviEng: DvipdfmxEngine;
+	xetEng: LatexEngine;
+	dviEng: LatexEngine;
+
 	constructor() {
 		super();
-		this.xetEng = new XeTeXEngine();
-		this.dviEng = new DvipdfmxEngine();
+		this.xetEng = new LatexEngine(XeTeXWorker);
+		this.dviEng = new LatexEngine(DvipdfmxWorker);
 		this.engines = [this.xetEng, this.dviEng];
 
 		this.writeMemFSFile = this.xetEng.writeMemFSFile.bind(this.xetEng);
 		this.flushCache = this.xetEng.flushCache.bind(this.xetEng);
-		this.writeCacheData = this.xetEng.writeCacheData.bind(this.xetEng);
+		this.writePackageCacheIndex = this.xetEng.writeCacheData.bind(this.xetEng);
 		this.removeMemFSFile = this.xetEng.removeMemFSFile.bind(this.xetEng);
 		this.setEngineMainFile = this.xetEng.setEngineMainFile.bind(
 			this.xetEng,
@@ -31,6 +32,7 @@ export class PdfXeTeXCompiler extends LatexCompiler {
 		}));
 		return mergedCache;
 	}
+
 	async compileLaTeX(): Promise<CompileResult> {
 		const xetResult = await this.xetEng.compileLaTeX();
 		// send the error up
