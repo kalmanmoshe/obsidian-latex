@@ -10,10 +10,6 @@ export let parse: (str: string) => any;
  */
 export let parseMath: any;
 
-interface utilMacros {
-	LATEX_NEWCOMMAND: Set<string>;
-	XPARSE_NEWCOMMAND: Set<string>;
-}
 
 import('@unified-latex/unified-latex-util-parse').then((module) => {
 	parse = module.parse;
@@ -36,6 +32,8 @@ import {
 	Ast as AstClass,
 	Node as NodeClass,
 	BaseNode as BaseNodeClass,
+	DependencyMacroTypes,
+	isDependencyMacroType,
 } from '../typs/astNodes';
 
 export type GenericAst = GenericNode | GenericNode[];
@@ -215,6 +213,10 @@ export function migrateToClassStructure(ast: Ast): AstClass {
 					'macro node args must be an array of Arguments',
 				);
 			}
+			const isDependency = macroArgs !== undefined &&
+			macroArgs.length === 1 &&
+			isDependencyMacroType(ast.content);
+
 			return new MacroClass(
 				ast.content,
 				ast.escapeToken,

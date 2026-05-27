@@ -1,8 +1,9 @@
-import { Root, String, Macro, Argument, Ast, Node } from './typs/astNodes';
+import { Root, String, Macro, Argument, Ast, Node, DependencyMacro } from './typs/astNodes';
 import { migrateToClassStructure, parse } from './autoParse/ast-types-pre';
 import { claenUpPaths } from './cleanUpAst';
 import { EnvironmentWrap } from './verifyEnvironmentWrap';
 import { extractBasenameAndExtension } from 'src/latexRender/resolvers/paths';
+import { LatexDependency } from 'src/latexRender/task/latexTaskProcessor';
 
 /**
  * Assignments:
@@ -14,26 +15,6 @@ function insureRenderInfoexists(node: Node) {
 	if (!node.renderInfo) node.renderInfo = {};
 }
 
-/**
- * Dependencies themselves and the final source of the AST are not referenced by the path but only by base name and extension.IE. somePath/dir/file.tex -> file.tex So if multiple files are referenced.With same names.This will cause a conflict and they will be overridden.Even if the paths are different.This is just because I was lazy and I didn't want to implement.Directories in the VFS.
- */
-export interface LatexDependency {
-	content: string;
-	basename: string;
-	/**
-	 * The path to the file relative to the vault root.
-	 */
-	path: string;
-	extension: string;
-	ast?: LatexAbstractSyntaxTree;
-	isTex: boolean;
-	autoUse?: boolean;
-	ref: Macro;
-}
-
-class LatexPipeline{
-
-}
 //I need to Stop using the AST for inputs and only add and remove inputs through the dependencies.
 export class LatexAbstractSyntaxTree {
 	private content: Node[];
@@ -42,9 +23,8 @@ export class LatexAbstractSyntaxTree {
 	 */
 	//private dependencies: Map<string, LatexDependency> = new Map();
 
-	constructor(content: Node[], dependencies?: Map<string, LatexDependency>) {
+	constructor(content: Node[]) {
 		this.content = content;
-		if (dependencies) this.dependencies = dependencies;
 	}
 
 	static parse(latex: string) {
@@ -60,9 +40,6 @@ export class LatexAbstractSyntaxTree {
 		this.verifyDocumentclass();
 		this.cleanUp();
 	}
-
-	verifydocstructure() { }
-	parseArguments() { }
 
 	hasDocumentclass() {
 		return this.content.some(
@@ -89,16 +66,8 @@ export class LatexAbstractSyntaxTree {
 		predicate: (node: Node) => boolean,
 	): { tree: LatexAbstractSyntaxTree; node: Node } | undefined {
 		const node = this.content.find(predicate);
-
 		if (node) {
 			return { tree: this, node };
-		}
-
-		for (const [name, dependency] of this.dependencies.entries()) {
-			if (dependency.ast) {
-				const result = dependency.ast.find(predicate);
-				if (result) return result;
-			}
 		}
 	}
 
@@ -110,76 +79,41 @@ export class LatexAbstractSyntaxTree {
 		const startIndex = this.content.findIndex((node) => {
 			if (!node.isMacro()) return true;
 			if (node.content === 'documentclass') return false;
-			if (this.isDependency(node)) {
-				const a = this.getDependencyData(node);
+			if (node instanceof DependencyMacro) {
 				// If the file is auto use, then we want the index to be after only the auto use files.
 				return isAutoUseFile
-					? !this.getDependencyData(node)?.autoUse
+					? !node.autoUse
 					: false;
 			}
 		});
 		return startIndex === -1 ? 0 : startIndex;
 	}
 
-	addDependencyToPramble(dependency: LatexDependency) {
-		const index = this.getAddInputFileIndex(dependency.autoUse);
-		this.content.splice(index, 0, dependency.ref);
-		this.dependencies.set(
-			dependency.basename + '.' + dependency.extension,
-			dependency,
-		);
+	addDependenciesToPreamble(dependencies: LatexDependency[]) {
+		const macros: Macro[] = [];
+		for (const dependency of dependencies) {
+			const name = dependency.basename + '.' + dependency.extension;
+			macros.push(
+				new DependencyMacro(
+					'input',
+					dependency.autoUse ?? false,
+					undefined,
+					[
+						new Argument('{', '}', [new String(name)]),
+					],
+				),
+			);
+		}
+		const index = this.getAddInputFileIndex(dependencies.some(dep => dep.autoUse));
+		this.content.splice(index, 0, ...macros);
 	}
-
-	/**
-	 * Taks a macro that is allready in the document (ast) and adds the dependency data to it.
-	 * @param macro
-	 * @param dependency
-	 */
-	addDependencyDataForMacro(macro: Macro, dependency: LatexDependency) { }
 
 	cleanUp() {
 		claenUpPaths(this.content);
 	}
-	removeAllWhitespace() { }
-	/**
-	 * In latex empty lines can cause errors
-	 * This methd remove all empty lines from the document.
-	 */
-	removeEmptyLines() { }
-	usdPackages() { }
-	usdLibraries() { }
 
-	getUnresolvedDependencyMacros() {
-		return findUsdInputFiles(this.content).filter(
-			(macro) => !this.isResolvedDependency(macro),
-		);
-	}
-
-	private isDependency(macro: Macro): macro is Macro & { args: Argument[] } {
-		return (
-			macro.args !== undefined &&
-			macro.args.length === 1 &&
-			macro.content === 'input'
-		);
-	}
-	/**
-	 *
-	 * @param macro
-	 * @returns {LatexDependency | null} If the macro is a resolved dependency, returns the dependency data, otherwise returns null.
-	 */
-	private getDependencyData(macro: Macro): LatexDependency | null {
-		if (!this.isDependency(macro)) return null;
-		const filePath = macro.toStringArgsContent();
-		const { basename, extension } = extractBasenameAndExtension(filePath);
-		const name = basename + '.' + extension;
-		return this.dependencies.get(name) || null;
-	}
-
-	isResolvedDependency(macro: Macro) {
-		return (
-			this.isDependency(macro) &&
-			this.dependencies.has(macro.toStringArgsContent())
-		);
+	getDependencyMacros() {
+		return findUsdInputFiles(this.content);
 	}
 
 	usdInputFiles() {
@@ -189,10 +123,6 @@ export class LatexAbstractSyntaxTree {
 	}
 
 	isAutoUseFile(basename: string) { }
-
-	getDependencies() {
-		return Array.from(this.dependencies.values());
-	}
 
 	getInputFilesPaths() {
 		return this.usdInputFiles().map((input) => {
@@ -207,12 +137,9 @@ export class LatexAbstractSyntaxTree {
 		return this.getInputFilesPaths().some((path) => filePath === path);
 	}
 
-	usdCommands() { }
-	usdEnvironments() { }
 	clone() {
 		return new LatexAbstractSyntaxTree(
-			this.content.map((node) => node.clone()),
-			cloneMap(this.dependencies),
+			this.content.map((node) => node.clone())
 		);
 	}
 }
@@ -248,28 +175,6 @@ export function isExtensionTex(extension: string) {
 		.some((ext) => texExtensions.includes(ext.toLowerCase()));
 }
 
-export function createDpendency(
-	content: string,
-	path: string,
-	config: {
-		isTex?: boolean;
-		ast?: LatexAbstractSyntaxTree;
-		macro?: Macro;
-		autoUse?: boolean;
-	} = {},
-): LatexDependency {
-	let { isTex, ast, autoUse, macro } = config;
-	const { basename, extension } = extractBasenameAndExtension(path);
-	isTex = isTex || isExtensionTex(extension);
-	if (isTex && !ast) ast = LatexAbstractSyntaxTree.parse(content);
-	const name = basename + '.' + extension;
-	const ref =
-		macro ||
-		new Macro('input', undefined, [
-			new Argument('{', '}', [new String(name)]),
-		]);
-	return { content, ref, ast, isTex, path, basename, extension, autoUse };
-}
 
 function findUsdInputFiles(ast: Ast): Macro[] {
 	const inputMacros: Macro[] = [];

@@ -448,19 +448,6 @@ export class ProcessableLatexTask extends LatexTask {
 		return this.astContent;
 	}
 
-	private setDependencyPaths() {
-		if (!this.ast) throw new Error('AST is not set for this task.');
-		const dependencies = this.ast
-			.getDependencies()
-			.filter((dep) => !dep.autoUse);
-
-		const paths = dependencies.map((dep) => dep.path);
-		if (!paths) throw new Error('No dependencies found for this task.');
-		if (paths.length !== new Set(paths).size) {
-			throw new Error('Duplicate dependency paths found: ' + paths);
-		}
-	}
-
 	getDependencyPaths(): string[] {
 		return this.dependencyPaths;
 	}
@@ -487,8 +474,8 @@ export class ProcessableLatexTask extends LatexTask {
 		this.ast = ast;
 		this.astContent = ast.toString();
 		this.resolvedHash = hashLatexContent(this.astContent);
-		this.setDependencyPaths();
 	}
+
 	/**
 	 * Logs the task information to the console.
 	 * (for debugging purposes rm later)

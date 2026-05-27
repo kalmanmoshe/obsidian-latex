@@ -347,6 +347,38 @@ export class Macro extends StringNode {
 	}
 }
 
+export const DependencyMacroTypes = [
+	'input',
+	'include',
+	'import',
+	'subfile',
+] as const;
+
+export type DependencyMacroType = typeof DependencyMacroTypes[number];
+
+export function isDependencyMacroType(
+	content: string,
+): content is DependencyMacroType {
+	return DependencyMacroTypes.includes(content as DependencyMacroType);
+}
+
+export class DependencyMacro extends Macro {
+	autoUse: boolean;
+
+	constructor(
+		content: string,
+		autoUse: boolean,
+		escapeToken?: string,
+		args?: Argument[],
+		renderInfo?: RenderInfo,
+		position?: Position,
+	) {
+		renderInfo = formatRenderInfo(content, renderInfo);
+		super(content, escapeToken, args, renderInfo, position);
+		this.autoUse = autoUse;
+	}
+}
+
 export class Path extends Macro {
 	components: Node[];
 	constructor(
