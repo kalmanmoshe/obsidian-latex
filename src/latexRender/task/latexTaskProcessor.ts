@@ -3,12 +3,10 @@ import { VirtualFileSystem } from '../VirtualFileSystem';
 import { TFile } from 'obsidian';
 import { extractCodeBlockName } from '../resolvers/latexSourceFromFile';
 import {
-	createDpendency,
 	isExtensionTex,
-	LatexAbstractSyntaxTree,
-	LatexDependency,
+	LatexAbstractSyntaxTree
 } from '../../ast/parse';
-import { Macro, String as StringClass } from '../../ast/typs/astNodes';
+import { Argument, Macro, String as StringClass } from '../../ast/typs/astNodes';
 import {
 	CODE_BLOCK_NAME_SEPARATOR,
 	extractBasenameAndExtension,
@@ -19,12 +17,40 @@ import {
 } from '../resolvers/paths';
 import { ProcessableLatexTask } from './latexTask';
 
-type VFSLatexDependency = LatexDependency & { inVFS: boolean };
-interface VFSLatexBaseDependency extends LatexDependency {
+/**
+ * Dependencies themselves and the final source of the AST are not referenced by the path but only by base name and extension.IE. somePath/dir/file.tex -> file.tex So if multiple files are referenced.With same names.This will cause a conflict and they will be overridden.Even if the paths are different.This is just because I was lazy and I didn't want to implement.Directories in the VFS.
+ */
+export interface LatexDependency {
+	content: string;
 	basename: string;
+	/**
+	 * The path to the file relative to the vault root.
+	 */
+	path: string;
 	extension: string;
+	ast?: LatexAbstractSyntaxTree;
 	isTex: boolean;
+	autoUse?: boolean;
 }
+
+export function createDpendency(
+	content: string,
+	path: string,
+	config: {
+		isTex?: boolean;
+		ast?: LatexAbstractSyntaxTree;
+		autoUse?: boolean;
+	} = {},
+): LatexDependency {
+	let { isTex, ast, autoUse } = config;
+	const { basename, extension } = extractBasenameAndExtension(path);
+	isTex = isTex || isExtensionTex(extension);
+	if (isTex && !ast) ast = LatexAbstractSyntaxTree.parse(content);
+	return { content, ast, isTex, path, basename, extension, autoUse };
+}
+
+
+type VFSLatexDependency = LatexDependency & { inVFS: boolean };
 
 /**
  * Class to handle LaTeX tasks, processing the source code,
@@ -36,14 +62,17 @@ export class LatexTaskProcessor {
 	vfs: VirtualFileSystem;
 	isError: boolean = false;
 	err: string | null = null;
+	// a flat arr representation of all dependencies found in the source, including nested ones, with an additional flag to indicate if they are already in the VFS (like auto-use files) to avoid duplicates.
 	dependencies: VFSLatexDependency[] = [];
+
 	static create(plugin: LatexRender, task: ProcessableLatexTask) {
-		const latexTask = new LatexTaskProcessor();
-		latexTask.task = task;
-		latexTask.plugin = plugin;
-		latexTask.vfs = plugin.swiftlatexRender.vfs;
-		return latexTask;
+		const processor = new LatexTaskProcessor();
+		processor.task = task;
+		processor.plugin = plugin;
+		processor.vfs = plugin.swiftlatexRender.vfs;
+		return processor;
 	}
+
 	private setError(err: string) {
 		if (this.err !== null) {
 			const errorMessage =
@@ -69,7 +98,6 @@ export class LatexTaskProcessor {
 	}
 
 	private async resolveDependency(
-		macro: Macro,
 		filePath: string,
 		basePath: string,
 	) {
@@ -87,11 +115,15 @@ export class LatexTaskProcessor {
 				`Name conflict detected for code block: ${codeBlockName}`,
 			);
 		}
+
+		if (this.vfs.hasFile(basename + '.' + extension)) {
+
+		}
+
 		const content = await getFileContent(path);
 
 		const dependency = createDpendency(content, path, {
-			isTex: isExtensionTex(extension),
-			macro,
+			isTex: isExtensionTex(extension)
 		});
 		console.log('Resolved dependency:', dependency, basename, extension);
 		return dependency;
@@ -109,13 +141,13 @@ export class LatexTaskProcessor {
 		basePath: string,
 	): Promise<VFSLatexDependency[] | undefined> {
 		const usedFiles: VFSLatexDependency[] = [];
-		const inputFilesMacros = ast.getUnresolvedDependencyMacros();
+		const inputFilesMacros = ast.getDependencyMacros();
+		
 		for (const macro of inputFilesMacros) {
 			const args = macro.args!;
 			const filePath = macro.toStringArgsContent();
-			console.log('Processing input file:', filePath);
+
 			const dependency = await this.resolveDependency(
-				macro,
 				filePath,
 				basePath,
 			);
@@ -129,7 +161,7 @@ export class LatexTaskProcessor {
 			if (dependency.isTex) {
 				// Recursively process the content
 				const nestedAst = LatexAbstractSyntaxTree.parse(
-					dependency.content,
+					dependency.content
 				);
 				const processedFiles = await this.processInputFiles(
 					nestedAst,
@@ -145,11 +177,11 @@ export class LatexTaskProcessor {
 
 			const vfsDep = { ...dependency, inVFS: false };
 			usedFiles.push(vfsDep);
-			ast.addDependencyDataForMacro(macro, dependency);
 		}
 
 		return usedFiles;
 	}
+
 	/**
 	 * Processes the LaTeX task source code, parsing it into an AST,
 	 * extracting dependencies, and preparing the final source code.
@@ -160,21 +192,21 @@ export class LatexTaskProcessor {
 		try {
 			const ast = LatexAbstractSyntaxTree.parse(this.task.getContent());
 			if (this.plugin.settings.compilerVfsEnabled) {
-				this.dependencies.push(...this.addAutoUseFilesToAst(ast));
 				const files = await this.processInputFiles(
 					ast,
 					this.task.sourcePath,
 				);
-				if (!files) {
-					return;
+				if (files !== undefined) {
+					this.dependencies.push(...files);
 				}
-				this.dependencies.push(...files);
+				const autoUseFiles = this.collectAutoUseDependencies();
+				ast.addDependenciesToPreamble(autoUseFiles);
+				this.dependencies.push(...autoUseFiles);
 			}
 			ast.verifyProperDocumentStructure();
 			this.task.setAst(ast);
 			this.task.processingTime = performance.now() - startTime;
 			this.task.processed = true;
-			// ── Final task update ────────────────────────
 		} catch (e) {
 			if (typeof e !== 'string' && 'abort' in e) {
 				e = e.message;
@@ -183,20 +215,37 @@ export class LatexTaskProcessor {
 		}
 	}
 
-	private addAutoUseFilesToAst(ast: LatexAbstractSyntaxTree) {
+	private collectAutoUseDependencies() {
 		const files: VFSLatexDependency[] = [];
+
 		this.vfs.getAutoUseFileNames().forEach((name) => {
+			if (
+				this.dependencies.some(
+					(dep) => this.getDependencyVfsName(dep) === name,
+				)
+			) {
+				return;
+			}
 			const file = this.vfs.getFile(name).content;
+
 			const dependency = createDpendency(file, name, {
 				isTex: true,
 				autoUse: true,
 			});
-			ast.addDependencyToPramble(dependency);
+
 			const vfsDep = { ...dependency, inVFS: true };
 			files.push(vfsDep);
-			//ast.addDependency(dependency);
 		});
+
 		return files;
+	}
+
+	private creatVFSLatexDependencyfromVFS(name: string): VFSLatexDependency {
+		
+	}
+
+	private getDependencyVfsName(dep: LatexDependency) {
+		return dep.basename + '.' + dep.extension;
 	}
 
 	async processTask(): Promise<boolean> {

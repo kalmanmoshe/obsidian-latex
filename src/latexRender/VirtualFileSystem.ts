@@ -27,6 +27,7 @@ async function nonBlockingWaitUntil(
 	}
 }
 type VirtualFile = { name: string; content: string; autoUse?: boolean };
+
 // i need to add the enabled state to the virtual file system
 export class VirtualFileSystem {
 	private files: VirtualFile[] = [];
@@ -92,21 +93,21 @@ export class VirtualFileSystem {
 	}
 
 	getSnapshot() {
-	return {
-		enabled: this.vfsEnabled,
-		autoUseEnabled: this.autoUseEnabled,
-		status: this.status,
-		fileCount: this.files.length,
-		files: this.files.map((file) => ({
-			name: file.name,
-			autoUse: !!file.autoUse,
-			contentLength: file.content.length,
-		})),
-		autoUseFiles: this.files
-			.filter((file) => file.autoUse)
-			.map((file) => file.name),
-	};
-}
+		return {
+			enabled: this.vfsEnabled,
+			autoUseEnabled: this.autoUseEnabled,
+			status: this.status,
+			fileCount: this.files.length,
+			files: this.files.map((file) => ({
+				name: file.name,
+				autoUse: !!file.autoUse,
+				contentLength: file.content.length,
+			})),
+			autoUseFiles: this.files
+				.filter((file) => file.autoUse)
+				.map((file) => file.name),
+		};
+	}
 
 	/**
 	 * set the coor virtual files
