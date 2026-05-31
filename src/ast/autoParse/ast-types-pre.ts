@@ -34,6 +34,7 @@ import {
 	BaseNode as BaseNodeClass,
 	DependencyMacroTypes,
 	isDependencyMacroType,
+	DependencyMacro,
 } from '../typs/astNodes';
 
 export type GenericAst = GenericNode | GenericNode[];
@@ -216,6 +217,17 @@ export function migrateToClassStructure(ast: Ast): AstClass {
 			const isDependency = macroArgs !== undefined &&
 			macroArgs.length === 1 &&
 			isDependencyMacroType(ast.content);
+			
+			if (isDependency) {
+				return new DependencyMacro(
+					ast.content,
+					false,
+					ast.escapeToken,
+					macroArgs,
+					ast._renderInfo,
+					ast.position,
+				);
+			}
 
 			return new MacroClass(
 				ast.content,

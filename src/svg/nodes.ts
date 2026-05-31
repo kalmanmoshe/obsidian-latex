@@ -9,6 +9,7 @@ export class genericNode {
 	value: string;
 	attributes: Record<string, string>;
 	children: svgNode[];
+
 	constructor(
 		name: string,
 		type: string,
@@ -29,11 +30,12 @@ class Attributes {}
 class svgPath {}
 
 export class SVGroot {
-	private name: string;
-	private type: string;
-	private value: string;
-	private attributes: Record<string, string>;
-	private children: svgNode[];
+	name: string;
+	type: string;
+	value: string;
+	attributes: Record<string, string>;
+	children: svgNode[];
+	
 	constructor(
 		name: string,
 		type: string,

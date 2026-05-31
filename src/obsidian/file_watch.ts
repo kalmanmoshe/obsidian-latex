@@ -169,6 +169,7 @@ export function getFileSets(plugin: LatexRender): FileSets {
 	);
 	return { mathjaxPreambleFiles, latexVirtualFiles };
 }
+
 export type PreambleFile = { path: string; name: string; content: string };
 
 export async function getPreambleFromFiles(

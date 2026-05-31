@@ -40,13 +40,14 @@ export function createDpendency(
 		isTex?: boolean;
 		ast?: LatexAbstractSyntaxTree;
 		autoUse?: boolean;
+		inVFS?: boolean;
 	} = {},
-): LatexDependency {
-	let { isTex, ast, autoUse } = config;
+): VFSLatexDependency {
+	let { isTex, ast, autoUse, inVFS } = config;
 	const { basename, extension } = extractBasenameAndExtension(path);
 	isTex = isTex || isExtensionTex(extension);
 	if (isTex && !ast) ast = LatexAbstractSyntaxTree.parse(content);
-	return { content, ast, isTex, path, basename, extension, autoUse };
+	return { content, ast, isTex, path, basename, extension, autoUse, inVFS: inVFS || false };
 }
 
 
@@ -85,12 +86,6 @@ export class LatexTaskProcessor {
 	}
 
 	private isNameConflict(basename: string): boolean {
-		console.log(
-			'Checking name conflict for basename:',
-			basename,
-			'Possible names:',
-			this.task.getPossibleNames(),
-		);
 		return (
 			isValidFileBasename(basename) &&
 			this.task.getPossibleNames().includes(basename)
@@ -100,32 +95,27 @@ export class LatexTaskProcessor {
 	private async resolveDependency(
 		filePath: string,
 		basePath: string,
-	) {
+	): Promise<VFSLatexDependency> {
 		// i need to check if the dep is in auto use file so i dont add it twice
 		let path = resolvePathRelToVault(filePath, basePath);
 		const codeBlockName = path.split(CODE_BLOCK_NAME_SEPARATOR).pop();
-		if (codeBlockName) {
-			if (!isValidFileBasename(codeBlockName)) {
-				throw new Error(`Invalid code block name: ${codeBlockName}`);
-			}
-		}
+		
 		const { basename, extension } = extractBasenameAndExtension(path);
 		if (this.isNameConflict(basename)) {
 			throw new Error(
 				`Name conflict detected for code block: ${codeBlockName}`,
 			);
 		}
-
-		if (this.vfs.hasFile(basename + '.' + extension)) {
-
+		if (this.vfs.hasFile(filePath)) {
+			return this.creatVFSLatexDependencyfromVFS(filePath);
 		}
 
 		const content = await getFileContent(path);
 
 		const dependency = createDpendency(content, path, {
-			isTex: isExtensionTex(extension)
-		});
-		console.log('Resolved dependency:', dependency, basename, extension);
+			isTex: isExtensionTex(extension),
+			inVFS: false,
+		})
 		return dependency;
 	}
 
@@ -146,7 +136,7 @@ export class LatexTaskProcessor {
 		for (const macro of inputFilesMacros) {
 			const args = macro.args!;
 			const filePath = macro.toStringArgsContent();
-
+			
 			const dependency = await this.resolveDependency(
 				filePath,
 				basePath,
@@ -155,10 +145,8 @@ export class LatexTaskProcessor {
 			// Replace the macro argument with normalized name
 			args[0].content = [new StringClass(name)];
 
-			// Avoid circular includes
-			if (this.vfs.hasFile(name)) continue;
-
-			if (dependency.isTex) {
+			//If its in the vps it means it was an auto use file or a file that was already processed as a dependency, so we dont need to process it again and we can just add it to the used files. Otherwise we need to process it and check for its dependencies.
+			if (dependency.isTex && !dependency.inVFS) {
 				// Recursively process the content
 				const nestedAst = LatexAbstractSyntaxTree.parse(
 					dependency.content
@@ -175,8 +163,7 @@ export class LatexTaskProcessor {
 				dependency.content = nestedAst.toString();
 			}
 
-			const vfsDep = { ...dependency, inVFS: false };
-			usedFiles.push(vfsDep);
+			usedFiles.push(dependency);
 		}
 
 		return usedFiles;
@@ -218,30 +205,28 @@ export class LatexTaskProcessor {
 	private collectAutoUseDependencies() {
 		const files: VFSLatexDependency[] = [];
 
-		this.vfs.getAutoUseFileNames().forEach((name) => {
+		this.vfs.getAutoUseFilePaths().forEach((path) => {
 			if (
 				this.dependencies.some(
-					(dep) => this.getDependencyVfsName(dep) === name,
+					(dep) => dep.path === path,
 				)
 			) {
 				return;
 			}
-			const file = this.vfs.getFile(name).content;
-
-			const dependency = createDpendency(file, name, {
-				isTex: true,
-				autoUse: true,
-			});
-
-			const vfsDep = { ...dependency, inVFS: true };
-			files.push(vfsDep);
+			files.push(this.creatVFSLatexDependencyfromVFS(path));
 		});
 
 		return files;
 	}
 
-	private creatVFSLatexDependencyfromVFS(name: string): VFSLatexDependency {
-		
+	private creatVFSLatexDependencyfromVFS(path: string): VFSLatexDependency {
+		const file = this.vfs.getFile(path).content;
+
+		return createDpendency(file, path, {
+			isTex: true,
+			autoUse: true,
+			inVFS: true,
+		});
 	}
 
 	private getDependencyVfsName(dep: LatexDependency) {
@@ -250,15 +235,18 @@ export class LatexTaskProcessor {
 
 	async processTask(): Promise<boolean> {
 		await this.processTaskSource();
+
 		if (this.isError) {
 			return false;
 		}
 		for (const dep of this.dependencies) {
-			if (!dep.inVFS)
+			if (!dep.inVFS) {
 				this.vfs.addVirtualFileSystemFile({
 					name: dep.basename + '.' + dep.extension,
+					path: dep.path,
 					content: dep.content,
 				});
+			}
 		}
 		return true;
 	}
