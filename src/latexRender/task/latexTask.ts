@@ -345,6 +345,7 @@ export class LatexTask {
 	getContent() {
 		return this.content;
 	}
+
 	getProcessedContent() {
 		return this.getContent();
 	}
@@ -442,6 +443,9 @@ export class ProcessableLatexTask extends LatexTask {
 		super(plugin, content, el, sourcePath, infos);
 	}
 
+	//TODO: rm this is temp for debugging
+	getAst() { return this.ast; }
+
 	getProcessedContent(): string {
 		if (!this.ast || !this.astContent)
 			throw new Error('AST is not set for this task.');
@@ -487,14 +491,16 @@ export class ProcessableLatexTask extends LatexTask {
 		console.log('ast', this.ast?.clone());
 		console.log('task', this);
 	}
+
 	async process() {
 		const processor = await LatexTaskProcessor.processTask(
 			this.plugin,
 			this,
-		);
+		); 
 		console.log('finished processing task', processor);
 		return processor;
 	}
+
 	getDebugInfo() {
 		return {
 			...super.getDebugInfo(),

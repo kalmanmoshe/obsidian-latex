@@ -53,10 +53,16 @@ function colorSVGinDarkMode(svg: string) {
 	return svg;
 }
 
-export async function pdfToHtml(pdfData: Buffer<ArrayBufferLike>) {
+export async function pdfToHtml(pdfData: Buffer) {
 	const { width, height } = await getPdfDimensions(pdfData);
 	const ratio = width / height;
-	const pdfblob = new Blob([pdfData], { type: 'application/pdf' });
+
+	const arrayBuffer = pdfData.buffer.slice(
+		pdfData.byteOffset,
+		pdfData.byteOffset + pdfData.byteLength,
+	) as ArrayBuffer;
+
+	const pdfblob = new Blob([arrayBuffer], { type: 'application/pdf' });
 	const objectURL = URL.createObjectURL(pdfblob);
 	return {
 		attr: {

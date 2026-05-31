@@ -26,7 +26,15 @@ async function nonBlockingWaitUntil(
 		await new Promise((resolve) => setTimeout(resolve, checkInterval));
 	}
 }
-type VirtualFile = { name: string; content: string; autoUse?: boolean };
+type VirtualFile = { 
+	name: string;
+	/**
+	 * path of the file with the root being the vault root.
+	 */
+	path: string;
+	content: string; 
+	autoUse?: boolean 
+};
 
 // i need to add the enabled state to the virtual file system
 export class VirtualFileSystem {
@@ -100,6 +108,7 @@ export class VirtualFileSystem {
 			fileCount: this.files.length,
 			files: this.files.map((file) => ({
 				name: file.name,
+				path: file.path,
 				autoUse: !!file.autoUse,
 				contentLength: file.content.length,
 			})),
@@ -126,12 +135,12 @@ export class VirtualFileSystem {
 	/**
 	 * get the coor virtual files
 	 */
-	getAutoUseFileNames() {
+	getAutoUseFilePaths() {
 		this.checkEnabled();
 		return this.files
 			.filter((file) => file.autoUse)
-			.map((file) => file.name);
-	}
+			.map((file) => file.path);
+	} 
 	
 	/**
 	 * set the virtual file system files
@@ -143,16 +152,16 @@ export class VirtualFileSystem {
 		this.status = VFSstatus.outdated;
 	}
 
-	hasFile(name: string) {
+	hasFile(path: string) {
 		this.checkEnabled();
-		return this.files.some((file) => file.name === name);
+		return this.files.some((file) => file.path === path);
 	}
 
-	getFile(name: string) {
+	getFile(path: string) {
 		this.checkEnabled();
-		const file = this.files.find((file) => file.name === name);
+		const file = this.files.find((file) => file.path === path);
 		if (!file)
-			throw new Error('File not found in virtual file system: ' + name);
+			throw new Error('File not found in virtual file system: ' + path);
 		return file;
 	}
 
@@ -210,20 +219,9 @@ export class VirtualFileSystem {
 			await this.compiler.removeMemFSFile(file);
 		}
 	}
-
-	/**
-	 * this is only used for testing purposes
-	 */
-	clone(): VirtualFileSystem {
-		const vfs = new VirtualFileSystem();
-		vfs.setPdfCompiler(this.compiler);
-		vfs.setEnabled(this.vfsEnabled);
-		vfs.setVirtualFileSystemFiles([...this.files]);
-		return vfs;
-	}
-
+	
 	getClonedFiles() {
-		return this.clone().getFiles();
+		return this.files.map((file) => ({ ...file }));
 	}
 
 	/**

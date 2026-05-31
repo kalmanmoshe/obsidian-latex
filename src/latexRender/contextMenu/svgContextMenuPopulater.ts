@@ -1,12 +1,12 @@
-import { Menu, Notice, TFile, Platform } from 'obsidian';
+import { Menu, Notice, TFile, Platform, Modal } from 'obsidian';
 import LatexRender from 'src/main';
-import { LogDisplayModal } from './logs/logDisplayModal';
-import { LatexTask } from './task/latexTask';
-import { ErrorClasses } from './logs/HumanReadableLogs';
+import { LogDisplayModal } from '../logs/logDisplayModal';
+import { LatexTask, ProcessableLatexTask } from '../task/latexTask';
+import { ErrorClasses } from '../logs/HumanReadableLogs';
 import {
 	findTaskSectionInfoFromHashInFile,
 	TaskSectionInformation,
-} from './resolvers/taskSectionInformation';
+} from '../resolvers/taskSectionInformation';
 import { SVG_ID_KEY } from 'src/svg/nodes';
 import { exec } from 'child_process';
 import { codeBlockToContent } from 'obsidian-dev-utils';
@@ -199,11 +199,12 @@ export class SvgContextMenuPopulater {
 			item.setTitle('Copy parsed source');
 			item.setIcon('copy');
 			item.onClick(async () => {
-				const source = await this.getParsedSource();
+				const source = (await this.getProcessedTask())?.getProcessedContent();
 				if (!source) return;
 				await navigator.clipboard.writeText(source);
 			});
 		});
+
 		if (!this.isError)
 			this.menu.addItem((item) => {
 				item.setTitle('copy raw svg');
@@ -275,7 +276,7 @@ export class SvgContextMenuPopulater {
 		return file;
 	}
 
-	private async assignMetadata() {}
+	private async assignMetadata() { }
 
 	async getTask(): Promise<LatexTask> {
 		await this.assignLatexContent();
@@ -287,9 +288,9 @@ export class SvgContextMenuPopulater {
 		if (!sectionInfos)
 			throw new Error(
 				'No section info found for hash: ' +
-					this.rawHash +
-					' in file: ' +
-					file.path,
+				this.rawHash +
+				' in file: ' +
+				file.path,
 			);
 		const task = LatexTask.fromSectionInfos(
 			this.plugin,
@@ -309,9 +310,9 @@ export class SvgContextMenuPopulater {
 		if (!sectionInfos)
 			throw new Error(
 				'No section info found for hash: ' +
-					this.rawHash +
-					' in file: ' +
-					file.path,
+				this.rawHash +
+				' in file: ' +
+				file.path,
 			);
 		const sectionInfo = sectionInfos[0];
 		this.content = codeBlockToContent(sectionInfo.codeBlock);
@@ -346,8 +347,8 @@ export class SvgContextMenuPopulater {
 		this.plugin.swiftlatexRender.queue.push(task);
 		new Notice('SVG removed from cache. Re-rendering...');
 	}
-
-	private async getParsedSource() {
+	
+	private async getProcessedTask(): Promise<ProcessableLatexTask | undefined> {
 		const task = await this.getTask();
 		if (task.isProcess()) {
 			const processor = await task.process();
@@ -356,8 +357,12 @@ export class SvgContextMenuPopulater {
 				console.error('Failed to process task:', processor.err);
 				return undefined;
 			}
+		} else {
+			new Notice('Task is not processable');
+			console.error('Task is not processable:', task);
+			return undefined;
 		}
-		return task.getProcessedContent();
+		return task;
 	}
 
 	private async getRawSvg() {

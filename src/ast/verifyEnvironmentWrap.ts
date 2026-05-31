@@ -1,38 +1,64 @@
-import { Macro, Environment, Argument, Node } from './typs/astNodes';
+import { Macro, Environment, Argument, Node, DependencyMacro } from './typs/astNodes';
 import { LatexAbstractSyntaxTree } from './parse';
 import { Notice } from 'obsidian';
+
+const preambleMacros = [
+	'documentclass', 
+	'usepackage', 
+	'usetikzlibrary', 
+	'include',
+	'input',
+	'bibliography',
+	'pgfplotsset'//inclode pgfplots must go before
+];
+
+//TODO: make this usable 
 export class EnvironmentWrap {
 	ast: LatexAbstractSyntaxTree;
-	content: Node[] = [];
 	envs: Environment[] = [];
 	args: Argument[];
+
 	constructor(ast: LatexAbstractSyntaxTree) {
 		this.ast = ast;
-		this.content = this.ast.content;
 	}
+
 	verify() {
-		this.envs = this.getEnvironments(this.content);
+		this.envs = this.getEnvironments(this.ast.getContent());
 		if (this.envs.some((env) => env.env === 'document'))
-			return this.content;
+			return this.ast.getContent();
 		this.args = this.findEnvironmentArgs() || [];
 
 		//if no envs
 		if (this.envs.length === 0) {
-			return this.createDocEnvironment();
+			return this.createDocEnvironment(-1);
 		}
 
-		let firstNonPreambleMacro = this.content.findIndex((node) => {
-			if (!(node instanceof Macro)) return false;
-			return (
-				node.content.match(
-					/^(documentclass|usepackage|usetikzlibrary|include|bibliography)$/,
-				) === null
-			);
+		const preambleEndIndex = this.ast.getContent().findIndex(node => {
+			if (node.isWhitespaceLike()) return false;
+
+			if (node instanceof Macro) {
+				if (preambleMacros.includes(node.content)) return false;
+				if (node instanceof DependencyMacro && node.autoUse) return false;
+			}
+
+			return true; // first real content
 		});
-		if (firstNonPreambleMacro === -1) return this.content;
-		const doc = this.createDocEnvironment();
+		if (preambleEndIndex === -1) {
+			console.log(
+			'No non-preamble content found, returning original AST content:',
+			this.ast.getContent(),
+		);
+			return this.ast.getContent();
+		}
+		console.log(
+			'First non-preamble macro found at index:',
+			preambleEndIndex,
+			this.ast.getContent()[preambleEndIndex],
+		);
+		const doc = this.createDocEnvironment(preambleEndIndex);
 		return doc;
 	}
+
 	getEnvironments(nodes: Node[]): Environment[] {
 		const envs: Environment[] = [];
 		for (const node of nodes) {
@@ -44,29 +70,11 @@ export class EnvironmentWrap {
 		}
 		return envs;
 	}
-	createDocEnvironment() {
-		const preambleEndIndex = this.content.findIndex((node) => {
-			if (node.isMacro()) {
-				if (
-					/(documentclass|usetikzlibrary|usepackage)/.test(
-						node.content,
-					)
-				)
-					return false;
-				if (
-					node.content === 'input' &&
-					this.ast.dependencies.get(
-						node.args![0].content.map((n) => n.toString()).join(''),
-					)?.autoUse
-				)
-					return false;
-			}
-			return true;
-		});
-		const index =
-			preambleEndIndex === -1 ? this.content.length : preambleEndIndex;
-		const preamble = this.ast.content.slice(0, index);
-		const envContent = this.ast.content.slice(index);
+
+	createDocEnvironment(preambleEndIndex: number) {
+		const index = preambleEndIndex === -1 ? this.ast.getContent().length : preambleEndIndex;
+		const preamble = this.ast.getContent().slice(0, index);
+		const envContent = this.ast.getContent().slice(index);
 		const sortedEnvs = this.getEnvironmentStructure().filter(
 			(env) => !env.inAst,
 		);
@@ -99,25 +107,17 @@ export class EnvironmentWrap {
 		const doc = [...preamble, envs];
 		return doc;
 	}
+
 	findEnvironmentArgs(): Argument[] | undefined {
-		const firstBracketIndex = this.content.findIndex(
+		const firstBracketIndex = this.ast.getContent().findIndex(
 			(node) => node.isString?.() && node.content === '[',
 		);
 
 		const controlIndexes = [
-			this.content.findIndex((node) => {
-				if (!(node instanceof Macro)) return false;
-				if (node.content !== 'input') return true;
-
-				const name = node.args?.[0]?.content
-					.map((n) => n.toString())
-					.join('');
-				return (
-					name === undefined ||
-					this.ast.dependencies.get(name)?.autoUse !== false
-				);
-			}),
-			this.content.findIndex((node) => node instanceof Environment),
+			this.ast.getContent().findIndex((node) => 
+				node instanceof DependencyMacro && node.autoUse
+			),
+			this.ast.getContent().findIndex((node) => node instanceof Environment),
 			firstBracketIndex,
 		].filter((i) => i !== -1);
 
@@ -132,10 +132,10 @@ export class EnvironmentWrap {
 		let openIndex = firstBracketIndex;
 
 		while (openIndex !== -1) {
-			const closeIndex = findMatchingBracket(this.content, openIndex);
+			const closeIndex = findMatchingBracket(this.ast.getContent(), openIndex);
 			if (closeIndex === -1) break;
 
-			const rawNodes = this.content.splice(
+			const rawNodes = this.ast.getContent().splice(
 				openIndex,
 				1 + closeIndex - openIndex,
 			);
@@ -149,10 +149,10 @@ export class EnvironmentWrap {
 			while (rawNodes[rawNodes.length - 1]?.isWhitespaceLike?.())
 				rawNodes.pop();
 			args.push(new Argument('[', ']', rawNodes));
-			openIndex = this.content.findIndex(
+			openIndex = this.ast.getContent().findIndex(
 				(node) => node.isString?.() && node.content === '[',
 			);
-			const range = this.content.slice(firstBracketIndex, openIndex);
+			const range = this.ast.getContent().slice(firstBracketIndex, openIndex);
 			if (openIndex !== -1 && !range.every((n) => n.isWhitespaceLike?.()))
 				break;
 		}

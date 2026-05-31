@@ -2,7 +2,6 @@ import { Root, String, Macro, Argument, Ast, Node, DependencyMacro } from './typ
 import { migrateToClassStructure, parse } from './autoParse/ast-types-pre';
 import { claenUpPaths } from './cleanUpAst';
 import { EnvironmentWrap } from './verifyEnvironmentWrap';
-import { extractBasenameAndExtension } from 'src/latexRender/resolvers/paths';
 import { LatexDependency } from 'src/latexRender/task/latexTaskProcessor';
 
 /**
@@ -17,11 +16,8 @@ function insureRenderInfoexists(node: Node) {
 
 //I need to Stop using the AST for inputs and only add and remove inputs through the dependencies.
 export class LatexAbstractSyntaxTree {
+
 	private content: Node[];
-	/**
-	 * @key {string} The name of the file, e.g. "file.tex"
-	 */
-	//private dependencies: Map<string, LatexDependency> = new Map();
 
 	constructor(content: Node[]) {
 		this.content = content;
@@ -48,6 +44,7 @@ export class LatexAbstractSyntaxTree {
 	}
 
 	verifyDocumentclass() {
+		//TODO: i need to look also in the dependencies
 		const documentclass = this.content.find(
 			(node) => node instanceof Macro && node.content === 'documentclass',
 		); /*[this,...Array.from(this.dependencies.values()).map(dep=>dep.ast)]
@@ -137,6 +134,8 @@ export class LatexAbstractSyntaxTree {
 		return this.getInputFilesPaths().some((path) => filePath === path);
 	}
 
+	getContent() { return this.content; }
+	
 	clone() {
 		return new LatexAbstractSyntaxTree(
 			this.content.map((node) => node.clone())

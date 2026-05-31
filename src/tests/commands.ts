@@ -164,6 +164,13 @@ class CompileTest {
 			})),
 		);
 
+		const totalSections = this.sectionsByFile.reduce(
+			(sum, item) => sum + item.codeBlockSections.length,
+			0,
+		);
+
+		this.displayModal.setTotalSections(totalSections);
+
 		this.analyzeLatexCodeBlocks(token);
 	}
 
@@ -176,6 +183,7 @@ class CompileTest {
 				const start = performance.now();
 				const result = await this.analyzeSection(file, section);
 				console.log('Compile result:', result);
+				this.displayModal.recordResult(result.compileResult.status);
 				const duration = performance.now() - start;
 
 				const index =
@@ -218,6 +226,12 @@ class TestResultModal extends Modal {
 	resultsContainer: HTMLElement;
 	testStartTime = 0;
 
+	statsEl: HTMLElement;
+	totalSections = 0;
+	processed = 0;
+	success = 0;
+	failure = 0;
+
 	constructor() {
 		super(app);
 		this.set();
@@ -228,6 +242,9 @@ class TestResultModal extends Modal {
 		contentEl.empty();
 		contentEl.createEl('h3', {
 			text: 'Running LaTeX Compilation Tests...',
+		});
+		this.statsEl = contentEl.createEl('p', {
+			text: 'Processed: 0/0 | Success: 0 (0%) | Failure: 0 (0%)',
 		});
 
 		this.currentFileEl = contentEl.createEl('p', {
@@ -289,6 +306,37 @@ class TestResultModal extends Modal {
 			text: 'Save Report to Vault',
 			cls: 'mod-cta',
 		}).onclick = () => this.saveReport();
+	}
+
+	setTotalSections(total: number) {
+		this.totalSections = total;
+		this.updateStats();
+	}
+
+	recordResult(status: CompileStatus) {
+		this.processed++;
+
+		if (status === CompileStatus.Success) {
+			this.success++;
+		} else {
+			this.failure++;
+		}
+
+		this.updateStats();
+	}
+
+	private updateStats() {
+		const successPercent =
+			this.processed === 0 ? 0 : (this.success / this.processed) * 100;
+
+		const failurePercent =
+			this.processed === 0 ? 0 : (this.failure / this.processed) * 100;
+
+		this.statsEl.setText(
+			`Processed: ${this.processed}/${this.totalSections} | ` +
+				`Success: ${this.success} (${successPercent.toFixed(1)}%) | ` +
+				`Failure: ${this.failure} (${failurePercent.toFixed(1)}%)`,
+		);
 	}
 
 	async saveReport() {

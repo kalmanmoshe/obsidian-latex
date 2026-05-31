@@ -239,7 +239,6 @@ export default class LatexEngine {
 
   task<T = void>(task: any, timeoutMs = 15000): Promise<T> {
     const command = task.cmd;
-    console.log("cmd:", command, "task:", task);
   
     this.checkEngineStatus(command);
     this.engineStatus = EngineStatus.Busy;
@@ -281,8 +280,6 @@ export default class LatexEngine {
           if (ev.data?.cmd !== command) return;
   
           window.clearTimeout(timer);
-  
-          console.log("Task completed:", ev.data);
   
           this.engineStatus = EngineStatus.Ready;
   

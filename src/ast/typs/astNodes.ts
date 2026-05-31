@@ -31,8 +31,8 @@ export abstract class BaseNode {
 	position?: Position;
 
 	constructor(
-		renderInfo?: typeof this.renderInfo,
-		position?: typeof this.position,
+		renderInfo?: RenderInfo,
+		position?: Position,
 	) {
 		if (renderInfo) this.renderInfo = renderInfo;
 		if (position) this.position = position;

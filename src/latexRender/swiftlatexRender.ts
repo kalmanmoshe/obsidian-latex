@@ -256,7 +256,7 @@ export class SwiftlatexRender {
       } else {
         snapshot.files.forEach((file, index) => {
           fileList.createEl('li', {
-            text: `#${index} — ${file.name} | autoUse: ${file.autoUse} | length: ${file.contentLength}`,
+            text: `#${index} — ${file.path} | autoUse: ${file.autoUse} | length: ${file.contentLength}`,
           });
         });
       }
@@ -530,7 +530,7 @@ export class SwiftlatexRender {
               console.log(
                 'Rendering LaTeX to PDF',
                 source.split('\n'),
-                this.vfs.clone(),
+                this.vfs.getClonedFiles(),
               );
             }
 
