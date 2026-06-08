@@ -255,8 +255,28 @@ export class SwiftlatexRender {
         });
       } else {
         snapshot.files.forEach((file, index) => {
-          fileList.createEl('li', {
-            text: `#${index} — ${file.path} | autoUse: ${file.autoUse} | length: ${file.contentLength}`,
+          const item = fileList.createEl('li');
+
+          item.createEl('div', { text: `#${index} ${file.path}` });
+          item.createEl('div', {
+            text: `Referenced By: ${
+              file.referencedBy.length
+                ? file.referencedBy.join(', ')
+                : 'None'
+            }`,
+          });
+          item.createEl('div', {
+            text: `Dependencies: ${
+              file.dependencies.length
+                ? file.dependencies.join(', ')
+                : 'None'
+            }`,
+          });
+          item.createEl('div', {
+            text: `Auto Use: ${file.autoUse}`,
+          });
+          item.createEl('div', {
+            text: `Content Length: ${file.contentLength}`,
           });
         });
       }
@@ -330,9 +350,7 @@ export class SwiftlatexRender {
         return;
       }
       const task = createResult.result as LatexTask;
-      console.log('Registering task:', task.getDebugInfo());
       if (task.restoreFromCache()) return;
-      console.log('Adding task to queue:', task.getDebugInfo());
       this.queue.push(task);
     }
   }
@@ -367,10 +385,10 @@ export class SwiftlatexRender {
     }
 
     if (task.isProcess()) {
-      const processor = await task.process();
+      const result = await task.process();
       task.log();
-      if (processor.isError) {
-        const errorMessage = 'Error processing task: ' + processor.err;
+      if (result) {
+        const errorMessage = 'Error processing task: ' + result;
         this.handleErrorForTask(task, errorMessage);
         return false;
       }
@@ -383,13 +401,13 @@ export class SwiftlatexRender {
 
   async detachedProcessAndRender(task: LatexTask) {
     if (task.isProcess()) {
-      const processor = await task.process();
+      const result = await task.process();
       task.log();
-      if (processor.isError) {
+      if (result) {
         return new CompileResult(
           undefined,
           CompileStatus.ProcessingError,
-          processor.err!,
+          result,
         );
       }
     }
@@ -542,7 +560,7 @@ export class SwiftlatexRender {
             const result = await this.compiler.compileLaTeX();
             console.log('Compilation result:', result);
 
-            await this.vfs.removeVirtualFileSystemFiles();
+            await this.vfs.removeNonAutoUseFiles();
 
             if (config.md5Hash)
               this.cache.addLog(result.log, config.md5Hash);

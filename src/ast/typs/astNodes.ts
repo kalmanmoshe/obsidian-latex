@@ -253,34 +253,35 @@ export class Parbreak extends BaseNode {
 export class Comment extends StringNode {
 	type = 'comment';
 	sameline?: boolean;
-	suffixParbreak?: boolean;
+	suffixLinebreak?: boolean;
 	leadingWhitespace?: boolean;
 	constructor(
 		content: string,
 		sameline?: boolean,
-		suffixParbreak?: boolean,
+		suffixLinebreak?: boolean,
 		leadingWhitespace?: boolean,
 		renderInfo?: RenderInfo,
 		position?: typeof BaseNode.prototype.position,
 	) {
 		super(content, renderInfo, position);
 		if (sameline !== undefined) this.sameline = sameline;
-		if (suffixParbreak !== undefined) this.suffixParbreak = suffixParbreak;
+		if (suffixLinebreak !== undefined) this.suffixLinebreak = suffixLinebreak;
 		if (leadingWhitespace !== undefined)
 			this.leadingWhitespace = leadingWhitespace;
 	}
 
 	toString(): string {
-		return this.leadingWhitespace
-			? '\s'
-			: '' + '%' + this.content + (this.suffixParbreak ? '\n' : '');
+		const leading = (this.sameline && this.leadingWhitespace) ? ' ' : ''; 
+		const suffix = this.suffixLinebreak ? '\n' : '';
+
+		return `${leading}%${this.content}${suffix}`;
 	}
 
 	clone(): this {
 		const clone = new Comment(
 			this.content,
 			this.sameline,
-			this.suffixParbreak,
+			this.suffixLinebreak,
 			this.leadingWhitespace,
 			this.renderInfo,
 			this.position,

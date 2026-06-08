@@ -1,4 +1,10 @@
+import { LatexAbstractSyntaxTree } from 'src/ast/parse';
 import LatexCompiler from './compiler/base/compilerBase/compiler';
+import { create } from 'domain';
+import { LatexDependencyParser } from './task/LatexDependencyParser';
+import { Notice } from 'obsidian';
+import { DependencyGraphStore } from 'src/dependency/DependencyGraphStore';
+import { createDependency, LatexDependency } from 'src/dependency/LatexDependency';
 
 export enum VFSstatus {
 	undefined,
@@ -6,6 +12,8 @@ export enum VFSstatus {
 	uptodate,
 	error,
 }
+
+
 
 /**
  * Pauses without blocking external code execution until a given condition returns true, or until a timeout occurs.
@@ -26,19 +34,26 @@ async function nonBlockingWaitUntil(
 		await new Promise((resolve) => setTimeout(resolve, checkInterval));
 	}
 }
-type VirtualFile = { 
+
+type VirtualFile = {
 	name: string;
 	/**
 	 * path of the file with the root being the vault root.
 	 */
 	path: string;
-	content: string; 
-	autoUse?: boolean 
+	content: string;
+	autoUse?: boolean
 };
 
 // i need to add the enabled state to the virtual file system
 export class VirtualFileSystem {
-	private files: VirtualFile[] = [];
+	/**
+	 * a flat map of file paths to their corresponding dependencies. This is used to quickly check if a file is already in the virtual file system and to get its content and other information.
+	 */
+	private graph: DependencyGraphStore = new DependencyGraphStore(); 
+
+	private parser: LatexDependencyParser;
+
 	private status: VFSstatus = VFSstatus.undefined;
 	/**
 	 * whether the virtual file system is enabled. If disabled, the virtual file system will flush the pdf engine and no longer update the files in said engine.
@@ -46,7 +61,10 @@ export class VirtualFileSystem {
 	private vfsEnabled: boolean = false;
 	private autoUseEnabled: boolean = false;
 	private compiler: LatexCompiler;
-	constructor() {}
+
+	constructor() {
+		this.parser = new LatexDependencyParser(this);
+	}
 
 	/**
 	 * update the pointer to the PDF engine
@@ -59,7 +77,7 @@ export class VirtualFileSystem {
 			// so the VFS contents must be reloaded.
 			this.status = VFSstatus.outdated;
 		} else {
-			console.log("proceding vps like normal")
+			console.log("proceding vfs like normal")
 		}
 		this.compiler = compiler;
 	}
@@ -73,8 +91,9 @@ export class VirtualFileSystem {
 	 * @param enabled
 	 */
 	async setEnabled(enabled: boolean) {
+		console.warn(`Setting virtual file system enabled state to ${enabled}`);
 		if (this.vfsEnabled && !enabled) {
-			this.files = [];
+			this.graph.flush();
 			this.status = VFSstatus.undefined;
 			await this.compiler.flushWorkCache();
 		}
@@ -105,31 +124,22 @@ export class VirtualFileSystem {
 			enabled: this.vfsEnabled,
 			autoUseEnabled: this.autoUseEnabled,
 			status: this.status,
-			fileCount: this.files.length,
-			files: this.files.map((file) => ({
-				name: file.name,
-				path: file.path,
-				autoUse: !!file.autoUse,
-				contentLength: file.content.length,
-			})),
-			autoUseFiles: this.files
-				.filter((file) => file.autoUse)
-				.map((file) => file.name),
+			...this.graph.getSnapshot(),
 		};
 	}
 
 	/**
 	 * set the coor virtual files
-	 * @param files
+	 * @param coorVirtualFiles
 	 */
-	setCoorVirtualFiles(files: Set<string>) {
+	setCoorVirtualFiles(coorVirtualFilePaths: Set<string>) {
 		this.checkEnabled();
-		for (const file of this.files) {
-			file.autoUse = files.has(file.name);
-			files.delete(file.name);
+		for (const file of this.graph.getFiles()) {
+			file.autoUse = coorVirtualFilePaths.has(file.path);
+			coorVirtualFilePaths.delete(file.path);
 		}
-		for (const file of files)
-			throw new Error('File not found in virtual file system: ' + file);
+		for (const filePath of coorVirtualFilePaths)
+			throw new Error('File not found in virtual file system: ' + filePath);
 	}
 
 	/**
@@ -137,43 +147,64 @@ export class VirtualFileSystem {
 	 */
 	getAutoUseFilePaths() {
 		this.checkEnabled();
-		return this.files
+		return this.graph.getFiles()
 			.filter((file) => file.autoUse)
 			.map((file) => file.path);
-	} 
-	
-	/**
-	 * set the virtual file system files
-	 * @param files
-	 */
-	setVirtualFileSystemFiles(files: VirtualFile[]) {
+	}
+
+	getAutoUseFiles(){
 		this.checkEnabled();
-		this.files = files;
-		this.status = VFSstatus.outdated;
+		return this.graph.getFiles().filter((file) => file.autoUse);
+	}
+
+	async addOrReplaceFile(file: VirtualFile) {
+		const newDep = createDependency(file.content, file.path, {
+			autoUse: file.autoUse,
+		});
+
+		if (!newDep.isTex) {
+			this.graph.addOrReplaceFile(newDep, []);
+			this.status = VFSstatus.outdated;
+			return;
+		}
+
+		try {
+			const parsed = await this.parser.parseFile(newDep.content, newDep.path);
+
+			newDep.ast = parsed.ast;
+			newDep.content = parsed.content;
+			newDep.inVFS = true;
+
+			this.graph.addOrReplaceFile(newDep, parsed.dependencies);
+			this.status = VFSstatus.outdated;
+		} catch (err) {
+			console.error('Error parsing virtual file system file:', err);
+			this.status = VFSstatus.error;
+
+			new Notice(
+				`Error parsing virtual file system file: ${file.path}. Check console for details.`,
+			);
+		}
+	}
+
+	/**
+	 * add a virtual file system file replacing any existing file with the same path
+	 * @param file
+	 */
+	async addOrReplaceFiles(files: VirtualFile[]) {
+		for (const file of files) {
+			await this.addOrReplaceFile(file);
+		}
 	}
 
 	hasFile(path: string) {
 		this.checkEnabled();
-		return this.files.some((file) => file.path === path);
+		return this.graph.hasFile(path);
 	}
 
 	getFile(path: string) {
 		this.checkEnabled();
-		const file = this.files.find((file) => file.path === path);
-		if (!file)
-			throw new Error('File not found in virtual file system: ' + path);
-		return file;
-	}
-
-	/**
-	 * add a virtual file system file
-	 * @param file
-	 */
-	addVirtualFileSystemFile(file: VirtualFile) {
-		this.checkEnabled();
-		this.files = this.files.filter((f) => f.name !== file.name);
-		this.files.push(file);
-		this.status = VFSstatus.outdated;
+		return this.graph.getFile(path);
 	}
 
 	/**
@@ -195,10 +226,10 @@ export class VirtualFileSystem {
 		}
 		try {
 			await this.compiler.flushWorkCache();
-			for (const file of [this.files].flat()) {
-				console.debug('Loading virtual file system file:', file.name);
+			for (const file of this.graph.getFiles()) {
+				console.debug('Loading virtual file system file:', file.path);
 				await this.compiler.writeMemFSFile(file.name, file.content);
-				console.debug('Loaded virtual file system file:', file.name);
+				console.debug('Loaded virtual file system file:', file.path);
 			}
 			this.status = VFSstatus.uptodate;
 		} catch (err) {
@@ -208,26 +239,81 @@ export class VirtualFileSystem {
 		}
 	}
 
-	async removeVirtualFileSystemFiles() {
-		if (!this.checkEnabled(false)) return;
-		const remove: string[] = [];
-		this.files = this.files.filter((file) => {
-			return file.autoUse || (remove.push(file.name) && false);
-		});
-		this.status = VFSstatus.outdated;
-		for (const file of remove) {
-			await this.compiler.removeMemFSFile(file);
-		}
-	}
-	
-	getClonedFiles() {
-		return this.files.map((file) => ({ ...file }));
+	async removeNonAutoUseFiles() {
+		await this.removeFiles({ nonAutoUseOnly: true });
 	}
 
-	/**
-	 * this is only used for testing purposes
-	 */
-	getFiles() {
-		return this.files;
+	async removeAutoUseFiles() {
+		await this.removeFiles({ autoUseOnly: true });
 	}
+
+	async flush() {
+		await this.removeFiles();
+	}
+
+	private async removeFiles(options: {
+		autoUseOnly?: boolean;
+		nonAutoUseOnly?: boolean;
+	} = {}) {
+		if (!this.checkEnabled(false)) return;
+
+		const { autoUseOnly = false, nonAutoUseOnly = false } = options;
+
+		if (autoUseOnly && nonAutoUseOnly) {
+			throw new Error('Cannot remove both auto-use-only and non-auto-use-only files.');
+		}
+
+		const shouldRemove = (file: LatexDependency) => {
+			const neededForAutoUse = this.isNeededForAutoUse(file);
+
+			if (autoUseOnly) return neededForAutoUse;
+			if (nonAutoUseOnly) return !neededForAutoUse;
+
+			return true;
+		};
+
+		this.status = VFSstatus.outdated;
+
+		const filesToRemove = this.graph.removeFiles(shouldRemove);
+
+		try {
+			for (const file of filesToRemove) {
+				await this.compiler.removeMemFSFile(file.name);
+			}
+		} finally {
+			this.status = VFSstatus.uptodate;
+		}
+	}
+
+	isNeededForAutoUse(
+		file: LatexDependency | string,
+		visited = new Set<string>(),
+	): boolean {
+		if (typeof file === 'string') {
+			const fileObj = this.graph.getFile(file);
+			if (!fileObj) return false;
+			file = fileObj;
+		}
+		if (file.autoUse) return true;
+
+		if (visited.has(file.path)) return false;
+		visited.add(file.path);
+
+		const owners = this.graph.getReferencingFiles(file.path);
+		if (owners.length === 0) return false;
+
+		for (const ownerPath of owners) {
+			const ownerFile = this.graph.getFile(ownerPath);
+			if (ownerFile && this.isNeededForAutoUse(ownerFile, visited)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	getClonedFiles() {
+		return Array.from(this.graph.getFiles()).map((file) => ({ ...file }));
+	}
+
 }

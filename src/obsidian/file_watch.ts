@@ -32,47 +32,40 @@ function isFileInFolder(dir: TFolder, file: TFile) {
 	return false;
 }
 
-/**
- * Checks if the file is either the specified path or within the directory of the specified path.
- * @param plugin - The plugin instance.
- * @param dir - The directory path to check against.
- * @param file - The file to validate.
- * @returns {boolean} - True if the file matches the path or is within the directory, false otherwise.
- */
-function isFileInDir(dir: TAbstractFile, file: TFile): boolean {
-	if (dir instanceof TFolder) {
-		return isFileInFolder(dir, file);
-	}
-	return dir instanceof TFile && dir.path === file.path;
-}
+const REFRESH_TIMEOUT_MS = 500;
 
-const refreshFromFiles = debounce(
-	async (plugin: LatexRender, mathjax = false) => {
-		if (
-			!(
-				plugin.settings.compilerVfsEnabled ||
-				plugin.settings.mathjaxPreambleEnabled
-			)
-		) {
+const refreshMathJaxFromFiles = debounce(
+	async (plugin: LatexRender) => {
+		if (!plugin.settings.mathjaxPreambleEnabled) {
 			return;
 		}
-
-		if (mathjax) await plugin.loadMathJax();
-		else await plugin.processLatexPreambles(false, true);
+		await plugin.loadMathJax();
 	},
-	500,
+	REFRESH_TIMEOUT_MS,
 	true,
-);
-/**
+)
+
+const refreshLatexFromFiles = debounce(
+	async (plugin: LatexRender) => {
+		if (!plugin.settings.mathjaxPreambleEnabled) {
+			return;
+		}
+		await plugin.processLatexPreambles(false, true);
+	},
+	REFRESH_TIMEOUT_MS,
+	true,
+)
+
+
+/** 
  * chack if the file is a vfs/mathjax preamble file
  * @param plugin
  * @param file
  * @returns
  */
-const filePathConfig = (plugin: LatexRender, file: TFile) => {
+const checkFileMonitoringStatus = (plugin: LatexRender, file: TFile) => {
 	const {
 		compilerVfsEnabled,
-		autoloadedVfsFilesDir,
 		mathjaxPreambleEnabled,
 		mathjaxPreambleFileLocation,
 	} = plugin.settings;
@@ -82,59 +75,43 @@ const filePathConfig = (plugin: LatexRender, file: TFile) => {
 		if (possibleFolder && possibleFolder instanceof TFolder) {
 			isInFolder = isFileInFolder(possibleFolder, file);
 		}
-		return { enabled, isInFolder, isFile: file.path === dir };
+		return enabled && (isInFolder || file.path === dir);
 	};
 	return {
-		autoLoaded: match(compilerVfsEnabled, autoloadedVfsFilesDir),
-		mathJax: match(mathjaxPreambleEnabled, mathjaxPreambleFileLocation),
+		autoLoadedMonitored: compilerVfsEnabled && plugin.swiftlatexRender.vfs.isNeededForAutoUse(file.path),
+		mathJaxMonitored: match(mathjaxPreambleEnabled, mathjaxPreambleFileLocation),
 	};
 };
 
-const isDirMonitored = (match: {
-	enabled: any;
-	isFile: any;
-	isInFolder: any;
-}): boolean => match.enabled && (match.isFile || match.isInFolder);
-
 export const onFileChange = (plugin: LatexRender, file: TAbstractFile) => {
 	if (!(file instanceof TFile)) return;
-	const fileConfig = filePathConfig(plugin, file);
-	const shouldRefreshFile = Object.values(fileConfig).some((config) =>
-		isDirMonitored(config),
-	);
-	if (shouldRefreshFile) {
-		refreshFromFiles(plugin, isDirMonitored(fileConfig.mathJax));
+	const fileMonitoringStatus = checkFileMonitoringStatus(plugin, file);
+
+	if (fileMonitoringStatus.mathJaxMonitored) {
+		refreshMathJaxFromFiles(plugin);
+	} 
+
+	if (fileMonitoringStatus.autoLoadedMonitored) {
+		refreshLatexFromFiles(plugin);
 	}
+	
 };
 
 export const onFileCreate = (plugin: LatexRender, file: TAbstractFile) => {
 	onFileChange(plugin, file);
 };
 
-function getActiveDirectories(plugin: LatexRender): string[] {
-	const {
-		compilerVfsEnabled,
-		autoloadedVfsFilesDir,
-		mathjaxPreambleEnabled,
-		mathjaxPreambleFileLocation,
-	} = plugin.settings;
-
-	return [
-		compilerVfsEnabled && autoloadedVfsFilesDir,
-		mathjaxPreambleEnabled && mathjaxPreambleFileLocation,
-	].filter((path): path is string => Boolean(path)); // Chack if the dir is enabled;
-}
-
 export const onFileDelete = (plugin: LatexRender, file: TAbstractFile) => {
 	if (!(file instanceof TFile)) return;
-	const directories = getActiveDirectories(plugin)
-		.map((path) => app.vault.getAbstractFileByPath(path)) // Get the TAbstractFile
-		.filter((dir) => dir !== null);
+	// There's no point checking mathjax over here as it won't do anything you cannot delete the file from cache Only change it
+	const wasVfsFile =
+		plugin.settings.compilerVfsEnabled &&
+		plugin.swiftlatexRender.vfs.hasFile(file.path);
 
-	if (directories.some((dir) => isFileInDir(dir, file))) {
-		// There's no point passing mathjax over here as it won't do anything you cannot delete the file from catch Only change it
-		refreshFromFiles(plugin);
+	if (wasVfsFile) {
+		refreshLatexFromFiles(plugin);
 	}
+	
 };
 
 function* generateFilesWithin(fileOrFolder: TAbstractFile): Generator<TFile> {
@@ -181,7 +158,7 @@ export async function getPreambleFromFiles(
 	for (const file of files) {
 		try {
 			fileContents.push({
-				path: file.path,
+				path: file.path, //path to the root of the vault
 				name: file.name,
 				content: await app.vault.cachedRead(file),
 			});

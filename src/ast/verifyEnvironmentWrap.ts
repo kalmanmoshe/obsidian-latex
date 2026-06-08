@@ -6,8 +6,6 @@ const preambleMacros = [
 	'documentclass', 
 	'usepackage', 
 	'usetikzlibrary', 
-	'include',
-	'input',
 	'bibliography',
 	'pgfplotsset'//inclode pgfplots must go before
 ];
@@ -26,6 +24,7 @@ export class EnvironmentWrap {
 		this.envs = this.getEnvironments(this.ast.getContent());
 		if (this.envs.some((env) => env.env === 'document'))
 			return this.ast.getContent();
+
 		this.args = this.findEnvironmentArgs() || [];
 
 		//if no envs
@@ -47,6 +46,7 @@ export class EnvironmentWrap {
 			console.log(
 			'No non-preamble content found, returning original AST content:',
 			this.ast.getContent(),
+			this
 		);
 			return this.ast.getContent();
 		}
@@ -159,6 +159,7 @@ export class EnvironmentWrap {
 
 		return args;
 	}
+
 	getEnvironmentStructure() {
 		const envs = this.envs.map((env) => env.env);
 		const sortedEnvs: {
@@ -236,7 +237,7 @@ function findMatchingBracket(content: Node[], index: number) {
 		if (!node.isString()) continue;
 		if (node.content === bracket) count++;
 		if (node.content === bracketPair) count--;
-		if (count === 0) return i + index;
+		if (count === 0) return i;
 	}
 	throw new Error('No matching bracket found');
 }
