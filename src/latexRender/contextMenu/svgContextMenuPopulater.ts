@@ -351,10 +351,10 @@ export class SvgContextMenuPopulater {
 	private async getProcessedTask(): Promise<ProcessableLatexTask | undefined> {
 		const task = await this.getTask();
 		if (task.isProcess()) {
-			const processor = await task.process();
-			if (processor.isError) {
+			const result = await task.process();
+			if (result) {
 				new Notice('Failed to process task');
-				console.error('Failed to process task:', processor.err);
+				console.error('Failed to process task:', result);
 				return undefined;
 			}
 		} else {

@@ -207,7 +207,7 @@ export class LatexRenderSettingTab extends PluginSettingTab {
 			containerEl,
 			async (value) => {
 				this.plugin.settings.mathjaxPreambleFileLocation = value;
-				await this.plugin.saveSettings();
+				await this.plugin.saveSettings(true);
 			},
 			{
 				name: 'Mathjax preamble file location',
@@ -278,8 +278,7 @@ export class LatexRenderSettingTab extends PluginSettingTab {
 			containerEl,
 			async (value) => {
 				this.plugin.settings.autoloadedVfsFilesDir = value;
-				await this.plugin.saveSettings();
-				this.plugin.processLatexPreambles(true);
+				await this.plugin.saveSettings(false, true);
 			},
 			{
 				name: 'Autoloaded virtual files',

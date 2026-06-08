@@ -6,7 +6,7 @@
 //git pull --all#Pull all branches
 //git push --all#Push all branches
 
-import { Plugin, Notice, FileSystemAdapter, MarkdownView } from 'obsidian';
+import { Plugin, Notice, FileSystemAdapter, MarkdownView, loadMathJax } from 'obsidian';
 
 import {
 	LatexRenderPluginSettings,
@@ -50,11 +50,13 @@ export default class LatexRender extends Plugin {
 	settings: LatexRenderPluginSettings;
 	swiftlatexRender: SwiftlatexRender = new SwiftlatexRender();
 	menuDecider: SvgContextMenuDecider;
+	
 	async onload() {
 		const startTime = performance.now();
 		this.menuDecider = new SvgContextMenuDecider(this);
 		console.log('Loading Moshe math plugin');
 		await this.loadSettings();
+		console.log('loaded settings', this.settings)
 
 		this.addEditorCommands();
 		this.addSyntaxHighlighting();
@@ -63,15 +65,15 @@ export default class LatexRender extends Plugin {
 			await this.loadLayoutReadyDependencies();
 			console.warn(
 				'Moshe Math Plugin layout ready in ' +
-					(performance.now() - onStart) +
-					'ms',
+				(performance.now() - onStart) +
+				'ms',
 			);
 		});
 		this.addSettingTab(new LatexRenderSettingTab(this));
 		console.warn(
 			'Moshe Math Plugin loaded in ' +
-				(performance.now() - startTime) +
-				'ms',
+			(performance.now() - startTime) +
+			'ms',
 		);
 		//this.registerEditorSuggest()
 	}
@@ -82,10 +84,11 @@ export default class LatexRender extends Plugin {
 	}
 
 	private async loadLayoutReadyDependencies() {
+		this.processLatexPreambles(true);
 		this.loadMathJax();
 		// we need to use await here because the codeBlock processor
 		// needs to be loaded before the codeBlocks are processed
-		await this.loadSwiftLatexRender();
+		await this.swiftlatexRender.onload(this);
 		// processing of the code blocks have layout dependencies
 		try {
 			this.setCodeblocks();
@@ -127,10 +130,6 @@ export default class LatexRender extends Plugin {
 				this.swiftlatexRender,
 			),
 		);
-	}
-
-	private async loadSwiftLatexRender() {
-		await this.swiftlatexRender.onload(this);
 	}
 
 	private addSyntaxHighlighting() {
@@ -181,10 +180,10 @@ export default class LatexRender extends Plugin {
 	}
 
 	async loadMathJax(): Promise<void> {
+		await loadMathJax();
 		const preamble = this.settings.mathjaxPreambleEnabled
 			? await this.getMathjaxPreamble()
 			: '';
-
 		const MJ = (window as any).MathJax;
 
 		// nothing to do
@@ -218,8 +217,8 @@ export default class LatexRender extends Plugin {
 
 			// do NOT call texReset(); it will erase definitions mid-session
 			// If you previously seeded with tex2chtml(preamble), you can remove that too.
-
 			this.refreshAllWindows();
+
 			return;
 		}
 
@@ -249,7 +248,6 @@ export default class LatexRender extends Plugin {
 		}
 
 		// unknown MathJax flavor
-		console.warn('Unknown MathJax flavor; not patching');
 		this.refreshAllWindows();
 	}
 
@@ -261,6 +259,7 @@ export default class LatexRender extends Plugin {
 					const cursor = editor.getCursor();
 					editor.setValue(editor.getValue());
 					editor.setCursor(cursor);
+					console.log()
 				}
 			}
 		});
@@ -268,10 +267,7 @@ export default class LatexRender extends Plugin {
 
 	private async getMathjaxPreamble(): Promise<string> {
 		const mathjaxPreambleFiles = getFileSets(this).mathjaxPreambleFiles;
-		console.warn(
-			'Loading MathJax preamble from files:',
-			mathjaxPreambleFiles,
-		);
+
 		const preambles = await getPreambleFromFiles(
 			this,
 			mathjaxPreambleFiles,
@@ -291,20 +287,26 @@ export default class LatexRender extends Plugin {
 	private async loadSettings() {
 		let data = await this.loadData();
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
-		this.saveSettings(true);
+		await this.saveSettings();
 	}
 
-	async saveSettings(didFileLocationChange = false) {
+	async saveSettings(didMathjaxFileLocationChange = false, didLatexFileLocationChange = false) {
 		await this.saveData(this.settings);
-		if (didFileLocationChange) {
-			await this.swiftlatexRender.vfs.setEnabled(
-				this.settings.compilerVfsEnabled,
-			);
-			if (this.settings.compilerVfsEnabled) {
-				app.workspace.onLayoutReady(async () => {
-					await this.processLatexPreambles(didFileLocationChange);
-				});
-			}
+		await this.swiftlatexRender.vfs.setEnabled(
+			this.settings.compilerVfsEnabled,
+		);
+
+		if (didLatexFileLocationChange && this.settings.compilerVfsEnabled) {
+			app.workspace.onLayoutReady(async () => {
+				await this.processLatexPreambles(didLatexFileLocationChange);
+			});
+			
+		}
+
+		if (didMathjaxFileLocationChange && this.settings.mathjaxPreambleEnabled) {
+			app.workspace.onLayoutReady(async () => {
+				await this.loadMathJax();
+			});
 		}
 	}
 
@@ -316,9 +318,12 @@ export default class LatexRender extends Plugin {
 			becauseFileLocationUpdated,
 			becauseFileUpdated,
 		);
-		this.swiftlatexRender.vfs.setVirtualFileSystemFiles(coorPreambles);
-		const fileNames = new Set(coorPreambles.map((file) => file.name));
-		this.swiftlatexRender.vfs.setCoorVirtualFiles(fileNames);
+		if (becauseFileLocationUpdated) {
+			this.swiftlatexRender.vfs.removeAutoUseFiles();
+		}
+		await this.swiftlatexRender.vfs.addOrReplaceFiles(coorPreambles);
+		const filePaths = new Set(coorPreambles.map((file) => file.path));
+		this.swiftlatexRender.vfs.setCoorVirtualFiles(filePaths);
 	}
 
 	private async getlatexPreambleFiles(
@@ -348,10 +353,11 @@ export default class LatexRender extends Plugin {
 			? 'Loaded '
 			: 'Successfully reloaded ';
 		const body = [];
-		body.push(`${nExplicitPreambleFiles} explicit preamble files`);
+		body.push(`${nExplicitPreambleFiles} preamble files`);
 		const suffix = '.';
 		new Notice(prefix + body.join(' and ') + suffix, 5000);
 	}
+
 	getVaultPath() {
 		if (app.vault.adapter instanceof FileSystemAdapter) {
 			return app.vault.adapter.getBasePath();

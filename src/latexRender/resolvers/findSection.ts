@@ -61,7 +61,9 @@ export function getSectionsFromMatching(
 			fileText,
 			codeBlock,
 		)?.filter((sec) => sec.position);
-	console.log('sectionCache', sectionCache);
+
+	console.log('sections', sections, 'sectionCache', sectionCache);
+	
 	if (!sectionCache || sectionCache.length === 0) return;
 
 	return sectionCache.map((sectionCache) => ({

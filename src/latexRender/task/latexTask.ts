@@ -20,7 +20,7 @@ import {
 	sectionToTaskSectionInfo,
 	taskSectionInfoToContent,
 } from '../resolvers/sectionUtils';
-import { LatexTaskProcessor } from './latexTaskProcessor';
+import { processTaskSource } from './latexTaskProcessor';
 /**
  * Be careful of catching this as the file may change and until you don't generate a new one it will be static.
  */
@@ -492,13 +492,12 @@ export class ProcessableLatexTask extends LatexTask {
 		console.log('task', this);
 	}
 
-	async process() {
-		const processor = await LatexTaskProcessor.processTask(
-			this.plugin,
+	async process(): Promise<void|string> {
+		return await processTaskSource(
 			this,
-		); 
-		console.log('finished processing task', processor);
-		return processor;
+			this.plugin.swiftlatexRender.vfs,
+			this.plugin
+		);
 	}
 
 	getDebugInfo() {

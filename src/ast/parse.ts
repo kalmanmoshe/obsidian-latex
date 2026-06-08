@@ -2,7 +2,7 @@ import { Root, String, Macro, Argument, Ast, Node, DependencyMacro } from './typ
 import { migrateToClassStructure, parse } from './autoParse/ast-types-pre';
 import { claenUpPaths } from './cleanUpAst';
 import { EnvironmentWrap } from './verifyEnvironmentWrap';
-import { LatexDependency } from 'src/latexRender/task/latexTaskProcessor';
+import { LatexDependency } from 'src/dependency/LatexDependency';
 
 /**
  * Assignments:
@@ -17,7 +17,7 @@ function insureRenderInfoexists(node: Node) {
 //I need to Stop using the AST for inputs and only add and remove inputs through the dependencies.
 export class LatexAbstractSyntaxTree {
 
-	private content: Node[];
+	protected content: Node[];
 
 	constructor(content: Node[]) {
 		this.content = content;
@@ -72,20 +72,6 @@ export class LatexAbstractSyntaxTree {
 		return this.content.map((node) => node.toString()).join('');
 	}
 
-	private getAddInputFileIndex(isAutoUseFile = false) {
-		const startIndex = this.content.findIndex((node) => {
-			if (!node.isMacro()) return true;
-			if (node.content === 'documentclass') return false;
-			if (node instanceof DependencyMacro) {
-				// If the file is auto use, then we want the index to be after only the auto use files.
-				return isAutoUseFile
-					? !node.autoUse
-					: false;
-			}
-		});
-		return startIndex === -1 ? 0 : startIndex;
-	}
-
 	addDependenciesToPreamble(dependencies: LatexDependency[]) {
 		const macros: Macro[] = [];
 		for (const dependency of dependencies) {
@@ -102,7 +88,27 @@ export class LatexAbstractSyntaxTree {
 			);
 		}
 		const index = this.getAddInputFileIndex(dependencies.some(dep => dep.autoUse));
+
 		this.content.splice(index, 0, ...macros);
+	}
+
+	private getAddInputFileIndex(isAutoUseFile = false) {
+		//i want it to go after the documentclass and after the auto use files
+		//the start index is
+		const startIndex = this.content.findIndex((node) => {
+			if (!node.isMacro()) return true;
+			if (node.content === 'documentclass') return false;
+			if (node instanceof DependencyMacro) {
+				// If the file is auto use, then we want the index to be after only the auto use files.
+				return isAutoUseFile
+					? !node.autoUse
+					: false;
+			}
+			// important: normal macro like pgfplotsset
+			// should be the insertion point
+			return true;
+		});
+		return startIndex === -1 ? 0 : startIndex;
 	}
 
 	cleanUp() {
@@ -135,6 +141,8 @@ export class LatexAbstractSyntaxTree {
 	}
 
 	getContent() { return this.content; }
+	
+	getClonedContent() { return this.content.map(node => node.clone()); }
 	
 	clone() {
 		return new LatexAbstractSyntaxTree(

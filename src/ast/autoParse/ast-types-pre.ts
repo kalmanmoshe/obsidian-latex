@@ -10,6 +10,8 @@ export let parse: (str: string) => any;
  */
 export let parseMath: any;
 
+export let stringifyAutoAst: (autoAst: any) => string;
+
 
 import('@unified-latex/unified-latex-util-parse').then((module) => {
 	parse = module.parse;
@@ -202,7 +204,7 @@ export function migrateToClassStructure(ast: Ast): AstClass {
 			return new CommentClass(
 				ast.content,
 				ast.sameline,
-				ast.suffixParbreak,
+				!ast.suffixParbreak, // the wording from the pakeg is awkwrd
 				ast.leadingWhitespace,
 				ast._renderInfo,
 				ast.position,

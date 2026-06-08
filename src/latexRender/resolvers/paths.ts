@@ -23,12 +23,15 @@ export function resolvePathRelToVault(
 	const absPath = file.path;
 	if (!remainingPath) return absPath;
 
-	if (!(file instanceof TFile) || file.extension !== 'md') {
+	if (!(file instanceof TFile)) {
 		throw new Error(`Invalid path: ${remainingPath}`);
 	}
+	
 	if (!isValidFileBasename(remainingPath)) {
 		throw new Error(`Invalid file basename: ${remainingPath}`);
 	}
+	
+	console.warn(`Resolving path: `, {file,remainingPath,path,currentPath});
 	const codeBlockName = remainingPath + '.tex';
 	return absPath + CODE_BLOCK_NAME_SEPARATOR + codeBlockName;
 }
@@ -86,11 +89,29 @@ function getDirRoot(current: TAbstractFile): TFolder {
 	return current;
 }
 
+/**
+ * find a file it can be a section within a file or a file in the vault. The path is relative to the current file and can contain ../ to go up directories. It can also contain code block names separated by CODE_BLOCK_NAME_SEPARATOR.
+ * @param filePath 
+ * @param currentPath 
+ * @returns 
+ */
 export function findRelativeFile(filePath: string, currentPath: string) {
 	const start = app.vault.getAbstractFileByPath(currentPath);
+	
 	if (!start) throw new Error('Source file not found');
 
-	let current: TAbstractFile = start;
+	let current: TAbstractFile;
+
+	if (start instanceof TFile) {
+		if (!start.parent) {
+			throw new Error(`Source file has no parent folder: ${start.path}`);
+		}
+		current = start.parent;
+	} else {
+		current = start;
+	}
+	console.warn(`Starting point for path resolution: `, {currentPath,current});
+
 	const separator = filePath.includes('\\') ? '\\' : '/';
 	const match = filePath.match(new RegExp('^\\.{1,2}(' + separator + ')*'));
 	const prefix = match?.[0] || '';
@@ -110,11 +131,7 @@ export function findRelativeFile(filePath: string, currentPath: string) {
 	} else if (filePath.includes(separator)) {
 		current = getDirRoot(current);
 	}
-
-	// Early return if current is already a file
-	if (current instanceof TFile) {
-		return { file: current, remainingPath: filePath };
-	}
+	console.warn(`Finding file: `, {filePath,currentPath,current});
 
 	const parts = filePath.split(separator).filter(Boolean);
 
