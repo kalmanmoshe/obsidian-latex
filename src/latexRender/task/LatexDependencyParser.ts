@@ -4,11 +4,16 @@ import { String as StringClass } from '../../ast/typs/astNodes';
 import { LatexDependency, createDependency } from "src/dependency/LatexDependency";
 import { VirtualFileSystem } from "../VirtualFileSystem";
 
+export interface LatexDependencyNode {
+	dependency: LatexDependency;
+	dependencies: LatexDependencyNode[];
+}
+
 export interface ParsedLatexFile {
 	content: string;
 	path: string;
 	ast: LatexAbstractSyntaxTree;
-	dependencies: LatexDependency[];
+	dependencies: LatexDependencyNode[];
 }
 
 export class LatexDependencyParser {
@@ -33,8 +38,8 @@ export class LatexDependencyParser {
 	private async collectDependencies(
 		ast: LatexAbstractSyntaxTree,
 		basePath: string,
-	): Promise<LatexDependency[]> {
-		const dependencies: LatexDependency[] = [];
+	): Promise<LatexDependencyNode[]> {
+		const dependencies: LatexDependencyNode[] = [];
 
 		for (const macro of ast.getDependencyMacros()) {
 			const args = macro.args!;
@@ -44,16 +49,21 @@ export class LatexDependencyParser {
 
 			args[0].content = [new StringClass(dep.name)];
 
+			let childDependencies: LatexDependencyNode[] = [];
+
 			if (dep.isTex && !dep.inVFS) {
 				const parsedDep = await this.parseFile(dep.content, dep.path);
 
-				dependencies.push(...parsedDep.dependencies);
+				childDependencies = parsedDep.dependencies;
 
 				dep.ast = parsedDep.ast;
 				dep.content = parsedDep.content;
 			}
 
-			dependencies.push(dep);
+			dependencies.push({
+				dependency: dep,
+				dependencies: childDependencies,
+			});
 		}
 
 		return dependencies;

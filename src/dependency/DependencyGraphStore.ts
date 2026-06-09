@@ -1,7 +1,7 @@
 
 import { Notice } from "obsidian";
 import { createDependency, LatexDependency } from "./LatexDependency";
-import { LatexDependencyParser, ParsedLatexFile } from "src/latexRender/task/LatexDependencyParser";
+import { LatexDependencyNode, LatexDependencyParser, ParsedLatexFile } from "src/latexRender/task/LatexDependencyParser";
 
 /**
  * Pauses without blocking external code execution until a given condition returns true, or until a timeout occurs.
@@ -47,7 +47,7 @@ export class DependencyGraphStore {
      */
     private referencedBy: Map<string, Set<string>> = new Map();
     
-    addOrReplaceFile(newDep: LatexDependency, dependencies: LatexDependency[]) {
+    addOrReplaceFile(newDep: LatexDependency, dependencies: LatexDependencyNode[]) {
         const oldDeps = this.dependenciesByOwner.get(newDep.path) ?? new Set();
 
         // remove old dependency edges
@@ -56,16 +56,29 @@ export class DependencyGraphStore {
         }
 
         this.dependenciesByOwner.set(newDep.path, new Set());
+	    this.filesByPath.set(newDep.path, newDep);
 
-        for (const child of dependencies) {
-            this.filesByPath.set(child.path, child);
-            this.addEdge(newDep.path, child.path);
+        for (const childNode of dependencies) {
+            this.addDependencyTree(newDep.path, childNode);
         }
-
-        this.filesByPath.set(newDep.path, newDep);
 
         // remove dependency files no longer referenced
         this.garbageCollectDependencies();
+    }
+
+    private addDependencyTree(ownerPath: string, node: LatexDependencyNode) {
+        const dep = node.dependency;
+
+        this.filesByPath.set(dep.path, dep);
+        this.addEdge(ownerPath, dep.path);
+
+        if (!this.dependenciesByOwner.has(dep.path)) {
+            this.dependenciesByOwner.set(dep.path, new Set());
+        }
+
+        for (const childNode of node.dependencies) {
+            this.addDependencyTree(dep.path, childNode);
+        }
     }
     
     /**

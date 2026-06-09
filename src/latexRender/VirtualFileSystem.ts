@@ -91,7 +91,6 @@ export class VirtualFileSystem {
 	 * @param enabled
 	 */
 	async setEnabled(enabled: boolean) {
-		console.warn(`Setting virtual file system enabled state to ${enabled}`);
 		if (this.vfsEnabled && !enabled) {
 			this.graph.flush();
 			this.status = VFSstatus.undefined;
