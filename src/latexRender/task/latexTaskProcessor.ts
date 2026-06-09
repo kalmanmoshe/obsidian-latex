@@ -28,7 +28,8 @@ export async function processTaskSource(
 
 		const ast = result.ast;
 		console.log('og AST content: ', ast.getClonedContent());
-		dependencies.push(...result.dependencies);
+		// we want the Perfect level dependencies only, and not dependencies referenced within those
+		dependencies.push(...result.dependencies.map((node) => node.dependency));
 
 		if (plugin.settings.compilerVfsEnabled) {
 			const autoUseFiles = vfs.getAutoUseFiles();
