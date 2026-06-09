@@ -4,9 +4,6 @@ import { ProcessableLatexTask } from './latexTask';
 import { LatexDependencyParser } from './LatexDependencyParser';
 import { LatexDependency } from 'src/dependency/LatexDependency';
 
-
-
-
 export async function processTaskSource(
 	task: ProcessableLatexTask,
 	vfs: VirtualFileSystem,
@@ -28,7 +25,7 @@ export async function processTaskSource(
 
 		const ast = result.ast;
 		console.log('og AST content: ', ast.getClonedContent());
-		// we want the Perfect level dependencies only, and not dependencies referenced within those
+		// we want the surface level dependencies only, and not dependencies referenced within those
 		dependencies.push(...result.dependencies.map((node) => node.dependency));
 
 		if (plugin.settings.compilerVfsEnabled) {

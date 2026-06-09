@@ -1,7 +1,7 @@
 
 import { Notice } from "obsidian";
 import { createDependency, LatexDependency } from "./LatexDependency";
-import { LatexDependencyNode, LatexDependencyParser, ParsedLatexFile } from "src/latexRender/task/LatexDependencyParser";
+import { LatexDependencyNode } from "src/latexRender/task/LatexDependencyParser";
 
 /**
  * Pauses without blocking external code execution until a given condition returns true, or until a timeout occurs.
@@ -32,7 +32,7 @@ type VirtualFile = {
     content: string;
     autoUse?: boolean
 };
-
+//TODO: for some reason the graph looks at the inVps as a flage while reely it suld be that all files in the vps are inVps = true
 export class DependencyGraphStore {
 	/**
      * a flat map of file paths to their corresponding dependencies. This is used to quickly check if a file is already in the virtual file system and to get its content and other information.
@@ -48,12 +48,8 @@ export class DependencyGraphStore {
     private referencedBy: Map<string, Set<string>> = new Map();
     
     addOrReplaceFile(newDep: LatexDependency, dependencies: LatexDependencyNode[]) {
-        const oldDeps = this.dependenciesByOwner.get(newDep.path) ?? new Set();
 
-        // remove old dependency edges
-        for (const childPath of [...oldDeps]) {
-            this.removeEdge(newDep.path, childPath);
-        }
+        this.removeFileAndUnusedDependencies(newDep.path);
 
         this.dependenciesByOwner.set(newDep.path, new Set());
 	    this.filesByPath.set(newDep.path, newDep);
@@ -87,16 +83,13 @@ export class DependencyGraphStore {
      * @returns the files it removed from the graph based on the predicate
      */
 	removeFiles(predicate: (file: LatexDependency) => boolean) {
-
         const filesToRemove = Array.from(this.filesByPath.values())
             .filter((file) => predicate(file));
 
         for (const file of filesToRemove) {
-            this.removeFileFromGraph(file.path);
-            this.filesByPath.delete(file.path);
+            this.removeFileAndUnusedDependencies(file.path);
         }
         return filesToRemove;
-        
     }
 
     getReferencingFiles(path: string) {
@@ -153,6 +146,12 @@ export class DependencyGraphStore {
         owners.add(ownerPath);
     }
 
+    private removeFileAndUnusedDependencies(path: string) {
+        this.removeFileFromGraph(path);
+        this.filesByPath.delete(path);
+        this.garbageCollectDependencies();
+    }
+
     // removes a node from the dependency graph.
     private removeFileFromGraph(path: string) {
         const dependencies = this.dependenciesByOwner.get(path);
@@ -190,21 +189,30 @@ export class DependencyGraphStore {
     }
 
     private garbageCollectDependencies() {
-        const pathsToRemove: string[] = [];
+        let removedSomething = true;
 
-        for (const [path, file] of this.filesByPath) {
-            const isRootFile = file.inVFS === true;
-            const isAutoUse = file.autoUse === true;
-            const hasOwners = this.referencedBy.has(path);
+        while (removedSomething) {
+            removedSomething = false;
 
-            if (!isRootFile && !isAutoUse && !hasOwners) {
-                pathsToRemove.push(path);
+            const pathsToRemove: string[] = [];
+
+            for (const [path, file] of this.filesByPath) {
+                const isRootFile = file.inVFS === true;
+                const isAutoUse = file.autoUse === true;
+
+                const owners = this.referencedBy.get(path);
+                const hasOwners = owners !== undefined && owners.size > 0;
+
+                if (!isRootFile && !isAutoUse && !hasOwners) {
+                    pathsToRemove.push(path);
+                }
             }
-        }
 
-        for (const path of pathsToRemove) {
-            this.removeFileFromGraph(path);
-            this.filesByPath.delete(path);
+            for (const path of pathsToRemove) {
+                this.removeFileFromGraph(path);
+                this.filesByPath.delete(path);
+                removedSomething = true;
+            }
         }
     }
 }
