@@ -147,38 +147,11 @@ export abstract class ContentNode extends BaseNode {
 
 	clone(): this {
 		const clone = new (this.constructor as new (...args: any[]) => this)(
-			this.type,
 			this.content.map((node) => node.clone()),
 			this.renderInfo,
-			this.position,
+			clonePosition(this.position),
 		);
-		Object.assign(clone, this);
-		return clone;
-	}
-}
-
-export abstract class ParameterizedContentNode extends ContentNode {
-	args?: Argument[];
-	constructor(
-		type: string,
-		content: Node[],
-		args?: Argument[],
-		renderInfo?: RenderInfo,
-		position?: typeof BaseNode.prototype.position,
-	) {
-		super(content, renderInfo, position);
-		if (args) this.args = args;
-	}
-
-	clone(): this {
-		const clone = new (this.constructor as new (...args: any[]) => this)(
-			this.type,
-			this.content.map((node) => node.clone()),
-			this.args?.map((arg) => arg.clone()),
-			this.renderInfo,
-			this.position,
-		);
-		Object.assign(clone, this);
+		Object.assign(clone, this)
 		return clone;
 	}
 }
@@ -187,15 +160,15 @@ export abstract class ParameterizedContentNode extends ContentNode {
 export class Root extends ContentNode {
 	readonly type = 'root';
 
-	toString(): any {
-		return this.content.map((node) => node.toString());
+	toString(): string {
+		return this.content.map((node) => node.toString()).join('');
 	}
 
 	clone(): this {
 		return new Root(
 			this.content.map((node) => node.clone()),
 			this.renderInfo,
-			this.position,
+			clonePosition(this.position),
 		) as this;
 	}
 }
@@ -209,9 +182,9 @@ export class String extends StringNode {
 		const clone = new String(
 			this.content,
 			this.renderInfo,
-			this.position,
+			clonePosition(this.position),
 		) as this;
-		Object.assign(clone, this);
+		
 		return clone;
 	}
 }
@@ -220,14 +193,41 @@ export class Whitespace extends BaseNode {
 	readonly type = 'whitespace';
 
 	toString(): string {
-		let length = 1;
-		if (this.position?.start && this.position?.end)
-			length = this.position?.end.offset - this.position?.start.offset;
-		return ' '.repeat(Math.abs(length));
+		if (!this.position?.start || !this.position?.end) {
+			return ' ';
+		}
+
+		const { start, end } = this.position;
+
+		// Single-line whitespace
+		if (start.line === end.line) {
+			return ' '.repeat(Math.max(0, end.column - start.column));
+		}
+
+		let result = '';
+
+		// First line: from start.column to end of line
+		// We don't know the original line length, so just preserve
+		// the indentation part.
+		result += ' '.repeat(Math.max(0, start.column - 1));
+
+		// Intermediate full blank lines
+		for (let line = start.line; line < end.line; line++) {
+			result += '\n';
+		}
+
+		// Last line indentation
+		result += ' '.repeat(Math.max(0, end.column - 1));
+
+		return result;
 	}
+
 	clone(): this {
-		const clone = new Whitespace(this.renderInfo, this.position) as this;
-		Object.assign(clone, this);
+		const clone = new Whitespace(
+			this.renderInfo, 
+			clonePosition(this.position)
+		) as this;
+		
 		return clone;
 	}
 }
@@ -244,8 +244,10 @@ export class Parbreak extends BaseNode {
 		return '\n';
 	}
 	clone(): this {
-		const clone = new Parbreak(this.renderInfo, this.position) as this;
-		Object.assign(clone, this);
+		const clone = new Parbreak(
+			this.renderInfo, 
+			clonePosition(this.position)
+		) as this;
 		return clone;
 	}
 }
@@ -284,9 +286,9 @@ export class Comment extends StringNode {
 			this.suffixLinebreak,
 			this.leadingWhitespace,
 			this.renderInfo,
-			this.position,
+			clonePosition(this.position),
 		) as this;
-		Object.assign(clone, this);
+		
 		return clone;
 	}
 }
@@ -310,15 +312,13 @@ export class Macro extends StringNode {
 	}
 
 	toStringArgsContent(): string {
-		this.content;
 		if (!this.args) {
 			throw new Error('Macro has no arguments to stringify');
 		}
-		return this.args.map((arg) => arg.toString().slice(1, -1)).join('');
+		return this.args.map((arg) => arg.toStringContent()).join('');
 	}
 
 	toStringArgs(): string {
-		this.content;
 		if (!this.args) {
 			throw new Error('Macro has no arguments to stringify');
 		}
@@ -330,8 +330,8 @@ export class Macro extends StringNode {
 		return (
 			prefix +
 			this.content +
-			(this.args ? this.toStringArgs() : '') +
-			(this.renderInfo?.breakAfter ? '\n' : '')
+			(this.args ? this.toStringArgs() : '')// +
+			//(this.renderInfo?.breakAfter ? '\n' : '')
 		);
 	}
 
@@ -341,9 +341,9 @@ export class Macro extends StringNode {
 			this.escapeToken,
 			this.args?.map((arg) => arg.clone()),
 			this.renderInfo,
-			this.position,
+			clonePosition(this.position),
 		) as this;
-		Object.assign(clone, this);
+		
 		return clone;
 	}
 }
@@ -378,41 +378,20 @@ export class DependencyMacro extends Macro {
 		super(content, escapeToken, args, renderInfo, position);
 		this.autoUse = autoUse;
 	}
-}
 
-export class Path extends Macro {
-	components: Node[];
-	constructor(
-		content: string,
-		components: Node[],
-		renderInfo?: RenderInfo,
-		position?: typeof BaseNode.prototype.position,
-	) {
-		renderInfo = modifyPathMacroInfo(renderInfo);
-		super(content, '\\', undefined, renderInfo, position);
-		this.components = components;
-	}
-	toString(): string {
-		let string = this.renderInfo?.escapeToken || '';
-		string += this.content;
-		if (this.args) {
-			string += this.args.map((arg) => arg.toString()).join('');
-		}
-		string += this.components.map((node) => node.toString()).join('');
-		string += this.renderInfo?.tikzPathCommand ? ';' : '';
-		string += this.renderInfo?.breakAfter ? '\n' : '';
-		return string;
-	}
 	clone(): this {
-		const clone = new Path(
+		const clone = new DependencyMacro(
 			this.content,
-			this.components.map((node) => node.clone()),
+			this.autoUse,
+			this.escapeToken,
+			this.args?.map((arg) => arg.clone()),
 			this.renderInfo,
-			this.position,
+			clonePosition(this.position),
 		) as this;
-		Object.assign(clone, this);
+		
 		return clone;
 	}
+
 }
 
 const macros_Not_To_escape_Regex = /(_|\^)/;
@@ -453,6 +432,7 @@ export class Environment extends ContentNode {
 	env: string;
 	args?: Argument[];
 	renderInfo?: EnvRenderInfo;
+
 	constructor(
 		type: 'environment' | 'mathenv',
 		env: string,
@@ -466,19 +446,35 @@ export class Environment extends ContentNode {
 		this.env = env;
 		if (args) this.args = args;
 	}
+
+	clone(): this {
+		const clone = new Environment(
+			this.type,
+			this.env,
+			this.content.map((node) => node.clone()),
+			this.args?.map((arg) => arg.clone()),
+			this.renderInfo,
+			clonePosition(this.position),
+		) as this;
+
+		return clone;
+	}
+
 	toString(): string {
+		console.warn("to string env:", this, this.renderInfo)
 		let string = `\\begin{${this.env}}`;
 		if (this.args) {
 			string += this.args.map((arg) => arg.toString()).join('');
 		}
 		string +=
-			'\n' +
-			indentString(this.content.map((node) => node.toString()).join('')) +
-			'\n';
+			//'\n' +
+			indentString(this.content.map((node) => node.toString()).join(''))// +
+			//'\n';
 		string += `\\end{${this.env}}\n`;
 		return string;
 	}
 }
+
 function indentString(input: string, indent: string = '\t'): string {
 	return input
 		.split('\n')
@@ -506,20 +502,22 @@ export class VerbatimEnvironment extends StringNode {
 			this.env,
 			this.content,
 			this.renderInfo,
-			this.position,
+			clonePosition(this.position),
 		) as this;
-		Object.assign(clone, this);
+		
 		return clone;
 	}
 }
 
 export class DisplayMath extends ContentNode {
 	type = 'displaymath';
+
 	toString(): string {
 		return (
 			'$$' + this.content.map((node) => node.toString()).join('') + '$$'
 		);
 	}
+
 }
 
 export class Group extends ContentNode {
@@ -553,18 +551,20 @@ export class Verb extends StringNode {
 		this.env = env;
 		this.escape = escape;
 	}
+
 	toString(): string {
 		return `\\${this.env}${this.escape}${this.content}${this.escape}`;
 	}
+
 	clone(): this {
 		const clone = new Verb(
 			this.env,
 			this.escape,
 			this.content,
 			this.renderInfo,
-			this.position,
+			clonePosition(this.position),
 		) as this;
-		Object.assign(clone, this);
+		
 		return clone;
 	}
 }
@@ -584,12 +584,29 @@ export class Argument extends ContentNode {
 		this.openMark = openMark;
 		this.closeMark = closeMark;
 	}
+
+	clone(): this {
+		const clone = new (this.constructor as new (...args: any[]) => this)(
+			this.openMark,
+			this.closeMark,
+			this.content.map((node) => node.clone()),
+			this.renderInfo,
+			clonePosition(this.position),
+		);
+		
+		return clone;
+	}
+	
 	toString(): string {
 		let string =
 			this.openMark +
-			this.content.map((node) => node.toString()).join('') +
+			this.toStringContent() +
 			this.closeMark;
 		return string;
+	}
+
+	toStringContent(): string {
+		return this.content.map((node) => node.toString()).join('')
 	}
 }
 
@@ -608,3 +625,11 @@ export type Node =
 	| Verb;
 
 export type Ast = Node | Argument | Node[];
+
+function clonePosition(position?: Position): Position | undefined {
+	if (!position) return undefined;
+	return {
+		start: { ...position.start },
+		end: { ...position.end },
+	};
+}

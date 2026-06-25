@@ -2,8 +2,9 @@ import { MarkdownSectionInformation, SectionCache, TFile } from 'obsidian';
 import { getFileSections } from './sectionCache';
 import LatexRender from 'src/main';
 import { latexCodeBlockNamesRegex } from '../swiftlatexRender';
-import ResultFileCache, { hashLatexContent } from '../cache/resultFileCache';
+import ResultFileCache from '../cache/resultFileCache';
 import { codeBlockToContent } from 'obsidian-dev-utils';
+import { hashLatexContent } from '../cache/compilerCache';
 export interface TaskSectionInformation {
 	/**
 	 * The line start of the source in the file. (zero-based index)

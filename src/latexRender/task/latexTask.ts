@@ -10,10 +10,9 @@ import {
 	extractCodeBlockMetadata,
 	extractCodeBlockName,
 } from '../resolvers/latexSourceFromFile';
-import { LatexAbstractSyntaxTree } from '../../ast/parse';
+import { LatexAbstractSyntaxTree } from '../../ast/LatexAbstractSyntaxTree';
 import { getSectionsFromMatching } from '../resolvers/findSection';
 import { TaskSectionInformation } from '../resolvers/taskSectionInformation';
-import { hashLatexContent } from '../cache/resultFileCache';
 
 import { codeBlockToContent } from 'obsidian-dev-utils';
 import {
@@ -21,6 +20,7 @@ import {
 	taskSectionInfoToContent,
 } from '../resolvers/sectionUtils';
 import { processTaskSource } from './latexTaskProcessor';
+import { hashLatexContent } from '../cache/compilerCache';
 /**
  * Be careful of catching this as the file may change and until you don't generate a new one it will be static.
  */
@@ -492,7 +492,7 @@ export class ProcessableLatexTask extends LatexTask {
 		console.log('task', this);
 	}
 
-	async process(): Promise<void|string> {
+	async process(): Promise<void | string> {
 		return await processTaskSource(
 			this,
 			this.plugin.swiftlatexRender.vfs,

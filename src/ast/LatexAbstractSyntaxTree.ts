@@ -1,22 +1,12 @@
 import { Root, String, Macro, Argument, Ast, Node, DependencyMacro } from './typs/astNodes';
-import { migrateToClassStructure, parse } from './autoParse/ast-types-pre';
-import { claenUpPaths } from './cleanUpAst';
-import { EnvironmentWrap } from './verifyEnvironmentWrap';
+import { parse } from './autoParse/ast-types-pre';
 import { LatexDependency } from 'src/dependency/LatexDependency';
+import { verifyEnvironmentWrap } from './verifyEnvironmentWrap';
 
-/**
- * Assignments:
- * - Auto load librarys
- * - Auto load packages
- */
 
-function insureRenderInfoexists(node: Node) {
-	if (!node.renderInfo) node.renderInfo = {};
-}
 
 //I need to Stop using the AST for inputs and only add and remove inputs through the dependencies.
 export class LatexAbstractSyntaxTree {
-
 	protected content: Node[];
 
 	constructor(content: Node[]) {
@@ -24,17 +14,14 @@ export class LatexAbstractSyntaxTree {
 	}
 
 	static parse(latex: string) {
-		const autoAst = parse(latex);
-		const classAst = migrateToClassStructure(autoAst);
-		if (!(classAst instanceof Root)) throw new Error('Root not found');
-		const content = classAst.content;
+		const content = parse(latex).content;
 		return new LatexAbstractSyntaxTree(content);
 	}
 
 	verifyProperDocumentStructure() {
-		this.content = new EnvironmentWrap(this).verify();
+		const environmentVerified = verifyEnvironmentWrap(this);
+		if (environmentVerified) this.replaceContent(environmentVerified);
 		this.verifyDocumentclass();
-		this.cleanUp();
 	}
 
 	hasDocumentclass() {
@@ -89,7 +76,7 @@ export class LatexAbstractSyntaxTree {
 		}
 		const index = this.getAddInputFileIndex(dependencies.some(dep => dep.autoUse));
 
-		this.content.splice(index, 0, ...macros);
+		this.spliceContent(index, 0, ...macros);
 	}
 
 	private getAddInputFileIndex(isAutoUseFile = false) {
@@ -111,10 +98,6 @@ export class LatexAbstractSyntaxTree {
 		return startIndex === -1 ? 0 : startIndex;
 	}
 
-	cleanUp() {
-		claenUpPaths(this.content);
-	}
-
 	getDependencyMacros() {
 		return findUsdInputFiles(this.content);
 	}
@@ -124,8 +107,6 @@ export class LatexAbstractSyntaxTree {
 			(macro) => macro.args && macro.args.length === 1,
 		);
 	}
-
-	isAutoUseFile(basename: string) { }
 
 	getInputFilesPaths() {
 		return this.usdInputFiles().map((input) => {
@@ -140,32 +121,34 @@ export class LatexAbstractSyntaxTree {
 		return this.getInputFilesPaths().some((path) => filePath === path);
 	}
 
-	getContent() { return this.content; }
-	
+	replaceContent(nodes: Node[]) {
+		this.content = nodes;
+	}
+
+	spliceContent(index: number, deleteCount: number, ...nodes: Node[]) {
+		return this.content.splice(index, deleteCount, ...nodes);
+	}
+
 	getClonedContent() { return this.content.map(node => node.clone()); }
-	
-	clone() {
+
+	/** Internal use only. Mutates AST directly. */
+	_getMutableContent(): Node[] {
+		return this.content;
+	}
+
+	clone(): this {
 		return new LatexAbstractSyntaxTree(
 			this.content.map((node) => node.clone())
-		);
+		) as this;
+	}
+
+	reParse() {
+		const latex = this.toString();
+		const newAst = parse(latex);
+		this.replaceContent(newAst.content);
 	}
 }
 
-function cloneMap<T, V>(map: Map<T, V>): Map<T, V> {
-	const newMap = new Map<T, V>();
-	for (const [key, value] of map.entries()) {
-		newMap.set(key, value);
-	}
-	return newMap;
-}
-
-//a
-
-//a Macro is in esins in emplmntsin of a newCommand
-
-class DefineMacro {
-	//type
-}
 const texExtensions = [
 	'latex',
 	'tex',
@@ -176,6 +159,7 @@ const texExtensions = [
 	'texmf',
 	'cnf',
 ];
+
 export function isExtensionTex(extension: string) {
 	return extension
 		.split('.')
@@ -183,7 +167,7 @@ export function isExtensionTex(extension: string) {
 }
 
 
-function findUsdInputFiles(ast: Ast): Macro[] {
+export function findUsdInputFiles(ast: Ast): Macro[] {
 	const inputMacros: Macro[] = [];
 	if (ast instanceof Macro && ast.content === 'input') inputMacros.push(ast);
 	if (Array.isArray(ast)) {
@@ -196,4 +180,64 @@ function findUsdInputFiles(ast: Ast): Macro[] {
 		inputMacros.push(...ast.args.map(findUsdInputFiles).flat());
 	}
 	return inputMacros;
+}
+
+export async function inlineDependencies<TAst extends LatexAbstractSyntaxTree>(
+	ast: TAst,
+	resolveDependency: (
+		inputPath: string,
+	) => Promise<TAst | undefined>,
+	seen = new Set<string>(),
+): Promise<TAst> {
+	const cloned = ast.clone();
+
+	const replaceInArray = async (nodes: Node[]) => {
+		for (let i = 0; i < nodes.length; i++) {
+			const node = nodes[i];
+
+			if (node instanceof DependencyMacro && node.content === 'input') {
+				const inputPath = node.toStringArgsContent();
+
+				if (seen.has(inputPath)) {
+					throw new Error(`Circular dependency detected: ${inputPath}`);
+				}
+
+				seen.add(inputPath);
+
+				const depAst = await resolveDependency(inputPath);
+
+				seen.delete(inputPath);
+
+				if (!depAst) continue;
+
+				const inlinedDep = await inlineDependencies(
+					depAst,
+					resolveDependency,
+					seen,
+				);
+
+				nodes.splice(i, 1, ...inlinedDep.getClonedContent());
+				i--;
+				continue;
+			}
+
+			await replaceInsideNode(node);
+		}
+	};
+
+	const replaceInsideNode = async (node: Node) => {
+		if ('content' in node && Array.isArray(node.content)) {
+			await replaceInArray(node.content);
+		}
+
+		if ('args' in node && Array.isArray(node.args)) {
+			for (const arg of node.args) {
+				await replaceInsideNode(arg);
+			}
+		}
+	};
+
+	await replaceInArray(cloned._getMutableContent());
+
+	return cloned;
 }

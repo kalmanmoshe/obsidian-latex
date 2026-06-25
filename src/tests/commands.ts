@@ -11,7 +11,13 @@ import {
 } from 'src/latexRender/resolvers/taskSectionInformation';
 
 export function getTestCommands(plugin: LatexRender): Command[] {
-	return [createTestLatexCommand(plugin), createTestOnClipboard(plugin)];
+	return [
+		createTestLatexCommand(plugin), 
+		createTestOnClipboard(plugin),
+		createCancelTestCommand(plugin),
+		createNewTestLatexCommand(plugin),
+		createOpenLastTestResultCommand(plugin),
+	];
 }
 
 function createTestOnClipboard(plugin: LatexRender): Command {
@@ -41,11 +47,28 @@ function createTestLatexCommand(plugin: LatexRender): Command {
 		callback: () => CompileTest.startOrContinueTest(plugin),
 	};
 }
+
+function createCancelTestCommand(plugin: LatexRender): Command {
+	return {
+		id: 'cancel-latex-code-blocks-test',
+		name: 'Cancel LaTeX Code Blocks Test',
+		callback: () => CompileTest.cancelCurrentTest(),
+	};
+}
+
 function createNewTestLatexCommand(plugin: LatexRender): Command {
 	return {
 		id: 'start-new-test-latex-code-blocks',
-		name: 'Start new est LaTeX Code Blocks',
+		name: 'Start new test LaTeX Code Blocks',
 		callback: () => CompileTest.cancelAndStartNewTest(plugin),
+	};
+}
+
+function createOpenLastTestResultCommand(plugin: LatexRender): Command {
+	return {
+		id: 'open-last-test-result',
+		name: 'Open Last Test Result',
+		callback: () => CompileTest.openLastTestResult(plugin),
 	};
 }
 
@@ -106,39 +129,66 @@ class CompileTest {
 		file: TFile;
 		codeBlockSections: TaskSectionInformation[];
 	}[] = [];
+
 	static activeToken: string | null = null;
+	static isRunning = false;
 	static testStartTime: number;
 
-	static isActive() {
+	static hasCurrentTest() {
 		return this.activeToken !== null;
 	}
 
 	static cancelCurrentTest() {
 		this.activeToken = null;
+		this.isRunning = false;
+
 		if (this.displayModal) {
 			this.displayModal.close();
 		}
-		new Notice('Previous test was cancelled.');
+
+		new Notice('Current test was cancelled.');
 	}
+
 	static cancelAndStartNewTest(plugin: LatexRender) {
-		if (this.isActive()) {
-			this.cancelCurrentTest(); // cancel running test safely
+		if (this.hasCurrentTest()) {
+			this.cancelCurrentTest();
 		}
+
 		this.startTest(plugin);
 	}
-	static startOrContinueTest(plugin: LatexRender) {
-		if (this.isActive()) {
-			this.displayModal.open();
-			new Notice(
-				'Test is already running. Continuing with the current test.',
-			);
+
+	static openLastTestResult(plugin: LatexRender) {
+		if (!this.hasCurrentTest()) {
+			new Notice('No previous test result found.');
 			return;
 		}
+		if (this.displayModal) {
+			this.displayModal.open();
+			new Notice('Showing previous test result. Cancel it to start a new one.');
+		}
+	}
+
+	static startOrContinueTest(plugin: LatexRender) {
+		if (this.hasCurrentTest()) {
+			this.displayModal.open();
+
+			new Notice(
+				this.isRunning
+					? 'Test is already running. Continuing with the current test.'
+					: 'Showing previous test result. Cancel it to start a new one.',
+			);
+
+			return;
+		}
+
 		this.startTest(plugin);
 	}
+	
 	private static async startTest(plugin: LatexRender) {
 		this.plugin = plugin;
-		this.activeToken = crypto.randomUUID(); // unique token per run
+		this.activeToken = crypto.randomUUID();
+		this.isRunning = true;
+
 		const token = this.activeToken;
 		this.testStartTime = Date.now();
 
@@ -177,24 +227,23 @@ class CompileTest {
 	static async analyzeLatexCodeBlocks(token: string) {
 		for (const { file, codeBlockSections } of this.sectionsByFile) {
 			for (const section of codeBlockSections) {
-				if (this.activeToken !== token) return; // canceled
+				if (this.activeToken !== token) return;
+
 				this.displayModal.setCurrent(file.path, section);
 
 				const start = performance.now();
 				const result = await this.analyzeSection(file, section);
-				console.log('Compile result:', result);
+
 				this.displayModal.recordResult(result.compileResult.status);
+
 				const duration = performance.now() - start;
 
 				const index =
-					result.compileResult.status === CompileStatus.Success
-						? 0
-						: 1;
+					result.compileResult.status === CompileStatus.Success ? 0 : 1;
+
 				const trackerIndex = result.task.getCacheStatusAsNum() + index;
 
-				const keys = Object.keys(
-					this.tracker,
-				) as (keyof CompileTracker)[];
+				const keys = Object.keys(this.tracker) as (keyof CompileTracker)[];
 				this.tracker[keys[trackerIndex]].push(result);
 
 				this.displayModal.addResult(trackerIndex, result, duration);
@@ -203,7 +252,10 @@ class CompileTest {
 
 		if (this.activeToken === token) {
 			this.displayModal.finish(this.tracker);
-			this.activeToken = null;
+			this.isRunning = false;
+
+			// Do NOT clear activeToken here.
+			// The current test stays alive until cancelCurrentTest().
 		}
 	}
 
@@ -224,7 +276,13 @@ class TestResultModal extends Modal {
 	currentFileEl: HTMLElement;
 	currentSectionEl: HTMLElement;
 	resultsContainer: HTMLElement;
+	private resultSections = new Map<string, HTMLElement>();
 	testStartTime = 0;
+
+	elapsedTimerId: number | null = null;
+	totalDuration = 0;
+	averageEl: HTMLElement;
+	elapsedEl: HTMLElement;
 
 	statsEl: HTMLElement;
 	totalSections = 0;
@@ -242,6 +300,13 @@ class TestResultModal extends Modal {
 		contentEl.empty();
 		contentEl.createEl('h3', {
 			text: 'Running LaTeX Compilation Tests...',
+		});
+		this.elapsedEl = contentEl.createEl('p', {
+			text: 'Elapsed: 0.0s',
+		});
+
+		this.averageEl = contentEl.createEl('p', {
+			text: 'Average per block: 0.0ms',
 		});
 		this.statsEl = contentEl.createEl('p', {
 			text: 'Processed: 0/0 | Success: 0 (0%) | Failure: 0 (0%)',
@@ -263,8 +328,18 @@ class TestResultModal extends Modal {
 	
 	setTestStartTime(startTime: number) {
 		this.testStartTime = startTime;
+
 		const dateStr = new Date(startTime).toLocaleString();
 		this.contentEl.createEl('p', { text: `Test started: ${dateStr}` });
+
+		if (this.elapsedTimerId !== null) {
+			window.clearInterval(this.elapsedTimerId);
+		}
+
+		this.elapsedTimerId = window.setInterval(() => {
+			const elapsed = (Date.now() - this.testStartTime) / 1000;
+			this.elapsedEl.setText(`Elapsed: ${elapsed.toFixed(1)}s`);
+		}, 100);
 	}
 
 	setCurrent(filePath: string, section: TaskSectionInformation) {
@@ -272,35 +347,73 @@ class TestResultModal extends Modal {
 		this.currentSectionEl.setText(`Section line: ${section.lineStart}`);
 	}
 
+	private getOrCreateSection(label: string): HTMLElement {
+		let section = this.resultSections.get(label);
+
+		if (section) return section;
+
+		const wrapper = this.resultsContainer.createDiv({
+			cls: 'compile-test-section',
+		});
+
+		wrapper.createEl('h4', {
+			text: `${label}`,
+		});
+
+		section = wrapper.createDiv();
+		this.resultSections.set(label, section);
+
+		return section;
+	}
+
 	addResult(
 		labelIndex: number,
 		result: CompileAnalysisResult,
 		duration: number,
 	) {
-		const label = Object.keys(CompileTest.tracker)[labelIndex];
+		this.totalDuration += duration;
+		const completedBlocks = this.processed + 1;
 
-		const container = this.resultsContainer;
+		const average =
+			this.processed === 0 ? 0 : this.totalDuration / completedBlocks;
+
+		this.averageEl.setText(`Average per block: ${average.toFixed(1)}ms`);
+		
+		const label = Object.keys(CompileTest.tracker)[labelIndex];
 		const sectionLine = result.section.lineStart;
 
-		container.createEl('p', {
-			text: `${label}: ${result.task.sourcePath} (Line ${sectionLine}) — ${duration.toFixed(1)}ms`,
+		const container = this.getOrCreateSection(label);
+
+		const entry = container.createDiv({
+			cls: 'compile-test-result',
 		});
 
-		container.createEl('a', {
+		entry.createEl('p', {
+			text: `${result.task.sourcePath} (Line ${sectionLine}) — ${duration.toFixed(1)}ms`,
+		});
+
+		entry.createEl('a', {
 			text: 'Go to code block ↗',
-			href: `obsidian://open?path=${encodeURIComponent(result.task.sourcePath)}#^${sectionLine}`,
+			href: `obsidian://open?path=${encodeURIComponent(
+				result.task.sourcePath,
+			)}#^${sectionLine}`,
 			cls: 'external-link',
 		});
 	}
 
 	finish(tracker: CompileTracker) {
+		if (this.elapsedTimerId !== null)
+			 {
+			window.clearInterval(this.elapsedTimerId);
+			this.elapsedTimerId = null;
+		}
+
 		const totalTime = ((Date.now() - this.testStartTime) / 1000).toFixed(1);
+
+		this.elapsedEl.setText(`Elapsed: ${totalTime}s`);
+		
 		this.currentFileEl.setText('✔️ All files processed.');
 		this.currentSectionEl.setText('');
-
-		this.contentEl.createEl('p', {
-			text: `✅ Test finished in ${totalTime} seconds`,
-		});
 
 		this.contentEl.createEl('button', {
 			text: 'Save Report to Vault',

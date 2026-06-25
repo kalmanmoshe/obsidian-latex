@@ -1,7 +1,6 @@
 import LatexRender from 'src/main';
 import { VirtualFileSystem } from '../VirtualFileSystem';
 import { ProcessableLatexTask } from './latexTask';
-import { LatexDependencyParser } from './LatexDependencyParser';
 import { LatexDependency } from 'src/dependency/LatexDependency';
 
 export async function processTaskSource(
@@ -10,28 +9,34 @@ export async function processTaskSource(
 	plugin: LatexRender,
 ): Promise<string | void> {
 	const startTime = performance.now();
-	const dependencies: LatexDependency[] = [];
 
 	try {
-		const parser = new LatexDependencyParser(
-			vfs,
-			task.getPossibleNames(),
-		);
-
-		const result = await parser.parseFile(
+		console.log('Processing task source for: ', task.getContent());
+		const result = await vfs.getParser().parseFile(
 			task.getContent(),
 			task.sourcePath,
 		);
 
 		const ast = result.ast;
 		console.log('og AST content: ', ast.getClonedContent());
-		// we want the surface level dependencies only, and not dependencies referenced within those
-		dependencies.push(...result.dependencies.map((node) => node.dependency));
 
 		if (plugin.settings.compilerVfsEnabled) {
-			const autoUseFiles = vfs.getAutoUseFiles();
+			// we want in the preamble the surface level dependencies only, and not dependencies referenced within those. LaTex will automatically include those referenced dependencies when compiling the surface level dependencies.
+			const surfaceLevelDependencies = result.dependencies.map((node) => node.dependency);
+			const autoUseFiles = vfs.getAutoUseFiles().filter(
+				(file) => surfaceLevelDependencies.every((dep) => dep.path !== file.path)
+			);
 			ast.addDependenciesToPreamble(autoUseFiles);
-			dependencies.push(...autoUseFiles);
+
+			await vfs.addOrReplaceFiles(
+				result.dependencies
+					.filter((node) => !vfs.hasFile(node.dependency.path))
+					.map((node) =>
+						Object.assign(node.dependency, {
+							dependencies: node.dependencies,
+						}),
+					),
+			);
 		}
 
 		ast.verifyProperDocumentStructure();

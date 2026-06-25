@@ -10,6 +10,7 @@ import {
 import { SVG_ID_KEY } from 'src/svg/nodes';
 import { exec } from 'child_process';
 import { codeBlockToContent } from 'obsidian-dev-utils';
+import ResultFileCache from '../cache/resultFileCache';
 
 function revealFileWithFocus(path: string) {
 	if (Platform.isWin) {
@@ -54,7 +55,8 @@ export class SvgContextMenuPopulater {
 	basename: string;
 	rawHash: string;
 	depsHash: string;
-	private resultFileCache;
+	private resultFileCache: ResultFileCache;
+
 	constructor(
 		plugin: LatexRender,
 		menu: Menu,
@@ -241,6 +243,7 @@ export class SvgContextMenuPopulater {
 			console.error('Failed to open file in explorer:', err);
 		}
 	}
+
 	private async showLogs() {
 		this.assignLatexContent();
 		let log = this.plugin.swiftlatexRender.cache.getLog(this.basename);
