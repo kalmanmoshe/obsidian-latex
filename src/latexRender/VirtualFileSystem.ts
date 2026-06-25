@@ -1,10 +1,10 @@
-import { LatexAbstractSyntaxTree } from 'src/ast/parse';
+import { LatexAbstractSyntaxTree } from 'src/ast/LatexAbstractSyntaxTree';
 import LatexCompiler from './compiler/base/compilerBase/compiler';
 import { create } from 'domain';
-import { LatexDependencyParser } from './task/LatexDependencyParser';
+import { LatexDependencyNode, LatexDependencyParser } from './task/LatexDependencyParser';
 import { Notice } from 'obsidian';
 import { DependencyGraphStore } from 'src/dependency/DependencyGraphStore';
-import { createDependency, LatexDependency } from 'src/dependency/LatexDependency';
+import { createDependency, DependencyConfig, LatexDependency } from 'src/dependency/LatexDependency';
 
 export enum VFSstatus {
 	undefined,
@@ -44,26 +44,38 @@ type VirtualFile = {
 	content: string;
 	autoUse?: boolean
 };
+type LatexDependencyNodeWithDeps = LatexDependency & {
+	dependencies: LatexDependencyNode<LatexAbstractSyntaxTree, DependencyConfig<LatexAbstractSyntaxTree>>[];
+};
+
+function hasDeps(file: VirtualFile | LatexDependencyNodeWithDeps): file is LatexDependencyNodeWithDeps {
+	return 'dependencies' in file;
+}
 
 // i need to add the enabled state to the virtual file system
 export class VirtualFileSystem {
 	/**
 	 * a flat map of file paths to their corresponding dependencies. This is used to quickly check if a file is already in the virtual file system and to get its content and other information.
 	 */
-	private graph: DependencyGraphStore = new DependencyGraphStore(); 
+	private graph: DependencyGraphStore<LatexAbstractSyntaxTree, LatexDependency> = new DependencyGraphStore();
 
-	private parser: LatexDependencyParser;
+	private parser: LatexDependencyParser<LatexAbstractSyntaxTree, LatexDependency>;
 
 	private status: VFSstatus = VFSstatus.undefined;
 	/**
 	 * whether the virtual file system is enabled. If disabled, the virtual file system will flush the pdf engine and no longer update the files in said engine.
 	 */
 	private vfsEnabled: boolean = false;
-	private autoUseEnabled: boolean = false;
 	private compiler: LatexCompiler;
 
 	constructor() {
-		this.parser = new LatexDependencyParser(this);
+		const parserAdapter = {
+			parseContentToAst: LatexAbstractSyntaxTree.parse,
+			createDependency,
+			getDependencyFromGraph: this.getFile.bind(this)
+		};
+
+		this.parser = new LatexDependencyParser(parserAdapter);
 	}
 
 	/**
@@ -109,19 +121,9 @@ export class VirtualFileSystem {
 		return false;
 	}
 
-	private checkAutoUseState(force = true) {
-		if (force) {
-			throw new Error(
-				'Virtual file system is not enabled. Please enable it before using it.',
-			);
-		}
-		return false;
-	}
-
 	getSnapshot() {
 		return {
 			enabled: this.vfsEnabled,
-			autoUseEnabled: this.autoUseEnabled,
 			status: this.status,
 			...this.graph.getSnapshot(),
 		};
@@ -151,15 +153,25 @@ export class VirtualFileSystem {
 			.map((file) => file.path);
 	}
 
-	getAutoUseFiles(){
+	getAutoUseFiles() {
 		this.checkEnabled();
 		return this.graph.getFiles().filter((file) => file.autoUse);
 	}
 
-	async addOrReplaceFile(file: VirtualFile) {
-		const newDep = createDependency(file.content, file.path, {
-			autoUse: file.autoUse,
-		});
+	async addOrReplaceFile(file: VirtualFile | LatexDependencyNodeWithDeps) {
+		let newDep: LatexDependencyNodeWithDeps;
+		
+		if (hasDeps(file)) {
+			newDep = file;
+		} else {
+			const dep = createDependency(file.content, file.path, {
+				autoUse: file.autoUse,
+			});
+
+			newDep = Object.assign(dep, {
+				dependencies: [],
+			});
+		}
 
 		if (!newDep.isTex) {
 			this.graph.addOrReplaceFile(newDep, []);
@@ -168,11 +180,17 @@ export class VirtualFileSystem {
 		}
 
 		try {
-			const parsed = await this.parser.parseFile(newDep.content, newDep.path);
+			// Already parsed: do NOT parse again.
+			if (hasDeps(file)) {
+				this.graph.addOrReplaceFile(newDep, newDep.dependencies);
+				this.status = VFSstatus.outdated;
+				return;
+			}
+
+			const parsed = await this.parser.parseFile(newDep.ast!!, newDep.path);
 
 			newDep.ast = parsed.ast;
 			newDep.content = parsed.content;
-			newDep.inVFS = true;
 
 			this.graph.addOrReplaceFile(newDep, parsed.dependencies);
 			this.status = VFSstatus.outdated;
@@ -190,7 +208,9 @@ export class VirtualFileSystem {
 	 * add a virtual file system file replacing any existing file with the same path
 	 * @param file
 	 */
-	async addOrReplaceFiles(files: VirtualFile[]) {
+	async addOrReplaceFiles(
+		files: VirtualFile[] | (LatexDependency & {dependencies: LatexDependencyNodeWithDeps[]})[]
+	) {
 		for (const file of files) {
 			await this.addOrReplaceFile(file);
 		}
@@ -313,6 +333,10 @@ export class VirtualFileSystem {
 
 	getClonedFiles() {
 		return Array.from(this.graph.getFiles()).map((file) => ({ ...file }));
+	}
+
+	getParser() {
+		return this.parser;
 	}
 
 }

@@ -4,18 +4,18 @@ import { RenderInfo } from '../typs/info-specs';
  * Parse the string into an AST.
  */
 
-export let parse: (str: string) => any;
+let rawParse: (str: string) => any;
 /**
  * Parse str into an AST. Parsing starts in math mode and a list of nodes is returned (instead of a "root" node).
  */
-export let parseMath: any;
+let rawParseMath: any;
 
 export let stringifyAutoAst: (autoAst: any) => string;
 
 
 import('@unified-latex/unified-latex-util-parse').then((module) => {
-	parse = module.parse;
-	parseMath = module.parseMath;
+	rawParse = module.parse;
+	rawParseMath = module.parseMath;
 });
 import {
 	Root as RootClass,
@@ -34,10 +34,10 @@ import {
 	Ast as AstClass,
 	Node as NodeClass,
 	BaseNode as BaseNodeClass,
-	DependencyMacroTypes,
 	isDependencyMacroType,
 	DependencyMacro,
 } from '../typs/astNodes';
+import { findEnvironmentArgs } from '../verifyEnvironmentWrap';
 
 export type GenericAst = GenericNode | GenericNode[];
 
@@ -245,14 +245,16 @@ export function migrateToClassStructure(ast: Ast): AstClass {
 					'environment node args must be an array of Arguments',
 				);
 			}
-			return new EnvironmentClass(
-				ast.type,
-				ast.env,
-				validateNodeContent(ast, 'anv'),
-				envArgs,
-				ast._renderInfo,
-				ast.position,
-			);
+			const newEnv = new EnvironmentClass(
+					ast.type,
+					ast.env,
+					validateNodeContent(ast, 'anv'),
+					envArgs,
+					ast._renderInfo,
+					ast.position,
+				);
+			foo(newEnv);
+			return newEnv;
 		case 'verbatim':
 			return new VerbatimEnvironmentClass(
 				ast.env,
@@ -297,4 +299,29 @@ export function migrateToClassStructure(ast: Ast): AstClass {
 		default:
 			throw new Error(`Unknown node type: ${ast.type}`);
 	}
+}
+
+function foo(env: EnvironmentClass) {
+	const hasArgs = env.args != undefined;
+	if (hasArgs) return;
+
+	const firstNode = env.content.find(node => !(node instanceof WhitespaceClass) )
+	if (!firstNode || !(firstNode.isString() && firstNode.content == "[")) return;
+	
+	const args = findEnvironmentArgs(env.content);
+	env.args = args;
+}
+
+export function parse(latex: string) {
+	const autoAst = rawParse(latex);
+	const classAst = migrateToClassStructure(autoAst);
+	if (!(classAst instanceof RootClass)) throw new Error('Root not found');
+	return classAst;
+}
+
+export function parseMath(math: string) {
+	const autoAst = rawParseMath(math);
+	const classAst = migrateToClassStructure(autoAst);
+	if (!Array.isArray(classAst)) throw new Error('Expected an array of nodes from math parsing');
+	return classAst;
 }

@@ -1,8 +1,8 @@
 import { TFile } from 'obsidian';
 import { latexCodeBlockNamesRegex } from '../swiftlatexRender';
 import { getLatexTaskSectionInfosFromFile } from './taskSectionInformation';
-import { hashLatexContent } from '../cache/resultFileCache';
 import { codeBlockLanguageRegex, codeBlockToContent } from 'obsidian-dev-utils';
+import { hashLatexContent } from '../cache/compilerCache';
 /** rooles:
  * - find = Might be undefined
  * - get = Will always return a value or throw an error
@@ -52,7 +52,7 @@ export function extractCodeBlockName(codeBlock: string): string | undefined {
 		.split('\n')[0]
 		.replace(latexCodeBlockNamesRegex, '')
 		.trim()
-		.match(/name: *([\w-]+)/); // Match names with letters, numbers, underscores, and dashes
+		.match(/name: *([-\wא-ת.]+)/); // Match names with letters, numbers, underscores, dashes, and Hebrew characters
 	return nameMatch ? nameMatch[1] : undefined;
 }
 /**

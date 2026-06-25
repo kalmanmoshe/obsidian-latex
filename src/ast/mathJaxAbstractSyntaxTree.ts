@@ -1,4 +1,5 @@
-import { parseMath, migrateToClassStructure } from './autoParse/ast-types-pre';
+import { parseMath, migrateToClassStructure, parse } from './autoParse/ast-types-pre';
+import { LatexAbstractSyntaxTree } from './LatexAbstractSyntaxTree';
 import {
 	Whitespace,
 	Parbreak,
@@ -6,27 +7,27 @@ import {
 	Argument,
 	Ast,
 	Node,
+	Root,
 } from './typs/astNodes';
 
-export class MathJaxAbstractSyntaxTree {
-	ast: Node[];
+export class MathJaxAbstractSyntaxTree extends LatexAbstractSyntaxTree {
+	content: Node[];
+
+	constructor(content: Node[]) {
+		super(content);
+	}
+
 	static parse(latex: string) {
-		const tree = new MathJaxAbstractSyntaxTree();
-		const ast = migrateToClassStructure(parseMath(latex));
-		if (ast instanceof Array) {
-			tree.ast = ast;
-		} else {
-			throw new Error('Root not found it is not in Array, got: ' + ast);
-		}
-		return tree;
+		const classAst = parse(latex);
+		return new MathJaxAbstractSyntaxTree(classAst.content);
 	}
+
 	clone() {
-		const newTree = new MathJaxAbstractSyntaxTree();
-		newTree.ast = this.ast.map((node) => node.clone());
-		return newTree;
+		return new MathJaxAbstractSyntaxTree(this.getClonedContent()) as this;
 	}
+
 	reverseRtl() {
-		const args = findTextMacros(this.ast);
+		const args = findTextMacros(this.content);
 		for (const arg of args) {
 			const text = arg.toString();
 			let tokens = text.match(/([א-ת]+|\s+|[^א-ת\s]+)/g) as
@@ -34,15 +35,13 @@ export class MathJaxAbstractSyntaxTree {
 				| null;
 			if (!tokens) continue;
 			tokens = mergeHebrewTokens(tokens);
-			const newNodeArr = migrateToClassStructure(
-				parseMath(
+			const newNodeArr = parse (
 					tokens
 						.map((t) =>
 							/[א-ת]/.test(t) ? [...t].reverse().join('') : t,
 						)
 						.join(''),
-				),
-			);
+			).content;
 			if (newNodeArr instanceof Array) {
 				arg.content = newNodeArr;
 			} else {
@@ -54,11 +53,17 @@ export class MathJaxAbstractSyntaxTree {
 	}
 
 	toString(): string {
-		return this.ast
+		return this.content
 			.map((node) => {
 				return node.toString();
 			})
 			.join('');
+	}
+
+	reParse() {
+		const latex = this.toString();
+		const newAst = parse(latex);
+		this.replaceContent(newAst.content);
 	}
 }
 

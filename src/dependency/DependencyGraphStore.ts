@@ -1,43 +1,13 @@
 
-import { Notice } from "obsidian";
-import { createDependency, LatexDependency } from "./LatexDependency";
+import { LatexAbstractSyntaxTree } from "src/ast/LatexAbstractSyntaxTree";
+import { DependencyConfig } from "./LatexDependency";
 import { LatexDependencyNode } from "src/latexRender/task/LatexDependencyParser";
 
-/**
- * Pauses without blocking external code execution until a given condition returns true, or until a timeout occurs.
- */
-async function nonBlockingWaitUntil(
-    condition: () => boolean,
-    timeoutMs = 10000,
-    checkInterval = 500,
-): Promise<void> {
-    const startTime = performance.now();
-    const maxWaitTime = startTime + timeoutMs;
-
-    while (!condition()) {
-        if (performance.now() >= maxWaitTime) {
-            throw new Error('Timeout waiting for condition.');
-        }
-        // Yield control to allow external code execution.
-        await new Promise((resolve) => setTimeout(resolve, checkInterval));
-    }
-}
-
-type VirtualFile = {
-    name: string;
+export class DependencyGraphStore<TAst extends LatexAbstractSyntaxTree, TDep extends DependencyConfig<TAst>> {
     /**
-     * path of the file with the root being the vault root.
-     */
-    path: string;
-    content: string;
-    autoUse?: boolean
-};
-//TODO: for some reason the graph looks at the inVps as a flage while reely it suld be that all files in the vps are inVps = true
-export class DependencyGraphStore {
-	/**
      * a flat map of file paths to their corresponding dependencies. This is used to quickly check if a file is already in the virtual file system and to get its content and other information.
      */
-    private filesByPath: Map<string, LatexDependency> = new Map();
+    private filesByPath: Map<string, TDep> = new Map();
     /**
      * a map of file paths to the set of file paths that they depend on. This is used to quickly get the dependencies of a file and to update the virtual file system when a file is added, removed or updated.
      */
@@ -46,13 +16,19 @@ export class DependencyGraphStore {
      * a map of file paths to the set of file paths that reference them. This is used to quickly get the files that reference a given file and to update the virtual file system when a file is added, removed or updated.
      */
     private referencedBy: Map<string, Set<string>> = new Map();
-    
-    addOrReplaceFile(newDep: LatexDependency, dependencies: LatexDependencyNode[]) {
+    /**
+     * Root files may exist on their own.
+        Dependency files must be reachable from a root.
+     */
+    private rootFiles: Set<string> = new Set();
+
+    addOrReplaceFile(newDep: TDep, dependencies: LatexDependencyNode<TAst, TDep>[]) {
 
         this.removeFileAndUnusedDependencies(newDep.path);
 
         this.dependenciesByOwner.set(newDep.path, new Set());
-	    this.filesByPath.set(newDep.path, newDep);
+        this.filesByPath.set(newDep.path, newDep);
+        this.rootFiles.add(newDep.path);
 
         for (const childNode of dependencies) {
             this.addDependencyTree(newDep.path, childNode);
@@ -62,7 +38,7 @@ export class DependencyGraphStore {
         this.garbageCollectDependencies();
     }
 
-    private addDependencyTree(ownerPath: string, node: LatexDependencyNode) {
+    private addDependencyTree(ownerPath: string, node: LatexDependencyNode<TAst, TDep>) {
         const dep = node.dependency;
 
         this.filesByPath.set(dep.path, dep);
@@ -76,13 +52,13 @@ export class DependencyGraphStore {
             this.addDependencyTree(dep.path, childNode);
         }
     }
-    
+
     /**
      * 
      * @param predicate 
      * @returns the files it removed from the graph based on the predicate
      */
-	removeFiles(predicate: (file: LatexDependency) => boolean) {
+    removeFiles(predicate: (file: TDep) => boolean) {
         const filesToRemove = Array.from(this.filesByPath.values())
             .filter((file) => predicate(file));
 
@@ -95,7 +71,11 @@ export class DependencyGraphStore {
     getReferencingFiles(path: string) {
         return Array.from(this.referencedBy.get(path) ?? []);
     }
-	
+
+    getDependentFiles(path: string) {
+        return Array.from(this.dependenciesByOwner.get(path) ?? []);
+    }
+
     getSnapshot() {
         return {
             fileCount: this.filesByPath.size,
@@ -104,30 +84,35 @@ export class DependencyGraphStore {
                 contentLength: file.content.length,
                 referencedBy: Array.from(this.referencedBy.get(file.path) ?? []),
                 dependencies: Array.from(this.dependenciesByOwner.get(file.path) ?? []),
-                autoUse: file.autoUse,
+                rootFile: this.rootFiles.has(file.path),
             })),
-            autoUseFiles: Array.from(this.filesByPath.values())
-                .filter((file) => file.autoUse)
+            rootFiles: Array.from(this.filesByPath.values())
+                .filter((file) => this.rootFiles.has(file.path))
                 .map((file) => file.name),
         };
     }
 
     hasFile(path: string) {
-		return this.filesByPath.has(path);
-	}
+        return this.filesByPath.has(path);
+    }
 
-	getFile(path: string) {
-		return this.filesByPath.get(path);
-	}
+    getFile(path: string) {
+        return this.filesByPath.get(path);
+    }
 
     getFiles() {
         return Array.from(this.filesByPath.values());
+    }
+
+    getRootFilePaths() {
+        return Array.from(this.rootFiles);
     }
 
     flush() {
         this.filesByPath.clear();
         this.dependenciesByOwner.clear();
         this.referencedBy.clear();
+        this.rootFiles.clear();
     }
 
     private addEdge(ownerPath: string, dependencyPath: string) {
@@ -147,13 +132,14 @@ export class DependencyGraphStore {
     }
 
     private removeFileAndUnusedDependencies(path: string) {
-        this.removeFileFromGraph(path);
+        this.disconnectFile(path);
         this.filesByPath.delete(path);
+        this.rootFiles.delete(path);
         this.garbageCollectDependencies();
     }
 
     // removes a node from the dependency graph.
-    private removeFileFromGraph(path: string) {
+    private disconnectFile(path: string) {
         const dependencies = this.dependenciesByOwner.get(path);
 
         if (dependencies) {
@@ -197,19 +183,18 @@ export class DependencyGraphStore {
             const pathsToRemove: string[] = [];
 
             for (const [path, file] of this.filesByPath) {
-                const isRootFile = file.inVFS === true;
-                const isAutoUse = file.autoUse === true;
+                const isRootFile = this.rootFiles.has(path);
 
                 const owners = this.referencedBy.get(path);
                 const hasOwners = owners !== undefined && owners.size > 0;
 
-                if (!isRootFile && !isAutoUse && !hasOwners) {
+                if (!isRootFile && !hasOwners) {
                     pathsToRemove.push(path);
                 }
             }
 
             for (const path of pathsToRemove) {
-                this.removeFileFromGraph(path);
+                this.disconnectFile(path);
                 this.filesByPath.delete(path);
                 removedSomething = true;
             }

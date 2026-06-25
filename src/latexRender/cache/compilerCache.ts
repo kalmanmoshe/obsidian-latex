@@ -5,6 +5,29 @@ import path from 'path';
 import * as fs from 'fs';
 import PackageCache from './packageCache';
 import LogCache from './logCache';
+import crypto from 'crypto';
+
+
+export function hashString(input: string, length: number = 16): string {
+	return crypto
+		.createHash('sha256')
+		.update(input)
+		.digest('hex')
+		.slice(0, length);
+}
+
+export function getDependencyHash(dependencies: string[]): string {
+		if (dependencies.length === 0) {
+			return 'nodeps';
+		}
+		const sorted = [...dependencies].sort();
+		const joined = sorted.join('\n');
+		return hashString(joined, 16);
+	}
+
+export function hashLatexContent(content: string) {
+	return hashString(content.replace(/\s/g, ''), 16);
+}
 
 export enum CacheStatus {
 	NotCached = 'NotCached',
@@ -45,19 +68,19 @@ export default class CompilerCache {
 
 	/**
 	 * Retrieves a cached log by hash.
-	 * @param hash The hash key for the log.
+	 * @param logCacheKey The key for the log in the cache.
 	 */
-	getLog(hash: string) {
-		return this.logCache.getLog(hash);
+	getLog(logCacheKey: string) {
+		return this.logCache.getLog(logCacheKey);
 	}
 	
 	async forceGetLog(
-		hash: string,
+		logCacheKey: string,
 		config: { source: string; sourcePath: string },
 	) {
 		const log =
-			this.getLog(hash) ||
-			(await this.logCache.forceGetLog(hash, config));
+			this.getLog(logCacheKey) ||
+			(await this.logCache.forceGetLog(logCacheKey, config));
 		if (!log) {
 			throw new Error(
 				'No log found for this hash, nor was one able to be produced.',
@@ -69,10 +92,10 @@ export default class CompilerCache {
 	/**
 	 * Adds a log to the log cache.
 	 * @param log The log object or string.
-	 * @param hash The hash key for the log.
+	 * @param logCacheKey The key for the log in the cache.
 	 */
-	addLog(log: ProcessedLog | string, hash: string) {
-		this.logCache.addLog(log, hash);
+	addLog(log: ProcessedLog | string, logCacheKey: string) {
+		this.logCache.addLog(log, logCacheKey);
 	}
 
 	/**
@@ -109,6 +132,7 @@ export default class CompilerCache {
 			fs.mkdirSync(cacheFolderParentPath, { recursive: true });
 		}
 	}
+	
 	cacheStatusForHash(hash: string) {
 		switch (true) {
 			case this.resultFileCache.hasRawHash(hash):

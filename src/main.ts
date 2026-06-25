@@ -23,8 +23,10 @@ import {
 	onFileChange,
 	onFileCreate,
 	onFileDelete,
+	PreambleFile,
 } from './obsidian/file_watch';
 import { SvgContextMenuDecider } from './latexRender/contextMenu/svgContextMenuDecider';
+import { MathjaxVFS } from './latexRender/MathjaxVFS';
 
 /**
  * Assignments:
@@ -50,10 +52,12 @@ export default class LatexRender extends Plugin {
 	settings: LatexRenderPluginSettings;
 	swiftlatexRender: SwiftlatexRender = new SwiftlatexRender();
 	menuDecider: SvgContextMenuDecider;
+	mathJaxVFS: MathjaxVFS;
 	
 	async onload() {
 		const startTime = performance.now();
 		this.menuDecider = new SvgContextMenuDecider(this);
+		this.mathJaxVFS = new MathjaxVFS();
 		console.log('Loading Moshe math plugin');
 		await this.loadSettings();
 		console.log('loaded settings', this.settings)
@@ -84,7 +88,9 @@ export default class LatexRender extends Plugin {
 	}
 
 	private async loadLayoutReadyDependencies() {
+		console.log('Processing LaTeX preambles...');
 		this.processLatexPreambles(true);
+		console.log('Processed LaTeX preambles');
 		this.loadMathJax();
 		// we need to use await here because the codeBlock processor
 		// needs to be loaded before the codeBlocks are processed
@@ -180,75 +186,55 @@ export default class LatexRender extends Plugin {
 	}
 
 	async loadMathJax(): Promise<void> {
+		console.warn('Loading MathJax...');
 		await loadMathJax();
-		const preamble = this.settings.mathjaxPreambleEnabled
-			? await this.getMathjaxPreamble()
-			: '';
+
+		await this.updateMathjaxVFS();
+
 		const MJ = (window as any).MathJax;
-
-		// nothing to do
-		if (!MJ) {
-			console.warn('MathJax not found');
+		if (!MJ?.startup?.promise) {
 			this.refreshAllWindows();
 			return;
 		}
 
-		// v3 branch
-		if (MJ?.startup?.promise && typeof MJ.tex2chtml === 'function') {
-			await MJ.startup.promise; // wait until v3 is fully ready
+		await MJ.startup.promise;
 
-			if (!MJ.__patchedTex2Chtml) {
-				const original = MJ.tex2chtml.bind(MJ);
+		let preamble = '';
+		if (this.settings.mathjaxPreambleEnabled) {
+			const paths = this.mathJaxVFS.getRootFilePaths();
 
-				MJ.tex2chtml = (
-					input: string,
-					options: { display: boolean },
-				): any => {
-					const processed = this.processMathJax(input);
-					// prepend preamble on every call (no $$ or \(...\) in preamble!)
-					const withPreamble = preamble
-						? `${preamble}\n${processed}`
-						: processed;
-					return original(withPreamble, options);
-				};
-
-				MJ.__patchedTex2Chtml = true;
-			}
-
-			// do NOT call texReset(); it will erase definitions mid-session
-			// If you previously seeded with tex2chtml(preamble), you can remove that too.
-			this.refreshAllWindows();
-
-			return;
+			const preambles = await Promise.all(paths.map((path) => this.mathJaxVFS.getFileWithInlinedDependencies(path)));
+			preamble = preambles.join('\n');
 		}
 
-		//  v2 branch
-		// Obsidian **usually** ships v3, but if someone has v2 injected, support it.
-		if (MJ?.Hub?.Queue) {
-			// Hook TeX translator to inject the preamble text
-			MJ.Hub.Register.StartupHook('TeX Jax Ready', () => {
-				const TeX = (MJ as any).InputJax.TeX;
-				if (!TeX.__patchedTranslate) {
-					const orig = TeX.Translate;
-					TeX.Translate = function (script: any, state: any) {
-						if (preamble && typeof script?.text === 'string') {
-							// Important: preamble must be macro defs only (no math delimiters)
-							script.text = `${preamble}\n${script.text}`;
-						}
-						return orig.call(this, script, state);
-					};
-					TeX.__patchedTranslate = true;
-				}
-			});
-
-			// retrigger typesetting if needed
-			MJ.Hub.Queue(['Typeset', MJ.Hub]);
-			this.refreshAllWindows();
-			return;
+		if (preamble.trim()) {
+			this.seedMathJaxPreamble(MJ, preamble);
 		}
 
-		// unknown MathJax flavor
+		this.patchMathJaxRender(MJ);
 		this.refreshAllWindows();
+	}
+
+	private seedMathJaxPreamble(MJ: any, preamble: string) {
+		// Important: no $$, no \( \), only macro definitions.
+		// tex2mml parses it and stores \newcommand definitions globally.
+		MJ.tex2mml(preamble);
+	}
+
+	private patchMathJaxRender(MJ: any) {
+		// On plugin reload, if Obsidian itself doesn't reload, the flag will still be true
+		// because the global MathJax object persists through
+		if (MJ.__patchedTex2Chtml) return;
+
+		const original = MJ.tex2chtml.bind(MJ);
+
+		MJ.tex2chtml = (input: string, options: { display: boolean }) => {
+			const processed = this.processMathJax(input);
+			return original(processed, options);
+		};
+
+		MJ.__patchedTex2Chtml = true;
+		
 	}
 
 	private refreshAllWindows() {
@@ -265,14 +251,16 @@ export default class LatexRender extends Plugin {
 		});
 	}
 
-	private async getMathjaxPreamble(): Promise<string> {
+	private async updateMathjaxVFS(): Promise<void> {
 		const mathjaxPreambleFiles = getFileSets(this).mathjaxPreambleFiles;
-
+		
 		const preambles = await getPreambleFromFiles(
 			this,
 			mathjaxPreambleFiles,
 		);
-		return preambles.map((preamble) => preamble.content).join('\n');
+		
+		this.mathJaxVFS.flush();
+		await this.mathJaxVFS.addOrReplaceFiles(preambles);
 	}
 
 	private processMathJax(input: string): string {
@@ -295,12 +283,12 @@ export default class LatexRender extends Plugin {
 		await this.swiftlatexRender.vfs.setEnabled(
 			this.settings.compilerVfsEnabled,
 		);
+		await this.mathJaxVFS.setEnabled(this.settings.mathjaxPreambleEnabled);
 
 		if (didLatexFileLocationChange && this.settings.compilerVfsEnabled) {
 			app.workspace.onLayoutReady(async () => {
 				await this.processLatexPreambles(didLatexFileLocationChange);
 			});
-			
 		}
 
 		if (didMathjaxFileLocationChange && this.settings.mathjaxPreambleEnabled) {

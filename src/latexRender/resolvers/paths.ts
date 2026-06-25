@@ -3,7 +3,7 @@ import { getLatexTaskSectionInfosFromFile } from './taskSectionInformation';
 import { extractCodeBlockName } from './latexSourceFromFile';
 import { codeBlockToContent } from 'obsidian-dev-utils';
 
-export const CODE_BLOCK_NAME_SEPARATOR = '::';
+export const CODE_BLOCK_NAME_SEPARATOR = '#';
 const TRADITIONAL_PATH_SEPARATORS = ['/', '\\'];
 const PATH_SEPARATORS = [
 	...TRADITIONAL_PATH_SEPARATORS,
@@ -31,7 +31,6 @@ export function resolvePathRelToVault(
 		throw new Error(`Invalid file basename: ${remainingPath}`);
 	}
 	
-	console.warn(`Resolving path: `, {file,remainingPath,path,currentPath});
 	const codeBlockName = remainingPath + '.tex';
 	return absPath + CODE_BLOCK_NAME_SEPARATOR + codeBlockName;
 }
@@ -90,64 +89,76 @@ function getDirRoot(current: TAbstractFile): TFolder {
 }
 
 /**
- * find a file it can be a section within a file or a file in the vault. The path is relative to the current file and can contain ../ to go up directories. It can also contain code block names separated by CODE_BLOCK_NAME_SEPARATOR.
- * @param filePath 
- * @param currentPath 
- * @returns 
+ * Finds a file relative to the current file.
+ *
+ * The path is resolved from the folder containing `currentPath`.
+ * It supports `.` and `..` path segments.
+ *
+ * Code block / section references must be explicit using
+ * `CODE_BLOCK_NAME_SEPARATOR`, for example:
+ *
+ * - `#blockName`
+ * - `file.md#blockName`
+ * - `../folder/file.md#blockName`
+ *
+ * @param filePath Path to the target file, optionally followed by a code block name.
+ * @param currentPath Path of the source file used as the relative starting point.
+ * @returns The resolved file and optional code block / section name.
  */
 export function findRelativeFile(filePath: string, currentPath: string) {
+	if (currentPath.contains(CODE_BLOCK_NAME_SEPARATOR)) {
+		throw new Error(
+			`Current path must be a file and not contain code block separator: ${CODE_BLOCK_NAME_SEPARATOR}`,
+		);
+	}
+
 	const start = app.vault.getAbstractFileByPath(currentPath);
-	
-	if (!start) throw new Error('Source file not found');
-
-	let current: TAbstractFile;
-
-	if (start instanceof TFile) {
-		if (!start.parent) {
-			throw new Error(`Source file has no parent folder: ${start.path}`);
-		}
-		current = start.parent;
-	} else {
-		current = start;
+	console.log('Finding relative file.', { filePath, currentPath, start });
+	if (!(start instanceof TFile)) {
+		throw new Error('Source file not found');
 	}
-	console.warn(`Starting point for path resolution: `, {currentPath,current});
 
-	const separator = filePath.includes('\\') ? '\\' : '/';
-	const match = filePath.match(new RegExp('^\\.{1,2}(' + separator + ')*'));
-	const prefix = match?.[0] || '';
+	const [rawFilePath, remainingPath] = filePath.split(
+		CODE_BLOCK_NAME_SEPARATOR,
+		2,
+	);
 
-	filePath = filePath.slice(prefix.length);
-
-	// Go up one directory per each separator after the dots
-	if (prefix.startsWith('..')) {
-		const ups = prefix.split(separator).length - 1;
-		for (let i = 0; i < ups; i++) {
-			if (!current.parent)
-				throw new Error(
-					`Reached root without resolving full path from: ${start.path}`,
-				);
-			current = current.parent;
-		}
-	} else if (filePath.includes(separator)) {
-		current = getDirRoot(current);
+	// "#block" means block inside the current file
+	if (!rawFilePath) {
+		return {
+			file: start,
+			remainingPath,
+		};
 	}
-	console.warn(`Finding file: `, {filePath,currentPath,current});
 
-	const parts = filePath.split(separator).filter(Boolean);
+	let current = resolveFolder(start);
+
+	const resolved = resolveStartingFolder(rawFilePath, current, start);
+
+	current = resolved.folder;
+	const parts = resolved.parts;
 
 	while (parts.length > 1 && current instanceof TFolder) {
 		const next = current.children.find(
 			(c) => c instanceof TFolder && c.name === parts[0],
 		);
+
 		if (!(next instanceof TFolder)) break;
+
 		current = next;
 		parts.shift();
 	}
 
-	if (!(current instanceof TFolder))
+	if (!(current instanceof TFolder)) {
 		throw new Error(`Invalid folder: ${parts[0]}`);
+	}
+	
+	const fileName = parts.shift();
 
-	const fileName = parts.shift()!;
+	if (!fileName) {
+		throw new Error(`File path is empty: ${filePath}`);
+	}
+
 	const file = current.children.find(
 		(c) =>
 			c instanceof TFile &&
@@ -155,12 +166,65 @@ export function findRelativeFile(filePath: string, currentPath: string) {
 				(c.basename === fileName && c.name.endsWith('.md'))),
 	);
 
-	if (!file) throw new Error(`File not found: ${fileName}`);
-	if (parts.length > 1) throw new Error('Path not found');
+	if (!file) {
+		console.error("hey, i got here")
+		throw new Error(`File not found: ${fileName}`);
+	}
+
+	if (parts.length > 0) {
+		throw new Error(`Path not found: ${parts.join('/')}`);
+	}
 
 	return {
 		file,
-		remainingPath: parts[0], // could be undefined
+		remainingPath,
+	};
+}
+
+function resolveFolder(fileOrFolder: TAbstractFile): TFolder {
+	if (fileOrFolder instanceof TFile) {
+		if (!fileOrFolder.parent) {
+			throw new Error(`Source file has no parent folder: ${fileOrFolder.path}`);
+		}
+		return fileOrFolder.parent;
+	} else {
+		return fileOrFolder as TFolder; // can be only TFolder here
+	}
+}
+
+function resolveStartingFolder(
+	filePath: string,
+	current: TFolder,
+	start: TAbstractFile,
+): { folder: TFolder; parts: string[] } {
+	const parts = filePath.split(/[\\/]+/).filter(Boolean);
+
+	while (parts.length > 0) {
+		const part = parts[0];
+
+		if (part === '.') {
+			parts.shift();
+			continue;
+		}
+
+		if (part === '..') {
+			if (!current.parent) {
+				throw new Error(
+					`Reached root without resolving full path from: ${start.path}`,
+				);
+			}
+
+			current = current.parent;
+			parts.shift();
+			continue;
+		}
+
+		break;
+	}
+
+	return {
+		folder: current,
+		parts,
 	};
 }
 

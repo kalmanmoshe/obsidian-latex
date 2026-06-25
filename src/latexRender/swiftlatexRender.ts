@@ -19,10 +19,10 @@ import PdfTeXCompiler from './compiler/swiftlatexpdftex/PdfTeXCompiler';
 import { LatexTask } from './task/latexTask';
 import { PdfXeTeXCompiler } from './compiler/swiftlatexxetex/pdfXeTeXCompiler';
 import LatexCompiler from './compiler/base/compilerBase/compiler';
-import CompilerCache from './cache/compilerCache';
-import { hashLatexContent } from './cache/resultFileCache';
+import CompilerCache, { hashLatexContent } from './cache/compilerCache';
 import { SVG_ID_KEY } from 'src/svg/nodes';
 import { LatexRenderQueue } from './LatexRenderQueue';
+import { getLogCacheKey } from './cache/logCache';
 
 temp.track();
 
@@ -222,23 +222,19 @@ export class SwiftlatexRender {
       cls: 'swiftlatex-vfs-debug-file-list',
     });
 
-    const autoUseList = el.createEl('ol', {
+    const rootFilesList = el.createEl('ol', {
       cls: 'swiftlatex-vfs-debug-auto-use-list',
     });
 
     const renderState = () => {
       status.empty();
       fileList.empty();
-      autoUseList.empty();
+      rootFilesList.empty();
 
       const snapshot = this.vfs.getSnapshot();
 
       status.createEl('div', {
         text: `Enabled: ${snapshot.enabled}`,
-      });
-
-      status.createEl('div', {
-        text: `Auto-use enabled: ${snapshot.autoUseEnabled}`,
       });
 
       status.createEl('div', {
@@ -281,13 +277,13 @@ export class SwiftlatexRender {
         });
       }
 
-      if (snapshot.autoUseFiles.length === 0) {
-        autoUseList.createEl('li', {
-          text: 'No auto-use files',
+      if (snapshot.rootFiles.length === 0) {
+        rootFilesList.createEl('li', {
+          text: 'No root files',
         });
       } else {
-        snapshot.autoUseFiles.forEach((name, index) => {
-          autoUseList.createEl('li', {
+        snapshot.rootFiles.forEach((name, index) => {
+          rootFilesList.createEl('li', {
             text: `#${index} — ${name}`,
           });
         });
@@ -386,6 +382,7 @@ export class SwiftlatexRender {
 
     if (task.isProcess()) {
       const result = await task.process();
+
       task.log();
       if (result) {
         const errorMessage = 'Error processing task: ' + result;
@@ -503,7 +500,7 @@ export class SwiftlatexRender {
     const { el, content, rawHash, sourcePath, dependencyPaths, basename } =
       task.getRenderData();
     try {
-      const result = await this.renderLatexToPDF(content, { md5Hash: rawHash })
+      const result = await this.renderLatexToPDF(content, { md5Hash: rawHash, dependencyPaths });
       el.innerHTML = '';
       await this.translatePDF(result.pdf, el, basename);
       addMenu(this.plugin, el, sourcePath);
@@ -529,7 +526,7 @@ export class SwiftlatexRender {
 
   renderLatexToPDF(
     source: string,
-    config: { strict?: boolean; md5Hash?: string } = {},
+    config: { strict?: boolean; md5Hash?: string , dependencyPaths?: string[] } = {},
   ): Promise<CompileResult> {
 
     return new Promise((resolve, reject) => {
@@ -562,8 +559,10 @@ export class SwiftlatexRender {
 
             await this.vfs.removeNonAutoUseFiles();
 
-            if (config.md5Hash)
-              this.cache.addLog(result.log, config.md5Hash);
+            if (config.md5Hash && config.dependencyPaths) {
+              const logCacheKey = getLogCacheKey(config.md5Hash, config.dependencyPaths);
+              this.cache.addLog(result.log, logCacheKey);
+            }
 
             if (result.status !== 0) {
               reject(result.log);

@@ -11,7 +11,6 @@ import {
 } from 'src/settings/settings';
 
 export const cacheFileFormat = 'svg';
-import crypto from 'crypto';
 import {
 	ResultFilePhysicalCache,
 	ResultFileVirtualCache,
@@ -20,17 +19,7 @@ import { extractDir, isValidFileBasename } from '../resolvers/paths';
 import { optimizeSVG } from '../pdfToHtml/optimizeSVG';
 import { addMenu } from '../swiftlatexRender';
 import { PhysicalCacheBase } from './cacheBase/physicalCacheBase';
-
-export function hashString(input: string, length: number = 16): string {
-	return crypto
-		.createHash('sha256')
-		.update(input)
-		.digest('hex')
-		.slice(0, length);
-}
-export function hashLatexContent(content: string) {
-	return hashString(content.replace(/\s/g, ''), 16);
-}
+import { getDependencyHash } from './compilerCache';
 
 export default class ResultFileCache {
 	private plugin: LatexRender;
@@ -213,15 +202,6 @@ export default class ResultFileCache {
 		await this.plugin.saveSettings();
 	}
 
-	private getDependencyHash(dependencies: string[]): string {
-		if (dependencies.length === 0) {
-			return 'nodeps';
-		}
-		const sorted = [...dependencies].sort();
-		const joined = sorted.join('\n');
-		return hashString(joined, 16);
-	}
-
 	/**
 	 * Adds a file to the compiled file cache.
 	 * @param content The file content.
@@ -235,7 +215,7 @@ export default class ResultFileCache {
 		dependencies: string[],
 		filePath: string,
 	) {
-		const depsHash = this.getDependencyHash(dependencies);
+		const depsHash = getDependencyHash(dependencies);
 		const basename = this.getFileBaseName(rawHash, depsHash);
 
 		let entries = this.cacheMap.get(rawHash);
@@ -450,7 +430,7 @@ export default class ResultFileCache {
 		const rawHashesInFile = await getLatexHashesFromFile(file);
 		const rawHashesInCache =
 			this.getRawHashesFromCacheForReferencingFile(file).rawHashes;
-		console.log('rawHashesInCache', rawHashesInCache);
+			
 		for (const hash of rawHashesInCache) {
 			// if the hash (from the cache) is not present in the file, remove it from the cache
 			if (!rawHashesInFile.contains(hash)) {
@@ -555,7 +535,7 @@ export default class ResultFileCache {
 
 	getFileBaseName(rawHash: string, deps: string | string[]): string {
 		const depsHash = Array.isArray(deps)
-			? this.getDependencyHash(deps)
+			? getDependencyHash(deps)
 			: deps;
 		return `${rawHash}-${depsHash}`;
 	}

@@ -1,7 +1,5 @@
 // credit to The amazing people at obsidian latex suite which this code is influenced from
 
-import { dir } from 'console';
-import { on } from 'events';
 import {
 	Vault,
 	TFile,
@@ -11,26 +9,6 @@ import {
 	debounce,
 } from 'obsidian';
 import LatexRender from 'src/main';
-
-/**
- * Checks if a file is located within a specified folder.
- * @param dir - The folder to check against.
- * @param file - The file to check.
- * @returns {boolean} - True if the file is within the folder, false otherwise.
- */
-function isFileInFolder(dir: TFolder, file: TFile) {
-	let cur = file.parent;
-	let cnt = 0;
-
-	while (cur && !cur.isRoot() && cnt < 100) {
-		if (cur.path === dir.path) return true;
-
-		cur = cur.parent;
-		cnt++;
-	}
-
-	return false;
-}
 
 const REFRESH_TIMEOUT_MS = 500;
 
@@ -67,19 +45,11 @@ const checkFileMonitoringStatus = (plugin: LatexRender, file: TFile) => {
 	const {
 		compilerVfsEnabled,
 		mathjaxPreambleEnabled,
-		mathjaxPreambleFileLocation,
 	} = plugin.settings;
-	const match = (enabled: boolean, dir: string) => {
-		const possibleFolder = app.vault.getAbstractFileByPath(dir);
-		let isInFolder = false;
-		if (possibleFolder && possibleFolder instanceof TFolder) {
-			isInFolder = isFileInFolder(possibleFolder, file);
-		}
-		return enabled && (isInFolder || file.path === dir);
-	};
+
 	return {
 		autoLoadedMonitored: compilerVfsEnabled && plugin.swiftlatexRender.vfs.isNeededForAutoUse(file.path),
-		mathJaxMonitored: match(mathjaxPreambleEnabled, mathjaxPreambleFileLocation),
+		mathJaxMonitored: mathjaxPreambleEnabled && plugin.mathJaxVFS.hasFile(file.path)
 	};
 };
 
@@ -141,6 +111,7 @@ export function getFileSets(plugin: LatexRender): FileSets {
 		plugin.settings.mathjaxPreambleFileLocation,
 		plugin.settings.autoloadedVfsFilesDir,
 	];
+	
 	const [mathjaxPreambleFiles, latexVirtualFiles] = locations.map((path) =>
 		getFilesWithin(app.vault, path),
 	);
