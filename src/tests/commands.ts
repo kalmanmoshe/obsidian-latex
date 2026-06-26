@@ -87,40 +87,6 @@ interface CompileAnalysisResult {
 	section: TaskSectionInformation;
 }
 
-async function getAllMarkdownLatexSections(plugin: LatexRender) {
-	const files = app.vault.getFiles().filter((f) => f.extension === 'md');
-	const sectionsOfFiles = await Promise.all(
-		files.map(async (file) => ({
-			file,
-			codeBlockSections: await getLatexTaskSectionInfosFromFile(
-				file as TFile,
-			),
-		})),
-	);
-	return sectionsOfFiles.filter(
-		({ codeBlockSections }) => codeBlockSections.length > 0,
-	);
-}
-
-async function analyzeCompileResult(
-	plugin: LatexRender,
-	file: TFile,
-	section: TaskSectionInformation,
-) {
-	const task = LatexTask.fromSectionInfos(plugin, file.path, [section]);
-	const previousStatus = task.getCacheStatusAsNum();
-	const compileResult =
-		await plugin.swiftlatexRender.detachedProcessAndRender(task);
-	const isSuccess = compileResult.status === CompileStatus.Success;
-	const index = previousStatus + (isSuccess ? 0 : 1);
-
-	return {
-		id: index,
-		compileResult,
-		task,
-	};
-}
-
 class CompileTest {
 	static plugin: LatexRender;
 	static displayModal: TestResultModal;
