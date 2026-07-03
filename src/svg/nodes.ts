@@ -25,10 +25,6 @@ export class genericNode {
 	}
 }
 
-class Attributes {}
-
-class svgPath {}
-
 export class SVGroot {
 	name: string;
 	type: string;

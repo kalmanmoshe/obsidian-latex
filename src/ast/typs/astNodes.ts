@@ -461,7 +461,6 @@ export class Environment extends ContentNode {
 	}
 
 	toString(): string {
-		console.warn("to string env:", this, this.renderInfo)
 		let string = `\\begin{${this.env}}`;
 		if (this.args) {
 			string += this.args.map((arg) => arg.toString()).join('');
@@ -531,7 +530,7 @@ export class InlineMath extends ContentNode {
 	readonly type = 'inlinemath';
 	toString(): string {
 		return (
-			'\$' + this.content.map((node) => node.toString()).join('') + '\$'
+			'$' + this.content.map((node) => node.toString()).join('') + '$'
 		);
 	}
 }

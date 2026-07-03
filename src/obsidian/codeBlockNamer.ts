@@ -4,6 +4,7 @@ import { extractCodeBlockName } from 'src/latexRender/resolvers/latexSourceFromF
 import LatexRender from 'src/main';
 const Hebcal = require('hebcal');
 const { HDate } = require('hebcal');
+
 export function getHeadingsForPos(
 	plugin: LatexRender,
 	file: TFile,
@@ -21,6 +22,7 @@ export function getHeadingsForPos(
 	}, new Map<number, (typeof headings)[number]>());
 	return headingsByLevel;
 }
+
 export async function assignCodeBlockName(plugin: LatexRender, editor: Editor) {
 	const file = app.workspace.getActiveFile();
 	if (!file) return;

@@ -17,48 +17,48 @@ export default [
   },
 
   {
-  files: ["**/*.ts"],
+    files: ["**/*.ts"],
 
-  languageOptions: {
-    parser: typescriptEslintParser,
-    ecmaVersion: "latest",
-    sourceType: "module",
+    languageOptions: {
+      parser: typescriptEslintParser,
+      ecmaVersion: "latest",
+      sourceType: "module",
 
-    parserOptions: {
-      project: "./tsconfig.json",
-      tsconfigRootDir: import.meta.dirname,
+      parserOptions: {
+        project: "./tsconfig.json",
+        tsconfigRootDir: import.meta.dirname,
+      },
+
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        console: "readonly",
+        app: "readonly",
+      },
     },
 
-    globals: {
-      ...globals.browser,
-      ...globals.node,
-      console: "readonly",
-      app: "readonly",
+    plugins: {
+      "@typescript-eslint": typescriptEslintPlugin,
+      obsidianmd,
     },
-  },
 
-  plugins: {
-    "@typescript-eslint": typescriptEslintPlugin,
-    obsidianmd,
-  },
+    rules: {
+      ...obsidianmd.configs.recommended[0].rules,
 
-  rules: {
-    ...obsidianmd.configs.recommended[0].rules,
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_" },
+      ],
 
-    "no-unused-vars": "off",
-    "@typescript-eslint/no-unused-vars": [
-      "warn",
-      { argsIgnorePattern: "^_" },
-    ],
+      "@typescript-eslint/ban-ts-comment": "off",
+      "@typescript-eslint/no-empty-function": "off",
 
-    "@typescript-eslint/ban-ts-comment": "off",
-    "@typescript-eslint/no-empty-function": "off",
+      "no-prototype-builtins": "off",
+      "quotes": "off",
 
-    "no-prototype-builtins": "off",
-    "quotes": ["warn", "double"],
-
-    // Obsidian plugins often need these:
-    "no-undef": "off",
-  },
-}
+      // Obsidian plugins often need these:
+      "no-undef": "off",
+    },
+  }
 ];

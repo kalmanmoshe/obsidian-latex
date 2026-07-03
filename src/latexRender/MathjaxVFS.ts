@@ -77,15 +77,7 @@ export class MathjaxVFS {
         }
         return false;
     }
-
-    getSnapshot() {
-        return {
-            enabled: this.vfsEnabled,
-            status: this.status,
-            ...this.graph.getSnapshot(),
-        };
-    }
-
+    
     async addOrReplaceFile(file: VirtualFile) {
         const newDep = createMathJaxDependency(file.content, file.path);
 

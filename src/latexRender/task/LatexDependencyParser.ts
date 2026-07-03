@@ -44,11 +44,10 @@ export class LatexDependencyParser<TAst extends LatexAbstractSyntaxTree, TDep ex
 		} else {
 			ast = content;
 		}
-		console.log(`Got AST for file: ${path}`, ast.clone());
+		
 		let filePath = path;
 		if (filePath.contains(CODE_BLOCK_NAME_SEPARATOR)) {
 			filePath = filePath.split(CODE_BLOCK_NAME_SEPARATOR)[0];
-			console.warn(`Path contains code block separator. Using only the file path: ${filePath}`);
 		}
 
 		const dependencies = await this.collectDependencies(ast, filePath);
@@ -61,6 +60,28 @@ export class LatexDependencyParser<TAst extends LatexAbstractSyntaxTree, TDep ex
 		};
 	}
 
+	async collectSurfaceDependencyPaths(
+		content: string,
+		sourcePath: string,
+	): Promise<string[]> {
+		const ast = this.adapter.parseContentToAst(content);
+
+		let basePath = sourcePath;
+		if (basePath.contains(CODE_BLOCK_NAME_SEPARATOR)) {
+			basePath = basePath.split(CODE_BLOCK_NAME_SEPARATOR)[0];
+		}
+
+		const paths: string[] = [];
+
+		for (const macro of findUsdInputFiles(ast._getMutableContent())) {
+			const rawPath = macro.toStringArgsContent();
+			const resolvedPath = resolvePathRelToVault(rawPath, basePath);
+			paths.push(resolvedPath);
+		}
+
+		return [...new Set(paths)].sort();
+	}
+
 	private async collectDependencies(
 		ast: TAst,
 		basePath: string,
@@ -71,8 +92,6 @@ export class LatexDependencyParser<TAst extends LatexAbstractSyntaxTree, TDep ex
 
 		for (const macro of macros) {
 			const dependencyPath = macro.toStringArgsContent();
-
-			console.log(`Found dependency macro with path: ${dependencyPath} in file: ${basePath}`);
 
 			const dep = await this.resolveDependency(dependencyPath, basePath);
 

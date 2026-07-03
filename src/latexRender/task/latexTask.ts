@@ -32,17 +32,6 @@ import { hashLatexContent } from '../cache/compilerCache';
 //text: string;
 /*}*/
 
-/**nameing conventions:
- * - Task: a general task that can be processed or not.
- * text - The full text of a file
- * codeBlock - The source code of a codeBlock including the code block delimiters.
- * content - The content of the code block without the delimiters.
- */
-type InputFile = {
-	name: string;
-	content: string;
-	dependencies: InputFile[];
-};
 
 export function createTask(
 	plugin: LatexRender,
@@ -80,17 +69,22 @@ async function mdSecInfosFromMdPostProcessorCtx(
 		return [sectionFromContext];
 	}
 	const { file, sections } = await getFileSectionsFromPath(ctx.sourcePath);
-	const editor = app.workspace.getActiveViewOfType(MarkdownView)?.editor;
-	const fileText = editor?.getValue() ?? (await app.vault.cachedRead(file));
+	const fileText =
+		getEditorTextForPath(ctx.sourcePath) ??
+		(await app.vault.cachedRead(file));
+
 	// i want to move the logger to the plugin thats why i have the err for now, as a reminder
 	let sectionInfos = getSectionsFromMatching(sections, fileText, content);
 
 	if (!sectionInfos) {
 		console.warn(
-			sectionInfos,
-			sections,
-			fileText.split('\n'),
-			content.split('\n'),
+			{
+				ctx,
+				sectionInfos,
+				sections,
+				fileText: fileText.split('\n'),
+				content: content.split('\n'),
+			}
 		);
 		throw new Error(
 			'No section information found for the task. This might be due to virtual rendering or nested codeBlock environments.',
@@ -99,11 +93,26 @@ async function mdSecInfosFromMdPostProcessorCtx(
 	return sectionInfos;
 }
 
+function getEditorTextForPath(path: string): string | undefined {
+	const leaves = app.workspace.getLeavesOfType('markdown');
+
+	for (const leaf of leaves) {
+		const view = leaf.view;
+		if (!(view instanceof MarkdownView)) continue;
+
+		if (view.file?.path === path) {
+			return view.editor.getValue();
+		}
+	}
+
+	return undefined;
+}
+
 export class LatexTask {
 	plugin: LatexRender;
 	protected content: string;
 	sourcePath: string;
-	uuid = crypto.randomUUID();
+	readonly uuid = crypto.randomUUID();
 	rawHash: string;
 	/**
 	 * The resolved hash is the hash of the content after it has been processed and the dependencies have been resolved.
@@ -289,11 +298,9 @@ export class LatexTask {
 				ctx,
 				content,
 			);
-			console.log('mdSectionInfos', mdSectionInfos);
 			const infos = mdSectionInfos.map((sec) =>
 				sectionToTaskSectionInfo(sec),
 			);
-			console.log('taskSectionInfos', infos);
 			const task = createTask(
 				plugin,
 				process,
@@ -323,14 +330,6 @@ export class LatexTask {
 	getCacheStatusAsNum() {
 		return this.plugin.swiftlatexRender.cache.cacheStatusForHashAsNum(
 			this.rawHash,
-		);
-	}
-
-	restoreFromCache() {
-		return this.plugin.swiftlatexRender.cache.resultFileCache.restoreFromCache(
-			this.el,
-			this.rawHash,
-			this.sourcePath,
 		);
 	}
 
@@ -379,6 +378,7 @@ export class LatexTask {
 		return this.blockId;
 	}
 
+	// on the processed child class we will override this to return the actual dependencies.
 	getDependencyPaths(): string[] {
 		return [];
 	}
@@ -431,6 +431,9 @@ export class ProcessableLatexTask extends LatexTask {
 	private ast: LatexAbstractSyntaxTree | null = null;
 	sectionInfos: TaskSectionInformation[];
 	private astContent: string | null = null;
+	/**
+	 * all of the paths of root dependencies that this task depends on. includeing auto use files.
+	 */
 	private dependencyPaths: string[] = [];
 
 	constructor(
@@ -450,6 +453,10 @@ export class ProcessableLatexTask extends LatexTask {
 		if (!this.ast || !this.astContent)
 			throw new Error('AST is not set for this task.');
 		return this.astContent;
+	}
+
+	setDependencyPaths(paths: string[]) {
+		this.dependencyPaths = paths;
 	}
 
 	getDependencyPaths(): string[] {

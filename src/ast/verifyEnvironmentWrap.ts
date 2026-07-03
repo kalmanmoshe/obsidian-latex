@@ -46,19 +46,11 @@ export function verifyEnvironmentWrap(ast: LatexAbstractSyntaxTree): Node[] | un
 
 		return true; // first real content
 	});
+
 	if (preambleEndIndex === -1) {
-		console.log(
-			'No non-preamble content found, returning original AST content:',
-			content,
-			this
-		);
 		return undefined;
 	}
-	console.log(
-		'First non-preamble macro found at index:',
-		preambleEndIndex,
-		content[preambleEndIndex],
-	);
+	
 	const doc = createDocEnvironment(content, envs, preambleEndIndex, args);
 	return doc;
 }

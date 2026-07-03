@@ -99,10 +99,9 @@ export default class PackageCache extends PhysicalCacheBase {
 	removeAllCachedPackages(): void {
 		clearFolder(this.getCacheFolderPath());
 		this.plugin.settings.packageCache = [{}, {}, {}, {}];
-		this.plugin.saveSettings().then(() => {
-			console.log('Package cache settings updated.');
-		});
+		this.plugin.saveSettings()
 	}
+	
 	compiler() {
 		return this.plugin.swiftlatexRender.compiler;
 	}

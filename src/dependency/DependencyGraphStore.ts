@@ -76,22 +76,6 @@ export class DependencyGraphStore<TAst extends LatexAbstractSyntaxTree, TDep ext
         return Array.from(this.dependenciesByOwner.get(path) ?? []);
     }
 
-    getSnapshot() {
-        return {
-            fileCount: this.filesByPath.size,
-            files: Array.from(this.filesByPath.values()).map((file) => ({
-                ...file,
-                contentLength: file.content.length,
-                referencedBy: Array.from(this.referencedBy.get(file.path) ?? []),
-                dependencies: Array.from(this.dependenciesByOwner.get(file.path) ?? []),
-                rootFile: this.rootFiles.has(file.path),
-            })),
-            rootFiles: Array.from(this.filesByPath.values())
-                .filter((file) => this.rootFiles.has(file.path))
-                .map((file) => file.name),
-        };
-    }
-
     hasFile(path: string) {
         return this.filesByPath.has(path);
     }
@@ -182,7 +166,7 @@ export class DependencyGraphStore<TAst extends LatexAbstractSyntaxTree, TDep ext
 
             const pathsToRemove: string[] = [];
 
-            for (const [path, file] of this.filesByPath) {
+            for (const [path, ] of this.filesByPath) {
                 const isRootFile = this.rootFiles.has(path);
 
                 const owners = this.referencedBy.get(path);

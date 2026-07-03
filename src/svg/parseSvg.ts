@@ -1,8 +1,6 @@
 import {
 	INode,
-	IStringifyOptions,
-	parse as parseToJson,
-	stringify,
+	parse as parseToJson
 } from 'svgson';
 import { genericNode, svgNode, SVGroot } from './nodes';
 

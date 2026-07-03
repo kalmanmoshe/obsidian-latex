@@ -1,4 +1,4 @@
-import { Root, String, Macro, Argument, Ast, Node, DependencyMacro } from './typs/astNodes';
+import { String, Macro, Argument, Ast, Node, DependencyMacro } from './typs/astNodes';
 import { parse } from './autoParse/ast-types-pre';
 import { LatexDependency } from 'src/dependency/LatexDependency';
 import { verifyEnvironmentWrap } from './verifyEnvironmentWrap';

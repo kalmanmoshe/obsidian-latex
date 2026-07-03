@@ -1,5 +1,5 @@
 import { EditorView } from '@codemirror/view';
-import { App, Notice, PluginSettingTab, Setting, setIcon } from 'obsidian';
+import { Notice, PluginSettingTab, Setting, setIcon } from 'obsidian';
 import LatexRenderPlugin from '../main';
 import { CompilerType, DEFAULT_SETTINGS, OverflowStrategy } from './settings';
 import {

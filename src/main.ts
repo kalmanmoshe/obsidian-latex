@@ -23,7 +23,6 @@ import {
 	onFileChange,
 	onFileCreate,
 	onFileDelete,
-	PreambleFile,
 } from './obsidian/file_watch';
 import { SvgContextMenuDecider } from './latexRender/contextMenu/svgContextMenuDecider';
 import { MathjaxVFS } from './latexRender/MathjaxVFS';
@@ -107,23 +106,7 @@ export default class LatexRender extends Plugin {
 		this.watchFiles();
 	}
 
-	private addTestCodeBlocks() {
-		this.registerMarkdownCodeBlockProcessor(
-			'test',
-			this.swiftlatexRender.testCodeBlockProcessor.bind(
-				this.swiftlatexRender,
-			),
-		);
-		this.registerMarkdownCodeBlockProcessor(
-			'testVfs',
-			this.swiftlatexRender.testVfsCodeBlockProcessor.bind(
-				this.swiftlatexRender,
-			),
-		)
-	}
-
 	private setCodeblocks() {
-		this.addTestCodeBlocks()
 		this.registerMarkdownCodeBlockProcessor(
 			'tikz',
 			this.swiftlatexRender.codeBlockProcessor.bind(

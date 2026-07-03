@@ -17,8 +17,6 @@ import {
 } from './resultFileCacheTypes';
 import { extractDir, isValidFileBasename } from '../resolvers/paths';
 import { optimizeSVG } from '../pdfToHtml/optimizeSVG';
-import { addMenu } from '../swiftlatexRender';
-import { PhysicalCacheBase } from './cacheBase/physicalCacheBase';
 import { getDependencyHash } from './compilerCache';
 
 export default class ResultFileCache {
@@ -27,21 +25,17 @@ export default class ResultFileCache {
 	 * Map of cached files. hash -> Set of file paths that contain this hash.
 	 */
 	private cacheMap: CacheMap;
-	private virtualCache?: ResultFileVirtualCache;
-	private physicalCache?: ResultFilePhysicalCache;
 	private cache: CacheBase;
 
 	constructor(plugin: LatexRender) {
 		this.plugin = plugin;
 
 		if (this.plugin.settings.physicalCache) {
-			this.physicalCache = new ResultFilePhysicalCache(this.plugin, [
+			this.cache = new ResultFilePhysicalCache(this.plugin, [
 				cacheFileFormat,
 			]);
-			this.cache = this.physicalCache;
 		} else {
-			this.virtualCache = new ResultFileVirtualCache(this.plugin);
-			this.cache = this.virtualCache;
+			this.cache = new ResultFileVirtualCache(this.plugin);
 		}
 
 		this.onload();
@@ -54,10 +48,7 @@ export default class ResultFileCache {
 	}
 
 	isPhysicalCatch(): boolean {
-		return (
-			this.physicalCache !== undefined &&
-			this.cache instanceof PhysicalCacheBase
-		);
+		return (this.cache instanceof ResultFilePhysicalCache);
 	}
 
 	private async finishProcessDirtyFiles() {
@@ -79,8 +70,8 @@ export default class ResultFileCache {
 	}
 
 	changeCacheDirectory() {
-		if (this.physicalCache) {
-			this.physicalCache.changeCacheDirectory();
+		if (this.isPhysicalCatch()) {
+			(this.cache as ResultFilePhysicalCache).changeCacheDirectory();
 		} else {
 			const message =
 				'Physical cache is not enabled, cannot change cache directory.';
@@ -90,46 +81,39 @@ export default class ResultFileCache {
 	}
 
 	private togglePhysicalCacheOff() {
-		if (!this.physicalCache) {
+		if (!this.isPhysicalCatch()) {
 			console.warn('Physical cache is already disabled, nothing to do.');
-			this.virtualCache = new ResultFileVirtualCache(this.plugin);
-			this.cache = this.virtualCache;
 			return;
 		}
-		const fileNames = this.physicalCache.listCacheFiles();
-		this.virtualCache = new ResultFileVirtualCache(this.plugin);
+		const physicalCache = this.cache as ResultFilePhysicalCache;
+		const fileNames = physicalCache.listCacheFiles();
+		this.cache = new ResultFileVirtualCache(this.plugin);
 		for (const name of fileNames) {
-			const content = this.physicalCache.getFile(name);
+			const content = physicalCache.getFile(name);
 			if (!content) {
 				console.warn(`File ${name} not found in cache, skipping.`);
 				continue;
 			}
-			this.virtualCache.addFile(name, content);
+			this.cache.addFile(name, content);
 		}
-		this.physicalCache.deleteCache();
-		this.physicalCache = undefined;
-		this.cache = this.virtualCache;
+		physicalCache.deleteCache();
+		this.cache = new ResultFileVirtualCache(this.plugin);
 	}
 
 	private togglePhysicalCacheOn() {
-		if (!this.virtualCache) {
+		if (this.isPhysicalCatch()) {
 			console.warn('Virtual cache is already disabled, nothing to do.');
-			this.physicalCache = new ResultFilePhysicalCache(this.plugin, [
-				cacheFileFormat,
-			]);
-			this.cache = this.physicalCache;
 			return;
 		}
-		this.physicalCache = new ResultFilePhysicalCache(this.plugin, [
+		const virtualCache = this.cache as ResultFileVirtualCache;
+		this.cache = new ResultFilePhysicalCache(this.plugin, [
 			cacheFileFormat,
 		]);
-		const fileNames = this.cache.listCacheFiles();
+		const fileNames = virtualCache.listCacheFiles();
 		for (const fileName of fileNames || []) {
-			const content = this.virtualCache.getFile(fileName)!;
-			this.physicalCache.addFile(fileName, content);
+			const content = virtualCache.getFile(fileName)!;
+			(this.cache as ResultFilePhysicalCache).addFile(fileName, content);
 		}
-		this.cache = this.physicalCache;
-		this.virtualCache = undefined;
 	}
 	/**
 	 * Toggles the use of physical (on-disk) cache.
@@ -217,7 +201,12 @@ export default class ResultFileCache {
 	) {
 		const depsHash = getDependencyHash(dependencies);
 		const basename = this.getFileBaseName(rawHash, depsHash);
-
+		console.warn(`Adding file to cache: ${basename} for path: ${filePath}`, {
+			rawHash,
+			depsHash,
+			dependencies,
+			filePath,
+		});
 		let entries = this.cacheMap.get(rawHash);
 		if (!entries) {
 			entries = [];
@@ -285,69 +274,70 @@ export default class ResultFileCache {
 		}
 	}
 
-	private getResultFileFromRawHash(
+	private async getResultFileFromRawHash(
 		rawHash: string,
-		path: string,
-	): string | undefined {
+		filePath: string,
+		resolveDeps?: () => Promise<string[]>,
+	): Promise<string | undefined> {
 		const cacheEntries = this.cacheMap.get(rawHash);
-		if (!cacheEntries || cacheEntries.length === 0) {
-			return undefined;
+		if (!cacheEntries?.length) return undefined;
+
+		// Safe fast case: only one possible result, and it has no deps.
+		if (
+			cacheEntries.length === 1 &&
+			cacheEntries[0].dependencies.length === 0
+		) {
+			cacheEntries[0].referencedBy.add(filePath);
+			return this.getResultFileFromEntry(rawHash, cacheEntries[0]);
 		}
-		let entry = this.findEntryForPath(cacheEntries, path);
-		if (!entry) {
-			return undefined;
-		} // No entry found for this path
-		const basename = this.getFileBaseName(rawHash, entry.depsHash);
-		return this.cache.getFile(this.basenameToFileName(basename));
+
+		// Fast known case: this exact file already used one entry before.
+		const pathMatches = cacheEntries.filter((entry) =>
+			entry.referencedBy.has(filePath),
+		);
+
+		if (pathMatches.length === 1) {
+			return this.getResultFileFromEntry(rawHash, pathMatches[0]);
+		}
+
+		// Ambiguous / unknown case: now pay the cost of resolving deps.
+		if (!resolveDeps) return undefined;
+
+		const dependencyPaths = await resolveDeps();
+		const depsHash = getDependencyHash(dependencyPaths);
+
+		const exactEntry = cacheEntries.find(
+			(entry) => entry.depsHash === depsHash,
+		);
+
+		if (!exactEntry) return undefined;
+
+		exactEntry.referencedBy.add(filePath);
+		return this.getResultFileFromEntry(rawHash, exactEntry);
 	}
 
-	private findEntryForPath(
-		cacheEntries: CacheEntry[],
-		filePath: string,
-	): CacheEntry | undefined {
-		if (cacheEntries[0]?.dependencies.length === 0) {
-			if (cacheEntries.length > 1)
-				throw new Error(
-					'Cant have multiple entries with no dependencies',
-				);
-			cacheEntries[0].referencedBy.add(filePath);
-			return cacheEntries[0];
-		}
-		// if a dependency is a code block within the file, it cant be a match
-		// it can be that the code block useis in absolute path, but because we cannot check that, we will just return undefined.
-		for (const entry of cacheEntries) {
-			if (entry.referencedBy.has(filePath)) {
-				return entry;
-			}
-			const directory = extractDir(filePath);
-			if (
-				entry.dependencies.every(
-					(dep) => path.dirname(dep) === directory,
-				)
-			) {
-				entry.referencedBy.add(filePath);
-				return entry; // Found an entry that matches the file path
-			}
-		}
+	private getResultFileFromEntry(
+		rawHash: string,
+		entry: CacheEntry,
+	): string | undefined {
+		const basename = this.getFileBaseName(rawHash, entry.depsHash);
+		return this.cache.getFile(this.basenameToFileName(basename));
 	}
 
 	/**
 	 * Restores the cached content for a given element and hash.
 	 * If the content is found in the cache, it sets the innerHTML of the element to the cached content.
-	 * @param el
-	 * @param rawHash
-	 * @returns
 	 */
-	restoreFromCache(
+	async restoreFromCache(
 		el: HTMLElement,
 		rawHash: string,
 		filePath: string,
-	): boolean {
+		resolveDeps: () => Promise<string[]>,
+	): Promise<boolean> {
 		// if the resolve hash is the same as the raw hash, we can directly get the file from the cache so we dont have to check
-		const data = this.getResultFileFromRawHash(rawHash, filePath);
+		const data = await this.getResultFileFromRawHash(rawHash, filePath, resolveDeps);
 		if (data === undefined) return false;
 		el.innerHTML = data;
-		addMenu(this.plugin, el, filePath);
 		return true;
 	}
 
@@ -569,6 +559,6 @@ export default class ResultFileCache {
 				'Physical cache is not enabled, cannot get absolute path from basename.',
 			);
 		const fileName = this.basenameToFileName(basename);
-		return this.physicalCache!.getCacheFilePath(fileName);
+		return (this.cache as ResultFilePhysicalCache).getCacheFilePath(fileName);
 	}
 }
