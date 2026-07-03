@@ -13,10 +13,10 @@ import parseLatexLog, {
   createErrorDisplay,
   errorDiv,
 } from './logs/HumanReadableLogs';
-import { VFSstatus, VirtualFileSystem } from './VirtualFileSystem';
+import { VfsCompileMode, VFSstatus, VirtualFileSystem } from './VirtualFileSystem';
 import { ProcessedLog } from './logs/latex-log-parser';
 import PdfTeXCompiler from './compiler/swiftlatexpdftex/PdfTeXCompiler';
-import { LatexTask } from './task/latexTask';
+import { LatexTask, ProcessableLatexTask } from './task/latexTask';
 import { PdfXeTeXCompiler } from './compiler/swiftlatexxetex/pdfXeTeXCompiler';
 import LatexCompiler from './compiler/base/compilerBase/compiler';
 import CompilerCache, { hashLatexContent } from './cache/compilerCache';
@@ -87,13 +87,17 @@ export class SwiftlatexRender {
 
   switchCompiler(): Promise<void> {
     if (this.compiler === undefined) return this.loadCompiler();
+
     const isTex =
       this.compiler instanceof PdfTeXCompiler &&
       this.plugin.settings.compiler === CompilerType.TeX;
+
     const isXeTeX =
       this.compiler instanceof PdfXeTeXCompiler &&
       this.plugin.settings.compiler === CompilerType.XeTeX;
+      
     if (isTex || isXeTeX) return Promise.resolve();
+
     this.compiler.closeWorkers();
     this.compiler = undefined as any;
     this.pdfTexCompiler = undefined;
@@ -121,186 +125,6 @@ export class SwiftlatexRender {
     await this.loadCompiler();
   }
 
-  async testCodeBlockProcessor(
-    source: string,
-    el: HTMLElement,
-  ) {
-    el.empty();
-    el.addClass('swiftlatex-queue-debug');
-
-    const title = el.createEl('h4', {
-      text: 'SwiftLaTeX Queue Debug',
-    });
-
-    const status = el.createDiv({
-      cls: 'swiftlatex-queue-debug-status',
-    });
-
-    const list = el.createEl('ol', {
-      cls: 'swiftlatex-queue-debug-list',
-    });
-
-    const compilerStatus = el.createEl('ol', {
-      cls: 'swiftlatex-queue-debug-compiler-status',
-    });
-
-    const renderState = () => {
-
-      status.empty();
-      list.empty();
-      compilerStatus.empty();
-
-      const snapshot = this.queue.getSnapshot();
-      status.createEl('div', {
-        text: `Current task: ${snapshot.currentTask ? (snapshot.currentTask.getBlockId() + "||" + snapshot.currentTask.uuid) :
-          'No Information'
-          }`,
-      });
-
-      status.createEl('div', {
-        text: `Queue length: ${snapshot.length}`,
-      });
-
-      status.createEl('div', {
-        text: `Running: ${snapshot.running}`,
-      });
-
-      status.createEl('div', {
-        text: `Idle: ${snapshot.idle}`,
-      });
-
-      const waitingTasks = snapshot.waiting;
-
-      if (waitingTasks.length === 0) {
-        list.createEl('li', {
-          text: 'No waiting tasks',
-        });
-      } else {
-        waitingTasks.forEach((task, index) => {
-          list.createEl('li', {
-            text: `#${index} — ${task ? (task.getBlockId() + "||" + task.uuid) :
-              'No Information'}`,
-          });
-        });
-      }
-
-      const enginesStatus = this.compiler.getEnginesStatus();
-      enginesStatus.forEach((engineStatus) => {
-        compilerStatus.createEl('div', {
-          text: `Engine ${engineStatus.name}: ${EngineStatus[engineStatus.status]}`,
-        });
-      });
-    };
-
-    renderState();
-
-    const interval = window.setInterval(renderState, 250);
-
-    el.createEl('button', {
-      text: 'Stop live queue debug',
-    }).onclick = () => {
-      window.clearInterval(interval);
-    };
-  }
-
-  async testVfsCodeBlockProcessor(
-    source: string,
-    el: HTMLElement,
-  ) {
-    el.empty();
-    el.addClass('swiftlatex-vfs-debug');
-
-    el.createEl('h4', {
-      text: 'SwiftLaTeX VFS Debug',
-    });
-
-    const status = el.createDiv({
-      cls: 'swiftlatex-vfs-debug-status',
-    });
-
-    const fileList = el.createEl('ol', {
-      cls: 'swiftlatex-vfs-debug-file-list',
-    });
-
-    const rootFilesList = el.createEl('ol', {
-      cls: 'swiftlatex-vfs-debug-auto-use-list',
-    });
-
-    const renderState = () => {
-      status.empty();
-      fileList.empty();
-      rootFilesList.empty();
-
-      const snapshot = this.vfs.getSnapshot();
-
-      status.createEl('div', {
-        text: `Enabled: ${snapshot.enabled}`,
-      });
-
-      status.createEl('div', {
-        text: `Status: ${VFSstatus[snapshot.status]}`,
-      });
-
-      status.createEl('div', {
-        text: `File count: ${snapshot.fileCount}`,
-      });
-
-      if (snapshot.files.length === 0) {
-        fileList.createEl('li', {
-          text: 'No virtual files',
-        });
-      } else {
-        snapshot.files.forEach((file, index) => {
-          const item = fileList.createEl('li');
-
-          item.createEl('div', { text: `#${index} ${file.path}` });
-          item.createEl('div', {
-            text: `Referenced By: ${
-              file.referencedBy.length
-                ? file.referencedBy.join(', ')
-                : 'None'
-            }`,
-          });
-          item.createEl('div', {
-            text: `Dependencies: ${
-              file.dependencies.length
-                ? file.dependencies.join(', ')
-                : 'None'
-            }`,
-          });
-          item.createEl('div', {
-            text: `Auto Use: ${file.autoUse}`,
-          });
-          item.createEl('div', {
-            text: `Content Length: ${file.contentLength}`,
-          });
-        });
-      }
-
-      if (snapshot.rootFiles.length === 0) {
-        rootFilesList.createEl('li', {
-          text: 'No root files',
-        });
-      } else {
-        snapshot.rootFiles.forEach((name, index) => {
-          rootFilesList.createEl('li', {
-            text: `#${index} — ${name}`,
-          });
-        });
-      }
-    };
-
-    renderState();
-
-    const interval = window.setInterval(renderState, 250);
-
-    el.createEl('button', {
-      text: 'Stop live VFS debug',
-    }).onclick = () => {
-      window.clearInterval(interval);
-    };
-  }
-
   // i have to also cache the files refrenced my the hash and thar loction becose thar can i a file that is Referencing the same files.But because it's in a different directory, those files in actuality are different, leading to a different render.
   async codeBlockProcessor(
     source: string,
@@ -308,314 +132,344 @@ export class SwiftlatexRender {
     ctx: MarkdownPostProcessorContext,
   ) {
     const isLangTikz = el.classList.contains('block-language-tikz');
-    el.classList.remove(...['block-language-tikz', 'block-language-latex']);
+
+    el.classList.remove('block-language-tikz', 'block-language-latex');
     el.classList.add(
-      ...[
-        'block-language-latexsvg',
-        `overflow-${this.plugin.settings.overflowStrategy}`,
-      ],
+      'block-language-latexsvg',
+      `overflow-${this.plugin.settings.overflowStrategy}`,
     );
-    const md5Hash = hashLatexContent(source);
+
+    const rawHash = hashLatexContent(source);
+
+    const createResult = await LatexTask.createAsync(
+      this.plugin,
+      isLangTikz,
+      source,
+      el,
+      ctx,
+    );
+
+    if (createResult.isError) {
+      this.handleError(
+        el,
+        'Error creating task: ' + createResult.result,
+        this.cache.resultFileCache.getFileBaseName(rawHash, []),
+        ctx.sourcePath,
+      );
+      return;
+    }
+
+    // Attach a menu to the element for user interaction, such as re-rendering or viewing logs.
+    this.plugin.menuDecider.add(el, ctx.sourcePath);
+
+    const task = createResult.result as (LatexTask | ProcessableLatexTask);
 
     // PDF file has already been cached
     // Could have a case where pdfCache has the key but the cached file has been deleted
-    if (
-      !this.cache.resultFileCache.restoreFromCache(
-        el,
-        md5Hash,
-        ctx.sourcePath,
-      )
-    ) {
-      //Reliable enough for repeated entries
-      const createResult = await LatexTask.createAsync(
-        this.plugin,
-        isLangTikz,
-        source,
-        el,
-        ctx,
-      );
-      if (createResult.isError) {
-        const errorMessage =
-          'Error creating task: ' + createResult.result;
-        this.handleError(
-          el,
-          errorMessage,
-          this.cache.resultFileCache.getFileBaseName(md5Hash, []),
-          ctx.sourcePath,
-        );
-        return;
-      }
-      const task = createResult.result as LatexTask;
-      if (task.restoreFromCache()) return;
-      this.queue.push(task);
-    }
+    const wasRestoredFromCache = await restoreFromCache(task, this.plugin);
+
+    if (wasRestoredFromCache) return;
+
+    this.queue.push(task as LatexTask);
   }
 
-  /**
-   * Processes and renders the given LaTeX task.
-   *
-   * @param task The task to process and render.
-   * @returns `true` if the task was compiled and rendered; `false` if it was restored from cache or failed during processing.
-   */
-  async processAndRenderLatexTask(task: LatexTask): Promise<boolean> {
-    if (
-      this.cache.resultFileCache.restoreFromCache(
-        task.el,
-        task.rawHash,
-        task.sourcePath,
-      )
-    ) {
-      console.log('Found in catch for', task.getBlockId());
-      return false;
-    }
+	/**
+	 * Processes and renders the given LaTeX task.
+	 *
+	 * @param task The task to process and render.
+	 * @returns `true` if the task was compiled and rendered; `false` if it was restored from cache or failed during processing.
+	 */
+	async processAndRenderLatexTask(task: LatexTask): Promise<boolean> {
+		if (await restoreFromCache(task, this.plugin)) {
+			console.log('Found in catch for', task.getBlockId());
+			return false;
+		}
 
-    if (
-      task.hasSourceChangeTimeExceededMargin() &&
-      !(await task.verifySource())
-    ) {
-      const errorMessage =
-        'Error processing task: ' +
-        'Source files have changed and could not be resolved.';
-      this.handleErrorForTask(task, errorMessage);
-      return false; // If the source change time exceeds the margin and the source could not be resolved, skip processing.
-    }
+		if (await this.shouldSkipStaleTask(task)) return false;
 
-    if (task.isProcess()) {
-      const result = await task.process();
+		if (task.isProcess()) {
+			const processError = await task.process();
 
-      task.log();
-      if (result) {
-        const errorMessage = 'Error processing task: ' + result;
-        this.handleErrorForTask(task, errorMessage);
-        return false;
-      }
-    }
-    console.log('Processing and rendering task:', task.getDebugInfo());
-    await this.renderLatexToElement(task);
-    this.reCheckQueue(); // only re-check the queue after a valide rendering
-    return true;
-  }
+			task.log();
+			if (processError) {
+				this.handleErrorForTask(task, `Error processing task: ${processError}`);
+				return false;
+			}
+		} else {// We need to make sure there is no file in the VFS
+			this.vfs.removeNonAutoUseFiles();
+		}
 
-  async detachedProcessAndRender(task: LatexTask) {
-    if (task.isProcess()) {
-      const result = await task.process();
-      task.log();
-      if (result) {
-        return new CompileResult(
-          undefined,
-          CompileStatus.ProcessingError,
-          result,
-        );
-      }
-    }
-    try {
-      return await this.renderLatexToPDF(task.getProcessedContent(), {
-        strict: true,
-      });
-    } catch (err) {
-      return new CompileResult(
-        undefined,
-        CompileStatus.CompileError,
-        toErrorString(err),
-      );
-    }
-  }
+		console.log('Rendering task:', task.getDebugInfo());
 
-  async detachedProcessAndRenderToResultFile(task: LatexTask) {
-    const compileResult = await this.detachedProcessAndRender(task);
-    if (compileResult.status === CompileStatus.CompileError) {
-      return;
-    }
-    const resultFile = pdfToSVG(compileResult.pdf);
-    return resultFile;
-  }
+		await this.renderLatexToElement(task);
+		await this.reCheckQueue(); // only re-check the queue after a valide rendering
+		return true;
+	}
+	
+	private async shouldSkipStaleTask(task: LatexTask): Promise<boolean> {
+		if (!task.hasSourceChangeTimeExceededMargin()) return false;
+		if (await task.verifySource()) return false;
 
-  /**
-   * Re-checks the queue to see if any tasks can be removed based on whether their PDF has been restored from cache.
-   * If a task's PDF cannot be restored, it is removed from the queue.
-   * Solves edge case where head is in the processing state when a similar task is registered to the universal method
-   */
-  private reCheckQueue() {
-    const blockIdsToRemove = new Set<string>();
-    const waitingTasks = this.queue.getWaitingTasks();
+		if (this.hasNewerQueuedTask(task)) {
+			console.warn('Skipping stale task because a newer task exists:', task.getDebugInfo());
+			return true;
+		}
 
-    waitingTasks.forEach((task) => {
+		console.error('Source files changed and could not be resolved:', task.getDebugInfo());
 
-      if (
-        this.cache.resultFileCache.restoreFromCache(
-          task.el,
-          task.rawHash,
-          task.sourcePath,
-        )
-      ) {
-        blockIdsToRemove.add(task.getBlockId());
-      }
+		this.handleErrorForTask(
+			task,
+			'Error processing task: Source files have changed and could not be resolved.',
+		);
 
-    });
+		return true;
+	}
 
-    if (blockIdsToRemove.size === 0) return;
+	private hasNewerQueuedTask(task: LatexTask): boolean {
+		return this.queue
+			.getWaitingTasks()
+			.some((waitingTask) => waitingTask.getBlockId() === task.getBlockId());
+	}
 
-    console.log('Removing tasks from queue:', blockIdsToRemove);
-    this.queue.removeFromWaiting((task) => blockIdsToRemove.has(task.getBlockId()));
-    console.log('Queue after removal:', this.queue.length());
-  }
+	async detachedProcessAndRender(task: LatexTask) {
+		if (task.isProcess()) {
+			const processError = await task.process();
+			task.log();
+			if (processError) {
+				return new CompileResult(
+					undefined,
+					CompileStatus.ProcessingError,
+					processError,
+				);
+			}
+		}
+		try {
+			const compileMode = task.isProcess() ? VfsCompileMode.compileAll : VfsCompileMode.none;
 
-  async onunload() {
-    this.compiler.closeWorkers();
-  }
+			return await this.renderLatexToPDF(
+				task.getProcessedContent(), 
+				compileMode, 
+				{ fetchPkgData: true, }
+			);
 
-  private handleErrorForTask(
-    task: LatexTask,
-    err: string,
-    options: HandleErrorOptions = {},
-  ): void {
-    const el = task.el;
-    const basename = task.getBaseName();
-    const path = task.sourcePath;
-    this.handleError(el, err, basename, path, options);
-  }
+		} catch (err) {
+			return new CompileResult(
+				undefined,
+				CompileStatus.CompileError,
+				toErrorString(err),
+			);
+		}
+	}
 
-  private handleError(
-    el: HTMLElement,
-    err: string,
-    hash: string,
-    path: string,
-    options: HandleErrorOptions = {},
-  ): void {
-    el.innerHTML = '';
-    let child: HTMLElement;
-    if (options.parseErr) {
-      const processedError: ProcessedLog = this.cache.getLog(hash) || parseLatexLog(err);
-      child = createErrorDisplay(processedError);
-    } else {
-      child = errorDiv({ title: err });
-    }
-    child.setAttribute(SVG_ID_KEY, hash);
-    el.appendChild(child);
-    addMenu(this.plugin, el, path);
-    if (options.throw) throw err;
-  }
+	async detachedProcessAndRenderToResultFile(task: LatexTask) {
+		const compileResult = await this.detachedProcessAndRender(task);
+		if (compileResult.status === CompileStatus.CompileError) {
+			return;
+		}
+		const resultFile = pdfToSVG(compileResult.pdf);
+		return resultFile;
+	}
 
-  private async renderLatexToElement(task: LatexTask): Promise<void> {
-    const { el, content, rawHash, sourcePath, dependencyPaths, basename } =
-      task.getRenderData();
-    try {
-      const result = await this.renderLatexToPDF(content, { md5Hash: rawHash, dependencyPaths });
-      el.innerHTML = '';
-      await this.translatePDF(result.pdf, el, basename);
-      addMenu(this.plugin, el, sourcePath);
+	/**
+	 * Re-checks the queue to see if any tasks can be removed based on whether their PDF has been restored from cache.
+	 * If a task's PDF cannot be restored, it is removed from the queue.
+	 * Solves edge case where head is in the processing state when a similar task is registered to the universal method
+	 */
+	private async reCheckQueue() {
+		const blockIdsToRemove = new Set<string>();
+		const waitingTasks = this.queue.getWaitingTasks();
 
-      this.cache.resultFileCache.addFile(
-        el.innerHTML,
-        rawHash,
-        dependencyPaths,
-        sourcePath,
-      );
-    } catch (err) {
-      this.handleErrorForTask(task, toErrorString(err), {
-        parseErr: true,
-      });
-    } finally {
-      if (!this.compiler.isResponsive()) {
-        console.warn('Compiler is unresponsive.');
-        return;
-      }
-      await this.compiler.waitUntilReady();
-    }
-  }
+		for (const task of waitingTasks) {
+			if (await restoreFromCache(task, this.plugin)) {
+				blockIdsToRemove.add(task.getBlockId());
+			}
+		}
 
-  renderLatexToPDF(
-    source: string,
-    config: { strict?: boolean; md5Hash?: string , dependencyPaths?: string[] } = {},
-  ): Promise<CompileResult> {
+		if (blockIdsToRemove.size === 0) return;
 
-    return new Promise((resolve, reject) => {
-      temp.mkdir(
-        'obsidian-swiftlatex-renderer',
-        async (mkdirErr: any) => {
-          if (mkdirErr) {
-            reject(mkdirErr);
-            return;
-          }
+		this.queue.removeFromWaiting((task) =>
+			blockIdsToRemove.has(task.getBlockId()),
+		);
+	}
 
-          try {
-            await this.compiler.waitUntilReady();
+	async onunload() {
+		this.compiler.closeWorkers();
+	}
 
-            if (this.vfs.getEnabled()) {
-              console.log(
-                'Rendering LaTeX to PDF',
-                source.split('\n'),
-                this.vfs.getClonedFiles(),
-              );
-            }
+	private handleErrorForTask(
+		task: LatexTask,
+		err: string,
+		options: HandleErrorOptions = {},
+	): void {
+		const el = task.el;
+		const basename = task.getBaseName();
+		const path = task.sourcePath;
+		this.handleError(el, err, basename, path, options);
+	}
 
-            await this.vfs.loadVirtualFileSystemFiles();
+	private handleError(
+		el: HTMLElement,
+		err: string,
+		hash: string,
+		path: string,
+		options: HandleErrorOptions = {},
+	): void {
+		el.innerHTML = '';
+		let child: HTMLElement;
 
-            await this.compiler.writeMemFSFile('main.tex', source);
-            await this.compiler.setEngineMainFile('main.tex');
+		if (options.parseErr) {
+			const processedError: ProcessedLog = this.cache.getLog(hash) || parseLatexLog(err);
+			child = createErrorDisplay(processedError);
+		} else {
+			child = errorDiv({ title: err });
+		}
 
-            const result = await this.compiler.compileLaTeX();
-            console.log('Compilation result:', result);
+		child.setAttribute(SVG_ID_KEY, hash);
+		el.appendChild(child);
+		if (options.throw) throw err;
+	}
 
-            await this.vfs.removeNonAutoUseFiles();
+	private async renderLatexToElement(task: LatexTask): Promise<void> {
+		const { el, content, rawHash, sourcePath, dependencyPaths, basename } = task.getRenderData();
 
-            if (config.md5Hash && config.dependencyPaths) {
-              const logCacheKey = getLogCacheKey(config.md5Hash, config.dependencyPaths);
-              this.cache.addLog(result.log, logCacheKey);
-            }
+		try {
+			const compileMode = task.isProcess() ? VfsCompileMode.compileAll : VfsCompileMode.none;
+			const result = await this.renderLatexToPDF(content, compileMode, { md5Hash: rawHash, dependencyPaths });
+			el.innerHTML = '';
+			await this.translatePDF(result.pdf, el, basename);
 
-            if (result.status !== 0) {
-              reject(result.log);
-              return;
-            }
+			this.cache.resultFileCache.addFile(
+				el.innerHTML,
+				rawHash,
+				dependencyPaths,
+				sourcePath,
+			);
+		} catch (err) {
+			this.handleErrorForTask(task, toErrorString(err), {
+				parseErr: true,
+			});
+		} finally {
+			if (!this.compiler.isResponsive()) {
+				console.warn('Compiler is unresponsive.');
+				return;
+			}
+			await this.compiler.waitUntilReady();
+		}
+	}
 
-            if (!config.strict)
-              await this.cache.fetchPackageCacheData();
+	private renderLatexToPDF(
+		source: string,
+		vfsCompileMode: VfsCompileMode,
+		config: { fetchPkgData?: boolean; md5Hash?: string , dependencyPaths?: string[] } = {},
+	): Promise<CompileResult> {
 
-            resolve(result);
-          } catch (e) {
-            reject(e);
-          }
-        },
-      );
-    });
-  }
+		return new Promise((resolve, reject) => {
+			temp.mkdir(
+				'obsidian-swiftlatex-renderer',
+				async (mkdirErr: any) => {
+					if (mkdirErr) {
+						reject(mkdirErr);
+						return;
+					}
 
-  private async translatePDF(
-    pdfData: Buffer<ArrayBufferLike>,
-    el: HTMLElement,
-    hash: string,
-    outputSVG = true,
-  ): Promise<void> {
-    return new Promise<void>((resolve) => {
-      const config = {
-        invertColorsInDarkMode:
-          this.plugin.settings.invertColorsInDarkMode,
-        autoRemoveWhitespace: this.plugin.settings.autoRemoveWhitespace,
-        basename: hash,
-      };
-      if (outputSVG)
-        pdfToOptimizedSVG(pdfData, config).then((svg: string) => {
-          el.innerHTML = svg;
-          resolve();
-        });
-      else
-        pdfToHtml(pdfData).then((htmlData) => {
-          el.createEl('object', htmlData);
-          resolve();
-        });
-    });
-  }
+					try {
+						await this.compiler.waitUntilReady();
+
+						await this.vfs.loadVirtualFileSystemFiles(vfsCompileMode);
+
+						await this.compiler.writeMemFSFile('main.tex', source);
+						await this.compiler.setEngineMainFile('main.tex');
+
+						const result = await this.compiler.compileLaTeX();
+
+						await this.vfs.removeNonAutoUseFiles();
+
+						if (config.md5Hash && config.dependencyPaths) {
+							const logCacheKey = getLogCacheKey(config.md5Hash, config.dependencyPaths);
+							this.cache.addLog(result.log, logCacheKey);
+						}
+
+						if (result.status !== 0) {
+							reject(result.log);
+							return;
+						}
+
+						if (!config.fetchPkgData) {
+							await this.cache.fetchPackageCacheData();
+						}
+
+						resolve(result);
+					} catch (e) {
+						reject(e);
+					}
+				},
+			);
+		});
+	}
+
+	private async translatePDF(
+		pdfData: Buffer<ArrayBufferLike>,
+		el: HTMLElement,
+		basename: string,
+		outputSVG = true,
+	): Promise<void> {
+		return new Promise<void>((resolve) => {
+			const config = {
+				invertColorsInDarkMode:
+				this.plugin.settings.invertColorsInDarkMode,
+				autoRemoveWhitespace: this.plugin.settings.autoRemoveWhitespace,
+				basename,
+			};
+			if (outputSVG) {
+				pdfToOptimizedSVG(pdfData, config).then((svg: string) => {
+					el.innerHTML = svg;
+					resolve();
+				});
+			} else {
+				pdfToHtml(pdfData).then((htmlData) => {
+					el.createEl('object', htmlData);
+					resolve();
+				});
+			}
+		});
+	}
 }
 
-
-
-export function addMenu(
+//TODO: put this somewahere better
+function restoreFromCache(
+  task: LatexTask,
   plugin: LatexRender,
-  el: HTMLElement,
-  filePath: string,
 ) {
-  plugin.menuDecider.add(el, filePath);
+  return plugin.swiftlatexRender.cache.resultFileCache.restoreFromCache(
+		task.el,
+		task.rawHash,
+		task.sourcePath,
+		() => {
+			if (task instanceof ProcessableLatexTask) {
+				return getCacheDependencyPaths(task, plugin.swiftlatexRender.vfs, plugin);
+			}
+			return Promise.resolve([]);
+		},
+	)
+}
+
+async function getCacheDependencyPaths(
+	task: ProcessableLatexTask,
+	vfs: VirtualFileSystem,
+	plugin: LatexRender,
+): Promise<string[]> {
+	const explicitDeps = await vfs
+		.getParser()
+		.collectSurfaceDependencyPaths(task.getContent(), task.sourcePath);
+
+	const autoUsePaths = plugin.settings.compilerVfsEnabled
+		? vfs
+				.getAutoUseFiles()
+				.map((file) => file.path)
+				.filter((path) => !explicitDeps.includes(path))
+		: [];
+
+	return [...new Set([...explicitDeps, ...autoUsePaths])].sort();
 }
 
 export class TimeoutError extends Error {

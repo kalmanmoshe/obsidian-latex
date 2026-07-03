@@ -113,7 +113,6 @@ export function findRelativeFile(filePath: string, currentPath: string) {
 	}
 
 	const start = app.vault.getAbstractFileByPath(currentPath);
-	console.log('Finding relative file.', { filePath, currentPath, start });
 	if (!(start instanceof TFile)) {
 		throw new Error('Source file not found');
 	}
@@ -167,7 +166,6 @@ export function findRelativeFile(filePath: string, currentPath: string) {
 	);
 
 	if (!file) {
-		console.error("hey, i got here")
 		throw new Error(`File not found: ${fileName}`);
 	}
 

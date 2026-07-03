@@ -1,4 +1,4 @@
-import { parseMath, migrateToClassStructure, parse } from './autoParse/ast-types-pre';
+import { parse } from './autoParse/ast-types-pre';
 import { LatexAbstractSyntaxTree } from './LatexAbstractSyntaxTree';
 import {
 	Whitespace,
@@ -7,7 +7,6 @@ import {
 	Argument,
 	Ast,
 	Node,
-	Root,
 } from './typs/astNodes';
 
 export class MathJaxAbstractSyntaxTree extends LatexAbstractSyntaxTree {

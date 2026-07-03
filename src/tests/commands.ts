@@ -13,14 +13,14 @@ import {
 export function getTestCommands(plugin: LatexRender): Command[] {
 	return [
 		createTestLatexCommand(plugin), 
-		createTestOnClipboard(plugin),
-		createCancelTestCommand(plugin),
+		createTestOnClipboard(),
+		createCancelTestCommand(),
 		createNewTestLatexCommand(plugin),
 		createOpenLastTestResultCommand(plugin),
 	];
 }
 
-function createTestOnClipboard(plugin: LatexRender): Command {
+function createTestOnClipboard(): Command {
 	return {
 		id: 'test-clipboard',
 		name: 'Test Clipboard (runs function on its content and writes back to clipboard)',
@@ -48,7 +48,7 @@ function createTestLatexCommand(plugin: LatexRender): Command {
 	};
 }
 
-function createCancelTestCommand(plugin: LatexRender): Command {
+function createCancelTestCommand(): Command {
 	return {
 		id: 'cancel-latex-code-blocks-test',
 		name: 'Cancel LaTeX Code Blocks Test',
@@ -217,7 +217,7 @@ class CompileTest {
 		}
 
 		if (this.activeToken === token) {
-			this.displayModal.finish(this.tracker);
+			this.displayModal.finish();
 			this.isRunning = false;
 
 			// Do NOT clear activeToken here.
@@ -367,7 +367,7 @@ class TestResultModal extends Modal {
 		});
 	}
 
-	finish(tracker: CompileTracker) {
+	finish() {
 		if (this.elapsedTimerId !== null)
 			 {
 			window.clearInterval(this.elapsedTimerId);

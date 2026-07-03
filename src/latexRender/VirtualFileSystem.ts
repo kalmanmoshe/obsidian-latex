@@ -13,6 +13,19 @@ export enum VFSstatus {
 	error,
 }
 
+type VfsCompilerState =
+	| { status: VFSstatus.undefined }
+	| { status: VFSstatus.outdated }
+	| { status: VFSstatus.error }
+	| { status: VFSstatus.uptodate; mode: VfsCompileMode };
+
+export enum VfsCompileMode {
+	none,
+	compileAll,
+	compileAutoUseOnly,
+	compileNonAutoUseOnly
+}
+
 
 
 /**
@@ -61,7 +74,8 @@ export class VirtualFileSystem {
 
 	private parser: LatexDependencyParser<LatexAbstractSyntaxTree, LatexDependency>;
 
-	private status: VFSstatus = VFSstatus.undefined;
+	//private status: VFSstatus = VFSstatus.undefined;
+	private compilerState: VfsCompilerState = { status: VFSstatus.undefined };
 	/**
 	 * whether the virtual file system is enabled. If disabled, the virtual file system will flush the pdf engine and no longer update the files in said engine.
 	 */
@@ -84,12 +98,9 @@ export class VirtualFileSystem {
 	 */
 	setPdfCompiler(compiler: LatexCompiler) {
 		if (compiler !== this.compiler) {
-			console.log('New compiler instance attached');
 			// Compiler memory is fresh/empty now,
 			// so the VFS contents must be reloaded.
-			this.status = VFSstatus.outdated;
-		} else {
-			console.log("proceding vfs like normal")
+			this.compilerState = { status: VFSstatus.outdated };
 		}
 		this.compiler = compiler;
 	}
@@ -105,7 +116,7 @@ export class VirtualFileSystem {
 	async setEnabled(enabled: boolean) {
 		if (this.vfsEnabled && !enabled) {
 			this.graph.flush();
-			this.status = VFSstatus.undefined;
+			this.compilerState = { status: VFSstatus.undefined };
 			await this.compiler.flushWorkCache();
 		}
 		this.vfsEnabled = enabled;
@@ -119,14 +130,6 @@ export class VirtualFileSystem {
 			);
 		}
 		return false;
-	}
-
-	getSnapshot() {
-		return {
-			enabled: this.vfsEnabled,
-			status: this.status,
-			...this.graph.getSnapshot(),
-		};
 	}
 
 	/**
@@ -175,7 +178,7 @@ export class VirtualFileSystem {
 
 		if (!newDep.isTex) {
 			this.graph.addOrReplaceFile(newDep, []);
-			this.status = VFSstatus.outdated;
+			this.compilerState = { status: VFSstatus.outdated };
 			return;
 		}
 
@@ -183,7 +186,7 @@ export class VirtualFileSystem {
 			// Already parsed: do NOT parse again.
 			if (hasDeps(file)) {
 				this.graph.addOrReplaceFile(newDep, newDep.dependencies);
-				this.status = VFSstatus.outdated;
+				this.compilerState = { status: VFSstatus.outdated };
 				return;
 			}
 
@@ -193,10 +196,10 @@ export class VirtualFileSystem {
 			newDep.content = parsed.content;
 
 			this.graph.addOrReplaceFile(newDep, parsed.dependencies);
-			this.status = VFSstatus.outdated;
+			this.compilerState = { status: VFSstatus.outdated };
 		} catch (err) {
 			console.error('Error parsing virtual file system file:', err);
-			this.status = VFSstatus.error;
+			this.compilerState = { status: VFSstatus.error };
 
 			new Notice(
 				`Error parsing virtual file system file: ${file.path}. Check console for details.`,
@@ -230,30 +233,47 @@ export class VirtualFileSystem {
 	 * if a file is not in the pdf engine or is outdated. load the virtual file system files into the pdf engine.
 	 * @returns Promise<void>
 	 */
-	async loadVirtualFileSystemFiles() {
-		if (!this.checkEnabled(false) || this.status === VFSstatus.uptodate) {
+	async loadVirtualFileSystemFiles(vfsCompileMode: VfsCompileMode) {
+		const upToDateWithMode = this.compilerState.status === VFSstatus.uptodate && this.compilerState.mode === vfsCompileMode;
+		if (!this.checkEnabled(false) || upToDateWithMode) {
 			return;
 		}
 
-		if (this.status === VFSstatus.undefined) {
+		if (this.compilerState.status === VFSstatus.undefined) {
 			console.warn(
 				'Virtual file system status is undefined. Waiting until it is outdated.',
 			);
 			await nonBlockingWaitUntil(
-				() => this.status === VFSstatus.outdated,
+				() => this.compilerState.status === VFSstatus.outdated,
 			);
 		}
 		try {
 			await this.compiler.flushWorkCache();
-			for (const file of this.graph.getFiles()) {
+			const filesToLoad = [];
+			switch (vfsCompileMode) {
+				case VfsCompileMode.compileAll:
+					filesToLoad.push(...this.graph.getFiles());
+					break;
+				case VfsCompileMode.compileAutoUseOnly:
+					filesToLoad.push(...this.graph.getFiles().filter((file) => file.autoUse));
+					break;
+				case VfsCompileMode.compileNonAutoUseOnly:
+					filesToLoad.push(...this.graph.getFiles().filter((file) => !file.autoUse));
+					break;
+				case VfsCompileMode.none:
+					break;
+				default:
+					throw new Error(`Unknown VfsCompileMode: ${vfsCompileMode}`);
+			}
+			for (const file of filesToLoad) {
 				console.debug('Loading virtual file system file:', file.path);
 				await this.compiler.writeMemFSFile(file.name, file.content);
 				console.debug('Loaded virtual file system file:', file.path);
 			}
-			this.status = VFSstatus.uptodate;
+			this.compilerState = { status: VFSstatus.uptodate, mode: vfsCompileMode };
 		} catch (err) {
 			console.error('Error loading virtual filesystem files:', err);
-			this.status = VFSstatus.error;
+			this.compilerState = { status: VFSstatus.error };
 			throw err;
 		}
 	}
@@ -291,7 +311,7 @@ export class VirtualFileSystem {
 			return true;
 		};
 
-		this.status = VFSstatus.outdated;
+		this.compilerState = { status: VFSstatus.outdated };
 
 		const filesToRemove = this.graph.removeFiles(shouldRemove);
 
@@ -300,7 +320,7 @@ export class VirtualFileSystem {
 				await this.compiler.removeMemFSFile(file.name);
 			}
 		} finally {
-			this.status = VFSstatus.uptodate;
+			this.compilerState = { status: VFSstatus.uptodate, mode: VfsCompileMode.none };
 		}
 	}
 

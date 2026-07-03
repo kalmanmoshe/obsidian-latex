@@ -154,7 +154,7 @@ function isArgumentClassArray(content: any[]): content is ArgumentClass[] {
 	return content.every((node) => node instanceof ArgumentClass);
 }
 
-function validateNodeContent<T extends BaseNodeClass>(
+function validateNodeContent(
 	ast: ContentNode,
 	errorMessagePrefix: string,
 ): NodeClass[] {
@@ -168,11 +168,7 @@ function validateNodeContent<T extends BaseNodeClass>(
 	}
 	return content;
 }
-function addRenderInfo(macro: string, renderInfo: object) {
-	console.log('Adding render info for macro:', macro, renderInfo);
-	//if (renderInfo.breakAfter!(macro.match(/(input)/))) return;
-	renderInfo;
-}
+
 export function migrateToClassStructure(ast: Ast): AstClass {
 	if (Array.isArray(ast)) {
 		const nodes: NodeClass[] = ast

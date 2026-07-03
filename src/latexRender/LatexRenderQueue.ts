@@ -1,6 +1,5 @@
 import async from 'async';
 import { LatexTask } from './task/latexTask';
-import { withTimeout } from './swiftlatexRender';
 import { CssClasses } from 'src/util/cssClassesConstants';
 
 export type QueueRenderer = {
@@ -35,16 +34,15 @@ export class LatexRenderQueue {
 
     push(task: LatexTask) {
         const blockId = task.getBlockId();
-        console.log('Removing existing tasks with blockId:', blockId);
+
         this.queue.remove((node) => node.data.getBlockId() === blockId);
-        task.el.appendChild(createWaitingCountdown(this.queue.length()));
+
+        const index = this.queue.running() + this.queue.length();
+
+        task.el.appendChild(createWaitingCountdown(index));
         this.queue.push(task);
-        console.log(
-            'Task added to queue:',
-            task.getDebugInfo(),
-            'Current queue length:',
-            this.queue.length(),
-        );
+
+        updateQueueCountdown(this.queue);
     }
 
     removeFromWaiting(filterFn: (task: LatexTask) => boolean) {
@@ -92,21 +90,10 @@ export class LatexRenderQueue {
         return tasks;
     }
 
-    getSnapshot() {
-        return {
-            currentTask: this.currentTask,
-            waiting: this.getWaitingTasks(),
-            running: this.running(),
-            length: this.length(),
-            idle: this.idle(),
-        };
-    }
-
     configQueue() {
         this.queue = async.queue((task: LatexTask, done) => {
             this.currentTask = task;
             (async () => {
-                console.log('Starting task:', task.getDebugInfo());
                 const didRender = await this.renderer.renderTask(task);
                 updateQueueCountdown(this.queue);
 
@@ -132,7 +119,7 @@ export class LatexRenderQueue {
 
 const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
     let taskNode = queue._tasks.head;
-    let index = 0;
+    let index = queue.running();
     while (taskNode) {
         const task = taskNode.data;
         const countdown = task.el.querySelector(

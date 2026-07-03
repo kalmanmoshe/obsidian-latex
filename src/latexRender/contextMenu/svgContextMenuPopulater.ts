@@ -70,156 +70,142 @@ export class SvgContextMenuPopulater {
 		this.assignElements(trigeringElement);
 		this.sourcePath = sourcePath;
 		this.addDisplayItems();
-		console.log(
-			'SvgContextMenu created for',
-			this.blockEl,
-			this.menu,
-			this.svgEl,
-			this.containerEl,
-			this.basename,
+	}
+
+	private assignElements(triggeringElement: HTMLElement) {
+		this.blockEl = findSvgContainer(triggeringElement);
+
+		this.svgEl = this.findSvg();
+		this.containerEl = this.findErrorContainer();
+		this.isError = !this.svgEl;
+
+		this.assignBasename();
+	}
+
+	private findSvg(): SVGElement | undefined {
+		return Array.from(this.blockEl.children).find(
+			(child): child is SVGElement => child instanceof SVGElement,
 		);
 	}
 
-	private isSvgContainer(el: HTMLElement) {
-		return el.classList.contains('block-language-latexsvg');
+	private findErrorContainer(): HTMLElement | undefined {
+		return Array.from(this.blockEl.children).find(
+			(child): child is HTMLElement =>
+				child instanceof HTMLElement &&
+				child.classList.contains(ErrorClasses.Container),
+		);
 	}
 
-	/**
-	 * Ensures the provided element is an SVG or a valid container for SVG elements.
-	 * If the element is not valid, it climbs up the DOM hierarchy to find a suitable container.
-	 * @param el - The element to validate and process.
-	 * @returns The validated SVG element or container, or null if none is found.
-	 */
-	private assignElements(el: HTMLElement) {
-		// Climb up the DOM until we find a valid container or reach the top
-		/*
-		while el is defined and dose not have a parent element or is not an SVG container
-		and none of its children are SVG containers, keep climbing up the DOM.
-		*/
-		while (
-			el &&
-			!this.isSvgContainer(el) &&
-			!Array.from(el.children).some((child) =>
-				this.isSvgContainer(child as HTMLElement),
-			)
-		) {
-			if (!el.parentElement) break;
-			el = el.parentElement;
-		}
-
-		if (!this.isSvgContainer(el) && el) {
-			const childContainer = Array.from(el.children).find((child) =>
-				this.isSvgContainer(child as HTMLElement),
-			) as HTMLElement | undefined;
-			if (childContainer) el = childContainer;
-		}
-		if (!this.isSvgContainer(el) && el) {
-			throw new Error(
-				'No valid SVG container found in the hierarchy. Please ensure the element is a valid SVG container.',
-			);
-		}
-		const svg = Array.from(el.children).find(
-			(child) => child instanceof SVGElement,
-		);
-		const errorContainer = Array.from(el.children).find((child) =>
-			child.classList.contains(ErrorClasses.Container),
-		);
-		if (!svg && !errorContainer) {
-			throw new Error(
-				'No SVG element or error container found in the provided element.',
-			);
-		}
-		this.blockEl = el;
-		this.isError = !svg;
-		this.svgEl = svg;
-		this.containerEl = (errorContainer as HTMLElement) || undefined;
+	private assignBasename() {
 		const basename =
 			this.svgEl?.getAttribute(SVG_ID_KEY) ??
 			this.containerEl?.getAttribute(SVG_ID_KEY);
+
 		if (!basename) {
 			console.error(
-				'No basename found for SVG element',
+				'No basename found for SVG/error container',
 				this.svgEl,
 				this.containerEl,
 			);
-			throw new Error('No basename found for SVG element');
+			throw new Error('No basename found for SVG/error container');
 		}
+
 		this.basename = basename;
+
 		({ rawHash: this.rawHash, depsHash: this.depsHash } =
 			this.resultFileCache.basenameToHashes(this.basename));
 	}
 
 	private addDisplayItems() {
-		if (!this.isError)
-			this.menu.addItem((item) => {
-				item.setTitle('Copy SVG');
-				item.setIcon('copy');
-				item.onClick(async () => {
-					const svg = this.svgEl;
-					console.log('svg', svg);
-					if (svg) {
-						const svgString = new XMLSerializer().serializeToString(
-							svg,
-						);
-						await navigator.clipboard.writeText(svgString);
-					}
-				});
-			});
-		if (!this.isError)
-			this.menu.addItem((item) => {
-				item.setTitle('properties');
-				item.setIcon('settings');
-				item.onClick(async () => {
-					console.log('properties');
-				});
-			});
-		this.menu.addItem((item) => {
-			item.setTitle('remove & re-render');
-			item.setIcon('trash');
-			item.onClick(async () => await this.removeAndReRender());
-		});
-		this.menu.addItem((item) => {
-			item.setTitle('Show logs');
-			item.setIcon('info');
-			item.onClick(async () => {
+		this.addItem(
+			'Copy SVG',
+			'copy',
+			async () => {
+				const svg = this.svgEl;
+				if (svg) {
+					const svgString = new XMLSerializer().serializeToString(
+						svg,
+					);
+					await navigator.clipboard.writeText(svgString);
+				}
+			},
+			{ hiddenOnError: true }
+		);
+			
+		this.addItem(
+			'properties',
+			'settings',
+			async () => {
+				console.log('properties');
+			},
+			{ hiddenOnError: true }
+		);
+
+		this.addItem(
+			'remove & re-render',
+			'trash',
+			async () => await this.removeAndReRender()
+		);
+
+		this.addItem(
+			'Show logs',
+			'info',
+			async () => {
 				this.showLogs();
-			});
-		});
-		if (!this.isError)
-			this.menu.addItem((item) => {
-				item.setTitle('Reveal in file explorer');
-				item.setIcon('folder');
-				item.onClick(async () => {
-					this.revealFileInExplorer();
-				});
-			});
+			}
+		);
+
+		this.addItem(
+			'Reveal in file explorer',
+			'folder',
+			async () => {
+				this.revealFileInExplorer();
+			},
+			{ hiddenOnError: true }
+		);
+
 		this.addDebugDisplayItems();
 	}
 
 	private addDebugDisplayItems() {
-		this.menu.addItem((item) => {
-			item.setTitle('Copy parsed source');
-			item.setIcon('copy');
-			item.onClick(async () => {
+		this.addItem(
+			'Copy parsed source',
+			'copy',
+			async () => {
 				const source = (await this.getProcessedTask())?.getProcessedContent();
 				if (!source) return;
 				await navigator.clipboard.writeText(source);
-			});
-		});
+			}
+		);
 
-		if (!this.isError)
-			this.menu.addItem((item) => {
-				item.setTitle('copy raw svg');
-				item.setIcon('copy');
-				item.onClick(async () => {
-					const rawSvg = await this.getRawSvg();
-					if (!rawSvg) {
-						new Notice('Failed to get raw SVG content.');
-						return;
-					}
-					await navigator.clipboard.writeText(rawSvg);
-				});
-			});
+		this.addItem(
+			'Copy raw SVG',
+			'copy',
+			async () => {
+				const rawSvg = await this.getRawSvg();
+				if (!rawSvg) {
+					new Notice('Failed to get raw SVG content.');
+					return;
+				}
+				await navigator.clipboard.writeText(rawSvg);
+			},
+			{ hiddenOnError: true }
+		);
+	}
+
+	private addItem(
+		title: string,
+		icon: string,
+		onClick: () => void | Promise<void>,
+		options?: { hiddenOnError?: boolean },
+	) {
+		if (options?.hiddenOnError && this.isError) return;
+
+		this.menu.addItem((item) => {
+			item.setTitle(title);
+			item.setIcon(icon);
+			item.onClick(onClick);
+		});
 	}
 
 	private revealFileInExplorer() {
@@ -254,7 +240,6 @@ export class SvgContextMenuPopulater {
 				{ source: this.content, sourcePath: this.sourcePath },
 			);
 		}
-		console.log('log', log);
 		const modal = new LogDisplayModal(log);
 		modal.open();
 	}
@@ -278,8 +263,6 @@ export class SvgContextMenuPopulater {
 		if (!(file instanceof TFile)) throw new Error('File is not a TFile');
 		return file;
 	}
-
-	private async assignMetadata() { }
 
 	async getTask(): Promise<LatexTask> {
 		await this.assignLatexContent();
@@ -376,4 +359,44 @@ export class SvgContextMenuPopulater {
 			);
 		return result;
 	}
+}
+
+function findSvgContainer(el: HTMLElement): HTMLElement {
+	const container = climbToSvgContainer(el) ?? findChildSvgContainer(el);
+
+	if (!container) {
+		throw new Error('No SVG container found');
+	}
+
+	return container;
+}
+
+function climbToSvgContainer(el: HTMLElement): HTMLElement | undefined {
+	let current: HTMLElement | null = el;
+
+	while (current) {
+		if (isSvgContainer(current)) {
+			return current;
+		}
+
+		const childContainer = findChildSvgContainer(current);
+		if (childContainer) {
+			return childContainer;
+		}
+
+		current = current.parentElement;
+	}
+
+	return undefined;
+}
+
+function findChildSvgContainer(el: HTMLElement): HTMLElement | undefined {
+	return Array.from(el.children).find(
+		(child): child is HTMLElement =>
+			child instanceof HTMLElement && isSvgContainer(child),
+	);
+}
+
+function isSvgContainer(el: HTMLElement) {
+	return el.classList.contains('block-language-latexsvg');
 }
