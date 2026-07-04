@@ -1,20 +1,20 @@
 import { Command, Editor, Notice } from 'obsidian';
 
 import LatexRender from 'src/main';
-import { assignCodeBlockName } from './codeBlockNamer';
+//import { assignCodeBlockName } from './codeBlockNamer';
 import { getTestCommands } from 'src/tests/commands';
 import { extractAllSectionsByFile } from 'src/latexRender/resolvers/latexSourceFromFile';
 import { CacheStatus, hashLatexContent } from 'src/latexRender/cache/compilerCache';
 import { LatexTask } from 'src/latexRender/task/latexTask';
 import { codeBlockToContent } from 'obsidian-dev-utils';
 
-function getCodeBlockNamer(plugin: LatexRender) {
-	return {
-		id: 'name-code-block',
-		name: 'Name Current Code Block',
-		editorCallback: (editor: Editor) => assignCodeBlockName(plugin, editor),
-	};
-}
+// function getCodeBlockNamer(plugin: LatexRender) {
+// 	return {
+// 		id: 'name-code-block',
+// 		name: 'Name Current Code Block',
+// 		editorCallback: (editor: Editor) => assignCodeBlockName(plugin, editor),
+// 	};
+// }
 
 function removeAllCachedPackages(plugin: LatexRender): Command {
 	return {
@@ -121,7 +121,7 @@ export const getEditorCommands = (
 ): (Command | undefined)[] => {
 	return [
 		...getTestCommands(plugin),
-		getCodeBlockNamer(plugin),
+		//getCodeBlockNamer(plugin),
 		removeAllCachedPackages(plugin),
 		getRebuildQueue(plugin),
 		getAbortTasks(plugin),

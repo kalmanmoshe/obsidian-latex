@@ -1,12 +1,8 @@
 import * as fs from 'fs';
 import { Notice } from 'obsidian';
 import * as path from 'path';
-import { PhysicalCacheBase } from './cacheBase/physicalCacheBase';
-import { VirtualCacheBase } from './cacheBase/virtualCacheBase';
+import { PhysicalCacheBase } from '../cacheBase/physicalCacheBase';
 import { cacheFileFormat } from './resultFileCache';
-
-// This is just for naming consistency with the physical cache.
-export class ResultFileVirtualCache extends VirtualCacheBase {}
 
 export class ResultFilePhysicalCache extends PhysicalCacheBase {
 	extractFileName(filePath: string): string {

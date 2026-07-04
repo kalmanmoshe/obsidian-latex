@@ -1,29 +1,22 @@
 import LatexRender from 'src/main';
-import ResultFileCache from './resultFileCache';
+import ResultFileCache from './resultFileCache/resultFileCache';
 import { ProcessedLog } from '../logs/latex-log-parser';
-import path from 'path';
-import * as fs from 'fs';
-import PackageCache from './packageCache';
+//import PackageCache from './packageCache';
 import LogCache from './logCache';
-import crypto from 'crypto';
+import md5 from 'md5';
 
-
-export function hashString(input: string, length: number = 16): string {
-	return crypto
-		.createHash('sha256')
-		.update(input)
-		.digest('hex')
-		.slice(0, length);
+export function hashString(input: string, length = 16): string {
+	return md5(input).slice(0, length);
 }
 
 export function getDependencyHash(dependencies: string[]): string {
-		if (dependencies.length === 0) {
-			return 'nodeps';
-		}
-		const sorted = [...dependencies].sort();
-		const joined = sorted.join('\n');
-		return hashString(joined, 16);
+	if (dependencies.length === 0) {
+		return 'nodeps';
 	}
+	const sorted = [...dependencies].sort();
+	const joined = sorted.join('\n');
+	return hashString(joined, 16);
+}
 
 export function hashLatexContent(content: string) {
 	return hashString(content.replace(/\s/g, ''), 16);
@@ -43,7 +36,7 @@ export default class CompilerCache {
 	/** Handles caching of compiled files. */
 	resultFileCache: ResultFileCache;
 	/** Handles caching of LaTeX packages. */
-	private packageCache: PackageCache;
+	//private packageCache: PackageCache;
 	/** Handles caching of compilation logs. */
 	private logCache: LogCache;
 
@@ -53,17 +46,22 @@ export default class CompilerCache {
 	 */
 	constructor(plugin: LatexRender) {
 		this.plugin = plugin;
-		this.validateCatchDirectory();
+
+		// validateCacheDirectory(); done through the individual caches
 		this.resultFileCache = new ResultFileCache(this.plugin);
-		this.packageCache = new PackageCache(this.plugin);
+		//this.packageCache = new PackageCache(this.plugin);
 		this.logCache = new LogCache(this.plugin);
+	}
+
+	async onload() {
+		await this.resultFileCache.onload();
 	}
 
 	/**
 	 * Fetches cached package data.
 	 */
 	fetchPackageCacheData() {
-		return this.packageCache.fetchPackageCacheData();
+		//return this.packageCache.fetchPackageCacheData();
 	}
 
 	/**
@@ -73,7 +71,7 @@ export default class CompilerCache {
 	getLog(logCacheKey: string) {
 		return this.logCache.getLog(logCacheKey);
 	}
-	
+
 	async forceGetLog(
 		logCacheKey: string,
 		config: { source: string; sourcePath: string },
@@ -102,37 +100,16 @@ export default class CompilerCache {
 	 * Loads the package cache from disk.
 	 */
 	loadPackageCache() {
-		return this.packageCache.loadPackageCache();
+		//return this.packageCache.loadPackageCache();
 	}
 
 	/**
 	 * Removes all cached packages.
 	 */
 	removeAllCachedPackages() {
-		return this.packageCache.removeAllCachedPackages();
+		// return this.packageCache.removeAllCachedPackages();
 	}
 
-	/**
-	 * Gets the parent path for the cache folder.
-	 * @returns The absolute path to the cache folder parent.
-	 */
-	private getCacheFolderParentPath() {
-		return path.join(
-			this.plugin.getVaultPath(),
-			app.vault.configDir,
-			'swiftlatex-render-cache',
-		);
-	}
-	/**
-	 * Ensures the cache directory exists, creating it if necessary.
-	 */
-	private validateCatchDirectory() {
-		const cacheFolderParentPath = this.getCacheFolderParentPath();
-		if (!fs.existsSync(cacheFolderParentPath)) {
-			fs.mkdirSync(cacheFolderParentPath, { recursive: true });
-		}
-	}
-	
 	cacheStatusForHash(hash: string) {
 		switch (true) {
 			case this.resultFileCache.hasRawHash(hash):
@@ -167,23 +144,5 @@ export default class CompilerCache {
 	private async unloadCache() {
 		await this.compiler().flushCache();
 		this.resultFileCache.removeAllCached();
-	}
-}
-
-/**
- * Recursively clears all files and folders in the given folder path.
- * @param folderPath The path to the folder to clear.
- */
-export function clearFolder(folderPath: string) {
-	if (fs.existsSync(folderPath)) {
-		const packageFiles = fs.readdirSync(folderPath);
-		for (const file of packageFiles) {
-			const fullPath = path.join(folderPath, file);
-			try {
-				fs.rmSync(fullPath, { recursive: true, force: true });
-			} catch (err) {
-				console.error(`Failed to remove file ${fullPath}:`, err);
-			}
-		}
 	}
 }

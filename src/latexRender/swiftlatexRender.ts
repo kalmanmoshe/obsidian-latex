@@ -1,5 +1,4 @@
 import { MarkdownPostProcessorContext } from 'obsidian';
-import * as temp from 'temp';
 import {
   CompileResult,
   CompileStatus,
@@ -23,8 +22,6 @@ import CompilerCache, { hashLatexContent } from './cache/compilerCache';
 import { SVG_ID_KEY } from 'src/svg/nodes';
 import { LatexRenderQueue } from './LatexRenderQueue';
 import { getLogCacheKey } from './cache/logCache';
-
-temp.track();
 
 export const waitFor = async (condFunc: () => boolean) => {
   return new Promise<void>((resolve) => {
@@ -64,114 +61,116 @@ type HandleErrorOptions = {
  * add option for Persistent preamble.so it won't get deleted.after use Instead, saved until overwritten
  */
 export class SwiftlatexRender {
-  plugin: LatexRender;
-  vfs: VirtualFileSystem = new VirtualFileSystem();
-  pdfTexCompiler?: PdfTeXCompiler;
-  pdfXetexCompiler?: PdfXeTeXCompiler;
-  compiler: LatexCompiler;
-  cache: CompilerCache;
-  queue: LatexRenderQueue;
+	plugin: LatexRender;
+	vfs: VirtualFileSystem = new VirtualFileSystem();
+	pdfTexCompiler?: PdfTeXCompiler;
+	pdfXetexCompiler?: PdfXeTeXCompiler;
+	compiler: LatexCompiler;
+	cache: CompilerCache;
+	queue: LatexRenderQueue;
 
-  async onload(plugin: LatexRender) {
-    this.plugin = plugin;
-    this.cache = new CompilerCache(this.plugin);
-    await this.loadCompiler();
+	async onload(plugin: LatexRender) {
+		this.plugin = plugin;
+		this.cache = new CompilerCache(this.plugin);
+		await this.cache.onload();
+		await this.loadCompiler();
 
-    this.queue = new LatexRenderQueue({
-      renderTask: this.processAndRenderLatexTask.bind(this),
-      getCooldown: () => this.plugin.settings.pdfEngineCooldown,
-    });
+		this.queue = new LatexRenderQueue({
+			renderTask: this.processAndRenderLatexTask.bind(this),
+			getCooldown: () => this.plugin.settings.pdfEngineCooldown,
+		});
 
-    console.log('SwiftlatexRender loaded');
-  }
+		console.log('SwiftlatexRender loaded');
+	}
 
-  switchCompiler(): Promise<void> {
-    if (this.compiler === undefined) return this.loadCompiler();
+	switchCompiler(): Promise<void> {
+		if (this.compiler === undefined) return this.loadCompiler();
 
-    const isTex =
-      this.compiler instanceof PdfTeXCompiler &&
-      this.plugin.settings.compiler === CompilerType.TeX;
+		const isTex =
+			this.compiler instanceof PdfTeXCompiler &&
+			this.plugin.settings.compiler === CompilerType.TeX;
 
-    const isXeTeX =
-      this.compiler instanceof PdfXeTeXCompiler &&
-      this.plugin.settings.compiler === CompilerType.XeTeX;
-      
-    if (isTex || isXeTeX) return Promise.resolve();
+		const isXeTeX =
+			this.compiler instanceof PdfXeTeXCompiler &&
+			this.plugin.settings.compiler === CompilerType.XeTeX;
+		
+		if (isTex || isXeTeX) return Promise.resolve();
 
-    this.compiler.closeWorkers();
-    this.compiler = undefined as any;
-    this.pdfTexCompiler = undefined;
-    this.pdfXetexCompiler = undefined;
-    return this.loadCompiler();
-  }
+		this.compiler.closeWorkers();
+		this.compiler = undefined as any;
+		this.pdfTexCompiler = undefined;
+		this.pdfXetexCompiler = undefined;
+		return this.loadCompiler();
+	}
 
-  async loadCompiler() {
-    if (this.plugin.settings.compiler === CompilerType.TeX) {
-      this.compiler = this.pdfTexCompiler = new PdfTeXCompiler();
-    } else {
-      this.compiler = this.pdfXetexCompiler = new PdfXeTeXCompiler();
-    }
-    this.vfs.setPdfCompiler(this.compiler);
-    await this.compiler.loadEngines();
-    await this.cache.loadPackageCache();
-    await this.compiler.setTexliveEndpoint(
-      this.plugin.settings.package_url,
-    );
-  }
+	async loadCompiler() {
+		if (this.plugin.settings.compiler === CompilerType.TeX) {
+			this.compiler = this.pdfTexCompiler = new PdfTeXCompiler();
+		} else {
+			this.compiler = this.pdfXetexCompiler = new PdfXeTeXCompiler();
+		}
+		
+		this.vfs.setPdfCompiler(this.compiler);
+		await this.compiler.loadEngines();
+		this.cache.loadPackageCache();
+		await this.compiler.setTexliveEndpoint(
+			this.plugin.settings.package_url,
+		);
+	}
 
-  async restartCompiler() {
-    this.compiler.closeWorkers();
-    this.queue.abortAllWaiting();
-    await this.loadCompiler();
-  }
+	async restartCompiler() {
+		this.compiler.closeWorkers();
+		this.queue.abortAllWaiting();
+		await this.loadCompiler();
+	}
 
-  // i have to also cache the files refrenced my the hash and thar loction becose thar can i a file that is Referencing the same files.But because it's in a different directory, those files in actuality are different, leading to a different render.
-  async codeBlockProcessor(
-    source: string,
-    el: HTMLElement,
-    ctx: MarkdownPostProcessorContext,
-  ) {
-    const isLangTikz = el.classList.contains('block-language-tikz');
+	// i have to also cache the files refrenced my the hash and thar loction becose thar can i a file that is Referencing the same files.But because it's in a different directory, those files in actuality are different, leading to a different render.
+	async codeBlockProcessor(
+		source: string,
+		el: HTMLElement,
+		ctx: MarkdownPostProcessorContext,
+	) {
+		const isLangTikz = el.classList.contains('block-language-tikz');
 
-    el.classList.remove('block-language-tikz', 'block-language-latex');
-    el.classList.add(
-      'block-language-latexsvg',
-      `overflow-${this.plugin.settings.overflowStrategy}`,
-    );
+		el.classList.remove('block-language-tikz', 'block-language-latex');
+		el.classList.add(
+			'block-language-latexsvg',
+			`overflow-${this.plugin.settings.overflowStrategy}`,
+		);
 
-    const rawHash = hashLatexContent(source);
+		const rawHash = hashLatexContent(source);
 
-    const createResult = await LatexTask.createAsync(
-      this.plugin,
-      isLangTikz,
-      source,
-      el,
-      ctx,
-    );
+		const createResult = await LatexTask.createAsync(
+			this.plugin,
+			isLangTikz,
+			source,
+			el,
+			ctx,
+		);
 
-    if (createResult.isError) {
-      this.handleError(
-        el,
-        'Error creating task: ' + createResult.result,
-        this.cache.resultFileCache.getFileBaseName(rawHash, []),
-        ctx.sourcePath,
-      );
-      return;
-    }
+		if (createResult.isError) {
+			this.handleError(
+				el,
+				'Error creating task: ' + createResult.result,
+				this.cache.resultFileCache.getFileBaseName(rawHash, []),
+				ctx.sourcePath,
+			);
+			return;
+		}
 
-    // Attach a menu to the element for user interaction, such as re-rendering or viewing logs.
-    this.plugin.menuDecider.add(el, ctx.sourcePath);
+		// Attach a menu to the element for user interaction, such as re-rendering or viewing logs.
+		this.plugin.menuDecider.add(el, ctx.sourcePath);
 
-    const task = createResult.result as (LatexTask | ProcessableLatexTask);
+		const task = createResult.result as (LatexTask | ProcessableLatexTask);
 
-    // PDF file has already been cached
-    // Could have a case where pdfCache has the key but the cached file has been deleted
-    const wasRestoredFromCache = await restoreFromCache(task, this.plugin);
+		// PDF file has already been cached
+		// Could have a case where pdfCache has the key but the cached file has been deleted
+		const wasRestoredFromCache = await restoreFromCache(task, this.plugin);
 
-    if (wasRestoredFromCache) return;
+		if (wasRestoredFromCache) return;
 
-    this.queue.push(task as LatexTask);
-  }
+		this.queue.push(task as LatexTask);
+	}
 
 	/**
 	 * Processes and renders the given LaTeX task.
@@ -357,54 +356,36 @@ export class SwiftlatexRender {
 		}
 	}
 
-	private renderLatexToPDF(
+	private async renderLatexToPDF(
 		source: string,
 		vfsCompileMode: VfsCompileMode,
-		config: { fetchPkgData?: boolean; md5Hash?: string , dependencyPaths?: string[] } = {},
+		config: { fetchPkgData?: boolean; md5Hash?: string; dependencyPaths?: string[] } = {},
 	): Promise<CompileResult> {
+		await this.compiler.waitUntilReady();
 
-		return new Promise((resolve, reject) => {
-			temp.mkdir(
-				'obsidian-swiftlatex-renderer',
-				async (mkdirErr: any) => {
-					if (mkdirErr) {
-						reject(mkdirErr);
-						return;
-					}
+		await this.vfs.loadVirtualFileSystemFiles(vfsCompileMode);
 
-					try {
-						await this.compiler.waitUntilReady();
+		await this.compiler.writeMemFSFile('main.tex', source);
+		await this.compiler.setEngineMainFile('main.tex');
 
-						await this.vfs.loadVirtualFileSystemFiles(vfsCompileMode);
+		const result = await this.compiler.compileLaTeX();
 
-						await this.compiler.writeMemFSFile('main.tex', source);
-						await this.compiler.setEngineMainFile('main.tex');
+		await this.vfs.removeNonAutoUseFiles();
 
-						const result = await this.compiler.compileLaTeX();
+		if (config.md5Hash && config.dependencyPaths) {
+			const logCacheKey = getLogCacheKey(config.md5Hash, config.dependencyPaths);
+			this.cache.addLog(result.log, logCacheKey);
+		}
 
-						await this.vfs.removeNonAutoUseFiles();
+		if (result.status !== 0) {
+			throw result.log;
+		}
 
-						if (config.md5Hash && config.dependencyPaths) {
-							const logCacheKey = getLogCacheKey(config.md5Hash, config.dependencyPaths);
-							this.cache.addLog(result.log, logCacheKey);
-						}
+		if (!config.fetchPkgData) {
+			await this.cache.fetchPackageCacheData();
+		}
 
-						if (result.status !== 0) {
-							reject(result.log);
-							return;
-						}
-
-						if (!config.fetchPkgData) {
-							await this.cache.fetchPackageCacheData();
-						}
-
-						resolve(result);
-					} catch (e) {
-						reject(e);
-					}
-				},
-			);
-		});
+		return result;
 	}
 
 	private async translatePDF(

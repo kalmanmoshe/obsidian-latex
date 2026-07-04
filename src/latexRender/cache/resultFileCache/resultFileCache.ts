@@ -1,8 +1,8 @@
 import LatexRender from 'src/main';
-import { Notice, TFile } from 'obsidian';
-import { getLatexHashesFromFile } from '../resolvers/latexSourceFromFile';
-import * as path from 'path';
-import { CacheBase } from './cacheBase/cacheBase';
+import { Notice, Platform, TFile } from 'obsidian';
+import { getLatexHashesFromFile } from '../../resolvers/latexSourceFromFile';
+//import * as path from 'path';
+import { CacheBase } from '../cacheBase/cacheBase';
 import {
 	CacheEntry,
 	CacheEntryJson,
@@ -11,13 +11,14 @@ import {
 } from 'src/settings/settings';
 
 export const cacheFileFormat = 'svg';
-import {
-	ResultFilePhysicalCache,
-	ResultFileVirtualCache,
-} from './resultFileCacheTypes';
-import { extractDir, isValidFileBasename } from '../resolvers/paths';
-import { optimizeSVG } from '../pdfToHtml/optimizeSVG';
-import { getDependencyHash } from './compilerCache';
+import { ResultFileVirtualCache, } from './ResultFileVirtualCache';
+import { extractDir, isValidFileBasename } from '../../resolvers/paths';
+import { optimizeSVG } from '../../pdfToHtml/optimizeSVG';
+import { getDependencyHash } from '../compilerCache';
+
+async function importDesktopOnlyModule(modName: string) {
+	return await import(modName);
+}
 
 export default class ResultFileCache {
 	private plugin: LatexRender;
@@ -29,26 +30,23 @@ export default class ResultFileCache {
 
 	constructor(plugin: LatexRender) {
 		this.plugin = plugin;
+	}
 
-		if (this.plugin.settings.physicalCache) {
-			this.cache = new ResultFilePhysicalCache(this.plugin, [
-				cacheFileFormat,
-			]);
+	async onload() {
+		if (Platform.isDesktop && this.plugin.settings.physicalCache) {
+			const { ResultFilePhysicalCache } = await importDesktopOnlyModule('./ResultFilePhysicalCache.ts');
+			this.cache = new ResultFilePhysicalCache(this.plugin, [cacheFileFormat]);
 		} else {
 			this.cache = new ResultFileVirtualCache(this.plugin);
 		}
 
-		this.onload();
-	}
-
-	private async onload() {
 		this.loadCache();
 		await this.cleanUpCache();
 		await this.finishProcessDirtyFiles();
 	}
 
 	isPhysicalCatch(): boolean {
-		return (this.cache instanceof ResultFilePhysicalCache);
+		return !(this.cache instanceof ResultFileVirtualCache);
 	}
 
 	private async finishProcessDirtyFiles() {
@@ -70,50 +68,50 @@ export default class ResultFileCache {
 	}
 
 	changeCacheDirectory() {
-		if (this.isPhysicalCatch()) {
-			(this.cache as ResultFilePhysicalCache).changeCacheDirectory();
-		} else {
-			const message =
-				'Physical cache is not enabled, cannot change cache directory.';
-			new Notice(message);
-			throw new Error(message);
-		}
+		// if (this.isPhysicalCatch()) {
+		// 	(this.cache as ResultFilePhysicalCache).changeCacheDirectory();
+		// } else {
+		// 	const message =
+		// 		'Physical cache is not enabled, cannot change cache directory.';
+		// 	new Notice(message);
+		// 	throw new Error(message);
+		// }
 	}
 
 	private togglePhysicalCacheOff() {
-		if (!this.isPhysicalCatch()) {
-			console.warn('Physical cache is already disabled, nothing to do.');
-			return;
-		}
-		const physicalCache = this.cache as ResultFilePhysicalCache;
-		const fileNames = physicalCache.listCacheFiles();
-		this.cache = new ResultFileVirtualCache(this.plugin);
-		for (const name of fileNames) {
-			const content = physicalCache.getFile(name);
-			if (!content) {
-				console.warn(`File ${name} not found in cache, skipping.`);
-				continue;
-			}
-			this.cache.addFile(name, content);
-		}
-		physicalCache.deleteCache();
-		this.cache = new ResultFileVirtualCache(this.plugin);
+		// if (!this.isPhysicalCatch()) {
+		// 	console.warn('Physical cache is already disabled, nothing to do.');
+		// 	return;
+		// }
+		// const physicalCache = this.cache as ResultFilePhysicalCache;
+		// const fileNames = physicalCache.listCacheFiles();
+		// this.cache = new ResultFileVirtualCache(this.plugin);
+		// for (const name of fileNames) {
+		// 	const content = physicalCache.getFile(name);
+		// 	if (!content) {
+		// 		console.warn(`File ${name} not found in cache, skipping.`);
+		// 		continue;
+		// 	}
+		// 	this.cache.addFile(name, content);
+		// }
+		// physicalCache.deleteCache();
+		// this.cache = new ResultFileVirtualCache(this.plugin);
 	}
 
 	private togglePhysicalCacheOn() {
-		if (this.isPhysicalCatch()) {
-			console.warn('Virtual cache is already disabled, nothing to do.');
-			return;
-		}
-		const virtualCache = this.cache as ResultFileVirtualCache;
-		this.cache = new ResultFilePhysicalCache(this.plugin, [
-			cacheFileFormat,
-		]);
-		const fileNames = virtualCache.listCacheFiles();
-		for (const fileName of fileNames || []) {
-			const content = virtualCache.getFile(fileName)!;
-			(this.cache as ResultFilePhysicalCache).addFile(fileName, content);
-		}
+		// if (this.isPhysicalCatch()) {
+		// 	console.warn('Virtual cache is already disabled, nothing to do.');
+		// 	return;
+		// }
+		// const virtualCache = this.cache as ResultFileVirtualCache;
+		// this.cache = new ResultFilePhysicalCache(this.plugin, [
+		// 	cacheFileFormat,
+		// ]);
+		// const fileNames = virtualCache.listCacheFiles();
+		// for (const fileName of fileNames || []) {
+		// 	const content = virtualCache.getFile(fileName)!;
+		// 	(this.cache as ResultFilePhysicalCache).addFile(fileName, content);
+		// }
 	}
 	/**
 	 * Toggles the use of physical (on-disk) cache.
@@ -420,7 +418,7 @@ export default class ResultFileCache {
 		const rawHashesInFile = await getLatexHashesFromFile(file);
 		const rawHashesInCache =
 			this.getRawHashesFromCacheForReferencingFile(file).rawHashes;
-			
+
 		for (const hash of rawHashesInCache) {
 			// if the hash (from the cache) is not present in the file, remove it from the cache
 			if (!rawHashesInFile.contains(hash)) {
@@ -554,11 +552,12 @@ export default class ResultFileCache {
 	}
 
 	getAbsolutePathFromBasename(basename: string): string {
-		if (!this.isPhysicalCatch())
-			throw new Error(
-				'Physical cache is not enabled, cannot get absolute path from basename.',
-			);
-		const fileName = this.basenameToFileName(basename);
-		return (this.cache as ResultFilePhysicalCache).getCacheFilePath(fileName);
+		return "null";
+		// if (!this.isPhysicalCatch())
+		// 	throw new Error(
+		// 		'Physical cache is not enabled, cannot get absolute path from basename.',
+		// 	);
+		// const fileName = this.basenameToFileName(basename);
+		// return (this.cache as ResultFilePhysicalCache).getCacheFilePath(fileName);
 	}
 }

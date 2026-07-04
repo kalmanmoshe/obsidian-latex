@@ -1,8 +1,8 @@
 import path from 'path';
 import { StringMap } from 'src/settings/settings';
-import { clearFolder } from './compilerCache';
 import * as fs from 'fs';
-import { PhysicalCacheBase } from './cacheBase/physicalCacheBase';
+import { clearFolder, PhysicalCacheBase } from './cacheBase/physicalCacheBase';
+
 export default class PackageCache extends PhysicalCacheBase {
 	setCacheFolderPath(): void {
 		const basePath = this.plugin.getVaultPath();
@@ -101,7 +101,7 @@ export default class PackageCache extends PhysicalCacheBase {
 		this.plugin.settings.packageCache = [{}, {}, {}, {}];
 		this.plugin.saveSettings()
 	}
-	
+
 	compiler() {
 		return this.plugin.swiftlatexRender.compiler;
 	}

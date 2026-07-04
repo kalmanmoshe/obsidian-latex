@@ -6,6 +6,7 @@ import path from 'path';
 
 export abstract class PhysicalCacheBase extends CacheBase {
 	protected cacheFolderPath: string;
+	
 	constructor(plugin: LatexRender, cacheFileExtensions?: string[]) {
 		super(plugin, cacheFileExtensions);
 		this.validateDir();
@@ -27,6 +28,7 @@ export abstract class PhysicalCacheBase extends CacheBase {
 			fs.rmSync(path, { recursive: true, force: true });
 		}
 	}
+
 	clearCache() {
 		this.deleteCache();
 		this.validateDir(); // Recreate the directory after clearing
@@ -122,6 +124,45 @@ export abstract class PhysicalCacheBase extends CacheBase {
 				console.warn(`Removing invalid cache file: ${file}`);
 				const filePath = path.join(this.getCacheFolderPath(), file);
 				fs.rmSync(filePath);
+			}
+		}
+	}
+}
+/**
+ * Gets the parent path for the cache folder.
+ * @returns The absolute path to the cache folder parent.
+ */
+function getCacheFolderParentPath(plugin: LatexRender): string {
+	return path.join(
+		plugin.getVaultPath(),
+		app.vault.configDir,
+		'swiftlatex-render-cache',
+	);
+}
+
+/**
+ * Ensures the cache directory exists, creating it if necessary.
+ */
+export function validateCacheDirectory() {
+	const cacheFolderParentPath = getCacheFolderParentPath();
+	if (!fs.existsSync(cacheFolderParentPath)) {
+		fs.mkdirSync(cacheFolderParentPath, { recursive: true });
+	}
+}
+
+/**
+ * Recursively clears all files and folders in the given folder path.
+ * @param folderPath The path to the folder to clear.
+ */
+export function clearFolder(folderPath: string) {
+	if (fs.existsSync(folderPath)) {
+		const packageFiles = fs.readdirSync(folderPath);
+		for (const file of packageFiles) {
+			const fullPath = path.join(folderPath, file);
+			try {
+				fs.rmSync(fullPath, { recursive: true, force: true });
+			} catch (err) {
+				console.error(`Failed to remove file ${fullPath}:`, err);
 			}
 		}
 	}

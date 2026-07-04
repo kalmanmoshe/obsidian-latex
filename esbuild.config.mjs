@@ -49,12 +49,12 @@ const args = {
     "@codemirror/tooltip",
     "@codemirror/view",
     "@lezer/highlight",
-    ...builtins, // fs, path, etc.
+    //...builtins, // fs, path, etc.
   ],
 
   format: "cjs",
   target: "es2016",
-  platform: "node",
+  platform: "browser",
 
   // Output to repo root (your current setup)
   outdir: ".",
@@ -62,9 +62,9 @@ const args = {
   assetNames: "assets/[name]-[hash]",
 
   // Size & diagnostics
-  minify: true,
+  minify: false,
   legalComments: "none",
-  sourcemap: prod ? false : "inline",
+  sourcemap: true,// prod ? false : "inline",
   treeShaking: true,
 
   // DON’T inline wasm
@@ -78,7 +78,7 @@ const args = {
     inlineWorkerPlugin({
       bundle: true,
       target: ["es2016"],
-      platform: "node",
+      platform: "browser",
       format: "cjs",
       plugins: [
         // ensure workers also emit wasm as a file

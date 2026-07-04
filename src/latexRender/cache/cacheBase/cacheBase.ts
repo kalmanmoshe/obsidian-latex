@@ -1,6 +1,6 @@
 import LatexRender from 'src/main';
 import { Notice } from 'obsidian';
-import path from 'path';
+//import path from 'path';
 import {
 	extractBasenameAndExtension,
 	isValidFileBasename,
@@ -11,14 +11,16 @@ export abstract class CacheBase {
 		protected plugin: LatexRender,
 		protected cacheFileExtensions?: string[],
 	) {}
+
 	/**
 	 * Extracts the file name from a full cache file path.
 	 * Example: "/home/user/.obsidian/latex-render-cache/someFile.pdf" -> "someFile.pdf"
 	 * @param filePath The full path to the cache file.
 	 */
 	extractFileName(filePath: string): string {
-		return path.basename(filePath);
+		return basename(filePath);
 	}
+
 	/**
 	 * Returns a map of all cached files with their names and content.
 	 * The key is the file name (with extension), and the value is the file content.
@@ -117,3 +119,7 @@ export abstract class CacheBase {
  * @returns
  */
 export const fileBaseNameRegex = /[a-zA-Z0-9]*/;
+
+function basename(fileName: string): string {
+	return fileName.split(/[\\/]/).pop() ?? fileName;
+}

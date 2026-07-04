@@ -72,6 +72,7 @@ export default class LatexRender extends Plugin {
 				'ms',
 			);
 		});
+		app.workspace.trigger
 		this.addSettingTab(new LatexRenderSettingTab(this));
 		console.warn(
 			'Moshe Math Plugin loaded in ' +
@@ -340,7 +341,7 @@ export default class LatexRender extends Plugin {
 	private watchFiles() {
 		// Only begin watching files once the layout is ready.
 		app.workspace.onLayoutReady(() => {
-			// Set up a Chokidar watcher for .sty files
+			
 			const vaultEvents = {
 				modify: onFileChange,
 				delete: onFileDelete,

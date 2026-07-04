@@ -8,15 +8,20 @@ import {
 	TaskSectionInformation,
 } from '../resolvers/taskSectionInformation';
 import { SVG_ID_KEY } from 'src/svg/nodes';
-import { exec } from 'child_process';
 import { codeBlockToContent } from 'obsidian-dev-utils';
-import ResultFileCache from '../cache/resultFileCache';
+import ResultFileCache from '../cache/resultFileCache/resultFileCache';
 
-function revealFileWithFocus(path: string) {
+async function revealFileWithFocus(path: string) {
+	if (!Platform.isDesktopApp) {
+		new Notice('Reveal in file explorer is only available on desktop.');
+		return;
+	}
+
+	const { exec } = await import('child_process');
+
 	if (Platform.isWin) {
 		const winPath = path.replace(/\//g, '\\');
 		exec(`start "" explorer.exe /select,"${winPath}"`);
-		//exec(`explorer.exe /select,"${path.replace(/\//g, '\\')}"`);
 	} else if (Platform.isMacOS) {
 		const script = `
 			tell application "Finder"
@@ -26,8 +31,7 @@ function revealFileWithFocus(path: string) {
 		`;
 		exec(`osascript -e '${script.replace(/\n/g, '')}'`);
 	} else {
-		// Fallback for Linux or just use shell.showItemInFolder
-		const { shell } = require('electron');
+		const { shell } = await import('electron');
 		shell.showItemInFolder(path);
 	}
 }
@@ -131,7 +135,7 @@ export class SvgContextMenuPopulater {
 			},
 			{ hiddenOnError: true }
 		);
-			
+
 		this.addItem(
 			'properties',
 			'settings',
@@ -333,7 +337,7 @@ export class SvgContextMenuPopulater {
 		this.plugin.swiftlatexRender.queue.push(task);
 		new Notice('SVG removed from cache. Re-rendering...');
 	}
-	
+
 	private async getProcessedTask(): Promise<ProcessableLatexTask | undefined> {
 		const task = await this.getTask();
 		if (task.isProcess()) {

@@ -1,6 +1,6 @@
 import LatexRender from 'src/main';
-import { Menu, MarkdownView } from 'obsidian';
-import { SvgContextMenuPopulater } from './svgContextMenuPopulater';
+import { Menu, MarkdownView, Platform } from 'obsidian';
+//import { SvgContextMenuPopulater } from './svgContextMenuPopulater';
 
 type Pending = {
 	id: number;
@@ -18,6 +18,7 @@ export class SvgContextMenuDecider {
 	private windowMs = 60;
 
 	constructor(private plugin: LatexRender) {
+		if (Platform.isMobile) return;
 		this.plugin.registerEvent(
 			this.plugin.app.workspace.on(
 				'editor-menu',
@@ -96,6 +97,6 @@ export class SvgContextMenuDecider {
 	}
 
 	private decorateEditorMenu(menu: Menu, p: Pending) {
-		new SvgContextMenuPopulater(this.plugin, menu, p.el, p.filePath);
+		//new SvgContextMenuPopulater(this.plugin, menu, p.el, p.filePath);
 	}
 }
