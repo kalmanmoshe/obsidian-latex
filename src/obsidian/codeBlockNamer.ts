@@ -1,12 +1,10 @@
 import { Editor, EditorPosition, Notice, TFile } from 'obsidian';
 import { getCurrentCursorLocationSection } from 'src/latexRender/resolvers/findSection';
 import { extractCodeBlockName } from 'src/latexRender/resolvers/latexSourceFromFile';
-import LatexRender from 'src/main';
 const Hebcal = require('hebcal');
 const { HDate } = require('hebcal');
 
-export function getHeadingsForPos(
-	plugin: LatexRender,
+function getHeadingsForPos(
 	file: TFile,
 	pos: EditorPosition,
 ) {
@@ -23,10 +21,10 @@ export function getHeadingsForPos(
 	return headingsByLevel;
 }
 
-export async function assignCodeBlockName(plugin: LatexRender, editor: Editor) {
+export async function assignCodeBlockName(editor: Editor) {
 	const file = app.workspace.getActiveFile();
 	if (!file) return;
-	const headingsByLevel = getHeadingsForPos(plugin, file, editor.getCursor());
+	const headingsByLevel = getHeadingsForPos(file, editor.getCursor());
 
 	if (headingsByLevel.size === 0) {
 		new Notice('Cant determine code block name as no headings are present');

@@ -1,6 +1,6 @@
 import { findUsdInputFiles, isExtensionTex, LatexAbstractSyntaxTree } from "src/ast/LatexAbstractSyntaxTree";
 import { resolvePathRelToVault, extractBasenameAndExtension, getFileContent, isValidFileBasename, CODE_BLOCK_NAME_SEPARATOR } from "../resolvers/paths";
-import { Node, String as StringClass } from '../../ast/typs/astNodes';
+import { String as StringClass } from '../../ast/typs/astNodes';
 import { DependencyConfig } from "src/dependency/LatexDependency";
 
 export interface LatexDependencyNode<TAst extends LatexAbstractSyntaxTree, TDep extends DependencyConfig<TAst>> {

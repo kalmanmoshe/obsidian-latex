@@ -66,38 +66,6 @@ export class MathJaxAbstractSyntaxTree extends LatexAbstractSyntaxTree {
 	}
 }
 
-// Define Instance (replace with your actual type if available)
-type Instance = Ast;
-
-function removeInstanceFromAst(ast: Ast, instance: Instance): void {
-	if (Array.isArray(ast)) {
-		for (let i = ast.length - 1; i >= 0; i--) {
-			ast[i] === instance
-				? ast.splice(i, 1)
-				: removeInstanceFromAst(ast[i], instance);
-		}
-	}
-	if (ast && typeof ast === 'object') {
-		for (const key of ['content', 'args']) {
-			if (!(key in ast)) {
-				continue;
-			}
-			let node = ast[key as keyof typeof ast];
-			if (!node) continue;
-
-			if (Array.isArray(node)) {
-				for (let i = node.length - 1; i >= 0; i--) {
-					if (node[i] === instance) {
-						node.splice(i, 1);
-					} else {
-						removeInstanceFromAst(node[i], instance);
-					}
-				}
-			}
-		}
-	}
-}
-
 function mergeHebrewTokens(tokens: string[]): string[] {
 	const isHeb = (s: string) => /^[\u05D0-\u05EA]+$/.test(s);
 	const res: string[] = [];

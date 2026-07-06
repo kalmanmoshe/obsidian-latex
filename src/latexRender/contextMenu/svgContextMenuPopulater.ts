@@ -1,4 +1,4 @@
-import { Menu, Notice, TFile, Platform, Modal } from 'obsidian';
+import { Menu, Notice, TFile, Platform } from 'obsidian';
 import LatexRender from 'src/main';
 import { LogDisplayModal } from '../logs/logDisplayModal';
 import { LatexTask, ProcessableLatexTask } from '../task/latexTask';

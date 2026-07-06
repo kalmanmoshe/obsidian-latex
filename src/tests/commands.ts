@@ -16,7 +16,7 @@ export function getTestCommands(plugin: LatexRender): Command[] {
 		createTestOnClipboard(),
 		createCancelTestCommand(),
 		createNewTestLatexCommand(plugin),
-		createOpenLastTestResultCommand(plugin),
+		createOpenLastTestResultCommand(),
 	];
 }
 
@@ -64,11 +64,11 @@ function createNewTestLatexCommand(plugin: LatexRender): Command {
 	};
 }
 
-function createOpenLastTestResultCommand(plugin: LatexRender): Command {
+function createOpenLastTestResultCommand(): Command {
 	return {
 		id: 'open-last-test-result',
 		name: 'Open Last Test Result',
-		callback: () => CompileTest.openLastTestResult(plugin),
+		callback: () => CompileTest.openLastTestResult(),
 	};
 }
 
@@ -123,7 +123,7 @@ class CompileTest {
 		this.startTest(plugin);
 	}
 
-	static openLastTestResult(plugin: LatexRender) {
+	static openLastTestResult() {
 		if (!this.hasCurrentTest()) {
 			new Notice('No previous test result found.');
 			return;

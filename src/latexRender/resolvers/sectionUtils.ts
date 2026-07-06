@@ -1,10 +1,7 @@
-import { MarkdownSectionInformation, TFile } from 'obsidian';
+import { MarkdownSectionInformation } from 'obsidian';
 import {
-	findInnermostSectionInfo,
-	getLatexTaskSectionInfosFromFile,
 	TaskSectionInformation,
 } from './taskSectionInformation';
-import { Line } from '@codemirror/state';
 
 export function sectionToTaskSectionInfo(
 	section: MarkdownSectionInformation,
@@ -39,9 +36,4 @@ export function taskSectionInfoToContent(
 		.split('\n')
 		.slice(1, -1)
 		.join('\n');
-}
-
-export async function codeMirrorLineToTaskSectionInfo(file: TFile, line: Line) {
-	const sectionInfos = await getLatexTaskSectionInfosFromFile(file);
-	return findInnermostSectionInfo(sectionInfos, line.number);
 }

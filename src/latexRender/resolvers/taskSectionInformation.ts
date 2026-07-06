@@ -1,6 +1,5 @@
-import { MarkdownSectionInformation, SectionCache, TFile } from 'obsidian';
-import { getFileSections } from './sectionCache';
-import LatexRender from 'src/main';
+import { SectionCache, TFile } from 'obsidian';
+import { getFileSectionsFromPath } from './sectionCache';
 import { latexCodeBlockNamesRegex } from '../swiftlatexRender';
 import ResultFileCache from '../cache/resultFileCache';
 import { codeBlockToContent } from 'obsidian-dev-utils';
@@ -93,9 +92,8 @@ export async function getTaskSectionInfosFromHash(
  * @returns
  */
 export async function getLatexTaskSectionInfosFromFile(file: TFile) {
-	const sections = await getFileSections(file, true);
+	const { fileText, sections } = await getFileSectionsFromPath(file.path);
 	if (!sections) return [];
-	const fileText = await app.vault.read(file);
 	return getLatexTaskSectionInfosFromString(fileText, sections);
 }
 

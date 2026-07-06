@@ -26,6 +26,7 @@ type QueueObject<T> = async.QueueObject<T> & {
 export class LatexRenderQueue {
 
     private queue: QueueObject<LatexTask>;
+    //@ts-ignore
     private currentTask: LatexTask | null = null;
 
     constructor(private renderer: QueueRenderer) {

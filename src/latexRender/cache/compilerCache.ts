@@ -164,7 +164,7 @@ export default class CompilerCache {
 	/**
 	 * Unloads the cache and flushes the compiler cache.
 	 */
-	private async unloadCache() {
+	async unloadCache() {
 		await this.compiler().flushCache();
 		this.resultFileCache.removeAllCached();
 	}

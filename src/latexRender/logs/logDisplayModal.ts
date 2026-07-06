@@ -1,13 +1,15 @@
 import { Modal } from 'obsidian';
-import LatexRender from 'src/main';
 import { ProcessedLog, File, ErrorLevel } from './latex-log-parser';
+
 export class LogDisplayModal extends Modal {
 	log: ProcessedLog;
+	
 	constructor(log: ProcessedLog) {
 		super(app);
 		this.log = log;
 		this.modalEl.addClass('moshe-swift-latex-log-modal');
 	}
+
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
@@ -71,7 +73,7 @@ export class LogDisplayModal extends Modal {
 				'moshe-log-error-box ' + `level-${err.level}`,
 			);
 
-			const header = box.createDiv({
+			box.createDiv({
 				text: `${err.level.toUpperCase()}: ${err.message}`,
 				cls: 'moshe-log-error-header',
 			});
@@ -96,24 +98,6 @@ export class LogDisplayModal extends Modal {
 					cls: 'moshe-log-error-cause',
 				});
 			}
-		});
-	}
-
-	private renderWarning(container: HTMLElement) {
-		this.log.warnings.forEach((warn) => {
-			container.createEl('div', {
-				text: `${warn.message} (${warn.file}:${warn.line})`,
-				cls: 'moshe-log-warning',
-			});
-		});
-	}
-
-	private renderTypesetting(container: HTMLElement) {
-		this.log.typesetting.forEach((typeErr) => {
-			container.createEl('div', {
-				text: `${typeErr.message} (${typeErr.file}:${typeErr.line})`,
-				cls: 'moshe-log-typesetting',
-			});
 		});
 	}
 
@@ -148,10 +132,18 @@ export class LogDisplayModal extends Modal {
 
 	private renderRaw(container: HTMLElement) {
 		const wrapper = container.createDiv();
-		const rawPre = wrapper.createEl('pre', { text: this.log.raw });
+
+		const scrollContainer = wrapper.createDiv();
+		scrollContainer.setAttribute(
+			'style',
+			'overflow-x: auto; overflow-y: auto; max-height: 500px;',
+		);
+
+		const rawPre = scrollContainer.createEl('pre');
+		rawPre.textContent = this.log.raw;
 		rawPre.setAttribute(
 			'style',
-			'white-space: pre-wrap; word-wrap: break-word;',
+			'margin: 0; white-space: pre; user-select: text;',
 		);
 
 		const copyButton = wrapper.createEl('button', { text: 'Copy' });

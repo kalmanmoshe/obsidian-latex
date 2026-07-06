@@ -21,7 +21,7 @@ export class SvgContextMenuDecider {
 		this.plugin.registerEvent(
 			this.plugin.app.workspace.on(
 				'editor-menu',
-				(menu: Menu, editor, view: MarkdownView) => {
+				(menu: Menu, _, view: MarkdownView) => {
 					const now = Date.now();
 					let best: Pending | null = null;
 

@@ -9,7 +9,7 @@ const PATH_SEPARATORS = [
 	...TRADITIONAL_PATH_SEPARATORS,
 	CODE_BLOCK_NAME_SEPARATOR,
 ];
-export const PATH_SEPARATORS_REGEX = new RegExp(PATH_SEPARATORS.join('|'), 'g');
+const PATH_SEPARATORS_REGEX = new RegExp(PATH_SEPARATORS.join('|'), 'g');
 const CODE_BLOCK_NAME_SEPARATOR_REGEX = new RegExp(
 	CODE_BLOCK_NAME_SEPARATOR,
 	'g',
@@ -79,13 +79,6 @@ export async function getFileContent(path: string): Promise<string> {
 		);
 	}
 	return codeBlockToContent(target.codeBlock);
-}
-
-function getDirRoot(current: TAbstractFile): TFolder {
-	while (current.parent) current = current.parent;
-	if (!(current instanceof TFolder) || !current.isRoot())
-		throw new Error('Root not found');
-	return current;
 }
 
 /**

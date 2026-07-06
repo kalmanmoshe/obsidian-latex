@@ -5,13 +5,12 @@ import {
 	MarkdownView,
 	TFile,
 } from 'obsidian';
-import { getFileSectionsFromPath } from '../resolvers/sectionCache';
 import {
 	extractCodeBlockMetadata,
 	extractCodeBlockName,
 } from '../resolvers/latexSourceFromFile';
 import { LatexAbstractSyntaxTree } from '../../ast/LatexAbstractSyntaxTree';
-import { getSectionsFromMatching } from '../resolvers/findSection';
+import { findMatchingCodeBlockSections } from '../resolvers/findSection';
 import { TaskSectionInformation } from '../resolvers/taskSectionInformation';
 
 import { codeBlockToContent } from 'obsidian-dev-utils';
@@ -68,24 +67,10 @@ async function mdSecInfosFromMdPostProcessorCtx(
 	if (sectionFromContext) {
 		return [sectionFromContext];
 	}
-	const { file, sections } = await getFileSectionsFromPath(ctx.sourcePath);
-	const fileText =
-		getEditorTextForPath(ctx.sourcePath) ??
-		(await app.vault.cachedRead(file));
-
 	// i want to move the logger to the plugin thats why i have the err for now, as a reminder
-	let sectionInfos = getSectionsFromMatching(sections, fileText, content);
+	let sectionInfos = await findMatchingCodeBlockSections(ctx.sourcePath, content);
 
-	if (!sectionInfos) {
-		console.warn(
-			{
-				ctx,
-				sectionInfos,
-				sections,
-				fileText: fileText.split('\n'),
-				content: content.split('\n'),
-			}
-		);
+	if (!sectionInfos || sectionInfos.length === 0) {
 		throw new Error(
 			'No section information found for the task. This might be due to virtual rendering or nested codeBlock environments.',
 		);
@@ -93,7 +78,8 @@ async function mdSecInfosFromMdPostProcessorCtx(
 	return sectionInfos;
 }
 
-function getEditorTextForPath(path: string): string | undefined {
+
+export function getEditorTextForPath(path: string): string | undefined {
 	const leaves = app.workspace.getLeavesOfType('markdown');
 
 	for (const leaf of leaves) {
@@ -197,15 +183,8 @@ export class LatexTask {
 	 */
 	async rebuildTaskFromContent(): Promise<boolean> {
 		const verifiedSectionInfos: TaskSectionInformation[] = [];
-		const file = app.vault.getAbstractFileByPath(this.sourcePath);
-		if (!file || !(file instanceof TFile)) return false;
-		const upToDateFileText = await app.vault.read(file);
-		const { sections } = await getFileSectionsFromPath(this.sourcePath);
-		const sectionInfos = getSectionsFromMatching(
-			sections,
-			upToDateFileText,
-			this.content,
-		);
+
+		const sectionInfos = await findMatchingCodeBlockSections(this.sourcePath, this.content);
 
 		if (!sectionInfos || sectionInfos.length === 0) return false;
 

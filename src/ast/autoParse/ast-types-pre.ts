@@ -39,14 +39,6 @@ import {
 } from '../typs/astNodes';
 import { findEnvironmentArgs } from '../verifyEnvironmentWrap';
 
-export type GenericAst = GenericNode | GenericNode[];
-
-export interface GenericNode {
-	[x: string]: any;
-	type: string;
-	_renderInfo?: object;
-}
-
 // Abstract nodes
 interface BaseNode {
 	type: string;
@@ -62,23 +54,23 @@ interface ContentNode extends BaseNode {
 }
 
 // Actual nodes
-export interface Root extends ContentNode {
+interface Root extends ContentNode {
 	type: 'root';
 }
-export interface String extends BaseNode {
+interface String extends BaseNode {
 	type: 'string';
 	content: string;
 }
 
-export interface Whitespace extends BaseNode {
+interface Whitespace extends BaseNode {
 	type: 'whitespace';
 }
 
-export interface Parbreak extends BaseNode {
+interface Parbreak extends BaseNode {
 	type: 'parbreak';
 }
 
-export interface Comment extends BaseNode {
+interface Comment extends BaseNode {
 	type: 'comment';
 	content: string;
 	sameline?: boolean;
@@ -86,51 +78,51 @@ export interface Comment extends BaseNode {
 	leadingWhitespace?: boolean;
 }
 
-export interface Macro extends BaseNode {
+interface Macro extends BaseNode {
 	type: 'macro';
 	content: string;
 	escapeToken?: string;
 	args?: Argument[];
 }
 
-export interface Environment extends ContentNode {
+interface Environment extends ContentNode {
 	type: 'environment' | 'mathenv';
 	env: string;
 	args?: Argument[];
 }
 
-export interface VerbatimEnvironment extends BaseNode {
+interface VerbatimEnvironment extends BaseNode {
 	type: 'verbatim';
 	env: string;
 	content: string;
 }
 
-export interface DisplayMath extends ContentNode {
+interface DisplayMath extends ContentNode {
 	type: 'displaymath';
 }
 
-export interface Group extends ContentNode {
+interface Group extends ContentNode {
 	type: 'group';
 }
 
-export interface InlineMath extends ContentNode {
+interface InlineMath extends ContentNode {
 	type: 'inlinemath';
 }
 
-export interface Verb extends BaseNode {
+interface Verb extends BaseNode {
 	type: 'verb';
 	env: string;
 	escape: string;
 	content: string;
 }
 
-export interface Argument extends ContentNode {
+interface Argument extends ContentNode {
 	type: 'argument';
 	openMark: string;
 	closeMark: string;
 }
 
-export type Node =
+type Node =
 	| Root
 	| String
 	| Whitespace
@@ -144,7 +136,7 @@ export type Node =
 	| Group
 	| Verb;
 
-export type Ast = Node | Argument | Node[];
+type Ast = Node | Argument | Node[];
 
 function isNodeClassArray(content: any[]): content is NodeClass[] {
 	return content.every((node) => node instanceof BaseNodeClass);
@@ -249,7 +241,7 @@ export function migrateToClassStructure(ast: Ast): AstClass {
 					ast._renderInfo,
 					ast.position,
 				);
-			foo(newEnv);
+			setEnvironmentArguments(newEnv);
 			return newEnv;
 		case 'verbatim':
 			return new VerbatimEnvironmentClass(
@@ -297,7 +289,7 @@ export function migrateToClassStructure(ast: Ast): AstClass {
 	}
 }
 
-function foo(env: EnvironmentClass) {
+function setEnvironmentArguments(env: EnvironmentClass) {
 	const hasArgs = env.args != undefined;
 	if (hasArgs) return;
 

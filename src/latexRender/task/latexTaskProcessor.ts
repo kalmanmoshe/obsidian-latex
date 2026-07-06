@@ -1,7 +1,6 @@
 import LatexRender from 'src/main';
 import { VirtualFileSystem } from '../VirtualFileSystem';
 import { ProcessableLatexTask } from './latexTask';
-import { LatexDependency } from 'src/dependency/LatexDependency';
 
 export async function processTaskSource(
 	task: ProcessableLatexTask,

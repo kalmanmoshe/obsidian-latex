@@ -1,7 +1,6 @@
 import LatexRender from 'src/main';
 import { Notice, TFile } from 'obsidian';
 import { getLatexHashesFromFile } from '../resolvers/latexSourceFromFile';
-import * as path from 'path';
 import { CacheBase } from './cacheBase/cacheBase';
 import {
 	CacheEntry,
@@ -15,7 +14,7 @@ import {
 	ResultFilePhysicalCache,
 	ResultFileVirtualCache,
 } from './resultFileCacheTypes';
-import { extractDir, isValidFileBasename } from '../resolvers/paths';
+import { isValidFileBasename } from '../resolvers/paths';
 import { optimizeSVG } from '../pdfToHtml/optimizeSVG';
 import { getDependencyHash } from './compilerCache';
 
@@ -509,14 +508,6 @@ export default class ResultFileCache {
 		this.cacheMap.clear();
 		this.plugin.settings.dirtyResultFiles = [];
 		this.saveCache();
-	}
-
-	/**
-	 * Returns a map of all cached files with their names and content.
-	 * The key is the file name (with extension), and the value is the file content.
-	 */
-	private getCachedFiles() {
-		return this.cache.getFiles();
 	}
 
 	private basenameToFileName(hash: string): string {

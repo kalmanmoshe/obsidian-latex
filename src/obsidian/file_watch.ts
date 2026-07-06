@@ -121,7 +121,6 @@ export function getFileSets(plugin: LatexRender): FileSets {
 export type PreambleFile = { path: string; name: string; content: string };
 
 export async function getPreambleFromFiles(
-	plugin: LatexRender,
 	files: Set<TFile>,
 ): Promise<PreambleFile[]> {
 	const fileContents: { path: string; name: string; content: string }[] = [];

@@ -1,4 +1,4 @@
-import { INode, TEscape } from 'svgson';
+import { TEscape } from 'svgson';
 import { svgNode } from './nodes';
 
 interface IStringifyOptions {

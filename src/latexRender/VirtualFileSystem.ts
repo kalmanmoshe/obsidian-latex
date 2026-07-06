@@ -1,6 +1,5 @@
 import { LatexAbstractSyntaxTree } from 'src/ast/LatexAbstractSyntaxTree';
 import LatexCompiler from './compiler/base/compilerBase/compiler';
-import { create } from 'domain';
 import { LatexDependencyNode, LatexDependencyParser } from './task/LatexDependencyParser';
 import { Notice } from 'obsidian';
 import { DependencyGraphStore } from 'src/dependency/DependencyGraphStore';
@@ -266,13 +265,10 @@ export class VirtualFileSystem {
 					throw new Error(`Unknown VfsCompileMode: ${vfsCompileMode}`);
 			}
 			for (const file of filesToLoad) {
-				console.debug('Loading virtual file system file:', file.path);
 				await this.compiler.writeMemFSFile(file.name, file.content);
-				console.debug('Loaded virtual file system file:', file.path);
 			}
 			this.compilerState = { status: VFSstatus.uptodate, mode: vfsCompileMode };
 		} catch (err) {
-			console.error('Error loading virtual filesystem files:', err);
 			this.compilerState = { status: VFSstatus.error };
 			throw err;
 		}

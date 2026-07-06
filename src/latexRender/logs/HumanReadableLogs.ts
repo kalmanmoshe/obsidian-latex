@@ -20,19 +20,6 @@ export enum ErrorClasses {
 	Line = 'moshe-swift-latex-error-line',
 }
 
-function displayStructure(items: any[], indent: number = 0): string {
-	let result = '';
-
-	for (const item of items) {
-		result += '  '.repeat(indent) + item.path + '\n';
-		if (item.files && Array.isArray(item.files)) {
-			result += displayStructure(item.files, indent + 1);
-		}
-	}
-
-	return result;
-}
-
 interface ErrorMessage {
 	title: string;
 	explanation?: string;

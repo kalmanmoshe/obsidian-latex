@@ -1,5 +1,5 @@
 import { findNodeWithPath } from '../findNode';
-import { EnvRenderInfo, MacroRenderInfo, RenderInfo } from './info-specs';
+import { EnvRenderInfo, RenderInfo } from './info-specs';
 
 export type GenericAst = GenericNode | GenericNode[];
 
@@ -13,8 +13,6 @@ type Position = {
 	start: { offset: number; line: number; column: number };
 	end: { offset: number; line: number; column: number };
 };
-
-type parentNode = BaseNode;
 
 /**
  * Represents the base class for all AST (Abstract Syntax Tree) nodes.
@@ -417,14 +415,6 @@ const getDefaultMacroRenderInfoConfig = (
 	}
 	if (content.match(/input|documentclass/)) info.breakAfter = true;
 	return Object.keys(info).length === 0 ? undefined : info;
-};
-
-const modifyPathMacroInfo = (info?: RenderInfo) => {
-	if (!info) {
-		info = getDefaultMacroRenderInfoConfig('path') ?? {};
-	}
-	info.tikzPathCommand = true;
-	return info;
 };
 
 export class Environment extends ContentNode {

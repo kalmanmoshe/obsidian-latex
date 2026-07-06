@@ -19,6 +19,8 @@
     "isolatedModules": true,
     "strictNullChecks": true,
     "allowSyntheticDefaultImports": true,
+     "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "lib": [
       "esnext", // Latest JavaScript features
       "dom",

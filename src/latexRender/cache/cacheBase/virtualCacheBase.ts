@@ -1,6 +1,5 @@
 import LatexRender from 'src/main';
 import { CacheBase } from './cacheBase';
-import { Notice } from 'obsidian';
 import { cacheFileFormat } from '../resultFileCache';
 
 export abstract class VirtualCacheBase extends CacheBase {

@@ -8,11 +8,11 @@ import { CacheStatus, hashLatexContent } from 'src/latexRender/cache/compilerCac
 import { LatexTask } from 'src/latexRender/task/latexTask';
 import { codeBlockToContent } from 'obsidian-dev-utils';
 
-function getCodeBlockNamer(plugin: LatexRender) {
+function getCodeBlockNamer() {
 	return {
 		id: 'name-code-block',
 		name: 'Name Current Code Block',
-		editorCallback: (editor: Editor) => assignCodeBlockName(plugin, editor),
+		editorCallback: (editor: Editor) => assignCodeBlockName(editor),
 	};
 }
 
@@ -121,7 +121,7 @@ export const getEditorCommands = (
 ): (Command | undefined)[] => {
 	return [
 		...getTestCommands(plugin),
-		getCodeBlockNamer(plugin),
+		getCodeBlockNamer(),
 		removeAllCachedPackages(plugin),
 		getRebuildQueue(plugin),
 		getAbortTasks(plugin),

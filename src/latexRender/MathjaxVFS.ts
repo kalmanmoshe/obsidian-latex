@@ -1,12 +1,9 @@
-import { inlineDependencies, LatexAbstractSyntaxTree } from 'src/ast/LatexAbstractSyntaxTree';
-import LatexCompiler from './compiler/base/compilerBase/compiler';
-import { create } from 'domain';
+import { inlineDependencies } from 'src/ast/LatexAbstractSyntaxTree';
 import { LatexDependencyParser } from './task/LatexDependencyParser';
 import { Notice } from 'obsidian';
 import { DependencyGraphStore } from 'src/dependency/DependencyGraphStore';
-import { createMathJaxDependency, LatexDependency, MathJaxDependency } from 'src/dependency/LatexDependency';
+import { createMathJaxDependency, MathJaxDependency } from 'src/dependency/LatexDependency';
 import { MathJaxAbstractSyntaxTree } from 'src/ast/mathJaxAbstractSyntaxTree';
-import { DependencyMacro } from 'src/ast/typs/astNodes';
 
 export enum VFSstatus {
     undefined,
@@ -34,8 +31,6 @@ export class MathjaxVFS {
     private graph: DependencyGraphStore<MathJaxAbstractSyntaxTree, MathJaxDependency> = new DependencyGraphStore();
 
     private parser: LatexDependencyParser<MathJaxAbstractSyntaxTree, MathJaxDependency>;
-
-    private status: VFSstatus = VFSstatus.undefined;
     /**
      * whether the virtual file system is enabled. If disabled, the virtual file system will flush the pdf engine and no longer update the files in said engine.
      */
@@ -63,7 +58,6 @@ export class MathjaxVFS {
     async setEnabled(enabled: boolean) {
         if (this.vfsEnabled && !enabled) {
             this.graph.flush();
-            this.status = VFSstatus.undefined;
         }
         this.vfsEnabled = enabled;
     }
@@ -77,13 +71,12 @@ export class MathjaxVFS {
         }
         return false;
     }
-    
+
     async addOrReplaceFile(file: VirtualFile) {
         const newDep = createMathJaxDependency(file.content, file.path);
 
         if (!newDep.isTex) {
             this.graph.addOrReplaceFile(newDep, []);
-            this.status = VFSstatus.outdated;
             return;
         }
 
@@ -94,10 +87,8 @@ export class MathjaxVFS {
             newDep.content = parsed.content;
 
             this.graph.addOrReplaceFile(newDep, parsed.dependencies);
-            this.status = VFSstatus.outdated;
         } catch (err) {
             console.error('Error parsing virtual file system file:', err);
-            this.status = VFSstatus.error;
 
             new Notice(
                 `Error parsing virtual file system file: ${file.path}. Check console for details.`,

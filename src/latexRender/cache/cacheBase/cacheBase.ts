@@ -1,5 +1,4 @@
 import LatexRender from 'src/main';
-import { Notice } from 'obsidian';
 import path from 'path';
 import {
 	extractBasenameAndExtension,

@@ -55,11 +55,11 @@ export default class LatexRender extends Plugin {
 	
 	async onload() {
 		const startTime = performance.now();
+		console.log('Loading Moshe math plugin');
 		this.menuDecider = new SvgContextMenuDecider(this);
 		this.mathJaxVFS = new MathjaxVFS();
-		console.log('Loading Moshe math plugin');
+
 		await this.loadSettings();
-		console.log('loaded settings', this.settings)
 
 		this.addEditorCommands();
 		this.addSyntaxHighlighting();
@@ -78,7 +78,6 @@ export default class LatexRender extends Plugin {
 			(performance.now() - startTime) +
 			'ms',
 		);
-		//this.registerEditorSuggest()
 	}
 
 	async onunload() {
@@ -87,9 +86,7 @@ export default class LatexRender extends Plugin {
 	}
 
 	private async loadLayoutReadyDependencies() {
-		console.log('Processing LaTeX preambles...');
 		this.processLatexPreambles(true);
-		console.log('Processed LaTeX preambles');
 		this.loadMathJax();
 		// we need to use await here because the codeBlock processor
 		// needs to be loaded before the codeBlocks are processed
@@ -169,7 +166,6 @@ export default class LatexRender extends Plugin {
 	}
 
 	async loadMathJax(): Promise<void> {
-		console.warn('Loading MathJax...');
 		await loadMathJax();
 
 		await this.updateMathjaxVFS();
@@ -228,7 +224,6 @@ export default class LatexRender extends Plugin {
 					const cursor = editor.getCursor();
 					editor.setValue(editor.getValue());
 					editor.setCursor(cursor);
-					console.log()
 				}
 			}
 		});
@@ -237,10 +232,7 @@ export default class LatexRender extends Plugin {
 	private async updateMathjaxVFS(): Promise<void> {
 		const mathjaxPreambleFiles = getFileSets(this).mathjaxPreambleFiles;
 		
-		const preambles = await getPreambleFromFiles(
-			this,
-			mathjaxPreambleFiles,
-		);
+		const preambles = await getPreambleFromFiles(mathjaxPreambleFiles);
 		
 		this.mathJaxVFS.flush();
 		await this.mathJaxVFS.addOrReplaceFiles(preambles);
@@ -302,10 +294,7 @@ export default class LatexRender extends Plugin {
 		becauseFileUpdated: boolean,
 	) {
 		const files = getFileSets(this);
-		const coorFiles = await getPreambleFromFiles(
-			this,
-			files.latexVirtualFiles,
-		);
+		const coorFiles = await getPreambleFromFiles(files.latexVirtualFiles,);
 		this.showPreambleLoadedNotice(
 			coorFiles.length,
 			becauseFileLocationUpdated,

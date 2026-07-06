@@ -1,60 +1,37 @@
 import { SectionCache, TFile } from 'obsidian';
 import { parseNestedCodeBlocks, shiftSections } from 'obsidian-dev-utils';
+import { getEditorTextForPath } from '../task/latexTask';
 
-/**
- * get the sections of a file from the metadata cache with the option to account for nested code blocks.
- * @param file
- * @param app
- * @param accountForNestedCodeBlocks
- * @returns
- */
-export function getFileSections(
-	file: TFile,
-	accountForNestedCodeBlocks = false,
-): Promise<SectionCache[]> | SectionCache[] | undefined {
-	const fileCache = app.metadataCache.getFileCache(file);
-	if (!fileCache?.sections) return undefined;
-
-	if (!accountForNestedCodeBlocks) {
-		return fileCache.sections;
-	}
-	return getFileSectionsWithNested(file, fileCache.sections);
-}
-
+//get a better name later
 export async function getFileSectionsFromPath(path: string) {
-	const file = app.vault.getAbstractFileByPath(path) as TFile;
+	const file = app.vault.getAbstractFileByPath(path);
+	if (!(file instanceof TFile)) throw new Error('File not found');
 	//we cant use the file cache
-	const sections = await getFileSections(file, true);
+	const source = getEditorTextForPath(file.path) ?? await app.vault.read(file);
+	const sections = await getCodeBlockSectionsFromFile(file);
 	if (!sections) throw new Error('No sections found in metadata');
-	return { file, sections };
+	return {
+		file,
+		fileText: source,
+		sections: parseCodeBlockSections(source)
+	};
 }
 
-async function getFileSectionsWithNested(
+export async function getCodeBlockSectionsFromFile(
 	file: TFile,
-	sectionsBase: SectionCache[],
 ): Promise<SectionCache[]> {
-	const sections: SectionCache[] = [];
-	const source = await app.vault.read(file);
-	const lines = source.split('\n');
-	for (const section of sectionsBase) {
-		sections.push(section);
-		if (section.type !== 'code') continue;
+	const source = getEditorTextForPath(file.path) ?? await app.vault.read(file);
+	return parseCodeBlockSections(source);
+}
 
-		const startPos = section.position.start;
-		const content = lines
-			.slice(startPos.line + 1, section.position.end.line)
-			.join('\n');
-		const nestedCodeBlocks = shiftSections(
-			startPos.line + 1,
-			parseNestedCodeBlocks(content),
-		).map((section) =>
-			createSectionCache(source, section.start, section.end),
-		);
-
-		sections.push(...nestedCodeBlocks);
-	}
-
-	return sections.sort(
+function parseCodeBlockSections(fileText: string) {
+	const nestedCodeBlocks = shiftSections(
+		0,
+		parseNestedCodeBlocks(fileText),
+	).map((section) =>
+		createSectionCache(fileText, section.start, section.end),
+	);
+	return nestedCodeBlocks.sort(
 		(a, b) => a.position.start.line - b.position.start.line,
 	);
 }
@@ -86,18 +63,4 @@ function getOffsetForLine(source: string, lineNumber: number): number {
 		.split('\n')
 		.slice(0, lineNumber)
 		.reduce((acc, curr) => acc + curr.length + 1, 0); // +1 for \n
-}
-// u can Always use editor.offsetToPos(offset) to get the line number
-// this is for when you dont have access to the editor
-export function getLineFromOffset(source: string, offset: number): number {
-	const lines = source.split('\n');
-	let total = 0;
-	for (let i = 0; i < lines.length; i++) {
-		const lineLength = lines[i].length + 1;
-		if (total + lineLength > offset) {
-			return i;
-		}
-		total += lineLength;
-	}
-	return lines.length - 1;
 }

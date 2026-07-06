@@ -1,10 +1,9 @@
 import LatexRender from 'src/main';
 import { ProcessedLog } from '../logs/latex-log-parser';
 import parseLatexLog from '../logs/HumanReadableLogs';
-import { MarkdownView, Notice } from 'obsidian';
-import { getSectionsFromMatching } from '../resolvers/findSection';
+import { Notice } from 'obsidian';
+import { findMatchingCodeBlockSections } from '../resolvers/findSection';
 import { LatexTask } from '../task/latexTask';
-import { getFileSectionsFromPath } from '../resolvers/sectionCache';
 import { sectionToTaskSectionInfo } from '../resolvers/sectionUtils';
 import { getDependencyHash } from './compilerCache';
 
@@ -71,19 +70,12 @@ export default class LogCache {
 		}
 		new Notice(
 			'No logs were found for this SVG element.\n' +
-				cause +
-				'Re-rendering the SVG to generate logs. This may take a moment...',
+			cause +
+			'Re-rendering the SVG to generate logs. This may take a moment...',
 		);
-		const { source, sourcePath } = config;
-		const { file, sections } = await getFileSectionsFromPath(sourcePath);
-		const editor = app.workspace.getActiveViewOfType(MarkdownView)?.editor;
-		const fileText =
-			editor?.getValue() ?? (await app.vault.cachedRead(file));
-		const sectionsFromMatching = getSectionsFromMatching(
-			sections,
-			fileText,
-			source,
-		);
+
+		const sectionsFromMatching = await findMatchingCodeBlockSections(config.sourcePath, config.source);
+
 		if (!sectionsFromMatching)
 			throw new Error('No section found for this source');
 		const sectionInfos = sectionsFromMatching.map((secFromMatch) =>
@@ -91,7 +83,7 @@ export default class LogCache {
 		);
 		const task = LatexTask.fromSectionInfos(
 			this.plugin,
-			sourcePath,
+			config.sourcePath,
 			sectionInfos,
 		);
 		const result =
@@ -99,7 +91,7 @@ export default class LogCache {
 		return parseLatexLog(result.log);
 	}
 
-	removeLog(log: ProcessedLog, logCacheKey: string): void {
+	removeLog(logCacheKey: string): void {
 		this.getCache()?.delete(logCacheKey);
 	}
 }
