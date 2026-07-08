@@ -1,4 +1,3 @@
-
 export enum EngineStatus {
   Init,
   Ready,
@@ -16,11 +15,12 @@ export enum CompileStatus {
 }
 
 export class CompileResult {
-  pdf: Buffer<ArrayBufferLike>;
+  pdf: Uint8Array;
   status: number = -254;
   log: string = 'No log';
+
   constructor(
-    pdf: Buffer<ArrayBufferLike> | undefined,
+    pdf: Uint8Array | undefined,
     status: number,
     log: string,
   ) {
@@ -28,6 +28,7 @@ export class CompileResult {
     this.status = status;
     this.log = log;
   }
+  
 }
 
 export enum EngineCommands {
@@ -130,7 +131,7 @@ export default class LatexEngine {
       `Engine compilation finished in ${performance.now() - startCompileTime} ms`,
     );
     return new CompileResult(
-      data.pdf ? Buffer.from(new Uint8Array(data.pdf)) : undefined,
+      data.pdf ? new Uint8Array(data.pdf) : undefined,
       data.status,
       data.log,
     );
@@ -149,7 +150,7 @@ export default class LatexEngine {
       (performance.now() - startCompileTime),
     );
     return new CompileResult(
-      data.pdf ? Buffer.from(new Uint8Array(data.pdf)) : undefined,
+      data.pdf ? new Uint8Array(data.pdf) : undefined,
       data.status,
       data.log,
     );
@@ -309,7 +310,7 @@ export default class LatexEngine {
   /**
    *
    */
-  writeTexFSFile(filename: string, srcCode: Buffer<ArrayBufferLike>) {
+  writeTexFSFile(filename: string, srcCode: Uint8Array) {
     return this.task({
       cmd: EngineCommands.Writetexfile,
       url: filename,
@@ -328,7 +329,7 @@ export default class LatexEngine {
    */
   writeMemFSFile(
     filename: string,
-    srcCode: string | Buffer<ArrayBufferLike>,
+    srcCode: string | Uint8Array,
   ) {
     return this.task({
       cmd: EngineCommands.Writefile,

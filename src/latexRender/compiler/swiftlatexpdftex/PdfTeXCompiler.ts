@@ -1,4 +1,4 @@
-import PdfTeXWorker from './mainSwiftlatex.worker.js';
+import PdfTeXWorker from './swiftlatexpdftex.worker.js';
 import LatexEngine, {
   CompileResult,
 } from '../base/compilerBase/engine.js';

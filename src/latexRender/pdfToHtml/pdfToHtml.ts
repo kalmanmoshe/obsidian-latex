@@ -3,7 +3,7 @@ import { SVGroot } from 'src/svg/nodes';
 import { optimizeSVG } from './optimizeSVG';
 const PdfToCairo = require('./pdftocairo.js');
 
-export async function pdfToSVG(pdfData: Buffer<ArrayBufferLike>) {
+export async function pdfToSVG(pdfData: Uint8Array) {
 	const pdftocairo = await PdfToCairo();
 	pdftocairo.FS.writeFile('input.pdf', pdfData);
 	pdftocairo._convertPdfToSvg();
@@ -11,7 +11,7 @@ export async function pdfToSVG(pdfData: Buffer<ArrayBufferLike>) {
 }
 
 export async function pdfToOptimizedSVG(
-	pdfData: Buffer<ArrayBufferLike>,
+	pdfData: Uint8Array,
 	config: {
 		invertColorsInDarkMode: boolean;
 		autoRemoveWhitespace: boolean;
@@ -53,7 +53,7 @@ function colorSVGinDarkMode(svg: string) {
 	return svg;
 }
 
-export async function pdfToHtml(pdfData: Buffer) {
+export async function pdfToHtml(pdfData: Uint8Array) {
 	const { width, height } = await getPdfDimensions(pdfData);
 	const ratio = width / height;
 

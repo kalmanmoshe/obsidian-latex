@@ -27,6 +27,7 @@ export abstract class PhysicalCacheBase extends CacheBase {
 			fs.rmSync(path, { recursive: true, force: true });
 		}
 	}
+	
 	clearCache() {
 		this.deleteCache();
 		this.validateDir(); // Recreate the directory after clearing

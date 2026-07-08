@@ -393,7 +393,7 @@ export class SwiftlatexRender {
 	}
 
 	private async translatePDF(
-		pdfData: Buffer<ArrayBufferLike>,
+		pdfData: Uint8Array,
 		el: HTMLElement,
 		basename: string,
 		outputSVG = true,

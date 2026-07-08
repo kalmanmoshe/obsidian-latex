@@ -123,11 +123,13 @@ export default class CompilerCache {
 			'swiftlatex-render-cache',
 		);
 	}
+	
 	/**
 	 * Ensures the cache directory exists, creating it if necessary.
 	 */
 	private validateCatchDirectory() {
 		const cacheFolderParentPath = this.getCacheFolderParentPath();
+		this.plugin.app.vault.adapter.exists
 		if (!fs.existsSync(cacheFolderParentPath)) {
 			fs.mkdirSync(cacheFolderParentPath, { recursive: true });
 		}

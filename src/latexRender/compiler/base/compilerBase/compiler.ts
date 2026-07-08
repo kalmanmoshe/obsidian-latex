@@ -78,7 +78,7 @@ export default abstract class LatexCompiler {
 
   async writeMemFSFile(
     filename: string,
-    source: string | Buffer<ArrayBufferLike>,
+    source: string | Uint8Array,
   ): Promise<void> {
     this.validate();
     return this.engines[0].writeMemFSFile(filename, source);
