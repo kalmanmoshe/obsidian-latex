@@ -1,38 +1,66 @@
-import LatexRender from 'src/main';
-import { CacheBase } from './cacheBase';
-import { cacheFileFormat } from '../resultFileCache';
+import { extractFileName } from 'src/latexRender/resolvers/paths';
+import { CacheBase, CacheContent, CacheFileType } from './cacheBase';
 
 export abstract class VirtualCacheBase extends CacheBase {
 	/**
 	 * @key: name of the file with extension
 	 * @value: content of the file
 	 */
-	protected cache: Map<string, string> = new Map();
-	constructor(plugin: LatexRender) {
-		super(plugin, [cacheFileFormat]);
-		this.cache = new Map();
-	}
-	fileExists(fileName: string): boolean {
+	protected cache: Map<string, CacheContent> = new Map();
+
+	async fileExists(fileName: string) {
 		return this.cache.has(fileName) || false;
 	}
-	getFile(fileName: string): string | undefined {
-		return this.cache.get(fileName);
+
+	async getFileAsString(fileName: string): Promise<string | undefined> {
+		if (this.getFileType(fileName) !== CacheFileType.Text) {
+			throw new Error(`"${fileName}" is not a text cache file.`);
+		}
+
+		const content = this.cache.get(fileName);
+
+		if (content === undefined) return undefined;
+
+		if (typeof content !== "string") {
+			throw new Error(`"${fileName}" contains binary data.`);
+		}
+
+		return content;
 	}
-	getFiles(): Map<string, string> {
-		const newCache = new Map<string, string>();
+
+	async getFileAsBinary(fileName: string): Promise<Uint8Array | undefined> {
+		if (this.getFileType(fileName) !== CacheFileType.Binary) {
+			throw new Error(`"${fileName}" is not a binary cache file.`);
+		}
+
+		const content = this.cache.get(fileName);
+
+		if (content === undefined) return undefined;
+
+		if (!(content instanceof Uint8Array)) {
+			throw new Error(`"${fileName}" contains text data.`);
+		}
+
+		return content;
+	}
+
+	async getFiles(): Promise<Map<string, CacheContent>> {
+		const newCache = new Map<string, CacheContent>();
 		this.cache.forEach((value, key) =>
-			newCache.set(this.extractFileName(key), value),
+			newCache.set(extractFileName(key), value),
 		);
 		return newCache;
 	}
-	addFile(fileName: string, content: string | Uint8Array<ArrayBuffer>) {
+
+	async addFile(fileName: string, content: CacheContent) {
 		content =
 			typeof content === 'string'
 				? content
 				: new TextDecoder().decode(content);
 		this.cache.set(fileName, content);
 	}
-	deleteFile(fileName: string) {
+
+	async deleteFile(fileName: string) {
 		if (this.cache.has(fileName)) {
 			this.cache.delete(fileName);
 			return true;
@@ -40,18 +68,20 @@ export abstract class VirtualCacheBase extends CacheBase {
 		return false;
 	}
 
-	listCacheFiles() {
+	async listCacheFiles() {
 		return [...(this.cache.keys() || [])];
 	}
 
-	deleteCache(): void {
+	async deleteCache() {
 		this.cache.clear();
 		this.cache = undefined as any;
 	}
-	clearCache(): void {
+
+	async clearCache() {
 		this.cache.clear();
 	}
-	cleanCache(): void {
+
+	async cleanCache(): Promise<void> {
 		const keys = [...this.cache.keys()];
 		keys.forEach((key) => {
 			if (!this.isValidFileName(key)) {

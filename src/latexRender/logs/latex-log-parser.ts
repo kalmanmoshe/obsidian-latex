@@ -18,11 +18,6 @@ export enum ErrorLevel {
 	Typesetting = 'typesetting',
 }
 
-export interface Options {
-	fileBaseNames?: RegExp[];
-	ignoreDuplicates?: boolean;
-}
-
 export interface CurrentError {
 	line: number | null;
 	file: string | null;
@@ -36,10 +31,12 @@ export interface File {
 	path: string;
 	files: File[];
 }
+
 type LineHandler = {
 	test: () => boolean;
 	action: () => void;
 };
+
 export type ProcessedLog = {
 	errors: CurrentError[];
 	warnings: CurrentError[];
@@ -51,7 +48,6 @@ export type ProcessedLog = {
 
 export default class LatexParser {
 	state: STATE = STATE.NORMAL;
-	fileBaseNames?: RegExp[];
 	ignoreDuplicates?: boolean;
 	data: Array<CurrentError> = [];
 	fileStack: Array<File> = [];
@@ -63,12 +59,9 @@ export default class LatexParser {
 	rootFileList: Array<File> = [];
 	currentFileList: Array<File> = this.rootFileList;
 	currentFilePath: string;
-	constructor(text: string, options: Options = {}) {
-		this.fileBaseNames = options.fileBaseNames || [
-			/compiles/,
-			/\/usr\/local/,
-		];
-		this.ignoreDuplicates = options.ignoreDuplicates;
+
+	constructor(text: string, ignoreDuplicates: boolean) {
+		this.ignoreDuplicates = ignoreDuplicates;
 		this.log = new LogText(text);
 	}
 

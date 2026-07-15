@@ -8,15 +8,22 @@ import {
 	TaskSectionInformation,
 } from '../resolvers/taskSectionInformation';
 import { SVG_ID_KEY } from 'src/svg/nodes';
-import { exec } from 'child_process';
 import { codeBlockToContent } from 'obsidian-dev-utils';
 import ResultFileCache from '../cache/resultFileCache';
 
-function revealFileWithFocus(path: string) {
+async function revealFileWithFocus(path: string) {
+	if (!Platform.isDesktopApp) {
+		new Notice('Reveal in file explorer is only available on desktop.');
+		return;
+	}
+
+	const req = (globalThis as any).require;
+
+	const { exec } = req("child_process");
+
 	if (Platform.isWin) {
 		const winPath = path.replace(/\//g, '\\');
 		exec(`start "" explorer.exe /select,"${winPath}"`);
-		//exec(`explorer.exe /select,"${path.replace(/\//g, '\\')}"`);
 	} else if (Platform.isMacOS) {
 		const script = `
 			tell application "Finder"
@@ -26,8 +33,7 @@ function revealFileWithFocus(path: string) {
 		`;
 		exec(`osascript -e '${script.replace(/\n/g, '')}'`);
 	} else {
-		// Fallback for Linux or just use shell.showItemInFolder
-		const { shell } = require('electron');
+		const { shell } = await import('electron');
 		shell.showItemInFolder(path);
 	}
 }
@@ -52,7 +58,7 @@ export class SvgContextMenuPopulater {
 	isError: boolean;
 	content: string;
 	private sourceAssignmentPromise: Promise<boolean> | null = null;
-	basename: string;
+	stem: string;
 	rawHash: string;
 	depsHash: string;
 	private resultFileCache: ResultFileCache;
@@ -79,7 +85,7 @@ export class SvgContextMenuPopulater {
 		this.containerEl = this.findErrorContainer();
 		this.isError = !this.svgEl;
 
-		this.assignBasename();
+		this.assignStem();
 	}
 
 	private findSvg(): SVGElement | undefined {
@@ -96,24 +102,24 @@ export class SvgContextMenuPopulater {
 		);
 	}
 
-	private assignBasename() {
-		const basename =
+	private assignStem() {
+		const stem =
 			this.svgEl?.getAttribute(SVG_ID_KEY) ??
 			this.containerEl?.getAttribute(SVG_ID_KEY);
 
-		if (!basename) {
+		if (!stem) {
 			console.error(
-				'No basename found for SVG/error container',
+				'No stem found for SVG/error container',
 				this.svgEl,
 				this.containerEl,
 			);
-			throw new Error('No basename found for SVG/error container');
+			throw new Error('No stem found for SVG/error container');
 		}
 
-		this.basename = basename;
+		this.stem = stem;
 
 		({ rawHash: this.rawHash, depsHash: this.depsHash } =
-			this.resultFileCache.basenameToHashes(this.basename));
+			this.resultFileCache.stemToHashes(this.stem));
 	}
 
 	private addDisplayItems() {
@@ -131,7 +137,7 @@ export class SvgContextMenuPopulater {
 			},
 			{ hiddenOnError: true }
 		);
-			
+
 		this.addItem(
 			'properties',
 			'settings',
@@ -221,8 +227,8 @@ export class SvgContextMenuPopulater {
 				);
 				return;
 			}
-			const filePath = this.resultFileCache.getAbsolutePathFromBasename(
-				this.basename,
+			const filePath = this.resultFileCache.getAbsolutePathFromStem(
+				this.stem,
 			);
 			revealFileWithFocus(filePath);
 		} catch (err) {
@@ -232,11 +238,11 @@ export class SvgContextMenuPopulater {
 
 	private async showLogs() {
 		this.assignLatexContent();
-		let log = this.plugin.swiftlatexRender.cache.getLog(this.basename);
+		let log = this.plugin.swiftlatexRender.cache.getLog(this.stem);
 		if (!log) {
 			await this.assignLatexContent();
 			log = await this.plugin.swiftlatexRender.cache.forceGetLog(
-				this.basename,
+				this.stem,
 				{ source: this.content, sourcePath: this.sourcePath },
 			);
 		}
@@ -318,13 +324,13 @@ export class SvgContextMenuPopulater {
 	 */
 	private async removeAndReRender() {
 		if (!this.isError) {
-			const success = this.resultFileCache.removeResultFileFromCache(
-				this.basename,
+			const success = await this.resultFileCache.removeResultFileFromCache(
+				this.stem,
 			);
 			if (!success) {
 				console.error(
 					'Failed to remove result file from cache:',
-					this.basename,
+					this.stem,
 				);
 			}
 		}
@@ -333,7 +339,7 @@ export class SvgContextMenuPopulater {
 		this.plugin.swiftlatexRender.queue.push(task);
 		new Notice('SVG removed from cache. Re-rendering...');
 	}
-	
+
 	private async getProcessedTask(): Promise<ProcessableLatexTask | undefined> {
 		const task = await this.getTask();
 		if (task.isProcess()) {

@@ -49,12 +49,12 @@ const args = {
     "@codemirror/tooltip",
     "@codemirror/view",
     "@lezer/highlight",
-    ...builtins, // fs, path, etc.
+    //...builtins, // fs, path, etc.
   ],
 
   format: "cjs",
-  target: "es2016",
-  platform: "node",
+  target: "es2020",
+  platform: "browser",
 
   // Output to repo root (your current setup)
   outdir: ".",
@@ -62,10 +62,16 @@ const args = {
   assetNames: "assets/[name]-[hash]",
 
   // Size & diagnostics
-  minify: true,
-  legalComments: "none",
-  sourcemap: prod ? false : "inline",
+  minify: prod,
+  minifyIdentifiers: prod,
+  minifySyntax: prod,
+  minifyWhitespace: prod,
   treeShaking: true,
+  legalComments: "none",
+
+  // Removes debugger statements in production.
+  // Add "console" only if you don't need logs.
+  drop: prod ? ["debugger"] : [],
 
   // DON’T inline wasm
   loader: {
@@ -77,9 +83,9 @@ const args = {
   plugins: [
     inlineWorkerPlugin({
       bundle: true,
-      target: ["es2016"],
-      platform: "node",
-      format: "cjs",
+      target: ["es2020"],
+      platform: "browser",
+      format: "iife",
       plugins: [
         // ensure workers also emit wasm as a file
         wasmLoader({ mode: "deferred" }),
@@ -93,8 +99,13 @@ const args = {
 
 const result = await esbuild.build({
   ...args,
-  metafile: !prod, // no metafile in production
+  metafile: true,
 });
+
+writeFileSync(
+	'meta.json',
+	JSON.stringify(result.metafile, null, 2),
+);
 
 if (!prod && result.metafile) {
   writeFileSync("meta.json", JSON.stringify(result.metafile, null, 2));

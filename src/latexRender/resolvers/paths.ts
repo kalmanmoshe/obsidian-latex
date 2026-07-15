@@ -1,4 +1,4 @@
-import { TAbstractFile, TFile, TFolder } from 'obsidian';
+import { normalizePath, TAbstractFile, TFile, TFolder } from 'obsidian';
 import { getLatexTaskSectionInfosFromFile } from './taskSectionInformation';
 import { extractCodeBlockName } from './latexSourceFromFile';
 import { codeBlockToContent } from 'obsidian-dev-utils';
@@ -26,11 +26,11 @@ export function resolvePathRelToVault(
 	if (!(file instanceof TFile)) {
 		throw new Error(`Invalid path: ${remainingPath}`);
 	}
-	
-	if (!isValidFileBasename(remainingPath)) {
-		throw new Error(`Invalid file basename: ${remainingPath}`);
+
+	if (!isValidFileStem(remainingPath)) {
+		throw new Error(`Invalid file stem: ${remainingPath}`);
 	}
-	
+
 	const codeBlockName = remainingPath + '.tex';
 	return absPath + CODE_BLOCK_NAME_SEPARATOR + codeBlockName;
 }
@@ -45,8 +45,8 @@ export async function getFileContent(path: string): Promise<string> {
 	if (parts.length > 2 || parts.length === 0) {
 		throw new Error(
 			"Invalid path format. Use '" +
-				CODE_BLOCK_NAME_SEPARATOR +
-				"' to separate file path and code block name.",
+			CODE_BLOCK_NAME_SEPARATOR +
+			"' to separate file path and code block name.",
 		);
 	}
 	const filePath = parts.shift()!;
@@ -56,26 +56,26 @@ export async function getFileContent(path: string): Promise<string> {
 	}
 	const fileText = await app.vault.read(file);
 	if (parts.length === 0) return fileText;
-	const codeBlockBaseName = extractBasenameAndExtension(
+	const codeBlockStem = extractStemAndExtension(
 		parts.shift()!,
-	).basename;
+	).stem;
 
 	const codeBlocks = await getLatexTaskSectionInfosFromFile(file);
 	const potentialTargets = codeBlocks.filter(
-		(block) => extractCodeBlockName(block.codeBlock) === codeBlockBaseName,
+		(block) => extractCodeBlockName(block.codeBlock) === codeBlockStem,
 	);
 	const target = potentialTargets.shift();
 	if (!target) {
 		throw new Error(
 			'No code block found with name: ' +
-				codeBlockBaseName +
-				' in file: ' +
-				file.path,
+			codeBlockStem +
+			' in file: ' +
+			file.path,
 		);
 	}
 	if (potentialTargets.length > 0) {
 		throw new Error(
-			`Multiple code blocks found with name: ${codeBlockBaseName} in file: ${file.path}`,
+			`Multiple code blocks found with name: ${codeBlockStem} in file: ${file.path}`,
 		);
 	}
 	return codeBlockToContent(target.codeBlock);
@@ -144,7 +144,7 @@ export function findRelativeFile(filePath: string, currentPath: string) {
 	if (!(current instanceof TFolder)) {
 		throw new Error(`Invalid folder: ${parts[0]}`);
 	}
-	
+
 	const fileName = parts.shift();
 
 	if (!fileName) {
@@ -219,12 +219,12 @@ function resolveStartingFolder(
 	};
 }
 
-export function extractBasenameAndExtension(path: string) {
+export function extractStemAndExtension(path: string) {
 	if (path.split(CODE_BLOCK_NAME_SEPARATOR).length > 2) {
 		throw new Error(
 			"Invalid path format. Use '" +
-				CODE_BLOCK_NAME_SEPARATOR +
-				"' to separate file path and code block name.",
+			CODE_BLOCK_NAME_SEPARATOR +
+			"' to separate file path and code block name.",
 		);
 	}
 	const parts = path
@@ -234,9 +234,9 @@ export function extractBasenameAndExtension(path: string) {
 		.pop()
 		?.split('.')!;
 	const extension = parts.pop()!;
-	const basename = parts.join('.');
+	const stem = parts.join('.');
 
-	return { basename, extension };
+	return { stem, extension };
 }
 
 export function extractDir(path: string): string {
@@ -245,19 +245,29 @@ export function extractDir(path: string): string {
 	return parts.join('/');
 }
 
-export function isValidFileBasename(basename: any): boolean {
-	if (typeof basename !== 'string') return false;
-	basename = basename.trim();
+/**
+ * Extracts the file name from a full cache file path.
+ * Example: "/home/user/.obsidian/latex-render-cache/someFile.pdf" -> "someFile.pdf"
+ * @param path The full path to the cache file.
+ */
+export function extractFileName(path: string): string {
+	const parts = path.split(PATH_SEPARATORS_REGEX);
+	return parts.pop()!;
+}
+
+export function isValidFileStem(stem: any): boolean {
+	if (typeof stem !== 'string') return false;
+	stem = stem.trim();
 	if (
-		basename === '' ||
-		basename.length > 255 ||
-		/[<>:"/\\|?*\x00-\x1F]/.test(basename) ||
-		/[. ]$/.test(basename)
+		stem === '' ||
+		stem.length > 255 ||
+		/[<>:"/\\|?*\x00-\x1F]/.test(stem) ||
+		/[. ]$/.test(stem)
 	) {
 		return false;
 	}
 
-	const upper = basename.toUpperCase();
+	const upper = stem.toUpperCase();
 	const reserved = [
 		'CON',
 		'PRN',
@@ -268,4 +278,13 @@ export function isValidFileBasename(basename: any): boolean {
 	];
 	if (reserved.includes(upper)) return false;
 	return true;
+}
+
+export function joinPaths(...paths: string[]): string {
+	return normalizePath(
+		paths
+			.filter(Boolean)
+			.map((p) => p.replace(/^\/+|\/+$/g, ""))
+			.join("/")
+	);
 }

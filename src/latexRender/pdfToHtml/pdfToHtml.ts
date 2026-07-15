@@ -1,21 +1,54 @@
 import { PDFDocument } from 'pdf-lib';
 import { SVGroot } from 'src/svg/nodes';
 import { optimizeSVG } from './optimizeSVG';
-const PdfToCairo = require('./pdftocairo.js');
+import PdfToSvgWasm from "./pdfToSvgWasm.js";
 
-export async function pdfToSVG(pdfData: Uint8Array) {
-	const pdftocairo = await PdfToCairo();
-	pdftocairo.FS.writeFile('input.pdf', pdfData);
-	pdftocairo._convertPdfToSvg();
-	return pdftocairo.FS.readFile('input.svg', { encoding: 'utf8' }) as string;
+export async function pdfToSVG(
+	pdfData: Uint8Array,
+): Promise<string> {
+	console.log('pdfToSVG called with pdfData of length:', pdfData.length);
+	const module = await PdfToSvgWasm();
+	console.log('PdfToSvgWasm module loaded:', module);
+	module.FS.writeFile("/input.pdf", pdfData);
+
+	const status = module._convertPdfToSvg();
+	console.log('PDF to SVG conversion status:', status);
+	if (status !== 0) {
+		throw new Error(
+			`PDF to SVG failed with status ${status}`,
+		);
+	}
+
+	try {
+		return module.FS.readFile(
+			"/input.svg",
+			{ encoding: "utf8" },
+		) as string;
+	} finally {
+		try {
+			module.FS.unlink("/input.pdf");
+		} catch {}
+
+		try {
+			module.FS.unlink("/input.svg");
+		} catch {}
+	}
 }
+// export async function pdfToSVG(pdfData: Uint8Array) {debugger
+// 	console.log('pdfToSVG called with pdfData of length:', pdfData.length);
+// 	return "";
+// 	// const pdftocairo = await PdfToCairo();
+// 	// pdftocairo.FS.writeFile('input.pdf', pdfData);
+// 	// pdftocairo._convertPdfToSvg();
+// 	// return pdftocairo.FS.readFile('input.svg', { encoding: 'utf8' }) as string;
+// }
 
 export async function pdfToOptimizedSVG(
 	pdfData: Uint8Array,
 	config: {
 		invertColorsInDarkMode: boolean;
 		autoRemoveWhitespace: boolean;
-		basename: string;
+		stem: string;
 	},
 ) {
 	let svg = await pdfToSVG(pdfData);
@@ -31,7 +64,7 @@ export async function pdfToOptimizedSVG(
 	}
 
 	const parsedSVG = await SVGroot.parse(svg);
-	parsedSVG.idSvg(config.basename);
+	parsedSVG.idSvg(config.stem);
 	svg = parsedSVG.toString();
 	return svg;
 }

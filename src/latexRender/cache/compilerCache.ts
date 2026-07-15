@@ -1,19 +1,14 @@
+import { DataAdapter, normalizePath } from 'obsidian';
+import { Md5 } from 'ts-md5';
 import LatexRender from 'src/main';
 import ResultFileCache from './resultFileCache';
 import { ProcessedLog } from '../logs/latex-log-parser';
-import path from 'path';
-import * as fs from 'fs';
 import PackageCache from './packageCache';
 import LogCache from './logCache';
-import crypto from 'crypto';
+import { joinPaths } from '../resolvers/paths';
 
-
-export function hashString(input: string, length: number = 16): string {
-	return crypto
-		.createHash('sha256')
-		.update(input)
-		.digest('hex')
-		.slice(0, length);
+export function hashString(input: string, length = 16): string {
+	return Md5.hashStr(input).slice(0, length);
 }
 
 export function getDependencyHash(dependencies: string[]): string {
@@ -108,7 +103,7 @@ export default class CompilerCache {
 	/**
 	 * Removes all cached packages.
 	 */
-	removeAllCachedPackages() {
+	async removeAllCachedPackages() {
 		return this.packageCache.removeAllCachedPackages();
 	}
 
@@ -117,21 +112,20 @@ export default class CompilerCache {
 	 * @returns The absolute path to the cache folder parent.
 	 */
 	private getCacheFolderParentPath() {
-		return path.join(
-			this.plugin.getVaultPath(),
+		return joinPaths(
 			app.vault.configDir,
 			'swiftlatex-render-cache',
 		);
 	}
-	
+
 	/**
 	 * Ensures the cache directory exists, creating it if necessary.
 	 */
 	private validateCatchDirectory() {
 		const cacheFolderParentPath = this.getCacheFolderParentPath();
-		this.plugin.app.vault.adapter.exists
-		if (!fs.existsSync(cacheFolderParentPath)) {
-			fs.mkdirSync(cacheFolderParentPath, { recursive: true });
+		
+		if (!this.plugin.app.vault.adapter.exists(cacheFolderParentPath)) {
+			this.plugin.app.vault.adapter.mkdir(cacheFolderParentPath);
 		}
 	}
 	
@@ -168,7 +162,7 @@ export default class CompilerCache {
 	 */
 	async unloadCache() {
 		await this.compiler().flushCache();
-		this.resultFileCache.removeAllCached();
+		await this.resultFileCache.removeAllCached();
 	}
 }
 
@@ -176,16 +170,29 @@ export default class CompilerCache {
  * Recursively clears all files and folders in the given folder path.
  * @param folderPath The path to the folder to clear.
  */
-export function clearFolder(folderPath: string) {
-	if (fs.existsSync(folderPath)) {
-		const packageFiles = fs.readdirSync(folderPath);
-		for (const file of packageFiles) {
-			const fullPath = path.join(folderPath, file);
-			try {
-				fs.rmSync(fullPath, { recursive: true, force: true });
-			} catch (err) {
-				console.error(`Failed to remove file ${fullPath}:`, err);
-			}
+export async function clearFolder(
+	adapter: DataAdapter,
+	folderPath: string,
+): Promise<void> {
+	if (!(await adapter.exists(folderPath))) {
+		return;
+	}
+
+	await adapter.rmdir(folderPath, true);
+	await mkdirRecursive(adapter, folderPath);
+}
+
+export async function mkdirRecursive(adapter: DataAdapter, path: string): Promise<void> {
+	const normalized = normalizePath(path);
+	const parts = normalized.split("/").filter(Boolean);
+
+	let current = "";
+
+	for (const part of parts) {
+		current = current ? `${current}/${part}` : part;
+
+		if (!(await adapter.exists(current))) {
+			await adapter.mkdir(current);
 		}
 	}
 }

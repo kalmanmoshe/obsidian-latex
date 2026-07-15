@@ -32,6 +32,8 @@ export class CompileResult {
 }
 
 export enum EngineCommands {
+  WorkerError = 'workererror',
+  WorkerRejection = 'workerrejection',
   Compilelatex = 'compilelatex',
   Grace = 'grace',
   Settexliveurl = 'settexliveurl',
@@ -173,30 +175,31 @@ export default class LatexEngine {
   }
 
   async fetchCacheData() {
-    const recordToString = (record: Record<string, number>) => {
-      return Object.fromEntries(
-        Object.entries(record).map(([key, value]) => [
-          key,
-          String(value),
-        ]),
+    const recordToString = (record: Record<string, number>) =>
+      Object.fromEntries(
+        Object.entries(record).map(([key, value]) => [key, String(value)]),
       );
-    };
-    return this.task<{
+
+    const data = await this.task<{
       texlive404: Record<string, number>;
       texlive200: Record<string, string>;
       font404: Record<string, number>;
       font200: Record<string, string>;
-    }>({ cmd: EngineCommands.FetchCache }).then((data) => {
-      if (!data) {
-        throw new Error('No cache data received from the worker.');
-      }
-      return [
-        recordToString(data.texlive404),
-        data.texlive200,
-        recordToString(data.font404),
-        data.font200,
-      ];
+    }>({
+      cmd: EngineCommands.FetchCache,
     });
+    console.warn("got cache data from worker", data);
+
+    if (!data) {
+      throw new Error('No cache data received from the worker.');
+    }
+
+    return {
+      texlive404: recordToString(data.texlive404),
+      texlive200: data.texlive200,
+      font404: recordToString(data.font404),
+      font200: data.font200,
+    };
   }
 
   writeCacheData(
@@ -232,13 +235,18 @@ export default class LatexEngine {
         cmd: EngineCommands.Fetchfile,
         fileName,
       });
+      // Is intentionally designed to skip over files that do not exist, rather than throwing an error.
+      if (!data || !data.content) {
+        continue;
+      }
       const fileContent = new Uint8Array(data.content);
       files.push({ name: fileName, content: fileContent });
     }
     return files;
   }
 
-  task<T = void>(task: any, timeoutMs = 15000): Promise<T> {
+  //todo: take down timer revert to 15000 when loding pkg for the first time it taks a lot of time
+  task<T = void>(task: any, timeoutMs = 1500000): Promise<T> {
     const command = task.cmd;
   
     this.checkEngineStatus(command);
@@ -277,10 +285,23 @@ export default class LatexEngine {
   
       worker.onmessage = (ev: MessageEvent<any>) => {
         try {
+          console.log(`Engine worker message received for cmd=${command}:`, ev.data);
+          if (ev.data?.cmd === EngineCommands.WorkerError || ev.data?.cmd === EngineCommands.WorkerRejection) {
+            this.engineStatus = EngineStatus.Error;
+            fail(new Error(`Engine worker error: ${ev.data ?? "unknown error"}`));
+            return;
+          }
+
           // IMPORTANT: don't throw on other messages
           if (ev.data?.cmd !== command) return;
   
           window.clearTimeout(timer);
+
+          if (ev.data.result !== "ok") {
+            this.engineStatus = EngineStatus.Error;
+            fail(new Error(`Engine failed cmd=${command}: ${ev.data.result ?? "unknown error"}`));
+            return;
+          }
   
           this.engineStatus = EngineStatus.Ready;
   
@@ -302,7 +323,7 @@ export default class LatexEngine {
         console.error("Worker error:", err);
         fail(new Error(`Worker error: ${err.message}`));
       };
-  
+      console.log(`Sending task to engine worker:`, task);
       worker.postMessage(task);
     });
   }

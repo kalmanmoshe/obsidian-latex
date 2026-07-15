@@ -1,14 +1,13 @@
 import LatexLogParser, {
 	CurrentError,
-	Options,
 	ProcessedLog,
 } from './latex-log-parser';
 
 export default function parseLatexLog(
 	rawLog: string,
-	options: Options = { ignoreDuplicates: true },
+	ignoreDuplicates: boolean = true,
 ): ProcessedLog {
-	return new LatexLogParser(rawLog, options).parse();
+	return new LatexLogParser(rawLog, ignoreDuplicates).parse();
 }
 export enum ErrorClasses {
 	Container = 'moshe-swift-latex-error-container',

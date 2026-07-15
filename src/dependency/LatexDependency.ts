@@ -1,10 +1,10 @@
 import { MathJaxAbstractSyntaxTree } from "src/ast/mathJaxAbstractSyntaxTree";
 import { LatexAbstractSyntaxTree, isExtensionTex } from "src/ast/LatexAbstractSyntaxTree";
-import { extractBasenameAndExtension } from "src/latexRender/resolvers/paths";
+import { extractStemAndExtension } from "src/latexRender/resolvers/paths";
 
 export interface DependencyConfig<TAst extends LatexAbstractSyntaxTree> {
     content: string,
-    basename: string,
+    stem: string,
     path: string,
     extension: string,
     isTex: boolean,
@@ -18,7 +18,7 @@ export interface DependencyConfig<TAst extends LatexAbstractSyntaxTree> {
 export class LatexDependency implements DependencyConfig<LatexAbstractSyntaxTree> {
     constructor(
         public content: string,
-        public basename: string,
+        public stem: string,
         public path: string,
         public extension: string,
         public isTex: boolean,
@@ -27,14 +27,14 @@ export class LatexDependency implements DependencyConfig<LatexAbstractSyntaxTree
     ) { }
 
     get name(): string {
-        return `${this.basename}.${this.extension}`;
+        return `${this.stem}.${this.extension}`;
     }
 }
 
 export class MathJaxDependency implements DependencyConfig<MathJaxAbstractSyntaxTree> {
     constructor(
         public content: string,
-        public basename: string,
+        public stem: string,
         public path: string,
         public extension: string,
         public isTex: boolean,
@@ -42,7 +42,7 @@ export class MathJaxDependency implements DependencyConfig<MathJaxAbstractSyntax
     ) { }
 
     get name(): string {
-        return `${this.basename}.${this.extension}`;
+        return `${this.stem}.${this.extension}`;
     }
 }
 
@@ -56,11 +56,11 @@ export function createDependency(
     } = {},
 ): LatexDependency {
     let { isTex, ast, autoUse } = config;
-    const { basename, extension } = extractBasenameAndExtension(path);
+    const { stem, extension } = extractStemAndExtension(path);
     isTex = isTex || isExtensionTex(extension);
     if (isTex && !ast) ast = LatexAbstractSyntaxTree.parse(content);
     return new LatexDependency(
-        content, basename, path, extension, isTex, ast, autoUse
+        content, stem, path, extension, isTex, ast, autoUse
     );
 }
 
@@ -73,10 +73,10 @@ export function createMathJaxDependency(
     } = {},
 ): MathJaxDependency {
     let { isTex, ast } = config;
-    const { basename, extension } = extractBasenameAndExtension(path);
+    const { stem, extension } = extractStemAndExtension(path);
     isTex = isTex || isExtensionTex(extension);
     if (isTex && !ast) ast = MathJaxAbstractSyntaxTree.parse(content);
     return new MathJaxDependency(
-        content, basename, path, extension, isTex, ast
+        content, stem, path, extension, isTex, ast
     );
 }

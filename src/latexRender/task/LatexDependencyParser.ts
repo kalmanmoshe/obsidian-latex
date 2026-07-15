@@ -1,5 +1,5 @@
 import { findUsdInputFiles, isExtensionTex, LatexAbstractSyntaxTree } from "src/ast/LatexAbstractSyntaxTree";
-import { resolvePathRelToVault, extractBasenameAndExtension, getFileContent, isValidFileBasename, CODE_BLOCK_NAME_SEPARATOR } from "../resolvers/paths";
+import { resolvePathRelToVault, extractStemAndExtension, getFileContent, isValidFileStem, CODE_BLOCK_NAME_SEPARATOR } from "../resolvers/paths";
 import { String as StringClass } from '../../ast/typs/astNodes';
 import { DependencyConfig } from "src/dependency/LatexDependency";
 
@@ -44,7 +44,7 @@ export class LatexDependencyParser<TAst extends LatexAbstractSyntaxTree, TDep ex
 		} else {
 			ast = content;
 		}
-		
+
 		let filePath = path;
 		if (filePath.contains(CODE_BLOCK_NAME_SEPARATOR)) {
 			filePath = filePath.split(CODE_BLOCK_NAME_SEPARATOR)[0];
@@ -120,10 +120,10 @@ export class LatexDependencyParser<TAst extends LatexAbstractSyntaxTree, TDep ex
 		basePath: string,
 	): Promise<TDep> {
 		const resolvedPath = resolvePathRelToVault(filePath, basePath);
-		const { basename, extension } = extractBasenameAndExtension(resolvedPath);
+		const { stem, extension } = extractStemAndExtension(resolvedPath);
 
-		if (this.isNameConflict(basename)) {
-			throw new Error(`Name conflict detected for dependency: ${basename}`);
+		if (this.isNameConflict(stem)) {
+			throw new Error(`Name conflict detected for dependency: ${stem}`);
 		}
 
 		const possibleDep = this.adapter.getDependencyFromGraph(resolvedPath);
@@ -138,7 +138,7 @@ export class LatexDependencyParser<TAst extends LatexAbstractSyntaxTree, TDep ex
 		});
 	}
 
-	private isNameConflict(basename: string): boolean {
-		return isValidFileBasename(basename) && this.possibleNames.includes(basename);
+	private isNameConflict(stem: string): boolean {
+		return isValidFileStem(stem) && this.possibleNames.includes(stem);
 	}
 }

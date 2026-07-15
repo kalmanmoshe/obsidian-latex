@@ -62,7 +62,7 @@ export class LatexAbstractSyntaxTree {
 	addDependenciesToPreamble(dependencies: LatexDependency[]) {
 		const macros: Macro[] = [];
 		for (const dependency of dependencies) {
-			const name = dependency.basename + '.' + dependency.extension;
+			const name = dependency.stem + '.' + dependency.extension;
 			macros.push(
 				new DependencyMacro(
 					'input',

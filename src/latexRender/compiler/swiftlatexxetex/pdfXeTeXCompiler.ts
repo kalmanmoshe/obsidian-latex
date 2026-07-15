@@ -17,6 +17,10 @@ export class PdfXeTeXCompiler extends LatexCompiler {
 		this.engines = [this.xetEng, this.dviEng];
 	}
 
+	override setCompiler(): Promise<void> {
+		return Promise.resolve();
+	}
+
 	override async writeMemFSFile(filename: string, source: string | Uint8Array) {
 		return this.xetEng.writeMemFSFile(filename, source);
 	}
@@ -47,16 +51,23 @@ export class PdfXeTeXCompiler extends LatexCompiler {
 		return this.xetEng.setEngineMainFile(filename);
 	}
 
-	override async fetchCacheData(): Promise<Record<string, string>[]> {
+	override async fetchCacheData() {
 		const [xetCache, dviCache] = await Promise.all([
 			this.xetEng.fetchCacheData(),
-			this.dviEng.fetchCacheData(),
+			{
+				texlive404: {},
+				texlive200: {},
+				font404: {},
+				font200: {},
+			}//this.dviEng.fetchCacheData(),
 		]);
 
-		return [
-			...xetCache,
-			...dviCache,
-		];
+		return {
+			texlive404: { ...xetCache.texlive404, ...dviCache.texlive404 },
+			texlive200: { ...xetCache.texlive200, ...dviCache.texlive200 },
+			font404: { ...xetCache.font404, ...dviCache.font404 },
+			font200: { ...xetCache.font200, ...dviCache.font200 },
+		}
 	}
 
 	override async compileLaTeX(): Promise<CompileResult> {
@@ -76,7 +87,9 @@ export class PdfXeTeXCompiler extends LatexCompiler {
 
 		await this.dviEng.writeMemFSFile('main.xdv', xetResult.pdf);
 		await this.dviEng.setEngineMainFile('main.xdv');
+		const dviResult = await this.dviEng.compilePDF();
+		dviResult.log = xetResult.log + "\n" + dviResult.log;
 
-		return this.dviEng.compilePDF();
+		return dviResult;
 	}
 }

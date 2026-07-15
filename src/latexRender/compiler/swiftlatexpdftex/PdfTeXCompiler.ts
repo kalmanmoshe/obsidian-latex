@@ -9,8 +9,17 @@ export default class PdfTeXCompiler extends LatexCompiler {
 
   constructor() {
     super();
-    this.texEng = new LatexEngine(PdfTeXWorker);
     this.engines = [this.texEng];
+  }
+
+  override setCompiler(): Promise<void> {
+    try {
+      this.texEng = new LatexEngine(PdfTeXWorker);
+      this.engines = [this.texEng];
+    } catch (e) {
+      console.error("eroor seting compiler:",e)
+    }
+    return Promise.resolve();
   }
 
   compileLaTeX(): Promise<CompileResult> {

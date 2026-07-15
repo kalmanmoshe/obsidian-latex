@@ -1,13 +1,5 @@
-//git fetch origin
-//git reset --hard #Undo all changes
-//git fetch --all #Don't use unless necessity. It will overwrite all local changes
-//git branch #Check current branch
-//git remote set-url origin https://github.com/kalmanmoshe/Doing-it-myself.git #Change remote url
-//git pull --all#Pull all branches
-//git push --all#Push all branches
-
-import { Plugin, Notice, FileSystemAdapter, MarkdownView, loadMathJax } from 'obsidian';
-
+import { Plugin, Notice, MarkdownView, loadMathJax } from 'obsidian';
+//.\adb push "C:\Users\Owner\Desktop\school\.obsidian\plugins\obsidian-latex\main.js" "/sdcard/Documents/school/.obsidian/plugins/obsidian-latex/main.js"
 import {
 	LatexRenderPluginSettings,
 	DEFAULT_SETTINGS,
@@ -316,14 +308,6 @@ export default class LatexRender extends Plugin {
 		body.push(`${nExplicitPreambleFiles} preamble files`);
 		const suffix = '.';
 		new Notice(prefix + body.join(' and ') + suffix, 5000);
-	}
-
-	getVaultPath() {
-		if (app.vault.adapter instanceof FileSystemAdapter) {
-			return app.vault.adapter.getBasePath();
-		} else {
-			throw new Error('Moshe: Could not get vault path.');
-		}
 	}
 
 	private watchFiles() {

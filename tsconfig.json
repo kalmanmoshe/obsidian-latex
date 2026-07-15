@@ -3,11 +3,11 @@
     "baseUrl": ".",
     "inlineSourceMap": true,
     "inlineSources": true,
-    "module": "NodeNext",
-    "moduleResolution": "nodenext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "skipLibCheck": true,
     "target": "ES6",
-    "allowJs": true,
+    "allowJs": false,
     "noEmit": true,
     "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
@@ -30,11 +30,13 @@
     "rootDir": "./"
   },
   "include": [
-    "**/*.ts",
-    "src/latexRender/PdfTeXEngine.ts",
-    "src/latexRender/swiftlatexpdftex.worker.js",
-    "src/latexRender/logs/HumanReadableLogsRules.tsx",
-    "src/latexRender/parse/autoParse"
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts"
   ],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/**/*.worker.js"
+  ]
 }

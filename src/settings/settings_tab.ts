@@ -128,10 +128,10 @@ export class LatexRenderSettingTab extends PluginSettingTab {
 
 		addToggleSetting(
 			containerEl,
-			(value: boolean) => {
+			async (value: boolean) => {
 				this.plugin.settings.physicalCache = value;
 				this.plugin.saveSettings();
-				this.plugin.swiftlatexRender.cache.resultFileCache.togglePhysicalCache();
+				await this.plugin.swiftlatexRender.cache.resultFileCache.togglePhysicalCache();
 				physicalCacheLocationSetting.settingEl.toggleClass(
 					'hidden',
 					!value,
@@ -150,7 +150,7 @@ export class LatexRenderSettingTab extends PluginSettingTab {
 			async (value) => {
 				this.plugin.settings.physicalCacheLocation = value;
 				await this.plugin.saveSettings();
-				this.plugin.swiftlatexRender.cache.resultFileCache.changeCacheDirectory();
+				await this.plugin.swiftlatexRender.cache.resultFileCache.changeCacheDirectory();
 			},
 			{
 				name: 'Physical cache location',
@@ -167,8 +167,8 @@ export class LatexRenderSettingTab extends PluginSettingTab {
 		);
 		addButtonSetting(
 			containerEl,
-			() => {
-				this.plugin.swiftlatexRender.cache.resultFileCache.removeAllCached();
+			async () => {
+				await this.plugin.swiftlatexRender.cache.resultFileCache.removeAllCached();
 				new Notice('Cleared cached SVGs');
 			},
 			{

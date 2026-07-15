@@ -1,14 +1,26 @@
 import LatexRender from 'src/main';
-import { CacheBase } from './cacheBase';
-import * as fs from 'fs';
-import { Notice } from 'obsidian';
-import path from 'path';
+import { CacheBase, CacheContent, CacheFileExtensions } from './cacheBase';
+import { normalizePath } from 'obsidian';
+import { mkdirRecursive } from '../compilerCache';
 
 export abstract class PhysicalCacheBase extends CacheBase {
 	protected cacheFolderPath: string;
-	constructor(plugin: LatexRender, cacheFileExtensions?: string[]) {
+	private readyPromise?: Promise<void>;
+
+	constructor(plugin: LatexRender, cacheFileExtensions: CacheFileExtensions) {
 		super(plugin, cacheFileExtensions);
-		this.validateDir();
+	}
+
+	private async ensureReady() {
+		if (!this.readyPromise) {
+			this.readyPromise = this.validateDir();
+		}
+		await this.readyPromise;
+	}
+
+	private async validateDir() {
+		this.cacheFolderPath = this.getCacheFolderPath();
+		await mkdirRecursive(this.plugin.app.vault.adapter, this.cacheFolderPath);
 	}
 
 	/**
@@ -18,26 +30,21 @@ export abstract class PhysicalCacheBase extends CacheBase {
 	 */
 	getCacheFilePath(fileName: string): string {
 		this.ensureIsValidFileName(fileName);
-		return path.join(this.getCacheFolderPath(), fileName);
+		return normalizePath(`${this.getCacheFolderPath()}/${fileName}`);
 	}
 
-	deleteCache() {
-		const path = this.getCacheFolderPath();
-		if (fs.existsSync(path)) {
-			fs.rmSync(path, { recursive: true, force: true });
+	async deleteCache() {
+		const folder = this.getCacheFolderPath();
+
+		if (await this.plugin.app.vault.adapter.exists(folder)) {
+			await this.plugin.app.vault.adapter.rmdir(folder, true);
 		}
-	}
-	
-	clearCache() {
-		this.deleteCache();
-		this.validateDir(); // Recreate the directory after clearing
 	}
 
-	private validateDir() {
-		this.cacheFolderPath = this.getCacheFolderPath();
-		if (!fs.existsSync(this.cacheFolderPath)) {
-			fs.mkdirSync(this.cacheFolderPath, { recursive: true });
-		}
+	async clearCache() {
+		await this.deleteCache();
+		this.readyPromise = undefined; // Reset the ready promise to allow re-creation of the directory
+		await this.ensureReady(); // Recreate the directory after clearing
 	}
 
 	protected getCacheFolderPath(): string {
@@ -47,82 +54,107 @@ export abstract class PhysicalCacheBase extends CacheBase {
 
 	protected abstract setCacheFolderPath(): void;
 
-	fileExists(fileName: string) {
-		const filePath = this.getCacheFilePath(fileName);
-		return fs.existsSync(filePath);
-	}
-
-	addFile(
+	private async getExistingCacheFilePath(
 		fileName: string,
-		content: string | Uint8Array<ArrayBuffer>,
-	): Promise<void> {
-		const filePath = this.getCacheFilePath(fileName);
-		return fs.promises.writeFile(filePath, content, 'utf8');
-	}
+	): Promise<string | undefined> {
+		await this.ensureReady();
 
-	deleteFile(fileName: string) {
 		const filePath = this.getCacheFilePath(fileName);
-		if (fs.existsSync(filePath)) {
-			fs.rmSync(filePath);
-			return true;
-		}
-		return false;
-	}
 
-	/**
-	 * Reads cached content by name
-	 */
-	getFile(fileName: string): string | undefined {
-		const filePath = this.getCacheFilePath(fileName);
-		if (fs.existsSync(filePath)) {
-			return fs.readFileSync(filePath, 'utf8');
-		} else {
+		if (!(await this.plugin.app.vault.adapter.exists(filePath))) {
 			return undefined;
 		}
+
+		return filePath;
 	}
 
-	getFiles() {
-		const files = this.listCacheFiles();
-		const fileMap = new Map<string, string>();
+	async addFile(
+		fileName: string,
+		content: string | Uint8Array,
+	): Promise<void> {
+		await this.ensureReady();
+		const filePath = this.getCacheFilePath(fileName);
+
+		if (typeof content === "string") {
+			await this.plugin.app.vault.adapter.write(filePath, content);
+			return;
+		}
+
+		await this.plugin.app.vault.adapter.writeBinary(
+			filePath,
+			content.buffer.slice(
+				content.byteOffset,
+				content.byteOffset + content.byteLength,
+			) as ArrayBuffer,
+		);
+	}
+
+	async fileExists(fileName: string): Promise<boolean> {
+		return (await this.getExistingCacheFilePath(fileName)) !== undefined;
+	}
+
+	async deleteFile(fileName: string): Promise<boolean> {
+		const filePath = await this.getExistingCacheFilePath(fileName);
+		if (!filePath) return false;
+
+		await this.plugin.app.vault.adapter.remove(filePath);
+		return true;
+	}
+
+	async getFileAsString(fileName: string): Promise<string | undefined> {
+		const filePath = await this.getExistingCacheFilePath(fileName);
+		if (!filePath) return undefined;
+
+		return this.plugin.app.vault.adapter.read(filePath);
+	}
+
+	async getFileAsBinary(fileName: string): Promise<Uint8Array | undefined> {
+		const filePath = await this.getExistingCacheFilePath(fileName);
+		if (!filePath) return undefined;
+
+		const buffer = await this.plugin.app.vault.adapter.readBinary(filePath);
+		return new Uint8Array(buffer);
+	}
+
+	async getFiles() {
+		const files = await this.listCacheFiles();
+		const fileMap = new Map<string, CacheContent>();
 		for (const file of files) {
-			const content = this.getFile(file);
+			const content = await this.getFile(file);
 			if (content) {
 				fileMap.set(file, content);
 			}
 		}
 		return fileMap;
 	}
+
 	/**
 	 *
 	 * @returns An array of file names (with extension) in the cache directory.
 	 */
-	listCacheFiles() {
-		if (!fs.existsSync(this.getCacheFolderPath())) {
-			return [];
-		}
-		const files = fs
-			.readdirSync(this.getCacheFolderPath())
-			.filter((file) => {
-				if (!this.isValidFileName(file)) {
-					const message = `Invalid cache file: ${file}`;
-					new Notice(message, 5000);
-					console.warn(message);
-					return false;
-				}
-				return true;
-			});
-		return files;
+	async listCacheFiles() {
+		await this.ensureReady();
+
+		const listed = await this.plugin.app.vault.adapter.list(
+			this.getCacheFolderPath(),
+		);
+
+		return listed.files
+			.map((path) => path.split(/[\\/]/).pop()!)
+			.filter((file) => this.isValidFileName(file));
 	}
-	cleanCache() {
-		if (!fs.existsSync(this.getCacheFolderPath())) {
-			return;
-		}
-		const files = fs.readdirSync(this.getCacheFolderPath());
-		for (const file of files) {
-			if (!this.isValidFileName(file)) {
-				console.warn(`Removing invalid cache file: ${file}`);
-				const filePath = path.join(this.getCacheFolderPath(), file);
-				fs.rmSync(filePath);
+
+	async cleanCache() {
+		await this.ensureReady();
+
+		const listed = await this.plugin.app.vault.adapter.list(
+			this.getCacheFolderPath(),
+		);
+
+		for (const filePath of listed.files) {
+			const fileName = filePath.split(/[\\/]/).pop()!;
+			if (!this.isValidFileName(fileName)) {
+				await this.plugin.app.vault.adapter.remove(filePath);
 			}
 		}
 	}

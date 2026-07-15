@@ -362,8 +362,8 @@ export class LatexTask {
 		return [];
 	}
 
-	getBaseName() {
-		return this.plugin.swiftlatexRender.cache.resultFileCache.getFileBaseName(
+	getStem() {
+		return this.plugin.swiftlatexRender.cache.resultFileCache.getFileStem(
 			this.rawHash,
 			this.getDependencyPaths(),
 		);
@@ -376,7 +376,7 @@ export class LatexTask {
 			rawHash: this.rawHash,
 			sourcePath: this.sourcePath,
 			dependencyPaths: this.getDependencyPaths(),
-			basename: this.getBaseName(),
+			stem: this.getStem(),
 		};
 	}
 

@@ -5,8 +5,9 @@ import { waitFor } from 'src/latexRender/swiftlatexRender';
 export default abstract class LatexCompiler {
   protected engines: LatexEngine[];
 
+  abstract setCompiler(): Promise<void>
   abstract compileLaTeX(): Promise<CompileResult>;
-
+  
   isReady() {
     return this.engines.every((engine) => engine.isReady());
   }
@@ -43,9 +44,10 @@ export default abstract class LatexCompiler {
     ).then(() => { });
   }
 
-  async fetchTexFiles(newFileNames: string[]) {
+  async fetchTexFiles(fileNames: string[]) {
+    console.log('Fetching tex files:', fileNames);
     const results = await Promise.all(
-      this.engines.map((engine) => engine.fetchTexFiles(newFileNames)),
+      this.engines.map((engine) => engine.fetchTexFiles(fileNames)),
     );
     return results.flat().map((file) => ({
       name: file.name,
@@ -89,7 +91,7 @@ export default abstract class LatexCompiler {
     return this.engines[0].flushCache();
   }
 
-  fetchCacheData(): Promise<Record<string, string>[]> {
+  fetchCacheData() {
     this.validate();
     return this.engines[0].fetchCacheData();
   }

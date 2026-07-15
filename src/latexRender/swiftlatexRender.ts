@@ -1,15 +1,15 @@
 import { MarkdownPostProcessorContext } from 'obsidian';
 import {
-  CompileResult,
-  CompileStatus,
+	CompileResult,
+	CompileStatus,
 } from './compiler/base/compilerBase/engine';
 import LatexRender from '../main';
 import { CompilerType } from 'src/settings/settings.js';
 
 import { pdfToHtml, pdfToOptimizedSVG, pdfToSVG } from './pdfToHtml/pdfToHtml';
 import parseLatexLog, {
-  createErrorDisplay,
-  errorDiv,
+	createErrorDisplay,
+	errorDiv,
 } from './logs/HumanReadableLogs';
 import { VfsCompileMode, VirtualFileSystem } from './VirtualFileSystem';
 import { ProcessedLog } from './logs/latex-log-parser';
@@ -23,30 +23,30 @@ import { LatexRenderQueue } from './LatexRenderQueue';
 import { getLogCacheKey } from './cache/logCache';
 
 export const waitFor = async (condFunc: () => boolean) => {
-  return new Promise<void>((resolve) => {
-    if (condFunc()) {
-      resolve();
-    } else {
-      setTimeout(async () => {
-        await waitFor(condFunc);
-        resolve();
-      }, 100);
-    }
-  });
+	return new Promise<void>((resolve) => {
+		if (condFunc()) {
+			resolve();
+		} else {
+			setTimeout(async () => {
+				await waitFor(condFunc);
+				resolve();
+			}, 100);
+		}
+	});
 };
 
 export const latexCodeBlockNamesRegex = /(`|~){3,} *(latex|tikz)/;
 
 
 type HandleErrorOptions = {
-  /**
-   * If true, the error will be parsed and displayed as a log.
-   */
-  parseErr?: boolean;
-  /**
-   * If true, the error will be thrown after handling.
-   */
-  throw?: boolean;
+	/**
+	 * If true, the error will be parsed and displayed as a log.
+	 */
+	parseErr?: boolean;
+	/**
+	 * If true, the error will be thrown after handling.
+	 */
+	throw?: boolean;
 };
 
 /**
@@ -91,7 +91,7 @@ export class SwiftlatexRender {
 		const isXeTeX =
 			this.compiler instanceof PdfXeTeXCompiler &&
 			this.plugin.settings.compiler === CompilerType.XeTeX;
-		
+
 		if (isTex || isXeTeX) return Promise.resolve();
 
 		this.compiler.closeWorkers();
@@ -110,6 +110,8 @@ export class SwiftlatexRender {
 			this.compiler = this.pdfXetexCompiler = new PdfXeTeXCompiler();
 		}
 
+		this.compiler.setCompiler();
+		
 		this.vfs.setPdfCompiler(this.compiler);
 		await this.compiler.loadEngines();
 		await this.cache.loadPackageCache();
@@ -152,7 +154,7 @@ export class SwiftlatexRender {
 			this.handleError(
 				el,
 				'Error creating task: ' + createResult.result,
-				this.cache.resultFileCache.getFileBaseName(rawHash, [])
+				this.cache.resultFileCache.getFileStem(rawHash, [])
 			);
 			return;
 		}
@@ -203,7 +205,7 @@ export class SwiftlatexRender {
 		await this.reCheckQueue(); // only re-check the queue after a valide rendering
 		return true;
 	}
-	
+
 	private async shouldSkipStaleTask(task: LatexTask): Promise<boolean> {
 		if (!task.hasSourceChangeTimeExceededMargin()) return false;
 		if (await task.verifySource()) return false;
@@ -245,8 +247,8 @@ export class SwiftlatexRender {
 			const compileMode = task.isProcess() ? VfsCompileMode.compileAll : VfsCompileMode.none;
 
 			return await this.renderLatexToPDF(
-				task.getProcessedContent(), 
-				compileMode, 
+				task.getProcessedContent(),
+				compileMode,
 				{ fetchPkgData: true, }
 			);
 
@@ -300,8 +302,8 @@ export class SwiftlatexRender {
 		options: HandleErrorOptions = {},
 	): void {
 		const el = task.el;
-		const basename = task.getBaseName();
-		this.handleError(el, err, basename, options);
+		const stem = task.getStem();
+		this.handleError(el, err, stem, options);
 	}
 
 	private handleError(
@@ -326,13 +328,13 @@ export class SwiftlatexRender {
 	}
 
 	private async renderLatexToElement(task: LatexTask): Promise<void> {
-		const { el, content, rawHash, sourcePath, dependencyPaths, basename } = task.getRenderData();
+		const { el, content, rawHash, sourcePath, dependencyPaths, stem } = task.getRenderData();
 
 		try {
 			const compileMode = task.isProcess() ? VfsCompileMode.compileAll : VfsCompileMode.none;
 			const result = await this.renderLatexToPDF(content, compileMode, { md5Hash: rawHash, dependencyPaths });
 			el.innerHTML = '';
-			await this.translatePDF(result.pdf, el, basename);
+			await this.translatePDF(result.pdf, el, stem);
 
 			this.cache.resultFileCache.addFile(
 				el.innerHTML,
@@ -356,7 +358,7 @@ export class SwiftlatexRender {
 	private renderLatexToPDF(
 		source: string,
 		vfsCompileMode: VfsCompileMode,
-		config: { fetchPkgData?: boolean; md5Hash?: string , dependencyPaths?: string[] } = {},
+		config: { fetchPkgData?: boolean; md5Hash?: string, dependencyPaths?: string[] } = {},
 	): Promise<CompileResult> {
 		return new Promise(async (resolve, reject) => {
 			try {
@@ -368,6 +370,7 @@ export class SwiftlatexRender {
 				await this.compiler.setEngineMainFile('main.tex');
 
 				const result = await this.compiler.compileLaTeX();
+				console.log('Compilation result:', result);
 
 				await this.vfs.removeNonAutoUseFiles();
 
@@ -395,15 +398,14 @@ export class SwiftlatexRender {
 	private async translatePDF(
 		pdfData: Uint8Array,
 		el: HTMLElement,
-		basename: string,
+		stem: string,
 		outputSVG = true,
 	): Promise<void> {
 		return new Promise<void>((resolve) => {
 			const config = {
-				invertColorsInDarkMode:
-				this.plugin.settings.invertColorsInDarkMode,
+				invertColorsInDarkMode: this.plugin.settings.invertColorsInDarkMode,
 				autoRemoveWhitespace: this.plugin.settings.autoRemoveWhitespace,
-				basename,
+				stem,
 			};
 			if (outputSVG) {
 				pdfToOptimizedSVG(pdfData, config).then((svg: string) => {
@@ -422,10 +424,10 @@ export class SwiftlatexRender {
 
 //TODO: put this somewahere better
 function restoreFromCache(
-  task: LatexTask,
-  plugin: LatexRender,
+	task: LatexTask,
+	plugin: LatexRender,
 ) {
-  return plugin.swiftlatexRender.cache.resultFileCache.restoreFromCache(
+	return plugin.swiftlatexRender.cache.resultFileCache.restoreFromCache(
 		task.el,
 		task.rawHash,
 		task.sourcePath,
@@ -449,43 +451,43 @@ async function getCacheDependencyPaths(
 
 	const autoUsePaths = plugin.settings.compilerVfsEnabled
 		? vfs
-				.getAutoUseFiles()
-				.map((file) => file.path)
-				.filter((path) => !explicitDeps.includes(path))
+			.getAutoUseFiles()
+			.map((file) => file.path)
+			.filter((path) => !explicitDeps.includes(path))
 		: [];
 
 	return [...new Set([...explicitDeps, ...autoUsePaths])].sort();
 }
 
 export class TimeoutError extends Error {
-  constructor(message = 'Timed out') {
-    super(message);
-    this.name = 'TimeoutError';
-  }
+	constructor(message = 'Timed out') {
+		super(message);
+		this.name = 'TimeoutError';
+	}
 }
 
 export function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  message?: string,
+	promise: Promise<T>,
+	ms: number,
+	message?: string,
 ): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
+	let timer: ReturnType<typeof setTimeout> | undefined;
 
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new TimeoutError(message)), ms);
-  });
+	const timeout = new Promise<never>((_, reject) => {
+		timer = setTimeout(() => reject(new TimeoutError(message)), ms);
+	});
 
-  return Promise.race([promise, timeout]).finally(() => {
-    if (timer) clearTimeout(timer);
-  }) as Promise<T>;
+	return Promise.race([promise, timeout]).finally(() => {
+		if (timer) clearTimeout(timer);
+	}) as Promise<T>;
 }
 
 function toErrorString(e: unknown): string {
-  if (typeof e === 'string') return e;
-  if (e instanceof Error) return e.stack ?? e.message ?? String(e);
-  try {
-    return JSON.stringify(e, null, 2);
-  } catch {
-    return String(e);
-  }
+	if (typeof e === 'string') return e;
+	if (e instanceof Error) return e.stack ?? e.message ?? String(e);
+	try {
+		return JSON.stringify(e, null, 2);
+	} catch {
+		return String(e);
+	}
 }

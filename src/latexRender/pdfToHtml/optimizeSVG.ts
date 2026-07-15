@@ -1,5 +1,6 @@
 import { Md5 } from 'ts-md5';
-import { Config, optimize, PluginConfig } from 'svgo';
+// @ts-expect-error svgo browser entry exists but types may be weird
+import { Config, optimize, PluginConfig } from 'svgo/dist/svgo.browser.js';
 
 const fastSVGOConfigPlugins: PluginConfig[] = [
 	{ name: 'cleanupAttrs' },
