@@ -150,7 +150,8 @@ export class SvgContextMenuPopulater {
 		this.addItem(
 			'remove & re-render',
 			'trash',
-			async () => await this.removeAndReRender()
+			async () => await this.removeAndReRender(),
+			{ hiddenOnIos: true }
 		);
 
 		this.addItem(
@@ -158,7 +159,8 @@ export class SvgContextMenuPopulater {
 			'info',
 			async () => {
 				this.showLogs();
-			}
+			},
+			{ hiddenOnIos: true }
 		);
 
 		this.addItem(
@@ -203,9 +205,10 @@ export class SvgContextMenuPopulater {
 		title: string,
 		icon: string,
 		onClick: () => void | Promise<void>,
-		options?: { hiddenOnError?: boolean },
+		options?: { hiddenOnError?: boolean, hiddenOnIos?: boolean },
 	) {
 		if (options?.hiddenOnError && this.isError) return;
+		if (options?.hiddenOnIos && !this.plugin.swiftlatexRender.isNotIos()) return;
 
 		this.menu.addItem((item) => {
 			item.setTitle(title);
@@ -336,7 +339,7 @@ export class SvgContextMenuPopulater {
 		}
 		this.cleanBlockEl();
 		const task = await this.getTask();
-		this.plugin.swiftlatexRender.queue.push(task);
+		this.plugin.swiftlatexRender.queue!.push(task);
 		new Notice('SVG removed from cache. Re-rendering...');
 	}
 

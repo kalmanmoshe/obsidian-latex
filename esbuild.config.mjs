@@ -1,6 +1,5 @@
 import esbuild from "esbuild";
 import process from "process";
-import builtins from "builtin-modules";
 import inlineWorkerPlugin from "esbuild-plugin-inline-worker";
 import { wasmLoader } from "esbuild-plugin-wasm";
 import { writeFileSync } from "fs";
@@ -20,13 +19,12 @@ const args = {
   },
   bundle: true,
 
-  // CRITICAL: don’t ship these
   external: [
     "obsidian",
     "electron",
     "react",
     "react-dom",
-    "mathjax", // harmless to leave here even if you uninstalled it
+    "mathjax", 
     "@codemirror/autocomplete",
     "@codemirror/closebrackets",
     "@codemirror/collab",
@@ -49,19 +47,16 @@ const args = {
     "@codemirror/tooltip",
     "@codemirror/view",
     "@lezer/highlight",
-    //...builtins, // fs, path, etc.
   ],
 
   format: "cjs",
   target: "es2020",
   platform: "browser",
 
-  // Output to repo root (your current setup)
   outdir: ".",
   entryNames: "[name]",
   assetNames: "assets/[name]-[hash]",
 
-  // Size & diagnostics
   minify: prod,
   minifyIdentifiers: prod,
   minifySyntax: prod,
@@ -69,8 +64,6 @@ const args = {
   treeShaking: true,
   legalComments: "none",
 
-  // Removes debugger statements in production.
-  // Add "console" only if you don't need logs.
   drop: prod ? ["debugger"] : [],
 
   // DON’T inline wasm
@@ -79,7 +72,6 @@ const args = {
     ".wasm": "file",
   },
 
-  // Inline worker code, but keep wasm as FILE (not embedded)
   plugins: [
     inlineWorkerPlugin({
       bundle: true,
@@ -101,11 +93,6 @@ const result = await esbuild.build({
   ...args,
   metafile: true,
 });
-
-writeFileSync(
-	'meta.json',
-	JSON.stringify(result.metafile, null, 2),
-);
 
 if (!prod && result.metafile) {
   writeFileSync("meta.json", JSON.stringify(result.metafile, null, 2));

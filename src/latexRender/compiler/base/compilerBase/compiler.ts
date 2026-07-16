@@ -13,7 +13,10 @@ export default abstract class LatexCompiler {
   }
 
   isResponsive() {
-    return this.engines.every((engine) => engine.getEngineStatus() !== EngineStatus.Unresponsive);
+    return this.engines.every((engine) => 
+      engine.getEngineStatus() !== EngineStatus.Unresponsive
+      && engine.getEngineStatus() !== EngineStatus.Error
+    );
   }
 
   async waitUntilReady(): Promise<void> {

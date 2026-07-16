@@ -42,7 +42,11 @@ async function extractAllUnrenderedSectionsByFile(plugin: LatexRender) {
 	}
 	return sectionInfosByFile;
 }
+
 async function renderAllUnrenderedCodeBlocks(plugin: LatexRender) {
+	if (!plugin.swiftlatexRender.isNotIos()) {
+		throw new Error('Render all unrendered code blocks is not supported on iOS');
+	}
 	const sectionInfosByFile = await extractAllUnrenderedSectionsByFile(plugin);
 	console.log(
 		'Unrendered sections found:',
@@ -64,6 +68,8 @@ async function renderAllUnrenderedCodeBlocks(plugin: LatexRender) {
 }
 
 function getRenderAllUnrenderedCodeBlocks(plugin: LatexRender) {
+	if (!plugin.swiftlatexRender.isNotIos()) return undefined;
+
 	return {
 		id: 'render-all-unrendered-code-blocks',
 		name: 'Render All Unrendered Code Blocks',
@@ -75,22 +81,26 @@ function getRenderAllUnrenderedCodeBlocks(plugin: LatexRender) {
 }
 
 function getRebuildQueue(plugin: LatexRender) {
+	if (!plugin.swiftlatexRender.isNotIos()) return undefined;
+
 	return {
 		id: 'rebuild-queue',
 		name: 'Rebuild Render Queue',
 		callback: async () => {
-			plugin.swiftlatexRender.queue.rebuild();
+			plugin.swiftlatexRender.queue!.rebuild();
 			new Notice('Render queue rebuilt');
 		},
 	};
 }
 
 function getAbortTasks(plugin: LatexRender) {
+	if (!plugin.swiftlatexRender.isNotIos()) return undefined;
+
 	return {
 		id: 'abort-latex-tasks',
 		name: 'Abort All LaTeX Tasks',
 		callback: () => {
-			plugin.swiftlatexRender.queue.abortAllWaiting();
+			plugin.swiftlatexRender.queue!.abortAllWaiting();
 			new Notice('All tasks aborted');
 		},
 	};

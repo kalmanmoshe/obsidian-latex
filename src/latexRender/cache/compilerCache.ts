@@ -151,17 +151,10 @@ export default class CompilerCache {
 	}
 
 	/**
-	 * Gets the compiler instance from the plugin.
-	 */
-	private compiler() {
-		return this.plugin.swiftlatexRender.compiler;
-	}
-
-	/**
 	 * Unloads the cache and flushes the compiler cache.
 	 */
 	async unloadCache() {
-		await this.compiler().flushCache();
+		await this.plugin.swiftlatexRender.compiler?.flushCache();
 		await this.resultFileCache.removeAllCached();
 	}
 }

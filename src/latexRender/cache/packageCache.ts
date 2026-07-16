@@ -167,7 +167,10 @@ export default class PackageCache extends PhysicalCacheBase {
 		this.plugin.saveSettings()
 	}
 	
-	compiler() {
+	private compiler() {
+		if (!this.plugin.swiftlatexRender.isNotIos()) {
+			throw new Error('Package cache is not supported on iOS.');
+		}
 		return this.plugin.swiftlatexRender.compiler;
 	}
 }

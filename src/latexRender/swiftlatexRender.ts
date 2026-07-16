@@ -1,4 +1,4 @@
-import { MarkdownPostProcessorContext } from 'obsidian';
+import { MarkdownPostProcessorContext, Platform } from 'obsidian';
 import {
 	CompileResult,
 	CompileStatus,
@@ -62,21 +62,21 @@ type HandleErrorOptions = {
 export class SwiftlatexRender {
 	plugin: LatexRender;
 	vfs: VirtualFileSystem = new VirtualFileSystem();
-	pdfTexCompiler?: PdfTeXCompiler;
-	pdfXetexCompiler?: PdfXeTeXCompiler;
-	compiler: LatexCompiler;
+	compiler?: LatexCompiler;
 	cache: CompilerCache;
-	queue: LatexRenderQueue;
+	queue?: LatexRenderQueue;
 
 	async onload(plugin: LatexRender) {
 		this.plugin = plugin;
-		this.cache = new CompilerCache(this.plugin);
-		await this.loadCompiler();
+		if (this.isNotIos()) {
+			this.cache = new CompilerCache(this.plugin);
+			await this.loadCompiler();
 
-		this.queue = new LatexRenderQueue({
-			renderTask: this.processAndRenderLatexTask.bind(this),
-			getCooldown: () => this.plugin.settings.pdfEngineCooldown,
-		});
+			this.queue = new LatexRenderQueue({
+				renderTask: this.processAndRenderLatexTask.bind(this),
+				getCooldown: () => this.plugin.settings.pdfEngineCooldown,
+			});
+		}
 
 		console.log('SwiftlatexRender loaded');
 	}
@@ -96,18 +96,16 @@ export class SwiftlatexRender {
 
 		this.compiler.closeWorkers();
 		this.compiler = undefined as any;
-		this.pdfTexCompiler = undefined;
-		this.pdfXetexCompiler = undefined;
 
 		return this.loadCompiler();
 	}
 
-	async loadCompiler() {
+	private async loadCompiler() {
 
 		if (this.plugin.settings.compiler === CompilerType.TeX) {
-			this.compiler = this.pdfTexCompiler = new PdfTeXCompiler();
+			this.compiler = new PdfTeXCompiler();
 		} else {
-			this.compiler = this.pdfXetexCompiler = new PdfXeTeXCompiler();
+			this.compiler = new PdfXeTeXCompiler();
 		}
 
 		this.compiler.setCompiler();
@@ -121,8 +119,8 @@ export class SwiftlatexRender {
 	}
 
 	async restartCompiler() {
-		this.compiler.closeWorkers();
-		this.queue.abortAllWaiting();
+		this.compiler?.closeWorkers();
+		this.queue?.abortAllWaiting();
 		await this.loadCompiler();
 	}
 
@@ -170,7 +168,7 @@ export class SwiftlatexRender {
 
 		if (wasRestoredFromCache) return;
 
-		this.queue.push(task as LatexTask);
+		this.queue?.push(task as LatexTask);
 	}
 
 	/**
@@ -179,13 +177,19 @@ export class SwiftlatexRender {
 	 * @param task The task to process and render.
 	 * @returns `true` if the task was compiled and rendered; `false` if it was restored from cache or failed during processing.
 	 */
-	async processAndRenderLatexTask(task: LatexTask): Promise<boolean> {
+	private async processAndRenderLatexTask(task: LatexTask): Promise<boolean> {
 		if (await restoreFromCache(task, this.plugin)) {
 			console.log('Found in catch for', task.getBlockId());
 			return false;
 		}
 
 		if (await this.shouldSkipStaleTask(task)) return false;
+
+		if (!this.compiler?.isResponsive()) {
+			console.error("Compiler is unresponsive. Aborting task:", task.getDebugInfo());
+			this.handleErrorForTask(task, 'Compiler is unresponsive. Please restart the compiler.');
+			return false;
+		}
 
 		if (task.isProcess()) {
 			const processError = await task.process();
@@ -226,12 +230,24 @@ export class SwiftlatexRender {
 	}
 
 	private hasNewerQueuedTask(task: LatexTask): boolean {
+		if (!this.isNotIos()) return false;
+
 		return this.queue
 			.getWaitingTasks()
 			.some((waitingTask) => waitingTask.getBlockId() === task.getBlockId());
 	}
 
 	async detachedProcessAndRender(task: LatexTask) {
+		
+		if (!this.compiler?.isResponsive()) {
+			console.error("Compiler is unresponsive. Aborting task:", task.getDebugInfo());
+			return new CompileResult(
+				undefined,
+				CompileStatus.EngineCrashed,
+				'Compiler is unresponsive. Please restart the compiler.',
+			);
+		}
+
 		if (task.isProcess()) {
 			const processError = await task.process();
 			task.log();
@@ -276,6 +292,7 @@ export class SwiftlatexRender {
 	 * Solves edge case where head is in the processing state when a similar task is registered to the universal method
 	 */
 	private async reCheckQueue() {
+		if (!this.queue) return;
 		const blockIdsToRemove = new Set<string>();
 		const waitingTasks = this.queue.getWaitingTasks();
 
@@ -293,7 +310,7 @@ export class SwiftlatexRender {
 	}
 
 	async onunload() {
-		this.compiler.closeWorkers();
+		this.compiler?.closeWorkers();
 	}
 
 	private handleErrorForTask(
@@ -347,11 +364,11 @@ export class SwiftlatexRender {
 				parseErr: true,
 			});
 		} finally {
-			if (!this.compiler.isResponsive()) {
+			if (!this.compiler?.isResponsive()) {
 				console.warn('Compiler is unresponsive.');
 				return;
 			}
-			await this.compiler.waitUntilReady();
+			await this.compiler?.waitUntilReady();
 		}
 	}
 
@@ -362,14 +379,14 @@ export class SwiftlatexRender {
 	): Promise<CompileResult> {
 		return new Promise(async (resolve, reject) => {
 			try {
-				await this.compiler.waitUntilReady();
+				await this.compiler!.waitUntilReady();
 
 				await this.vfs.loadVirtualFileSystemFiles(vfsCompileMode);
 
-				await this.compiler.writeMemFSFile('main.tex', source);
-				await this.compiler.setEngineMainFile('main.tex');
+				await this.compiler!.writeMemFSFile('main.tex', source);
+				await this.compiler!.setEngineMainFile('main.tex');
 
-				const result = await this.compiler.compileLaTeX();
+				const result = await this.compiler!.compileLaTeX();
 				console.log('Compilation result:', result);
 
 				await this.vfs.removeNonAutoUseFiles();
@@ -419,6 +436,13 @@ export class SwiftlatexRender {
 				});
 			}
 		});
+	}
+
+	isNotIos(): this is SwiftlatexRender &  {
+		queue: LatexRenderQueue;
+		compiler: LatexCompiler;
+	} {
+		return !Platform.isIosApp;
 	}
 }
 

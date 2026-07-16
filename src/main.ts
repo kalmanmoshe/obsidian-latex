@@ -1,4 +1,4 @@
-import { Plugin, Notice, MarkdownView, loadMathJax } from 'obsidian';
+import { Plugin, Notice, MarkdownView, loadMathJax, Platform } from 'obsidian';
 //.\adb push "C:\Users\Owner\Desktop\school\.obsidian\plugins\obsidian-latex\main.js" "/sdcard/Documents/school/.obsidian/plugins/obsidian-latex/main.js"
 import {
 	LatexRenderPluginSettings,
@@ -50,6 +50,10 @@ export default class LatexRender extends Plugin {
 		console.log('Loading Moshe math plugin');
 		this.menuDecider = new SvgContextMenuDecider(this);
 		this.mathJaxVFS = new MathjaxVFS();
+
+		if (Platform.isIosApp) {
+			return;
+		}
 
 		await this.loadSettings();
 
