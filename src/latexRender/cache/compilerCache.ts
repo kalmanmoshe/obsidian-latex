@@ -5,7 +5,6 @@ import ResultFileCache from './resultFileCache';
 import { ProcessedLog } from '../logs/latex-log-parser';
 import PackageCache from './packageCache';
 import LogCache from './logCache';
-import { joinPaths } from '../resolvers/paths';
 
 export function hashString(input: string, length = 16): string {
 	return Md5.hashStr(input).slice(0, length);
@@ -48,7 +47,6 @@ export default class CompilerCache {
 	 */
 	constructor(plugin: LatexRender) {
 		this.plugin = plugin;
-		this.validateCatchDirectory();
 		this.resultFileCache = new ResultFileCache(this.plugin);
 		this.packageCache = new PackageCache(this.plugin);
 		this.logCache = new LogCache(this.plugin);
@@ -105,28 +103,6 @@ export default class CompilerCache {
 	 */
 	async removeAllCachedPackages() {
 		return this.packageCache.removeAllCachedPackages();
-	}
-
-	/**
-	 * Gets the parent path for the cache folder.
-	 * @returns The absolute path to the cache folder parent.
-	 */
-	private getCacheFolderParentPath() {
-		return joinPaths(
-			app.vault.configDir,
-			'swiftlatex-render-cache',
-		);
-	}
-
-	/**
-	 * Ensures the cache directory exists, creating it if necessary.
-	 */
-	private validateCatchDirectory() {
-		const cacheFolderParentPath = this.getCacheFolderParentPath();
-		
-		if (!this.plugin.app.vault.adapter.exists(cacheFolderParentPath)) {
-			this.plugin.app.vault.adapter.mkdir(cacheFolderParentPath);
-		}
 	}
 	
 	cacheStatusForHash(hash: string) {

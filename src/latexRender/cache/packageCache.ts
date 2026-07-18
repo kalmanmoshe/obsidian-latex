@@ -36,15 +36,16 @@ export default class PackageCache extends PhysicalCacheBase {
 
 	setCacheFolderPath(): void {
 		this.cacheFolderPath = joinPaths(
-			app.vault.configDir,
-			'swiftlatex-render-cache',
+			this.plugin.getDefaultCacheDir(),
 			'package-cache',
 		);
 	}
 
 	async loadPackageCache() {
+		console.log("loading package cache")
 		// add files in the package cache folder to the cache list
 		const packageFiles = await this.listCacheFiles();
+		console.log("currnt cache dir: ", this.cacheFolderPath)
 		const packageValues = Object.values(this.plugin.settings.packageCache[1]);
 
 		for (const fileName of packageFiles) {
@@ -119,34 +120,34 @@ export default class PackageCache extends PhysicalCacheBase {
 	 * currently only dealing with texlive200_cache
 	 */
 	async fetchPackageCacheData(): Promise<void> {
-		// try {
-		// 	const cacheData = await this.compiler().fetchCacheData();
-		// 	const mergedCacheData = Object.assign(
-		// 		{},
-		// 		cacheData.texlive200,
-		// 		cacheData.font200,
-		// 	);
+		try {
+			const cacheData = await this.compiler().fetchCacheData();
+			const mergedCacheData = Object.assign(
+				{},
+				cacheData.texlive200,
+				cacheData.font200,
+			);
 
-		// 	const newFileNames = this.getNewPackageFileNames(
-		// 		this.plugin.settings.packageCache[1] as Record<string, string>,
-		// 		mergedCacheData,
-		// 	);
-		// 	const files = await this.compiler().fetchTexFiles(newFileNames);
-		// 	for (const file of files) {
-		// 		await this.addFile(file.name, file.content);
-		// 	}
-		// 	this.plugin.settings.packageCache = [
-		// 		cacheData.texlive404,
-		// 		cacheData.texlive200,
-		// 		cacheData.font404,
-		// 		cacheData.font200,
-		// 	];
-		// 	await this.plugin.saveSettings();
-		// } catch (err) {
-		// 	console.error('Error fetching package cache data:', err);
-		// }
+			const newFileNames = this.getNewPackageFileNames(
+				this.plugin.settings.packageCache[1] as Record<string, string>,
+				mergedCacheData,
+			);
+			const files = await this.compiler().fetchTexFiles(newFileNames);
+			for (const file of files) {
+				await this.addFile(file.name, file.content);
+			}
+			this.plugin.settings.packageCache = [
+				cacheData.texlive404,
+				cacheData.texlive200,
+				cacheData.font404,
+				cacheData.font200,
+			];
+			await this.plugin.saveSettings();
+		} catch (err) {
+			console.error('Error fetching package cache data:', err);
+		}
 	}
-	//@ts-ignore
+	
 	private getNewPackageFileNames(
 		oldCacheData: Record<string, string>,
 		newCacheData: Record<string, string>,

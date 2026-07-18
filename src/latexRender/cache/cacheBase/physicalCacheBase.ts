@@ -20,12 +20,13 @@ export abstract class PhysicalCacheBase extends CacheBase {
 
 	private async validateDir() {
 		this.cacheFolderPath = this.getCacheFolderPath();
+		console.log(this.constructor.name, "Validating cache directory:", this.cacheFolderPath);
 		await mkdirRecursive(this.plugin.app.vault.adapter, this.cacheFolderPath);
 	}
 
 	/**
 	 * Generates the absolute file path in the cache directory for a given file name.
-	 * Example: "someFile.pdf" -> "/home/user/.obsidian/latex-render-cache/someFile.pdf"
+	 * Example: "someFile.pdf" -> "/home/user/vault/.obsidian/plugins/plugin/cache/someFile.pdf"
 	 * @param fileName The name of the cache file.
 	 */
 	getCacheFilePath(fileName: string): string {

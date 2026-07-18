@@ -15,10 +15,7 @@ export class ResultFilePhysicalCache extends PhysicalCacheBase {
 		if (cacheDir) {
 			folderPath = cacheDir === '/' ? '' : cacheDir
 		} else {
-			folderPath = joinPaths(
-				app.vault.configDir,
-				'swiftlatex-render-cache',
-			);
+			folderPath = this.plugin.getDefaultCacheDir();
 		}
 
 		folderPath = joinPaths(folderPath, 'pdf-cache');

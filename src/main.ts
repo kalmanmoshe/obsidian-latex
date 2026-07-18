@@ -54,7 +54,7 @@ export default class LatexRender extends Plugin {
 		if (Platform.isIosApp) {
 			return;
 		}
-
+		this.manifest.dir
 		await this.loadSettings();
 
 		this.addEditorCommands();
@@ -333,5 +333,9 @@ export default class LatexRender extends Plugin {
 				);
 			}
 		});
+	}
+
+	getDefaultCacheDir(): string {
+		return `${this.app.vault.configDir}/plugins/${this.manifest.id}/cache`;
 	}
 }

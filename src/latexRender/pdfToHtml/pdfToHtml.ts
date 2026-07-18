@@ -3,12 +3,14 @@ import { SVGroot } from 'src/svg/nodes';
 import { optimizeSVG } from './optimizeSVG';
 import PdfToSvgWasm from "./pdfToSvgWasm.js";
 
+
 export async function pdfToSVG(
 	pdfData: Uint8Array,
 ): Promise<string> {
 	console.log('pdfToSVG called with pdfData of length:', pdfData.length);
+	const startTime = performance.now();
 	const module = await PdfToSvgWasm();
-	console.log('PdfToSvgWasm module loaded:', module);
+	console.log('PdfToSvgWasm module loaded:', module, 'Time taken:', performance.now() - startTime, 'ms');
 	module.FS.writeFile("/input.pdf", pdfData);
 
 	const status = module._convertPdfToSvg();
@@ -34,14 +36,6 @@ export async function pdfToSVG(
 		} catch {}
 	}
 }
-// export async function pdfToSVG(pdfData: Uint8Array) {debugger
-// 	console.log('pdfToSVG called with pdfData of length:', pdfData.length);
-// 	return "";
-// 	// const pdftocairo = await PdfToCairo();
-// 	// pdftocairo.FS.writeFile('input.pdf', pdfData);
-// 	// pdftocairo._convertPdfToSvg();
-// 	// return pdftocairo.FS.readFile('input.svg', { encoding: 'utf8' }) as string;
-// }
 
 export async function pdfToOptimizedSVG(
 	pdfData: Uint8Array,
