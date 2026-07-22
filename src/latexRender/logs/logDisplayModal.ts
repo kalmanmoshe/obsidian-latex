@@ -3,11 +3,11 @@ import { ProcessedLog, File, ErrorLevel } from './latex-log-parser';
 
 export class LogDisplayModal extends Modal {
 	log: ProcessedLog;
-	
+
 	constructor(log: ProcessedLog) {
 		super(app);
 		this.log = log;
-		this.modalEl.addClass('moshe-swift-latex-log-modal');
+		this.modalEl.addClass('latex-compiler-log-modal');
 	}
 
 	onOpen() {
@@ -28,17 +28,17 @@ export class LogDisplayModal extends Modal {
 				: []),
 		];
 
-		const tabsContainer = contentEl.createDiv('moshe-log-tabs');
-		const buttonsContainer = tabsContainer.createDiv('moshe-log-buttons');
-		const sectionsContainer = tabsContainer.createDiv('moshe-log-sections');
+		const tabsContainer = contentEl.createDiv('latex-compiler-log-tabs');
+		const buttonsContainer = tabsContainer.createDiv('latex-compiler-log-buttons');
+		const sectionsContainer = tabsContainer.createDiv('latex-compiler-log-sections');
 		const contentSections: Record<string, HTMLElement> = {};
 		tabs.forEach(({ name, render }) => {
 			const button = buttonsContainer.createEl('button', {
 				text: name,
-				cls: 'moshe-log-tab-button',
+				cls: 'latex-compiler-log-tab-button',
 			});
 			const section = sectionsContainer.createDiv(
-				'moshe-log-tab-content',
+				'latex-compiler-log-tab-content',
 			);
 			section.style.display = 'none';
 			contentSections[name] = section;
@@ -70,32 +70,32 @@ export class LogDisplayModal extends Modal {
 		});
 		allErrors.forEach((err) => {
 			const box = container.createDiv(
-				'moshe-log-error-box ' + `level-${err.level}`,
+				'latex-compiler-log-error-box ' + `level-${err.level}`,
 			);
 
 			box.createDiv({
 				text: `${err.level.toUpperCase()}: ${err.message}`,
-				cls: 'moshe-log-error-header',
+				cls: 'latex-compiler-log-error-header',
 			});
 
 			if (err.file || err.line !== null) {
 				box.createDiv({
 					text: `↳ ${err.file ?? 'unknown file'}:${err.line ?? '?'}`,
-					cls: 'moshe-log-error-location',
+					cls: 'latex-compiler-log-error-location',
 				});
 			}
 
 			if (err.content) {
 				box.createEl('pre', {
 					text: err.content,
-					cls: 'moshe-log-error-snippet',
+					cls: 'latex-compiler-log-error-snippet',
 				});
 			}
 
 			if (err.cause) {
 				box.createDiv({
 					text: `Cause: ${err.cause}`,
-					cls: 'moshe-log-error-cause',
+					cls: 'latex-compiler-log-error-cause',
 				});
 			}
 		});
@@ -104,16 +104,16 @@ export class LogDisplayModal extends Modal {
 	private renderFiles(container: HTMLElement) {
 		const renderTree = (file: File, parent: HTMLElement, depth = 0) => {
 			const wrapper = parent.createDiv(
-				'moshe-log-file-wrapper depth-' + depth,
+				'latex-compiler-log-file-wrapper depth-' + depth,
 			);
 
 			if (file.files?.length) {
 				const details = wrapper.createEl('details', {
-					cls: 'moshe-log-file-details',
+					cls: 'latex-compiler-log-file-details',
 				});
 				details.createEl('summary', {
 					text: file.path,
-					cls: 'moshe-log-file-summary',
+					cls: 'latex-compiler-log-file-summary',
 				});
 				file.files.forEach((child) =>
 					renderTree(child, details, depth + 1),
@@ -122,7 +122,7 @@ export class LogDisplayModal extends Modal {
 				// Just a line, no <details>
 				wrapper.createEl('div', {
 					text: file.path,
-					cls: 'moshe-log-file-line',
+					cls: 'latex-compiler-log-file-line',
 				});
 			}
 		};

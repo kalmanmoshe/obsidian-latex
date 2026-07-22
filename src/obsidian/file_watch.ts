@@ -8,12 +8,12 @@ import {
 	Notice,
 	debounce,
 } from 'obsidian';
-import LatexRender from 'src/main';
+import LatexCompilerPlugin from 'src/main';
 
 const REFRESH_TIMEOUT_MS = 500;
 
 const refreshMathJaxFromFiles = debounce(
-	async (plugin: LatexRender) => {
+	async (plugin: LatexCompilerPlugin) => {
 		if (!plugin.settings.mathjaxPreambleEnabled) {
 			return;
 		}
@@ -24,7 +24,7 @@ const refreshMathJaxFromFiles = debounce(
 )
 
 const refreshLatexFromFiles = debounce(
-	async (plugin: LatexRender) => {
+	async (plugin: LatexCompilerPlugin) => {
 		if (!plugin.settings.mathjaxPreambleEnabled) {
 			return;
 		}
@@ -41,47 +41,47 @@ const refreshLatexFromFiles = debounce(
  * @param file
  * @returns
  */
-const checkFileMonitoringStatus = (plugin: LatexRender, file: TFile) => {
+const checkFileMonitoringStatus = (plugin: LatexCompilerPlugin, file: TFile) => {
 	const {
 		compilerVfsEnabled,
 		mathjaxPreambleEnabled,
 	} = plugin.settings;
 
 	return {
-		autoLoadedMonitored: compilerVfsEnabled && plugin.swiftlatexRender.vfs.isNeededForAutoUse(file.path),
+		autoLoadedMonitored: compilerVfsEnabled && plugin.latexRenderer.vfs.isNeededForAutoUse(file.path),
 		mathJaxMonitored: mathjaxPreambleEnabled && plugin.mathJaxVFS.hasFile(file.path)
 	};
 };
 
-export const onFileChange = (plugin: LatexRender, file: TAbstractFile) => {
+export const onFileChange = (plugin: LatexCompilerPlugin, file: TAbstractFile) => {
 	if (!(file instanceof TFile)) return;
 	const fileMonitoringStatus = checkFileMonitoringStatus(plugin, file);
 
 	if (fileMonitoringStatus.mathJaxMonitored) {
 		refreshMathJaxFromFiles(plugin);
-	} 
+	}
 
 	if (fileMonitoringStatus.autoLoadedMonitored) {
 		refreshLatexFromFiles(plugin);
 	}
-	
+
 };
 
-export const onFileCreate = (plugin: LatexRender, file: TAbstractFile) => {
+export const onFileCreate = (plugin: LatexCompilerPlugin, file: TAbstractFile) => {
 	onFileChange(plugin, file);
 };
 
-export const onFileDelete = (plugin: LatexRender, file: TAbstractFile) => {
+export const onFileDelete = (plugin: LatexCompilerPlugin, file: TAbstractFile) => {
 	if (!(file instanceof TFile)) return;
 	// There's no point checking mathjax over here as it won't do anything you cannot delete the file from cache Only change it
 	const wasVfsFile =
 		plugin.settings.compilerVfsEnabled &&
-		plugin.swiftlatexRender.vfs.hasFile(file.path);
+		plugin.latexRenderer.vfs.hasFile(file.path);
 
 	if (wasVfsFile) {
 		refreshLatexFromFiles(plugin);
 	}
-	
+
 };
 
 function* generateFilesWithin(fileOrFolder: TAbstractFile): Generator<TFile> {
@@ -106,12 +106,12 @@ interface FileSets {
 	latexVirtualFiles: Set<TFile>;
 }
 
-export function getFileSets(plugin: LatexRender): FileSets {
+export function getFileSets(plugin: LatexCompilerPlugin): FileSets {
 	const locations = [
 		plugin.settings.mathjaxPreambleFileLocation,
 		plugin.settings.autoloadedVfsFilesDir,
 	];
-	
+
 	const [mathjaxPreambleFiles, latexVirtualFiles] = locations.map((path) =>
 		getFilesWithin(app.vault, path),
 	);

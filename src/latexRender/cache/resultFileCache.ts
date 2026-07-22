@@ -1,5 +1,5 @@
-import LatexRender from 'src/main';
-import { Notice, TFile } from 'obsidian';
+import LatexCompilerPlugin from 'src/main';
+import { normalizePath, Notice, TFile } from 'obsidian';
 import { getLatexHashesFromFile } from '../resolvers/latexSourceFromFile';
 import { CacheBase, CacheFileType } from './cacheBase/cacheBase';
 import {
@@ -22,14 +22,14 @@ export const resultFileCacheFormat = new Map([
 ]);
 
 export default class ResultFileCache {
-	private plugin: LatexRender;
+	private plugin: LatexCompilerPlugin;
 	/**
 	 * Map of cached files. hash -> Set of file paths that contain this hash.
 	 */
 	private cacheMap: CacheMap;
 	private cache: CacheBase;
 
-	constructor(plugin: LatexRender) {
+	constructor(plugin: LatexCompilerPlugin) {
 		this.plugin = plugin;
 
 		if (this.plugin.settings.physicalCache) {
@@ -546,11 +546,16 @@ export default class ResultFileCache {
 	}
 
 	getAbsolutePathFromStem(stem: string): string {
-		if (!this.isPhysicalCatch())
+		if (!this.isPhysicalCatch()) {
 			throw new Error(
 				'Physical cache is not enabled, cannot get absolute path from stem.',
 			);
+		}
 		const fileName = this.stemToFileName(stem);
-		return (this.cache as ResultFilePhysicalCache).getCacheFilePath(fileName);
+		//@ts-ignore (Obsidian doesn't expose this API)
+		const vaultPath = this.plugin.app.vault.adapter.basePath;
+		const vaultRelativeFilePath = (this.cache as ResultFilePhysicalCache).getCacheFilePath(fileName);
+
+		return normalizePath(`${vaultPath}/${vaultRelativeFilePath}`);
 	}
 }

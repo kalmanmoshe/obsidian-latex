@@ -1,11 +1,11 @@
-import LatexRender from 'src/main';
+import LatexCompilerPlugin from 'src/main';
 import { VirtualFileSystem } from '../VirtualFileSystem';
 import { ProcessableLatexTask } from './latexTask';
 
 export async function processTaskSource(
 	task: ProcessableLatexTask,
 	vfs: VirtualFileSystem,
-	plugin: LatexRender,
+	plugin: LatexCompilerPlugin,
 ): Promise<string | void> {
 	const startTime = performance.now();
 
@@ -22,7 +22,7 @@ export async function processTaskSource(
 		const dependencyPaths = surfaceLevelDependencies.map((dep) => dep.path);
 
 		if (plugin.settings.compilerVfsEnabled) {
-			
+
 			const autoUseFiles = vfs.getAutoUseFiles().filter(
 				(file) => surfaceLevelDependencies.every((dep) => dep.path !== file.path)
 			);

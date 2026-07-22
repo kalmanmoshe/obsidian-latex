@@ -1,6 +1,6 @@
 import { DataAdapter, normalizePath } from 'obsidian';
 import { Md5 } from 'ts-md5';
-import LatexRender from 'src/main';
+import LatexCompilerPlugin from 'src/main';
 import ResultFileCache from './resultFileCache';
 import { ProcessedLog } from '../logs/latex-log-parser';
 import PackageCache from './packageCache';
@@ -11,13 +11,13 @@ export function hashString(input: string, length = 16): string {
 }
 
 export function getDependencyHash(dependencies: string[]): string {
-		if (dependencies.length === 0) {
-			return 'nodeps';
-		}
-		const sorted = [...dependencies].sort();
-		const joined = sorted.join('\n');
-		return hashString(joined, 16);
+	if (dependencies.length === 0) {
+		return 'nodeps';
 	}
+	const sorted = [...dependencies].sort();
+	const joined = sorted.join('\n');
+	return hashString(joined, 16);
+}
 
 export function hashLatexContent(content: string) {
 	return hashString(content.replace(/\s/g, ''), 16);
@@ -33,7 +33,7 @@ export enum CacheStatus {
  */
 export default class CompilerCache {
 	/** Reference to the main plugin instance. */
-	private plugin: LatexRender;
+	private plugin: LatexCompilerPlugin;
 	/** Handles caching of compiled files. */
 	resultFileCache: ResultFileCache;
 	/** Handles caching of LaTeX packages. */
@@ -45,7 +45,7 @@ export default class CompilerCache {
 	 * Initializes the compiler cache and ensures the cache directory exists.
 	 * @param plugin The main plugin instance.
 	 */
-	constructor(plugin: LatexRender) {
+	constructor(plugin: LatexCompilerPlugin) {
 		this.plugin = plugin;
 		this.resultFileCache = new ResultFileCache(this.plugin);
 		this.packageCache = new PackageCache(this.plugin);
@@ -66,7 +66,7 @@ export default class CompilerCache {
 	getLog(logCacheKey: string) {
 		return this.logCache.getLog(logCacheKey);
 	}
-	
+
 	async forceGetLog(
 		logCacheKey: string,
 		config: { source: string; sourcePath: string },
@@ -104,7 +104,7 @@ export default class CompilerCache {
 	async removeAllCachedPackages() {
 		return this.packageCache.removeAllCachedPackages();
 	}
-	
+
 	cacheStatusForHash(hash: string) {
 		switch (true) {
 			case this.resultFileCache.hasRawHash(hash):
@@ -130,7 +130,7 @@ export default class CompilerCache {
 	 * Unloads the cache and flushes the compiler cache.
 	 */
 	async unloadCache() {
-		await this.plugin.swiftlatexRender.compiler?.flushCache();
+		await this.plugin.latexRenderer.compiler?.flushCache();
 		await this.resultFileCache.removeAllCached();
 	}
 }

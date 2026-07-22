@@ -14,7 +14,7 @@ export default class PdfTeXCompiler extends LatexCompiler {
 
   override setCompiler(): Promise<void> {
     try {
-      this.texEng = new LatexEngine(PdfTeXWorker);
+      this.texEng = new LatexEngine(PdfTeXWorker, "pdftex");
       this.engines = [this.texEng];
     } catch (e) {
       console.error("eroor seting compiler:",e)

@@ -3,7 +3,7 @@ import {
 	CompileResult,
 	CompileStatus,
 } from './compiler/base/compilerBase/engine';
-import LatexRender from '../main';
+import LatexCompilerPlugin from '../main';
 import { CompilerType } from 'src/settings/settings.js';
 
 import { pdfToHtml, pdfToOptimizedSVG, pdfToSVG } from './pdfToHtml/pdfToHtml';
@@ -59,14 +59,14 @@ type HandleErrorOptions = {
 /**
  * add option for Persistent preamble.so it won't get deleted.after use Instead, saved until overwritten
  */
-export class SwiftlatexRender {
-	plugin: LatexRender;
+export class LatexRenderer {
+	plugin: LatexCompilerPlugin;
 	vfs: VirtualFileSystem = new VirtualFileSystem();
 	compiler?: LatexCompiler;
 	cache: CompilerCache;
 	queue?: LatexRenderQueue;
 
-	async onload(plugin: LatexRender) {
+	async onload(plugin: LatexCompilerPlugin) {
 		this.plugin = plugin;
 		if (this.isNotIos()) {
 			this.cache = new CompilerCache(this.plugin);
@@ -109,7 +109,7 @@ export class SwiftlatexRender {
 		}
 
 		this.compiler.setCompiler();
-		
+
 		this.vfs.setPdfCompiler(this.compiler);
 		await this.compiler.loadEngines();
 		await this.cache.loadPackageCache();
@@ -238,7 +238,7 @@ export class SwiftlatexRender {
 	}
 
 	async detachedProcessAndRender(task: LatexTask) {
-		
+
 		if (!this.compiler?.isResponsive()) {
 			console.error("Compiler is unresponsive. Aborting task:", task.getDebugInfo());
 			return new CompileResult(
@@ -264,8 +264,7 @@ export class SwiftlatexRender {
 
 			return await this.renderLatexToPDF(
 				task.getProcessedContent(),
-				compileMode,
-				{ fetchPkgData: true, }
+				compileMode
 			);
 
 		} catch (err) {
@@ -349,7 +348,12 @@ export class SwiftlatexRender {
 
 		try {
 			const compileMode = task.isProcess() ? VfsCompileMode.compileAll : VfsCompileMode.none;
-			const result = await this.renderLatexToPDF(content, compileMode, { md5Hash: rawHash, dependencyPaths });
+			const result = await this.renderLatexToPDF(content, compileMode, { 
+				fetchPkgData: true,
+				md5Hash: rawHash, 
+				dependencyPaths 
+			});
+
 			el.innerHTML = '';
 			await this.translatePDF(result.pdf, el, stem);
 
@@ -384,7 +388,7 @@ export class SwiftlatexRender {
 				await this.vfs.loadVirtualFileSystemFiles(vfsCompileMode);
 
 				await this.compiler!.writeMemFSFile('main.tex', source);
-				await this.compiler!.setEngineMainFile('main.tex');
+				await this.compiler!.setEngineMainFile(0, 'main.tex');
 
 				const result = await this.compiler!.compileLaTeX();
 				console.log('Compilation result:', result);
@@ -401,7 +405,7 @@ export class SwiftlatexRender {
 					return;
 				}
 
-				if (!config.fetchPkgData) {
+				if (config.fetchPkgData) {
 					await this.cache.fetchPackageCacheData();
 				}
 
@@ -438,7 +442,7 @@ export class SwiftlatexRender {
 		});
 	}
 
-	isNotIos(): this is SwiftlatexRender &  {
+	isNotIos(): this is LatexRenderer & {
 		queue: LatexRenderQueue;
 		compiler: LatexCompiler;
 	} {
@@ -449,15 +453,15 @@ export class SwiftlatexRender {
 //TODO: put this somewahere better
 function restoreFromCache(
 	task: LatexTask,
-	plugin: LatexRender,
+	plugin: LatexCompilerPlugin,
 ) {
-	return plugin.swiftlatexRender.cache.resultFileCache.restoreFromCache(
+	return plugin.latexRenderer.cache.resultFileCache.restoreFromCache(
 		task.el,
 		task.rawHash,
 		task.sourcePath,
 		() => {
 			if (task instanceof ProcessableLatexTask) {
-				return getCacheDependencyPaths(task, plugin.swiftlatexRender.vfs, plugin);
+				return getCacheDependencyPaths(task, plugin.latexRenderer.vfs, plugin);
 			}
 			return Promise.resolve([]);
 		},
@@ -467,7 +471,7 @@ function restoreFromCache(
 async function getCacheDependencyPaths(
 	task: ProcessableLatexTask,
 	vfs: VirtualFileSystem,
-	plugin: LatexRender,
+	plugin: LatexCompilerPlugin,
 ): Promise<string[]> {
 	const explicitDeps = await vfs
 		.getParser()

@@ -1,5 +1,5 @@
 import { Menu, Notice, TFile, Platform } from 'obsidian';
-import LatexRender from 'src/main';
+import LatexCompilerPlugin from 'src/main';
 import { LogDisplayModal } from '../logs/logDisplayModal';
 import { LatexTask, ProcessableLatexTask } from '../task/latexTask';
 import { ErrorClasses } from '../logs/HumanReadableLogs';
@@ -43,7 +43,7 @@ async function revealFileWithFocus(path: string) {
  * - properties (such as size, dependencies, hash, date created, )
  */
 export class SvgContextMenuPopulater {
-	plugin: LatexRender;
+	plugin: LatexCompilerPlugin;
 	menu: Menu;
 	svgEl?: SVGElement;
 	/**
@@ -64,7 +64,7 @@ export class SvgContextMenuPopulater {
 	private resultFileCache: ResultFileCache;
 
 	constructor(
-		plugin: LatexRender,
+		plugin: LatexCompilerPlugin,
 		menu: Menu,
 		trigeringElement: HTMLElement,
 		sourcePath: string,
@@ -72,7 +72,7 @@ export class SvgContextMenuPopulater {
 		this.plugin = plugin;
 		this.menu = menu;
 		this.resultFileCache =
-			this.plugin.swiftlatexRender.cache.resultFileCache;
+			this.plugin.latexRenderer.cache.resultFileCache;
 		this.assignElements(trigeringElement);
 		this.sourcePath = sourcePath;
 		this.addDisplayItems();
@@ -208,7 +208,7 @@ export class SvgContextMenuPopulater {
 		options?: { hiddenOnError?: boolean, hiddenOnIos?: boolean },
 	) {
 		if (options?.hiddenOnError && this.isError) return;
-		if (options?.hiddenOnIos && !this.plugin.swiftlatexRender.isNotIos()) return;
+		if (options?.hiddenOnIos && !this.plugin.latexRenderer.isNotIos()) return;
 
 		this.menu.addItem((item) => {
 			item.setTitle(title);
@@ -241,10 +241,10 @@ export class SvgContextMenuPopulater {
 
 	private async showLogs() {
 		this.assignLatexContent();
-		let log = this.plugin.swiftlatexRender.cache.getLog(this.stem);
+		let log = this.plugin.latexRenderer.cache.getLog(this.stem);
 		if (!log) {
 			await this.assignLatexContent();
-			log = await this.plugin.swiftlatexRender.cache.forceGetLog(
+			log = await this.plugin.latexRenderer.cache.forceGetLog(
 				this.stem,
 				{ source: this.content, sourcePath: this.sourcePath },
 			);
@@ -339,7 +339,7 @@ export class SvgContextMenuPopulater {
 		}
 		this.cleanBlockEl();
 		const task = await this.getTask();
-		this.plugin.swiftlatexRender.queue!.push(task);
+		this.plugin.latexRenderer.queue!.push(task);
 		new Notice('SVG removed from cache. Re-rendering...');
 	}
 
@@ -363,7 +363,7 @@ export class SvgContextMenuPopulater {
 	private async getRawSvg() {
 		const task = await this.getTask();
 		const result =
-			await this.plugin.swiftlatexRender.detachedProcessAndRenderToResultFile(
+			await this.plugin.latexRenderer.detachedProcessAndRenderToResultFile(
 				task,
 			);
 		return result;

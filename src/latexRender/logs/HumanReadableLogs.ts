@@ -10,13 +10,13 @@ export default function parseLatexLog(
 	return new LatexLogParser(rawLog, ignoreDuplicates).parse();
 }
 export enum ErrorClasses {
-	Container = 'moshe-swift-latex-error-container',
-	Content = 'moshe-swift-latex-error-content',
-	Title = 'moshe-swift-latex-error-title',
-	Explanation = 'moshe-swift-latex-error-explanation',
-	Cause = 'moshe-swift-latex-error-cause',
-	Package = 'moshe-swift-latex-error-package',
-	Line = 'moshe-swift-latex-error-line',
+	Container = 'latex-compiler-error-container',
+	Content = 'latex-compiler-error-content',
+	Title = 'latex-compiler-error-title',
+	Explanation = 'latex-compiler-error-explanation',
+	Cause = 'latex-compiler-error-cause',
+	Package = 'latex-compiler-error-package',
+	Line = 'latex-compiler-error-line',
 }
 
 interface ErrorMessage {

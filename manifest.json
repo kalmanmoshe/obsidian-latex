@@ -1,9 +1,9 @@
 {
-  "id": "moshe-math",
-  "name": "moshe math",
+  "id": "obsidian-latex-compiler",
+  "name": "Latex Compiler",
   "version": "1.0.0-beta",
   "minAppVersion": "0.15.0",
-  "description": "moshe math",
+  "description": "A plugin that compiles LaTeX code in Obsidian.",
   "author": "moshe weinstock",
   "authorUrl": "https://obsidian.md",
   "fundingUrl": "https://obsidian.md/pricing",

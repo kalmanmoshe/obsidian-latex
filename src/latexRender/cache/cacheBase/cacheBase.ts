@@ -6,7 +6,7 @@
  * 	stem      = "archive.tar"
  * 	extension = "gz"
  */
-import LatexRender from 'src/main';
+import LatexCompilerPlugin from 'src/main';
 import {
 	extractStemAndExtension,
 	isValidFileStem,
@@ -27,7 +27,7 @@ export type CacheFileExtensions = Map<string, CacheFileType>;
 
 export abstract class CacheBase {
 	constructor(
-		protected plugin: LatexRender,
+		protected plugin: LatexCompilerPlugin,
 		protected cacheFileExtensions: CacheFileExtensions,
 	) { }
 

@@ -1,6 +1,6 @@
 import { SectionCache, TFile } from 'obsidian';
 import { getFileSectionsFromPath } from './sectionCache';
-import { latexCodeBlockNamesRegex } from '../swiftlatexRender';
+import { latexCodeBlockNamesRegex } from '../LatexRenderer';
 import ResultFileCache from '../cache/resultFileCache';
 import { codeBlockToContent } from 'obsidian-dev-utils';
 import { hashLatexContent } from '../cache/compilerCache';

@@ -1,13 +1,12 @@
-import { Plugin, Notice, MarkdownView, loadMathJax, Platform } from 'obsidian';
-//.\adb push "C:\Users\Owner\Desktop\school\.obsidian\plugins\obsidian-latex\main.js" "/sdcard/Documents/school/.obsidian/plugins/obsidian-latex/main.js"
+import { Plugin, Notice, MarkdownView, loadMathJax } from 'obsidian';
 import {
-	LatexRenderPluginSettings,
+	LatexCompilerPluginSettings,
 	DEFAULT_SETTINGS,
 } from './settings/settings';
-import { LatexRenderSettingTab } from './settings/settings_tab';
+import { LatexCompilerSettingTab } from './settings/settings_tab';
 
 import { getEditorCommands } from './obsidian/editor_commands';
-import { SwiftlatexRender } from './latexRender/swiftlatexRender';
+import { LatexRenderer } from './latexRender/LatexRenderer';
 import { MathJaxAbstractSyntaxTree } from './ast/mathJaxAbstractSyntaxTree';
 import {
 	getFileSets,
@@ -19,42 +18,18 @@ import {
 import { SvgContextMenuDecider } from './latexRender/contextMenu/svgContextMenuDecider';
 import { MathjaxVFS } from './latexRender/MathjaxVFS';
 
-/**
- * Assignments:
- * - Create code that will auto-insert metadata into files. You can use this:
- *   const file = app.vault.getAbstractFileByPath(ctx.sourcePath);
- *   if (file instanceof TFile) {
- *     const metadata = app.metadataCache.getFileCache(file);
- *     console.log(metadata);
- *   }
- * - Create qna for better Searching finding and styling
- */
-
-/**
- * - `\include{}` → Creates `.aux` files and includes the content, which **does** affect compile time.
-- `\input{}` → Directly injects the content **without** creating separate `.aux` files, still affecting compile time.
-- External files via `\externaldocument{}` (for `xr` or `xr-hyper`) → Adds lookup time for cross-references.
- */
-/**
- * With Corprieambol whatever is loaded is loaded if explicit. I have to make sure that.only the files is specified are loaded To the engine.
- */
-
-export default class LatexRender extends Plugin {
-	settings: LatexRenderPluginSettings;
-	swiftlatexRender: SwiftlatexRender = new SwiftlatexRender();
+export default class LatexCompilerPlugin extends Plugin {
+	settings: LatexCompilerPluginSettings;
+	latexRenderer: LatexRenderer = new LatexRenderer();
 	menuDecider: SvgContextMenuDecider;
 	mathJaxVFS: MathjaxVFS;
-	
+
 	async onload() {
 		const startTime = performance.now();
-		console.log('Loading Moshe math plugin');
+		console.log('Loading Latex Compiler plugin');
 		this.menuDecider = new SvgContextMenuDecider(this);
 		this.mathJaxVFS = new MathjaxVFS();
 
-		if (Platform.isIosApp) {
-			return;
-		}
-		this.manifest.dir
 		await this.loadSettings();
 
 		this.addEditorCommands();
@@ -63,14 +38,14 @@ export default class LatexRender extends Plugin {
 			const onStart = performance.now();
 			await this.loadLayoutReadyDependencies();
 			console.warn(
-				'Moshe Math Plugin layout ready in ' +
+				'Latex Compiler Plugin layout ready in ' +
 				(performance.now() - onStart) +
 				'ms',
 			);
 		});
-		this.addSettingTab(new LatexRenderSettingTab(this));
+		this.addSettingTab(new LatexCompilerSettingTab(this));
 		console.warn(
-			'Moshe Math Plugin loaded in ' +
+			'Latex Compiler Plugin loaded in ' +
 			(performance.now() - startTime) +
 			'ms',
 		);
@@ -78,7 +53,7 @@ export default class LatexRender extends Plugin {
 
 	async onunload() {
 		this.removeSyntaxHighlighting();
-		this.swiftlatexRender.onunload();
+		this.latexRenderer.onunload();
 	}
 
 	private async loadLayoutReadyDependencies() {
@@ -86,7 +61,7 @@ export default class LatexRender extends Plugin {
 		this.loadMathJax();
 		// we need to use await here because the codeBlock processor
 		// needs to be loaded before the codeBlocks are processed
-		await this.swiftlatexRender.onload(this);
+		await this.latexRenderer.onload(this);
 		// processing of the code blocks have layout dependencies
 		try {
 			this.setCodeblocks();
@@ -102,14 +77,14 @@ export default class LatexRender extends Plugin {
 	private setCodeblocks() {
 		this.registerMarkdownCodeBlockProcessor(
 			'tikz',
-			this.swiftlatexRender.codeBlockProcessor.bind(
-				this.swiftlatexRender,
+			this.latexRenderer.codeBlockProcessor.bind(
+				this.latexRenderer,
 			),
 		);
 		this.registerMarkdownCodeBlockProcessor(
 			'latex',
-			this.swiftlatexRender.codeBlockProcessor.bind(
-				this.swiftlatexRender,
+			this.latexRenderer.codeBlockProcessor.bind(
+				this.latexRenderer,
 			),
 		);
 	}
@@ -209,7 +184,7 @@ export default class LatexRender extends Plugin {
 		};
 
 		MJ.__patchedTex2Chtml = true;
-		
+
 	}
 
 	private refreshAllWindows() {
@@ -227,9 +202,9 @@ export default class LatexRender extends Plugin {
 
 	private async updateMathjaxVFS(): Promise<void> {
 		const mathjaxPreambleFiles = getFileSets(this).mathjaxPreambleFiles;
-		
+
 		const preambles = await getPreambleFromFiles(mathjaxPreambleFiles);
-		
+
 		this.mathJaxVFS.flush();
 		await this.mathJaxVFS.addOrReplaceFiles(preambles);
 	}
@@ -251,7 +226,7 @@ export default class LatexRender extends Plugin {
 
 	async saveSettings(didMathjaxFileLocationChange = false, didLatexFileLocationChange = false) {
 		await this.saveData(this.settings);
-		await this.swiftlatexRender.vfs.setEnabled(
+		await this.latexRenderer.vfs.setEnabled(
 			this.settings.compilerVfsEnabled,
 		);
 		await this.mathJaxVFS.setEnabled(this.settings.mathjaxPreambleEnabled);
@@ -278,11 +253,11 @@ export default class LatexRender extends Plugin {
 			becauseFileUpdated,
 		);
 		if (becauseFileLocationUpdated) {
-			this.swiftlatexRender.vfs.removeAutoUseFiles();
+			this.latexRenderer.vfs.removeAutoUseFiles();
 		}
-		await this.swiftlatexRender.vfs.addOrReplaceFiles(coorPreambles);
+		await this.latexRenderer.vfs.addOrReplaceFiles(coorPreambles);
 		const filePaths = new Set(coorPreambles.map((file) => file.path));
-		this.swiftlatexRender.vfs.setCoorVirtualFiles(filePaths);
+		this.latexRenderer.vfs.setCoorVirtualFiles(filePaths);
 	}
 
 	private async getlatexPreambleFiles(

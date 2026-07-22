@@ -1,4 +1,4 @@
-import LatexRender from 'src/main';
+import LatexCompilerPlugin from 'src/main';
 import { ProcessedLog } from '../logs/latex-log-parser';
 import parseLatexLog from '../logs/HumanReadableLogs';
 import { Notice } from 'obsidian';
@@ -15,14 +15,14 @@ export function getLogCacheKey(rawHash: string, deps: string[] | string): string
 }
 
 export default class LogCache {
-	private plugin: LatexRender;
+	private plugin: LatexCompilerPlugin;
 	/**
 	 * A cache that maps a hash to a ProcessedLog. This is used to store logs for LaTeX compilations.
 	 * key:
 	 */
 	private cache?: Map<string, ProcessedLog>;
 
-	constructor(plugin: LatexRender) {
+	constructor(plugin: LatexCompilerPlugin) {
 		this.plugin = plugin;
 	}
 
@@ -87,7 +87,7 @@ export default class LogCache {
 			sectionInfos,
 		);
 		const result =
-			await this.plugin.swiftlatexRender.detachedProcessAndRender(task);
+			await this.plugin.latexRenderer.detachedProcessAndRender(task);
 		return parseLatexLog(result.log);
 	}
 

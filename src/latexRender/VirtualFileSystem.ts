@@ -313,7 +313,8 @@ export class VirtualFileSystem {
 
 		try {
 			for (const file of filesToRemove) {
-				await this.compiler.removeMemFSFile(file.name);
+				// the tex compiling engine is always engine 0, so we can hardcode it here
+				await this.compiler.removeMemFSFile(0, file.name);
 			}
 		} finally {
 			this.compilerState = { status: VFSstatus.uptodate, mode: VfsCompileMode.none };

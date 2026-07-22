@@ -11,7 +11,7 @@ import {
 	addFileSearchSetting,
 } from 'obsidian-dev-utils';
 
-export class LatexRenderSettingTab extends PluginSettingTab {
+export class LatexCompilerSettingTab extends PluginSettingTab {
 	plugin: LatexRenderPlugin;
 	snippetsEditor: EditorView;
 	snippetsFileLocEl: HTMLElement;
@@ -28,7 +28,7 @@ export class LatexRenderSettingTab extends PluginSettingTab {
 		const parentEl = heading.settingEl;
 		const iconEl = parentEl.createDiv();
 		setIcon(iconEl, icon);
-		iconEl.addClass('moshe-math-settings-icon');
+		iconEl.addClass('latex-compiler-math-settings-icon');
 		parentEl.prepend(iconEl);
 	}
 
@@ -94,7 +94,7 @@ export class LatexRenderSettingTab extends PluginSettingTab {
 			(value: string) => {
 				this.plugin.settings.compiler = value as CompilerType;
 				this.plugin.saveSettings();
-				this.plugin.swiftlatexRender.switchCompiler();
+				this.plugin.latexRenderer.switchCompiler();
 			},
 			{
 				name: 'Compiler',
@@ -131,7 +131,7 @@ export class LatexRenderSettingTab extends PluginSettingTab {
 			async (value: boolean) => {
 				this.plugin.settings.physicalCache = value;
 				this.plugin.saveSettings();
-				await this.plugin.swiftlatexRender.cache.resultFileCache.togglePhysicalCache();
+				await this.plugin.latexRenderer.cache.resultFileCache.togglePhysicalCache();
 				physicalCacheLocationSetting.settingEl.toggleClass(
 					'hidden',
 					!value,
@@ -150,7 +150,7 @@ export class LatexRenderSettingTab extends PluginSettingTab {
 			async (value) => {
 				this.plugin.settings.physicalCacheLocation = value;
 				await this.plugin.saveSettings();
-				await this.plugin.swiftlatexRender.cache.resultFileCache.changeCacheDirectory();
+				await this.plugin.latexRenderer.cache.resultFileCache.changeCacheDirectory();
 			},
 			{
 				name: 'Physical cache location',
@@ -168,13 +168,13 @@ export class LatexRenderSettingTab extends PluginSettingTab {
 		addButtonSetting(
 			containerEl,
 			async () => {
-				await this.plugin.swiftlatexRender.cache.resultFileCache.removeAllCached();
+				await this.plugin.latexRenderer.cache.resultFileCache.removeAllCached();
 				new Notice('Cleared cached SVGs');
 			},
 			{
 				name: 'Clear cached SVGs',
 				description:
-					"SVGs rendered with SwiftLatex are stored in a database, so diagrams don't have to be re-rendered from scratch every time you open a page. Use this to clear the cache and force all diagrams to be re-rendered.",
+					"SVGs rendered with the plugin or cached, so diagrams don't have to be re-rendered from scratch every time you open a page. Use this to clear the cache and force all diagrams to be re-rendered.",
 				elText: 'Clear cached SVGs',
 				icon: 'trash',
 				tooltip: 'Clear cached SVGs',

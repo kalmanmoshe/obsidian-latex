@@ -57,9 +57,11 @@ export default class LatexEngine {
   protected worker: Worker | undefined;
   protected engineStatus: EngineStatus = EngineStatus.Init;
   protected tasks: string[] = [];
-
+  
   constructor(
 		private readonly WorkerClass: any,
+    //name of the engine, used for logging and debugging
+    protected engineName: string
 	) {}
 
   async loadEngine(): Promise<void> {
@@ -130,7 +132,7 @@ export default class LatexEngine {
       cmd: EngineCommands.Compilelatex,
     });
     console.log(
-      `Engine compilation finished in ${performance.now() - startCompileTime} ms`,
+      `Engine ${this.engineName} compilation finished in ${performance.now() - startCompileTime} ms`,
     );
     return new CompileResult(
       data.pdf ? new Uint8Array(data.pdf) : undefined,
@@ -148,7 +150,7 @@ export default class LatexEngine {
     }>({ cmd: EngineCommands.Compilepdf });
 
     console.log(
-      'Engine compilation finish ' +
+      `Engine ${this.engineName} compilation finish ` +
       (performance.now() - startCompileTime),
     );
     return new CompileResult(
@@ -171,7 +173,7 @@ export default class LatexEngine {
     });
     const formatURL = URL.createObjectURL(formatBlob);
     setTimeout(() => URL.revokeObjectURL(formatURL), 30000);
-    console.log('Download format file via ' + formatURL);
+    console.log(`Engine ${this.engineName} download format file via ` + formatURL);
   }
 
   async fetchCacheData() {
@@ -188,17 +190,17 @@ export default class LatexEngine {
     }>({
       cmd: EngineCommands.FetchCache,
     });
-    console.warn("got cache data from worker", data);
+    console.warn(`Engine ${this.engineName} got cache data from worker`, data);
 
     if (!data) {
-      throw new Error('No cache data received from the worker.');
+      throw new Error(`Engine ${this.engineName} received no cache data from the worker.`);
     }
 
     return {
-      texlive404: recordToString(data.texlive404),
-      texlive200: data.texlive200,
-      font404: recordToString(data.font404),
-      font200: data.font200,
+      missingPackages: recordToString(data.texlive404),
+      cachedPackages: data.texlive200,
+      missingFonts: recordToString(data.font404),
+      cachedFonts: data.font200,
     };
   }
 
@@ -285,10 +287,10 @@ export default class LatexEngine {
   
       worker.onmessage = (ev: MessageEvent<any>) => {
         try {
-          console.log(`Engine worker message received for cmd=${command}:`, ev.data);
+          console.log(`Engine ${this.engineName} worker message received for cmd=${command}:`, ev.data);
           if (ev.data?.cmd === EngineCommands.WorkerError || ev.data?.cmd === EngineCommands.WorkerRejection) {
             this.engineStatus = EngineStatus.Error;
-            fail(new Error(`Engine worker error: ${ev.data ?? "unknown error"}`));
+            fail(new Error(`Engine ${this.engineName} worker error: ${ev.data ?? "unknown error"}`));
             return;
           }
 
@@ -320,10 +322,10 @@ export default class LatexEngine {
       worker.onerror = (err: ErrorEvent) => {
         window.clearTimeout(timer);
         this.engineStatus = EngineStatus.Error;
-        console.error("Worker error:", err);
-        fail(new Error(`Worker error: ${err.message}`));
+        console.error(`Engine ${this.engineName} worker error:`, err);
+        fail(new Error(`Engine ${this.engineName} worker error: ${err.message}`));
       };
-      console.log(`Sending task to engine worker:`, task);
+      console.log(`Sending task to engine ${this.engineName} worker:`, task);
       worker.postMessage(task);
     });
   }

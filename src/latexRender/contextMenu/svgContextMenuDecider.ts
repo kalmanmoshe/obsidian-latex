@@ -1,4 +1,4 @@
-import LatexRender from 'src/main';
+import LatexCompilerPlugin from 'src/main';
 import { Menu, MarkdownView } from 'obsidian';
 import { SvgContextMenuPopulater } from './svgContextMenuPopulater';
 
@@ -17,7 +17,7 @@ export class SvgContextMenuDecider {
 	private pendings = new Map<number, Pending>();
 	private windowMs = 60;
 
-	constructor(private plugin: LatexRender) {
+	constructor(private plugin: LatexCompilerPlugin) {
 		this.plugin.registerEvent(
 			this.plugin.app.workspace.on(
 				'editor-menu',

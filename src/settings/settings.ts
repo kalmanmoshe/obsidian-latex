@@ -51,11 +51,6 @@ export type CacheEntryJson = [
 ];
 // OR for common case:
 export type ShortCacheEntryJson = string[]; // means nodeps
-/*export type CacheEntryJson = [string[], string, string[]]{
-  dependencies: string[];
-  depsHash: string;
-  referencedBy: string[];
-};*/
 
 /**
  * JSON-safe cache structure for persisting CacheMap to disk.
@@ -67,7 +62,14 @@ export type CacheJson = Array<
 	[rawHash: string, entries: (CacheEntryJson | ShortCacheEntryJson)[]]
 >;
 
-export interface LatexRenderPluginSettings {
+export interface PackageCacheData {
+    missingPackages: StringMap;
+    cachedPackages: StringMap;
+    missingFonts: StringMap;
+    cachedFonts: StringMap;
+}
+
+export interface LatexCompilerPluginSettings {
 	mathjaxPreambleEnabled: boolean;
 	mathjaxPreambleFileLocation: string;
 	compilerVfsEnabled: boolean;
@@ -99,7 +101,7 @@ export interface LatexRenderPluginSettings {
 	compiler: CompilerType;
 }
 
-export const DEFAULT_SETTINGS: LatexRenderPluginSettings = {
+export const DEFAULT_SETTINGS: LatexCompilerPluginSettings = {
 	mathjaxPreambleEnabled: false,
 	mathjaxPreambleFileLocation: '',
 	compilerVfsEnabled: false,

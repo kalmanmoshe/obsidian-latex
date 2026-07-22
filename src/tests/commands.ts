@@ -1,6 +1,6 @@
 import { Command, Modal, Notice, TFile } from 'obsidian';
 import { LatexTask } from 'src/latexRender/task/latexTask';
-import LatexRender from 'src/main';
+import LatexCompilerPlugin from 'src/main';
 import {
 	CompileResult,
 	CompileStatus,
@@ -10,9 +10,9 @@ import {
 	TaskSectionInformation,
 } from 'src/latexRender/resolvers/taskSectionInformation';
 
-export function getTestCommands(plugin: LatexRender): Command[] {
+export function getTestCommands(plugin: LatexCompilerPlugin): Command[] {
 	return [
-		createTestLatexCommand(plugin), 
+		createTestLatexCommand(plugin),
 		createTestOnClipboard(),
 		createCancelTestCommand(),
 		createNewTestLatexCommand(plugin),
@@ -40,7 +40,7 @@ function createTestOnClipboard(): Command {
 	};
 }
 
-function createTestLatexCommand(plugin: LatexRender): Command {
+function createTestLatexCommand(plugin: LatexCompilerPlugin): Command {
 	return {
 		id: 'test-latex-code-blocks',
 		name: 'Test LaTeX Code Blocks (if the test is allrdy running, it will continue)',
@@ -56,7 +56,7 @@ function createCancelTestCommand(): Command {
 	};
 }
 
-function createNewTestLatexCommand(plugin: LatexRender): Command {
+function createNewTestLatexCommand(plugin: LatexCompilerPlugin): Command {
 	return {
 		id: 'start-new-test-latex-code-blocks',
 		name: 'Start new test LaTeX Code Blocks',
@@ -88,7 +88,7 @@ interface CompileAnalysisResult {
 }
 
 class CompileTest {
-	static plugin: LatexRender;
+	static plugin: LatexCompilerPlugin;
 	static displayModal: TestResultModal;
 	static tracker: CompileTracker;
 	static sectionsByFile: {
@@ -115,7 +115,7 @@ class CompileTest {
 		new Notice('Current test was cancelled.');
 	}
 
-	static cancelAndStartNewTest(plugin: LatexRender) {
+	static cancelAndStartNewTest(plugin: LatexCompilerPlugin) {
 		if (this.hasCurrentTest()) {
 			this.cancelCurrentTest();
 		}
@@ -134,7 +134,7 @@ class CompileTest {
 		}
 	}
 
-	static startOrContinueTest(plugin: LatexRender) {
+	static startOrContinueTest(plugin: LatexCompilerPlugin) {
 		if (this.hasCurrentTest()) {
 			this.displayModal.open();
 
@@ -149,8 +149,8 @@ class CompileTest {
 
 		this.startTest(plugin);
 	}
-	
-	private static async startTest(plugin: LatexRender) {
+
+	private static async startTest(plugin: LatexCompilerPlugin) {
 		this.plugin = plugin;
 		this.activeToken = crypto.randomUUID();
 		this.isRunning = true;
@@ -233,7 +233,7 @@ class CompileTest {
 			section,
 		]);
 		const compileResult =
-			await this.plugin.swiftlatexRender.detachedProcessAndRender(task);
+			await this.plugin.latexRenderer.detachedProcessAndRender(task);
 		return { compileResult, task, section };
 	}
 }
@@ -291,7 +291,7 @@ class TestResultModal extends Modal {
 			cls: 'mod-cta',
 		}).onclick = () => this.saveReport();
 	}
-	
+
 	setTestStartTime(startTime: number) {
 		this.testStartTime = startTime;
 
@@ -344,7 +344,7 @@ class TestResultModal extends Modal {
 			this.processed === 0 ? 0 : this.totalDuration / completedBlocks;
 
 		this.averageEl.setText(`Average per block: ${average.toFixed(1)}ms`);
-		
+
 		const label = Object.keys(CompileTest.tracker)[labelIndex];
 		const sectionLine = result.section.lineStart;
 
@@ -368,8 +368,7 @@ class TestResultModal extends Modal {
 	}
 
 	finish() {
-		if (this.elapsedTimerId !== null)
-			 {
+		if (this.elapsedTimerId !== null) {
 			window.clearInterval(this.elapsedTimerId);
 			this.elapsedTimerId = null;
 		}
@@ -377,7 +376,7 @@ class TestResultModal extends Modal {
 		const totalTime = ((Date.now() - this.testStartTime) / 1000).toFixed(1);
 
 		this.elapsedEl.setText(`Elapsed: ${totalTime}s`);
-		
+
 		this.currentFileEl.setText('✔️ All files processed.');
 		this.currentSectionEl.setText('');
 
@@ -413,8 +412,8 @@ class TestResultModal extends Modal {
 
 		this.statsEl.setText(
 			`Processed: ${this.processed}/${this.totalSections} | ` +
-				`Success: ${this.success} (${successPercent.toFixed(1)}%) | ` +
-				`Failure: ${this.failure} (${failurePercent.toFixed(1)}%)`,
+			`Success: ${this.success} (${successPercent.toFixed(1)}%) | ` +
+			`Failure: ${this.failure} (${failurePercent.toFixed(1)}%)`,
 		);
 	}
 
@@ -427,7 +426,7 @@ class TestResultModal extends Modal {
 				app.vault.getAbstractFileByPath(
 					'compile-report' + idx + '.md',
 				) !== null
-			) {}
+			) { }
 		}
 
 		const path =

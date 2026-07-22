@@ -1,4 +1,4 @@
-import LatexRender from 'src/main';
+import LatexCompilerPlugin from 'src/main';
 import {
 	MarkdownPostProcessorContext,
 	MarkdownSectionInformation,
@@ -33,7 +33,7 @@ import { hashLatexContent } from '../cache/compilerCache';
 
 
 export function createTask(
-	plugin: LatexRender,
+	plugin: LatexCompilerPlugin,
 	process: boolean,
 	content: string,
 	el: HTMLElement,
@@ -45,7 +45,7 @@ export function createTask(
 		: new LatexTask(plugin, content, el, sourcePath, infos);
 }
 export class BaseTask {
-	plugin: LatexRender;
+	plugin: LatexCompilerPlugin;
 	content: string;
 	sourcePath: string;
 	md5Hash: string;
@@ -95,7 +95,7 @@ export function getEditorTextForPath(path: string): string | undefined {
 }
 
 export class LatexTask {
-	plugin: LatexRender;
+	plugin: LatexCompilerPlugin;
 	protected content: string;
 	sourcePath: string;
 	readonly uuid = crypto.randomUUID();
@@ -112,7 +112,7 @@ export class LatexTask {
 	private lastSectionInfoVerificationTime: number = Date.now();
 
 	constructor(
-		plugin: LatexRender,
+		plugin: LatexCompilerPlugin,
 		source: string,
 		el: HTMLElement,
 		sourcePath: string,
@@ -196,7 +196,7 @@ export class LatexTask {
 	}
 
 	static baseCreate(
-		plugin: LatexRender,
+		plugin: LatexCompilerPlugin,
 		process: boolean,
 		content: string,
 		el: HTMLElement,
@@ -225,7 +225,7 @@ export class LatexTask {
 	 * @returns
 	 */
 	static fromSectionInfos(
-		plugin: LatexRender,
+		plugin: LatexCompilerPlugin,
 		path: string,
 		sectionInfos: TaskSectionInformation[],
 		el?: HTMLElement,
@@ -266,7 +266,7 @@ export class LatexTask {
 	}
 
 	static async createAsync(
-		plugin: LatexRender,
+		plugin: LatexCompilerPlugin,
 		process: boolean,
 		content: string,
 		el: HTMLElement,
@@ -301,13 +301,13 @@ export class LatexTask {
 	}
 
 	getCacheStatus() {
-		return this.plugin.swiftlatexRender.cache.cacheStatusForHash(
+		return this.plugin.latexRenderer.cache.cacheStatusForHash(
 			this.rawHash,
 		);
 	}
 
 	getCacheStatusAsNum() {
-		return this.plugin.swiftlatexRender.cache.cacheStatusForHashAsNum(
+		return this.plugin.latexRenderer.cache.cacheStatusForHashAsNum(
 			this.rawHash,
 		);
 	}
@@ -363,7 +363,7 @@ export class LatexTask {
 	}
 
 	getStem() {
-		return this.plugin.swiftlatexRender.cache.resultFileCache.getFileStem(
+		return this.plugin.latexRenderer.cache.resultFileCache.getFileStem(
 			this.rawHash,
 			this.getDependencyPaths(),
 		);
@@ -382,7 +382,7 @@ export class LatexTask {
 
 	getDebugInfo() {
 		return {
-			vfsFils: this.plugin.swiftlatexRender.vfs.getClonedFiles(),
+			vfsFils: this.plugin.latexRenderer.vfs.getClonedFiles(),
 			sourcePath: this.sourcePath,
 			content: this.content,
 			rawHash: this.rawHash,
@@ -416,7 +416,7 @@ export class ProcessableLatexTask extends LatexTask {
 	private dependencyPaths: string[] = [];
 
 	constructor(
-		plugin: LatexRender,
+		plugin: LatexCompilerPlugin,
 		content: string,
 		el: HTMLElement,
 		sourcePath: string,
@@ -481,7 +481,7 @@ export class ProcessableLatexTask extends LatexTask {
 	async process(): Promise<void | string> {
 		return await processTaskSource(
 			this,
-			this.plugin.swiftlatexRender.vfs,
+			this.plugin.latexRenderer.vfs,
 			this.plugin
 		);
 	}
