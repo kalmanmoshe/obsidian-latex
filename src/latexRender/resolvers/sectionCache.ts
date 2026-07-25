@@ -17,7 +17,7 @@ export async function getFileSectionsFromPath(path: string) {
 	};
 }
 
-export async function getCodeBlockSectionsFromFile(
+async function getCodeBlockSectionsFromFile(
 	file: TFile,
 ): Promise<SectionCache[]> {
 	const source = getEditorTextForPath(file.path) ?? await app.vault.read(file);

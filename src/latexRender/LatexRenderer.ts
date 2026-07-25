@@ -492,22 +492,6 @@ export class TimeoutError extends Error {
 	}
 }
 
-export function withTimeout<T>(
-	promise: Promise<T>,
-	ms: number,
-	message?: string,
-): Promise<T> {
-	let timer: ReturnType<typeof setTimeout> | undefined;
-
-	const timeout = new Promise<never>((_, reject) => {
-		timer = setTimeout(() => reject(new TimeoutError(message)), ms);
-	});
-
-	return Promise.race([promise, timeout]).finally(() => {
-		if (timer) clearTimeout(timer);
-	}) as Promise<T>;
-}
-
 function toErrorString(e: unknown): string {
 	if (typeof e === 'string') return e;
 	if (e instanceof Error) return e.stack ?? e.message ?? String(e);

@@ -31,7 +31,7 @@ export class CompileResult {
   
 }
 
-export enum EngineCommands {
+enum EngineCommands {
   WorkerError = 'workererror',
   WorkerRejection = 'workerrejection',
   Compilelatex = 'compilelatex',

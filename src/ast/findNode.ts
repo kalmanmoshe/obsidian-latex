@@ -72,19 +72,3 @@ export function findNodeWithPath<T extends object>(
 	const found = dfs(root);
 	return found ? { node: found, path } : null;
 }
-
-/** Replays a recorded path from a root (class instance or object) */
-export function followPath(root: object, path: PathStep[]): object | null {
-	let cur: unknown = root;
-	for (const step of path) {
-		if (cur == null || typeof cur !== 'object') return null;
-		const next: unknown = (cur as AnyObj)[step.key];
-		if (step.index == null) {
-			cur = next;
-		} else {
-			if (!Array.isArray(next)) return null;
-			cur = next[step.index];
-		}
-	}
-	return cur && typeof cur === 'object' ? (cur as object) : null;
-}

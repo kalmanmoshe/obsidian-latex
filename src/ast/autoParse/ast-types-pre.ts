@@ -10,8 +10,6 @@ let rawParse: (str: string) => any;
  */
 let rawParseMath: any;
 
-export let stringifyAutoAst: (autoAst: any) => string;
-
 
 import('@unified-latex/unified-latex-util-parse').then((module) => {
 	rawParse = module.parse;
@@ -161,7 +159,7 @@ function validateNodeContent(
 	return content;
 }
 
-export function migrateToClassStructure(ast: Ast): AstClass {
+function migrateToClassStructure(ast: Ast): AstClass {
 	if (Array.isArray(ast)) {
 		const nodes: NodeClass[] = ast
 			.map(migrateToClassStructure)

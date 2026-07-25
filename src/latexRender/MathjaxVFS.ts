@@ -5,14 +5,6 @@ import { DependencyGraphStore } from 'src/dependency/DependencyGraphStore';
 import { createMathJaxDependency, MathJaxDependency } from 'src/dependency/LatexDependency';
 import { MathJaxAbstractSyntaxTree } from 'src/ast/mathJaxAbstractSyntaxTree';
 
-export enum VFSstatus {
-    undefined,
-    outdated,
-    uptodate,
-    error,
-}
-
-
 type VirtualFile = {
     name: string;
     /**

@@ -5,7 +5,7 @@ import { Notice } from 'obsidian';
 import { DependencyGraphStore } from 'src/dependency/DependencyGraphStore';
 import { createDependency, DependencyConfig, LatexDependency } from 'src/dependency/LatexDependency';
 
-export enum VFSstatus {
+enum VFSstatus {
 	undefined,
 	outdated,
 	uptodate,

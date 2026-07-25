@@ -64,7 +64,7 @@ const escapeText = (text: string) => {
 	return '';
 };
 
-export const escapeAttr = (attr: any) => {
+const escapeAttr = (attr: any) => {
 	return String(attr)
 		.replace(/&/g, '&amp;')
 		.replace(/'/g, '&apos;')

@@ -16,7 +16,7 @@ export function sectionToTaskSectionInfo(
 	};
 }
 
-export function taskSectionInfoToCodeBlock(
+function taskSectionInfoToCodeBlock(
 	fileText: string | string[],
 	taskSection: TaskSectionInformation,
 ): string {

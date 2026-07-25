@@ -1,7 +1,6 @@
 import { SectionCache, TFile } from 'obsidian';
 import { getFileSectionsFromPath } from './sectionCache';
 import { latexCodeBlockNamesRegex } from '../LatexRenderer';
-import ResultFileCache from '../cache/resultFileCache';
 import { codeBlockToContent } from 'obsidian-dev-utils';
 import { hashLatexContent } from '../cache/compilerCache';
 export interface TaskSectionInformation {
@@ -17,72 +16,6 @@ export interface TaskSectionInformation {
 	 * the source code of the task (the code block) including the delimiters.
 	 */
 	codeBlock: string;
-}
-
-/**
- * Returns the most nested (deepest) section info that contains a given line.
- */
-export function findInnermostSectionInfo(
-	sectionInfos: TaskSectionInformation[],
-	lineIndex: number,
-	lineEnd?: number,
-): TaskSectionInformation | undefined {
-	return sectionInfos
-		.filter(
-			(sec) =>
-				sec.lineStart <= lineIndex &&
-				sec.lineEnd >= lineIndex &&
-				(lineEnd ? sec.lineEnd <= lineEnd : true),
-		)
-		.sort((a, b) => b.lineStart - a.lineStart)[0];
-}
-
-export async function findTaskSectionInfoFromContentInFile(
-	file: TFile,
-	content: string,
-) {
-	const blockSections = await getLatexTaskSectionInfosFromFile(file);
-	for (const section of blockSections) {
-		const sectionContent = codeBlockToContent(section.codeBlock);
-		if (sectionContent === content) {
-			return section;
-		}
-	}
-}
-
-export async function getTaskSectionInfosFromHash(
-	cache: ResultFileCache,
-	hash: string,
-): Promise<TaskSectionInformation[]> {
-	const filePathsCache = new Set<string>();
-	// Use cache to narrow down file paths.
-	const cachedFilePaths = cache.getCachedFilePathsForRawHash(hash);
-	for (const filePath of cachedFilePaths) {
-		if (filePathsCache.has(filePath)) continue;
-		filePathsCache.add(filePath);
-		const fileFromCache = app.metadataCache.getFirstLinkpathDest(
-			filePath,
-			'',
-		);
-		if (!fileFromCache) continue;
-		const info = await findTaskSectionInfoFromHashInFile(
-			fileFromCache,
-			hash,
-		);
-		if (info) return info;
-	}
-
-	// If still not found, search all files in parallel.
-	const allFiles = app.vault.getFiles();
-	for (const file of allFiles) {
-		if (filePathsCache.has(file.path)) continue; // Skip already checked files
-		filePathsCache.add(file.path);
-		const info = await findTaskSectionInfoFromHashInFile(file, hash);
-		if (info) {
-			return info;
-		}
-	}
-	throw new Error('Latex info not found for hash: ' + hash);
 }
 
 /**

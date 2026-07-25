@@ -98,7 +98,7 @@ export async function getFileContent(path: string): Promise<string> {
  * @param currentPath Path of the source file used as the relative starting point.
  * @returns The resolved file and optional code block / section name.
  */
-export function findRelativeFile(filePath: string, currentPath: string) {
+function findRelativeFile(filePath: string, currentPath: string) {
 	if (currentPath.contains(CODE_BLOCK_NAME_SEPARATOR)) {
 		throw new Error(
 			`Current path must be a file and not contain code block separator: ${CODE_BLOCK_NAME_SEPARATOR}`,
@@ -237,12 +237,6 @@ export function extractStemAndExtension(path: string) {
 	const stem = parts.join('.');
 
 	return { stem, extension };
-}
-
-export function extractDir(path: string): string {
-	const parts = path.split(PATH_SEPARATORS_REGEX);
-	parts.pop();
-	return parts.join('/');
 }
 
 /**

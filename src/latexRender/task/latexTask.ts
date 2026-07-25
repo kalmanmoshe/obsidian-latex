@@ -20,19 +20,8 @@ import {
 } from '../resolvers/sectionUtils';
 import { processTaskSource } from './latexTaskProcessor';
 import { hashLatexContent } from '../cache/compilerCache';
-/**
- * Be careful of catching this as the file may change and until you don't generate a new one it will be static.
- */
 
-/*interface TaskSectionInformation extends MarkdownSectionInformation{
-	/**
-	 * The file text where the task (source) is located. (i checked this and this is correct)
-	 */
-//text: string;
-/*}*/
-
-
-export function createTask(
+function createTask(
 	plugin: LatexCompilerPlugin,
 	process: boolean,
 	content: string,
@@ -44,13 +33,6 @@ export function createTask(
 		? new ProcessableLatexTask(plugin, content, el, sourcePath, infos)
 		: new LatexTask(plugin, content, el, sourcePath, infos);
 }
-export class BaseTask {
-	plugin: LatexCompilerPlugin;
-	content: string;
-	sourcePath: string;
-	md5Hash: string;
-}
-//const SOURCE_CHANGE_TIME_MARGIN = 1000;
 
 /**
  * sets the section information for the task.

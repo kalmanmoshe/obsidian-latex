@@ -45,6 +45,7 @@ export class SVGroot {
 		this.attributes = attributes;
 		this.children = children;
 	}
+
 	static async parse(svgString: string): Promise<SVGroot> {
 		const parsedSvg = await parse(svgString);
 		if (!(parsedSvg instanceof SVGroot)) {
@@ -52,9 +53,11 @@ export class SVGroot {
 		}
 		return parsedSvg;
 	}
+
 	toString() {
 		return stringify(this);
 	}
+	
 	idSvg(id: string) {
 		this.attributes['data-id'] = id;
 	}

@@ -1,39 +1,17 @@
 import { PDFDocument } from 'pdf-lib';
 import { SVGroot } from 'src/svg/nodes';
 import { optimizeSVG } from './optimizeSVG';
-//@ts-ignore
 import PdfToSvgWasm from "@pdf-to-svg-runtime";
 
-export async function pdfToSVG(
-	pdfData: Uint8Array,
-): Promise<string> {
-	console.log(
-		"pdfToSVG called with pdfData of length:",
-		pdfData.length,
-	);
-
+export async function pdfToSVG(pdfData: Uint8Array,): Promise<string> {
 	const module = await PdfToSvgWasm();
-
 
 	module.FS.writeFile(
 		"/input.pdf",
 		pdfData,
 	);
 
-	const conversionStart =
-		performance.now();
-
-	const status =
-		module._convertPdfToSvg();
-
-	console.log(
-		"PDF to SVG conversion status:",
-		status,
-		"Conversion time:",
-		performance.now() -
-			conversionStart,
-		"ms",
-	);
+	const status = module._convertPdfToSvg();
 
 	if (status !== 0) {
 		throw new Error(
