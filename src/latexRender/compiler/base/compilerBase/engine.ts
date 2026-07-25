@@ -57,44 +57,53 @@ export default class LatexEngine {
   protected worker: Worker | undefined;
   protected engineStatus: EngineStatus = EngineStatus.Init;
   protected tasks: string[] = [];
-  
+
   constructor(
-		private readonly WorkerClass: any,
+		private readonly createWorker: () => Promise<Worker>,
     //name of the engine, used for logging and debugging
     protected engineName: string
 	) {}
 
   async loadEngine(): Promise<void> {
     if (this.worker) {
-      throw new Error('Other instance is running, abort()');
+      throw new Error("Other instance is running, abort()");
     }
 
     this.engineStatus = EngineStatus.Init;
 
-    await new Promise<void>((resolve, reject) => {
-      this.worker = new this.WorkerClass();
+    this.worker = await this.createWorker();
 
+    await new Promise<void>((resolve, reject) => {
       this.worker!.onmessage = (ev: MessageEvent<any>) => {
         const data = ev.data;
 
-        this.worker!.onmessage = null;
-        this.worker!.onerror = null;
-
-        if (data.result === 'ok') {
+        if (data.result === "ok") {
           this.engineStatus = EngineStatus.Ready;
           resolve();
-        } else {
-          this.engineStatus = EngineStatus.Error;
-          reject(new Error('Engine failed to initialize'));
+          return;
         }
+
+        this.worker?.terminate();
+        this.worker = undefined;
+        this.engineStatus = EngineStatus.Error;
+
+        reject(
+          new Error(
+            `${this.engineName} failed to initialize`,
+          ),
+        );
       };
 
-      this.worker!.onerror = (err) => {
-        this.worker!.onmessage = null;
-        this.worker!.onerror = null;
-
+      this.worker!.onerror = (ev: ErrorEvent) => {
+        this.worker?.terminate();
+        this.worker = undefined;
         this.engineStatus = EngineStatus.Error;
-        reject(new Error(`Worker init error: ${err.message}`));
+
+        reject(
+          new Error(
+            `${this.engineName} worker error: ${ev.message}`,
+          ),
+        );
       };
     });
   }

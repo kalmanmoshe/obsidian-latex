@@ -1,7 +1,6 @@
-import XeTeXWorker from './swiftlatexxetex.worker.js';
-import DvipdfmxWorker from './swiftlatexdvipdfm.worker.js';
 import LatexEngine, { CompileResult, CompileStatus } from '../base/compilerBase/engine';
 import LatexCompiler from '../base/compilerBase/compiler';
+import { xetexWorkerFactory, dviWorkerFactory } from '@swiftlatex-workers';
 
 export class PdfXeTeXCompiler extends LatexCompiler {
 	private xetEng: LatexEngine;
@@ -9,15 +8,10 @@ export class PdfXeTeXCompiler extends LatexCompiler {
 
 	constructor() {
 		super();
-
-		this.xetEng = new LatexEngine(XeTeXWorker, "xetex");
-		this.dviEng = new LatexEngine(DvipdfmxWorker, "dvipdfmx");
+		this.xetEng = new LatexEngine(xetexWorkerFactory, "xetex");
+		this.dviEng = new LatexEngine(dviWorkerFactory, "dvipdfm");
 
 		this.engines = [this.xetEng, this.dviEng];
-	}
-
-	override setCompiler(): Promise<void> {
-		return Promise.resolve();
 	}
 
 	override async writeMemFSFile(filename: string, source: string | Uint8Array) {

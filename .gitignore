@@ -1,5 +1,9 @@
 meta.json
 cache
+src/generated
+
+# Machine-specific development settings
+scripts/local-config.ps1
 
 # vscode
 .vscode 

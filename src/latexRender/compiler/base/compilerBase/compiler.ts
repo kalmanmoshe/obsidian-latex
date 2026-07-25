@@ -5,7 +5,6 @@ import { waitFor } from 'src/latexRender/LatexRenderer';
 export default abstract class LatexCompiler {
   protected engines: LatexEngine[];
 
-  abstract setCompiler(): Promise<void>
   abstract compileLaTeX(): Promise<CompileResult>;
 
   isReady() {

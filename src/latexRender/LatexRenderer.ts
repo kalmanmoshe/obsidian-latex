@@ -108,8 +108,6 @@ export class LatexRenderer {
 			this.compiler = new PdfXeTeXCompiler();
 		}
 
-		this.compiler.setCompiler();
-
 		this.vfs.setPdfCompiler(this.compiler);
 		await this.compiler.loadEngines();
 		await this.cache.loadPackageCache();

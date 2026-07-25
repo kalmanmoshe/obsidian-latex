@@ -1,20 +1,40 @@
 import { PDFDocument } from 'pdf-lib';
 import { SVGroot } from 'src/svg/nodes';
 import { optimizeSVG } from './optimizeSVG';
-import PdfToSvgWasm from "./pdfToSvgWasm.js";
-
+//@ts-ignore
+import PdfToSvgWasm from "@pdf-to-svg-runtime";
 
 export async function pdfToSVG(
 	pdfData: Uint8Array,
 ): Promise<string> {
-	console.log('pdfToSVG called with pdfData of length:', pdfData.length);
-	const startTime = performance.now();
-	const module = await PdfToSvgWasm();
-	console.log('PdfToSvgWasm module loaded:', module, 'Time taken:', performance.now() - startTime, 'ms');
-	module.FS.writeFile("/input.pdf", pdfData);
+	console.log(
+		"pdfToSVG called with pdfData of length:",
+		pdfData.length,
+	);
 
-	const status = module._convertPdfToSvg();
-	console.log('PDF to SVG conversion status:', status);
+	const module = await PdfToSvgWasm();
+
+
+	module.FS.writeFile(
+		"/input.pdf",
+		pdfData,
+	);
+
+	const conversionStart =
+		performance.now();
+
+	const status =
+		module._convertPdfToSvg();
+
+	console.log(
+		"PDF to SVG conversion status:",
+		status,
+		"Conversion time:",
+		performance.now() -
+			conversionStart,
+		"ms",
+	);
+
 	if (status !== 0) {
 		throw new Error(
 			`PDF to SVG failed with status ${status}`,
@@ -24,16 +44,22 @@ export async function pdfToSVG(
 	try {
 		return module.FS.readFile(
 			"/input.svg",
-			{ encoding: "utf8" },
-		) as string;
+			{
+				encoding: "utf8",
+			},
+		);
 	} finally {
 		try {
 			module.FS.unlink("/input.pdf");
-		} catch {}
+		} catch {
+			// File might not have been created.
+		}
 
 		try {
 			module.FS.unlink("/input.svg");
-		} catch {}
+		} catch {
+			// Conversion might not have produced it.
+		}
 	}
 }
 
