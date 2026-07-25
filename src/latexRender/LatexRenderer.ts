@@ -368,50 +368,43 @@ export class LatexRenderer {
 		} finally {
 			if (!this.compiler?.isResponsive()) {
 				console.warn('Compiler is unresponsive.');
-				return;
+			} else {
+				await this.compiler?.waitUntilReady();
 			}
-			await this.compiler?.waitUntilReady();
 		}
 	}
 
-	private renderLatexToPDF(
+	private async renderLatexToPDF(
 		source: string,
 		vfsCompileMode: VfsCompileMode,
 		config: { fetchPkgData?: boolean; md5Hash?: string, dependencyPaths?: string[] } = {},
 	): Promise<CompileResult> {
-		return new Promise(async (resolve, reject) => {
-			try {
-				await this.compiler!.waitUntilReady();
+		await this.compiler!.waitUntilReady();
 
-				await this.vfs.loadVirtualFileSystemFiles(vfsCompileMode);
+		await this.vfs.loadVirtualFileSystemFiles(vfsCompileMode);
 
-				await this.compiler!.writeMemFSFile('main.tex', source);
-				await this.compiler!.setEngineMainFile(0, 'main.tex');
+		await this.compiler!.writeMemFSFile('main.tex', source);
+		await this.compiler!.setEngineMainFile(0, 'main.tex');
 
-				const result = await this.compiler!.compileLaTeX();
-				console.log('Compilation result:', result);
+		const result = await this.compiler!.compileLaTeX();
+		console.log('Compilation result:', result);
 
-				await this.vfs.removeNonAutoUseFiles();
+		await this.vfs.removeNonAutoUseFiles();
 
-				if (config.md5Hash && config.dependencyPaths) {
-					const logCacheKey = getLogCacheKey(config.md5Hash, config.dependencyPaths);
-					this.cache.addLog(result.log, logCacheKey);
-				}
+		if (config.md5Hash && config.dependencyPaths) {
+			const logCacheKey = getLogCacheKey(config.md5Hash, config.dependencyPaths);
+			this.cache.addLog(result.log, logCacheKey);
+		}
 
-				if (result.status !== 0) {
-					reject(result.log);
-					return;
-				}
+		if (result.status !== 0) {
+			throw new Error(result.log);
+		}
 
-				if (config.fetchPkgData) {
-					await this.cache.fetchPackageCacheData();
-				}
+		if (config.fetchPkgData) {
+			await this.cache.fetchPackageCacheData();
+		}
 
-				resolve(result);
-			} catch (e) {
-				reject(e);
-			}
-		});
+		return result;
 	}
 
 	private async translatePDF(

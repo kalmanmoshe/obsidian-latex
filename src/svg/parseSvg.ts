@@ -11,16 +11,14 @@ export async function parse(svg: string) {
 
 function migrat(svg: INode): svgNode {
 	const { name, type, value, attributes, children } = svg;
-	switch (name) {
-		case 'svg':
-			return new SVGroot(
-				name,
-				type,
-				value,
-				attributes,
-				children.map(migrat),
-			);
-			break;
+	if (name === 'svg') {
+		return new SVGroot(
+			name,
+			type,
+			value,
+			attributes,
+			children.map(migrat),
+		);
 	}
 	return new genericNode(name, type, value, attributes, children.map(migrat));
 }

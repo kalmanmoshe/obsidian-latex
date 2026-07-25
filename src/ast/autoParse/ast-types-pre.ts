@@ -202,9 +202,10 @@ function migrateToClassStructure(ast: Ast): AstClass {
 					'macro node args must be an array of Arguments',
 				);
 			}
+			
 			const isDependency = macroArgs !== undefined &&
-			macroArgs.length === 1 &&
-			isDependencyMacroType(ast.content);
+				macroArgs.length === 1 &&
+				isDependencyMacroType(ast.content);
 			
 			if (isDependency) {
 				return new DependencyMacro(

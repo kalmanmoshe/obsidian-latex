@@ -11,28 +11,26 @@ export default [
       "package.json",
       "manifest.json",
       "versions.json",
-      "*.config.mjs",
-      "eslint.config.mjs",
+      "**/*.config.mjs",
     ],
   },
-
   {
-    files: ["**/*.ts"],
+    files: ["src/**/*.ts"],
 
     languageOptions: {
       parser: typescriptEslintParser,
-      ecmaVersion: "latest",
-      sourceType: "module",
 
       parserOptions: {
         project: "./tsconfig.json",
         tsconfigRootDir: import.meta.dirname,
       },
 
+      ecmaVersion: "latest",
+      sourceType: "module",
+
       globals: {
         ...globals.browser,
         ...globals.node,
-        console: "readonly",
         app: "readonly",
       },
     },
@@ -48,17 +46,18 @@ export default [
       "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": [
         "warn",
-        { argsIgnorePattern: "^_" },
+        {
+          argsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
       ],
 
       "@typescript-eslint/ban-ts-comment": "off",
       "@typescript-eslint/no-empty-function": "off",
 
       "no-prototype-builtins": "off",
-      "quotes": "off",
-
-      // Obsidian plugins often need these:
       "no-undef": "off",
+      quotes: "off",
     },
-  }
+  },
 ];

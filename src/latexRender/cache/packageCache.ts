@@ -74,6 +74,7 @@ export default class PackageCache extends PhysicalCacheBase {
 				await this.compiler().writeTexFSFile(fileName, content);
 
 			} catch (error) {
+				console.error(`Error loading package cache file ${fileName}:`, error);
 				delete this.plugin.settings.packageCache[1][key];
 			}
 		}
