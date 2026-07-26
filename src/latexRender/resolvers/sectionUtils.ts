@@ -1,7 +1,5 @@
 import { MarkdownSectionInformation } from 'obsidian';
-import {
-	TaskSectionInformation,
-} from './taskSectionInformation';
+import { TaskSectionInformation } from './taskSectionInformation';
 
 export function sectionToTaskSectionInfo(
 	section: MarkdownSectionInformation,
@@ -23,17 +21,12 @@ function taskSectionInfoToCodeBlock(
 	if (typeof fileText === 'string') {
 		fileText = fileText.split('\n');
 	}
-	return fileText
-		.slice(taskSection.lineStart, taskSection.lineEnd + 1)
-		.join('\n');
+	return fileText.slice(taskSection.lineStart, taskSection.lineEnd + 1).join('\n');
 }
 
 export function taskSectionInfoToContent(
 	fileText: string | string[],
 	taskSection: TaskSectionInformation,
 ): string {
-	return taskSectionInfoToCodeBlock(fileText, taskSection)
-		.split('\n')
-		.slice(1, -1)
-		.join('\n');
+	return taskSectionInfoToCodeBlock(fileText, taskSection).split('\n').slice(1, -1).join('\n');
 }

@@ -8,8 +8,7 @@ function isTraversableNode(x: unknown): x is object {
 	if (x === null || typeof x !== 'object') return false;
 	// Skip common non-traversables
 	if (x instanceof Date || x instanceof RegExp) return false;
-	if (x instanceof Map || x instanceof Set || ArrayBuffer.isView(x))
-		return false;
+	if (x instanceof Map || x instanceof Set || ArrayBuffer.isView(x)) return false;
 	return true; // includes class instances and plain objects
 }
 
@@ -23,11 +22,7 @@ export function findNodeWithPath<T extends object>(
 	root: T,
 	isTarget: (node: object) => boolean,
 	opts?: {
-		shouldDescend?: (
-			key: string,
-			value: unknown,
-			parent: object,
-		) => boolean;
+		shouldDescend?: (key: string, value: unknown, parent: object) => boolean;
 	},
 ): PathResult<object> {
 	if (!isTraversableNode(root)) return null;

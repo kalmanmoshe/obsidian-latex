@@ -19,29 +19,26 @@ export class SvgContextMenuDecider {
 
 	constructor(private plugin: LatexCompilerPlugin) {
 		this.plugin.registerEvent(
-			this.plugin.app.workspace.on(
-				'editor-menu',
-				(menu: Menu, _, view: MarkdownView) => {
-					const now = Date.now();
-					let best: Pending | null = null;
+			this.plugin.app.workspace.on('editor-menu', (menu: Menu, _, view: MarkdownView) => {
+				const now = Date.now();
+				let best: Pending | null = null;
 
-					for (const p of this.pendings.values()) {
-						if (p.handled || p.deadline < now) continue;
-						const container = view?.contentEl;
-						if (container && container.contains(p.el)) {
-							if (!best || p.id > best.id) best = p;
-						}
+				for (const p of this.pendings.values()) {
+					if (p.handled || p.deadline < now) continue;
+					const container = view?.contentEl;
+					if (container && container.contains(p.el)) {
+						if (!best || p.id > best.id) best = p;
 					}
+				}
 
-					if (!best) return;
+				if (!best) return;
 
-					best.handled = true;
-					clearTimeout(best.timeoutId);
-					this.pendings.delete(best.id);
+				best.handled = true;
+				clearTimeout(best.timeoutId);
+				this.pendings.delete(best.id);
 
-					this.decorateEditorMenu(menu, best);
-				},
-			),
+				this.decorateEditorMenu(menu, best);
+			}),
 		);
 	}
 
@@ -82,10 +79,7 @@ export class SvgContextMenuDecider {
 						this.decorateEditorMenu(menu, pending);
 						menu.showAtMouseEvent?.(event);
 					} catch (err) {
-						console.error(
-							'[SvgContextMenuDecider] custom menu open failed',
-							err,
-						);
+						console.error('[SvgContextMenuDecider] custom menu open failed', err);
 					}
 				}, this.windowMs);
 

@@ -133,9 +133,7 @@ export default class LatexParser {
 	}
 
 	parseCurrentLineError() {
-		this.currentError.content += this.log
-			.linesUpToNextMatchingLine(/^l\.[0-9]+/)
-			.join('\n');
+		this.currentError.content += this.log.linesUpToNextMatchingLine(/^l\.[0-9]+/).join('\n');
 
 		this.currentError.cause = this.currentError.content
 			?.split('\n')
@@ -208,9 +206,7 @@ export default class LatexParser {
 	}
 
 	parseMultipleWarningLine() {
-		let warningMatch: RegExpMatchArray | null = this.currentLine.match(
-			PACKAGE_WARNING_REGEX,
-		)!;
+		let warningMatch: RegExpMatchArray | null = this.currentLine.match(PACKAGE_WARNING_REGEX)!;
 
 		const warningLines: Array<string | null> = [warningMatch[1]];
 
@@ -220,10 +216,7 @@ export default class LatexParser {
 		const packageMatch = this.currentLine.match(PACKAGE_REGEX);
 		const packageName = packageMatch?.[1];
 		// Regex to get rid of the unnecesary (packagename) prefix in most multi-line warnings
-		const prefixRegex = new RegExp(
-			'(?:\\(' + packageName + '\\))*[\\s]*(.*)',
-			'i',
-		);
+		const prefixRegex = new RegExp('(?:\\(' + packageName + '\\))*[\\s]*(.*)', 'i');
 
 		// After every warning message there's a blank line, let's use it
 		while (this.getNextLine()) {
@@ -285,8 +278,7 @@ export default class LatexParser {
 				} else {
 					if (this.fileStack.length > 1) {
 						this.fileStack.pop();
-						const previousFile =
-							this.fileStack[this.fileStack.length - 1];
+						const previousFile = this.fileStack[this.fileStack.length - 1];
 						this.currentFilePath = previousFile.path;
 						this.currentFileList = previousFile.files;
 					}
@@ -312,10 +304,7 @@ export default class LatexParser {
 		let endOfFilePath = this.currentLine.search(/[ ()\\]/);
 
 		// handle the case where there is a space in a filename
-		while (
-			endOfFilePath !== -1 &&
-			this.currentLine[endOfFilePath] === ' '
-		) {
+		while (endOfFilePath !== -1 && this.currentLine[endOfFilePath] === ' ') {
 			const partialPath = this.currentLine.slice(0, endOfFilePath);
 			// consider the file matching done if the space is preceded by a file extension (e.g. ".tex")
 			if (/\.\w+$/.test(partialPath)) {

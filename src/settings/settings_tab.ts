@@ -46,8 +46,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 		addToggleSetting(
 			containerEl,
 			(value: boolean) => {
-				((this.plugin.settings.invertColorsInDarkMode = value),
-					this.plugin.saveSettings());
+				((this.plugin.settings.invertColorsInDarkMode = value), this.plugin.saveSettings());
 			},
 			{
 				name: 'Invert colors in dark mode',
@@ -59,8 +58,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 		addDropdownSetting(
 			containerEl,
 			(value: string) => {
-				this.plugin.settings.overflowStrategy =
-					value as OverflowStrategy;
+				this.plugin.settings.overflowStrategy = value as OverflowStrategy;
 				this.plugin.saveSettings();
 			},
 			{
@@ -111,13 +109,11 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 		addToggleSetting(
 			containerEl,
 			(value: boolean) => {
-				((this.plugin.settings.saveLogs = value),
-					this.plugin.saveSettings());
+				((this.plugin.settings.saveLogs = value), this.plugin.saveSettings());
 			},
 			{
 				name: 'Save latex logs',
-				description:
-					'Whether to save the latex render logs (memory only not physical)',
+				description: 'Whether to save the latex render logs (memory only not physical)',
 				defValue: this.plugin.settings.saveLogs,
 			},
 		);
@@ -132,10 +128,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 				this.plugin.settings.physicalCache = value;
 				this.plugin.saveSettings();
 				await this.plugin.latexRenderer.cache.resultFileCache.togglePhysicalCache();
-				physicalCacheLocationSetting.settingEl.toggleClass(
-					'hidden',
-					!value,
-				);
+				physicalCacheLocationSetting.settingEl.toggleClass('hidden', !value);
 			},
 			{
 				name: 'Physical cache enabled',
@@ -235,10 +228,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 			containerEl,
 			(value: boolean) => {
 				this.plugin.settings.compilerVfsEnabled = value;
-				virtualFilesFromCodeBlocks.settingEl.toggleClass(
-					'hidden',
-					!value,
-				);
+				virtualFilesFromCodeBlocks.settingEl.toggleClass('hidden', !value);
 				autoloadedVfsFilesDir.settingEl.toggleClass('hidden', !value);
 			},
 			{

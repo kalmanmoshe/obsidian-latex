@@ -7,26 +7,25 @@ const preambleMacros = [
 	'usepackage',
 	'usetikzlibrary',
 	'bibliography',
-	'pgfplotsset'//inclode pgfplots must go before
+	'pgfplotsset', //inclode pgfplots must go before
 ];
 
-//TODO: make this usable 
+//TODO: make this usable
 /**
- * 
- * @param ast 
+ *
+ * @param ast
  * @returns undefined if no changes were made, otherwise the new content array with the document environment wrap.
  */
 export function verifyEnvironmentWrap(ast: LatexAbstractSyntaxTree): Node[] | undefined {
 	const content = ast.getClonedContent();
 	const envs = getEnvironments(content);
-	if (envs.some((env) => env.env === 'document'))
-		return content;
+	if (envs.some((env) => env.env === 'document')) return content;
 	const args = findEnvironmentArgs(content) || [];
 
 	//if no envs
 	// if (envs.length === 0) {
 	// 	console.log(
-	// 		'No environments found, creating document environment wrap around entire content', 
+	// 		'No environments found, creating document environment wrap around entire content',
 	// 		{
 	// 			content,
 	// 			envs,
@@ -36,7 +35,7 @@ export function verifyEnvironmentWrap(ast: LatexAbstractSyntaxTree): Node[] | un
 	// 	return createDocEnvironment(content, envs, -1, args);
 	// }
 
-	const preambleEndIndex = content.findIndex(node => {
+	const preambleEndIndex = content.findIndex((node) => {
 		if (node.isWhitespaceLike()) return false;
 
 		if (node instanceof Macro) {
@@ -50,7 +49,7 @@ export function verifyEnvironmentWrap(ast: LatexAbstractSyntaxTree): Node[] | un
 	if (preambleEndIndex === -1) {
 		return undefined;
 	}
-	
+
 	const doc = createDocEnvironment(content, envs, preambleEndIndex, args);
 	return doc;
 }
@@ -68,26 +67,19 @@ function getEnvironments(nodes: Node[]): Environment[] {
 }
 
 function createDocEnvironment(
-	content: Node[], 
-	envNodes: Environment[], 
-	preambleEndIndex: number, 
-	args: Argument[]
+	content: Node[],
+	envNodes: Environment[],
+	preambleEndIndex: number,
+	args: Argument[],
 ): Node[] {
-
 	const index = preambleEndIndex === -1 ? content.length : preambleEndIndex;
 	const preamble = content.slice(0, index);
 	const envContent = content.slice(index);
-	const sortedEnvs = getEnvironmentStructure(envNodes).filter(
-		(env) => !env.inAst,
-	);
+	const sortedEnvs = getEnvironmentStructure(envNodes).filter((env) => !env.inAst);
 	let envs = new Environment('environment', 'dummy', []);
 	const diff = args.length - sortedEnvs.length;
 	if (diff > 0) {
-		new Notice(
-			'Too many arguments for environments, the last ' +
-			diff +
-			' will be ignored.',
-		);
+		new Notice('Too many arguments for environments, the last ' + diff + ' will be ignored.');
 		args.splice(-diff);
 	}
 	let current = envs;
@@ -116,9 +108,7 @@ export function findEnvironmentArgs(content: Node[]): Argument[] | undefined {
 	);
 
 	const controlIndexes = [
-		content.findIndex((node) =>
-			node instanceof DependencyMacro && node.autoUse
-		),
+		content.findIndex((node) => node instanceof DependencyMacro && node.autoUse),
 		content.findIndex((node) => node instanceof Environment),
 		firstBracketIndex,
 	].filter((i) => i !== -1);
@@ -137,24 +127,17 @@ export function findEnvironmentArgs(content: Node[]): Argument[] | undefined {
 		const closeIndex = findMatchingBracket(content, openIndex);
 		if (closeIndex === -1) break;
 
-		const rawNodes = content.splice(
-			openIndex,
-			1 + closeIndex - openIndex,
-		);
+		const rawNodes = content.splice(openIndex, 1 + closeIndex - openIndex);
 
 		rawNodes.shift(); // Remove "["
 		rawNodes.pop(); // Remove "]"
 		// Trim leading/trailing whitespace
 		while (rawNodes[0]?.isWhitespaceLike?.()) rawNodes.shift();
-		while (rawNodes[rawNodes.length - 1]?.isWhitespaceLike?.())
-			rawNodes.pop();
+		while (rawNodes[rawNodes.length - 1]?.isWhitespaceLike?.()) rawNodes.pop();
 		args.push(new Argument('[', ']', rawNodes));
-		openIndex = content.findIndex(
-			(node) => node.isString?.() && node.content === '[',
-		);
+		openIndex = content.findIndex((node) => node.isString?.() && node.content === '[');
 		const range = content.slice(firstBracketIndex, openIndex);
-		if (openIndex !== -1 && !range.every((n) => n.isWhitespaceLike?.()))
-			break;
+		if (openIndex !== -1 && !range.every((n) => n.isWhitespaceLike?.())) break;
 	}
 
 	return args;
@@ -170,9 +153,7 @@ function getEnvironmentStructure(envNodes: Environment[]) {
 	for (const env of envs) {
 		let parent = envDepthStructure[env];
 		if (parent === undefined) {
-			console.warn(
-				`Environment ${env} not found in envDepthStructure, assuming root level`,
-			);
+			console.warn(`Environment ${env} not found in envDepthStructure, assuming root level`);
 		}
 		parent = !parent && env != 'document' ? 'document' : parent || null;
 
@@ -189,9 +170,7 @@ function getEnvironmentStructure(envNodes: Environment[]) {
 	do {
 		unknownEnv =
 			sortedEnvs.find(
-				(env) =>
-					env.parent !== null &&
-					!sortedEnvs.some((e) => e.value === env.parent),
+				(env) => env.parent !== null && !sortedEnvs.some((e) => e.value === env.parent),
 			)?.parent || null;
 		if (unknownEnv) {
 			const parentEnv = envDepthStructure[unknownEnv] || null;

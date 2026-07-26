@@ -1,19 +1,16 @@
-import { decompressGzipText } from "src/util/decompressPayload";
-import { pdfToSvgWasmGzipBase64 } from "../../generated/pdfToSvgWasm.payload";
+import { decompressGzipText } from 'src/util/decompressPayload';
+import { pdfToSvgWasmGzipBase64 } from '../../generated/pdfToSvgWasm.payload';
 
 type PdfToSvgFactory = () => Promise<PdfToSvgModule>;
 
 export interface PdfToSvgModule {
 	FS: {
-		writeFile(
-			path: string,
-			data: Uint8Array,
-		): void;
+		writeFile(path: string, data: Uint8Array): void;
 
 		readFile(
 			path: string,
 			options: {
-				encoding: "utf8";
+				encoding: 'utf8';
 			},
 		): string;
 
@@ -26,9 +23,7 @@ export interface PdfToSvgModule {
 let pdfToSvgFactoryPromise: Promise<PdfToSvgFactory> | undefined;
 
 async function decompressPdfToSvgFactory(): Promise<PdfToSvgFactory> {
-	const source = await decompressGzipText(
-		pdfToSvgWasmGzipBase64,
-	);
+	const source = await decompressGzipText(pdfToSvgWasmGzipBase64);
 
 	return evaluateCommonJsModule(source);
 }
@@ -42,25 +37,19 @@ function loadPdfToSvgFactoryPromise(): Promise<PdfToSvgFactory> {
 	return pdfToSvgFactoryPromise;
 }
 
-function evaluateCommonJsModule(
-	source: string,
-): PdfToSvgFactory {
+function evaluateCommonJsModule(source: string): PdfToSvgFactory {
 	const module: { exports: unknown } = {
 		exports: {},
 	};
 
-	const requireUnavailable = (
-		moduleName: string,
-	): never => {
-		throw new Error(
-			`Compressed pdfToSvgWasm tried to require "${moduleName}".`,
-		);
+	const requireUnavailable = (moduleName: string): never => {
+		throw new Error(`Compressed pdfToSvgWasm tried to require "${moduleName}".`);
 	};
 
 	const execute = new Function(
-		"module",
-		"exports",
-		"require",
+		'module',
+		'exports',
+		'require',
 		`${source}\nreturn module.exports;`,
 	) as (
 		module: { exports: unknown },
@@ -68,16 +57,10 @@ function evaluateCommonJsModule(
 		require: (moduleName: string) => never,
 	) => unknown;
 
-	const exportedValue = execute(
-		module,
-		module.exports,
-		requireUnavailable,
-	);
+	const exportedValue = execute(module, module.exports, requireUnavailable);
 
-	if (typeof exportedValue !== "function") {
-		throw new TypeError(
-			"pdfToSvgWasm did not export an Emscripten module factory.",
-		);
+	if (typeof exportedValue !== 'function') {
+		throw new TypeError('pdfToSvgWasm did not export an Emscripten module factory.');
 	}
 
 	return exportedValue as PdfToSvgFactory;

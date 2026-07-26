@@ -5,19 +5,13 @@ import {
 	MarkdownView,
 	TFile,
 } from 'obsidian';
-import {
-	extractCodeBlockMetadata,
-	extractCodeBlockName,
-} from '../resolvers/latexSourceFromFile';
+import { extractCodeBlockMetadata, extractCodeBlockName } from '../resolvers/latexSourceFromFile';
 import { LatexAbstractSyntaxTree } from '../../ast/LatexAbstractSyntaxTree';
 import { findMatchingCodeBlockSections } from '../resolvers/findSection';
 import { TaskSectionInformation } from '../resolvers/taskSectionInformation';
 
 import { codeBlockToContent } from 'obsidian-dev-utils';
-import {
-	sectionToTaskSectionInfo,
-	taskSectionInfoToContent,
-} from '../resolvers/sectionUtils';
+import { sectionToTaskSectionInfo, taskSectionInfoToContent } from '../resolvers/sectionUtils';
 import { processTaskSource } from './latexTaskProcessor';
 import { hashLatexContent } from '../cache/compilerCache';
 
@@ -59,7 +53,6 @@ async function mdSecInfosFromMdPostProcessorCtx(
 	}
 	return sectionInfos;
 }
-
 
 export function getEditorTextForPath(path: string): string | undefined {
 	const leaves = app.workspace.getLeavesOfType('markdown');
@@ -142,10 +135,7 @@ export class LatexTask {
 
 		for (const sectionInfo of this.sectionInfos) {
 			if (sectionInfo.lineEnd < lines.length) {
-				const sectionContent = taskSectionInfoToContent(
-					lines,
-					sectionInfo,
-				);
+				const sectionContent = taskSectionInfoToContent(lines, sectionInfo);
 				if (sectionContent === this.content) {
 					verifiedSectionInfos.push(sectionInfo);
 				}
@@ -170,9 +160,7 @@ export class LatexTask {
 
 		if (!sectionInfos || sectionInfos.length === 0) return false;
 
-		verifiedSectionInfos.push(
-			...sectionInfos.map((sec) => sectionToTaskSectionInfo(sec)),
-		);
+		verifiedSectionInfos.push(...sectionInfos.map((sec) => sectionToTaskSectionInfo(sec)));
 		this.setSectionInfos(verifiedSectionInfos);
 		return true;
 	}
@@ -185,17 +173,8 @@ export class LatexTask {
 		sourcePath: string,
 		sectionInfo: TaskSectionInformation | TaskSectionInformation[],
 	): LatexTask {
-		const sectionInfos = Array.isArray(sectionInfo)
-			? sectionInfo
-			: [sectionInfo];
-		const task = createTask(
-			plugin,
-			process,
-			content,
-			el,
-			sourcePath,
-			sectionInfos,
-		);
+		const sectionInfos = Array.isArray(sectionInfo) ? sectionInfo : [sectionInfo];
+		const task = createTask(plugin, process, content, el, sourcePath, sectionInfos);
 		return task;
 	}
 
@@ -213,25 +192,17 @@ export class LatexTask {
 		el?: HTMLElement,
 	): LatexTask {
 		if (sectionInfos.length === 0) {
-			throw new Error(
-				'No section information provided for creating a task.',
-			);
+			throw new Error('No section information provided for creating a task.');
 		}
-		const contents = sectionInfos.map((sec) =>
-			codeBlockToContent(sec.codeBlock),
-		);
+		const contents = sectionInfos.map((sec) => codeBlockToContent(sec.codeBlock));
 		if (!contents.every((c) => c === contents[0])) {
 			throw new Error(
 				'All section contents must be the same for creating a task from multiple sections.',
 			);
 		}
 		const content = contents[0];
-		const metadatas = sectionInfos.map((sec) =>
-			extractCodeBlockMetadata(sec.codeBlock),
-		);
-		if (
-			!metadatas.every((meta) => meta.language === metadatas[0].language)
-		) {
+		const metadatas = sectionInfos.map((sec) => extractCodeBlockMetadata(sec.codeBlock));
+		if (!metadatas.every((meta) => meta.language === metadatas[0].language)) {
 			throw new Error(
 				'All section metadata languages must be the same for creating a task from multiple sections.',
 			);
@@ -255,21 +226,9 @@ export class LatexTask {
 		ctx: MarkdownPostProcessorContext,
 	) {
 		try {
-			const mdSectionInfos = await mdSecInfosFromMdPostProcessorCtx(
-				ctx,
-				content,
-			);
-			const infos = mdSectionInfos.map((sec) =>
-				sectionToTaskSectionInfo(sec),
-			);
-			const task = createTask(
-				plugin,
-				process,
-				content,
-				el,
-				ctx.sourcePath,
-				infos,
-			);
+			const mdSectionInfos = await mdSecInfosFromMdPostProcessorCtx(ctx, content);
+			const infos = mdSectionInfos.map((sec) => sectionToTaskSectionInfo(sec));
+			const task = createTask(plugin, process, content, el, ctx.sourcePath, infos);
 			console.log('Created task from context:', task);
 			return { isError: false, result: task };
 		} catch (err) {
@@ -283,15 +242,11 @@ export class LatexTask {
 	}
 
 	getCacheStatus() {
-		return this.plugin.latexRenderer.cache.cacheStatusForHash(
-			this.rawHash,
-		);
+		return this.plugin.latexRenderer.cache.cacheStatusForHash(this.rawHash);
 	}
 
 	getCacheStatusAsNum() {
-		return this.plugin.latexRenderer.cache.cacheStatusForHashAsNum(
-			this.rawHash,
-		);
+		return this.plugin.latexRenderer.cache.cacheStatusForHashAsNum(this.rawHash);
 	}
 
 	setSource(source: string) {
@@ -314,21 +269,16 @@ export class LatexTask {
 	 * sets the section information for the task as well as dependent properties.
 	 * @param infos
 	 */
-	protected setSectionInfos(
-		infos: (TaskSectionInformation | MarkdownSectionInformation)[],
-	) {
+	protected setSectionInfos(infos: (TaskSectionInformation | MarkdownSectionInformation)[]) {
 		for (const info of infos) {
-			const taskInfo =
-				'text' in info ? sectionToTaskSectionInfo(info) : info;
+			const taskInfo = 'text' in info ? sectionToTaskSectionInfo(info) : info;
 			this.sectionInfos ??= [];
 			this.sectionInfos.push(taskInfo as TaskSectionInformation);
 		}
 
 		this.sectionInfos!.sort((a, b) => a.lineStart - b.lineStart);
 
-		const numberKey = this.sectionInfos!.map((sec) => sec.lineStart).join(
-			'|',
-		);
+		const numberKey = this.sectionInfos!.map((sec) => sec.lineStart).join('|');
 		this.blockId = this.sourcePath.replace(/ /g, '_') + '||' + numberKey;
 	}
 
@@ -375,8 +325,7 @@ export class LatexTask {
 				lineEnd: sec.lineEnd,
 				codeBlock: sec.codeBlock,
 			})),
-			lastSectionInfoVerificationTime:
-				this.lastSectionInfoVerificationTime,
+			lastSectionInfoVerificationTime: this.lastSectionInfoVerificationTime,
 		};
 	}
 }
@@ -408,11 +357,12 @@ export class ProcessableLatexTask extends LatexTask {
 	}
 
 	//TODO: rm this is temp for debugging
-	getAst() { return this.ast; }
+	getAst() {
+		return this.ast;
+	}
 
 	getProcessedContent(): string {
-		if (!this.ast || !this.astContent)
-			throw new Error('AST is not set for this task.');
+		if (!this.ast || !this.astContent) throw new Error('AST is not set for this task.');
 		return this.astContent;
 	}
 
@@ -424,9 +374,7 @@ export class ProcessableLatexTask extends LatexTask {
 		return this.dependencyPaths;
 	}
 
-	protected setSectionInfos(
-		infos: (TaskSectionInformation | MarkdownSectionInformation)[],
-	) {
+	protected setSectionInfos(infos: (TaskSectionInformation | MarkdownSectionInformation)[]) {
 		super.setSectionInfos(infos);
 
 		const names = [];
@@ -453,19 +401,13 @@ export class ProcessableLatexTask extends LatexTask {
 	 * (for debugging purposes rm later)
 	 */
 	log() {
-		console.log(
-			`[TIMER] Total processing time: ${(this.processingTime || NaN).toFixed(2)} ms`,
-		);
+		console.log(`[TIMER] Total processing time: ${(this.processingTime || NaN).toFixed(2)} ms`);
 		console.log('ast', this.ast?.clone());
 		console.log('task', this);
 	}
 
 	async process(): Promise<void | string> {
-		return await processTaskSource(
-			this,
-			this.plugin.latexRenderer.vfs,
-			this.plugin
-		);
+		return await processTaskSource(this, this.plugin.latexRenderer.vfs, this.plugin);
 	}
 
 	getDebugInfo() {

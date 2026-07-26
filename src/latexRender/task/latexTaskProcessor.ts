@@ -10,10 +10,7 @@ export async function processTaskSource(
 	const startTime = performance.now();
 
 	try {
-		const result = await vfs.getParser().parseFile(
-			task.getContent(),
-			task.sourcePath,
-		);
+		const result = await vfs.getParser().parseFile(task.getContent(), task.sourcePath);
 
 		const ast = result.ast;
 
@@ -22,10 +19,9 @@ export async function processTaskSource(
 		const dependencyPaths = surfaceLevelDependencies.map((dep) => dep.path);
 
 		if (plugin.settings.compilerVfsEnabled) {
-
-			const autoUseFiles = vfs.getAutoUseFiles().filter(
-				(file) => surfaceLevelDependencies.every((dep) => dep.path !== file.path)
-			);
+			const autoUseFiles = vfs
+				.getAutoUseFiles()
+				.filter((file) => surfaceLevelDependencies.every((dep) => dep.path !== file.path));
 			dependencyPaths.push(...autoUseFiles.map((file) => file.path));
 			ast.addDependenciesToPreamble(autoUseFiles);
 

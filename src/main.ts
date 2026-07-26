@@ -1,8 +1,5 @@
 import { Plugin, Notice, MarkdownView, loadMathJax } from 'obsidian';
-import {
-	LatexCompilerPluginSettings,
-	DEFAULT_SETTINGS,
-} from './settings/settings';
+import { LatexCompilerPluginSettings, DEFAULT_SETTINGS } from './settings/settings';
 import { LatexCompilerSettingTab } from './settings/settings_tab';
 
 import { getEditorCommands } from './obsidian/editor_commands';
@@ -38,17 +35,11 @@ export default class LatexCompilerPlugin extends Plugin {
 			const onStart = performance.now();
 			await this.loadLayoutReadyDependencies();
 			console.warn(
-				'Latex Compiler Plugin layout ready in ' +
-				(performance.now() - onStart) +
-				'ms',
+				'Latex Compiler Plugin layout ready in ' + (performance.now() - onStart) + 'ms',
 			);
 		});
 		this.addSettingTab(new LatexCompilerSettingTab(this));
-		console.warn(
-			'Latex Compiler Plugin loaded in ' +
-			(performance.now() - startTime) +
-			'ms',
-		);
+		console.warn('Latex Compiler Plugin loaded in ' + (performance.now() - startTime) + 'ms');
 	}
 
 	async onunload() {
@@ -67,9 +58,7 @@ export default class LatexCompilerPlugin extends Plugin {
 			this.setCodeblocks();
 		} catch (e) {
 			console.error('Error setting code blocks:', e);
-			new Notice(
-				'Error setting code blocks. Please check the console for more details.',
-			);
+			new Notice('Error setting code blocks. Please check the console for more details.');
 		}
 		this.watchFiles();
 	}
@@ -77,15 +66,11 @@ export default class LatexCompilerPlugin extends Plugin {
 	private setCodeblocks() {
 		this.registerMarkdownCodeBlockProcessor(
 			'tikz',
-			this.latexRenderer.codeBlockProcessor.bind(
-				this.latexRenderer,
-			),
+			this.latexRenderer.codeBlockProcessor.bind(this.latexRenderer),
 		);
 		this.registerMarkdownCodeBlockProcessor(
 			'latex',
-			this.latexRenderer.codeBlockProcessor.bind(
-				this.latexRenderer,
-			),
+			this.latexRenderer.codeBlockProcessor.bind(this.latexRenderer),
 		);
 	}
 
@@ -93,24 +78,15 @@ export default class LatexCompilerPlugin extends Plugin {
 		if (!window.CodeMirror) return;
 
 		// @ts-ignore
-		const codeMirrorCodeBlocksSyntaxHighlighting = //@ts-ignore
-			window.CodeMirror.modeInfo;
-		if (
-			!codeMirrorCodeBlocksSyntaxHighlighting.some(
-				(el: any) => el.name === 'latexsvg',
-			)
-		) {
+		const codeMirrorCodeBlocksSyntaxHighlighting = window.CodeMirror.modeInfo; //@ts-ignore
+		if (!codeMirrorCodeBlocksSyntaxHighlighting.some((el: any) => el.name === 'latexsvg')) {
 			codeMirrorCodeBlocksSyntaxHighlighting.push({
 				name: 'latexsvg',
 				mime: 'text/x-latex',
 				mode: 'stex',
 			});
 		}
-		if (
-			!codeMirrorCodeBlocksSyntaxHighlighting.some(
-				(el: any) => el.name === 'Tikz',
-			)
-		) {
+		if (!codeMirrorCodeBlocksSyntaxHighlighting.some((el: any) => el.name === 'Tikz')) {
 			codeMirrorCodeBlocksSyntaxHighlighting.push({
 				name: 'Tikz',
 				mime: 'text/x-latex',
@@ -122,15 +98,12 @@ export default class LatexCompilerPlugin extends Plugin {
 	private removeSyntaxHighlighting() {
 		//@ts-ignore
 		window.CodeMirror.modeInfo = window.CodeMirror.modeInfo.filter(
-			(el: { name: string }) =>
-				el.name != 'Tikz' && el.name != 'latexsvg',
+			(el: { name: string }) => el.name != 'Tikz' && el.name != 'latexsvg',
 		);
 	}
 
 	private addEditorCommands() {
-		const editorCommands = getEditorCommands(this).filter(
-			(command) => command !== undefined,
-		);
+		const editorCommands = getEditorCommands(this).filter((command) => command !== undefined);
 		for (const command of editorCommands) {
 			this.addCommand(command);
 		}
@@ -153,7 +126,9 @@ export default class LatexCompilerPlugin extends Plugin {
 		if (this.settings.mathjaxPreambleEnabled) {
 			const paths = this.mathJaxVFS.getRootFilePaths();
 
-			const preambles = await Promise.all(paths.map((path) => this.mathJaxVFS.getFileWithInlinedDependencies(path)));
+			const preambles = await Promise.all(
+				paths.map((path) => this.mathJaxVFS.getFileWithInlinedDependencies(path)),
+			);
 			preamble = preambles.join('\n');
 		}
 
@@ -184,7 +159,6 @@ export default class LatexCompilerPlugin extends Plugin {
 		};
 
 		MJ.__patchedTex2Chtml = true;
-
 	}
 
 	private refreshAllWindows() {
@@ -226,9 +200,7 @@ export default class LatexCompilerPlugin extends Plugin {
 
 	async saveSettings(didMathjaxFileLocationChange = false, didLatexFileLocationChange = false) {
 		await this.saveData(this.settings);
-		await this.latexRenderer.vfs.setEnabled(
-			this.settings.compilerVfsEnabled,
-		);
+		await this.latexRenderer.vfs.setEnabled(this.settings.compilerVfsEnabled);
 		await this.mathJaxVFS.setEnabled(this.settings.mathjaxPreambleEnabled);
 
 		if (didLatexFileLocationChange && this.settings.compilerVfsEnabled) {
@@ -244,10 +216,7 @@ export default class LatexCompilerPlugin extends Plugin {
 		}
 	}
 
-	async processLatexPreambles(
-		becauseFileLocationUpdated = false,
-		becauseFileUpdated = false,
-	) {
+	async processLatexPreambles(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
 		const coorPreambles = await this.getlatexPreambleFiles(
 			becauseFileLocationUpdated,
 			becauseFileUpdated,
@@ -265,7 +234,7 @@ export default class LatexCompilerPlugin extends Plugin {
 		becauseFileUpdated: boolean,
 	) {
 		const files = getFileSets(this);
-		const coorFiles = await getPreambleFromFiles(files.latexVirtualFiles,);
+		const coorFiles = await getPreambleFromFiles(files.latexVirtualFiles);
 		this.showPreambleLoadedNotice(
 			coorFiles.length,
 			becauseFileLocationUpdated,
@@ -280,9 +249,7 @@ export default class LatexCompilerPlugin extends Plugin {
 		becauseFileUpdated: boolean,
 	) {
 		if (!(becauseFileLocationUpdated || becauseFileUpdated)) return;
-		const prefix = becauseFileLocationUpdated
-			? 'Loaded '
-			: 'Successfully reloaded ';
+		const prefix = becauseFileLocationUpdated ? 'Loaded ' : 'Successfully reloaded ';
 		const body = [];
 		body.push(`${nExplicitPreambleFiles} preamble files`);
 		const suffix = '.';
@@ -302,9 +269,7 @@ export default class LatexCompilerPlugin extends Plugin {
 			for (const [eventName, callback] of Object.entries(vaultEvents)) {
 				this.registerEvent(
 					// @ts-expect-error
-					app.vault.on(eventName, (file: TAbstractFile) =>
-						callback(this, file),
-					),
+					app.vault.on(eventName, (file: TAbstractFile) => callback(this, file)),
 				);
 			}
 		});

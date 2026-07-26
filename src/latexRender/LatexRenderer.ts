@@ -1,16 +1,10 @@
 import { MarkdownPostProcessorContext, Platform } from 'obsidian';
-import {
-	CompileResult,
-	CompileStatus,
-} from './compiler/base/compilerBase/engine';
+import { CompileResult, CompileStatus } from './compiler/base/compilerBase/engine';
 import LatexCompilerPlugin from '../main';
 import { CompilerType } from 'src/settings/settings.js';
 
 import { pdfToHtml, pdfToOptimizedSVG, pdfToSVG } from './pdfToHtml/pdfToHtml';
-import parseLatexLog, {
-	createErrorDisplay,
-	errorDiv,
-} from './logs/HumanReadableLogs';
+import parseLatexLog, { createErrorDisplay, errorDiv } from './logs/HumanReadableLogs';
 import { VfsCompileMode, VirtualFileSystem } from './VirtualFileSystem';
 import { ProcessedLog } from './logs/latex-log-parser';
 import PdfTeXCompiler from './compiler/swiftlatexpdftex/PdfTeXCompiler';
@@ -36,7 +30,6 @@ export const waitFor = async (condFunc: () => boolean) => {
 };
 
 export const latexCodeBlockNamesRegex = /(`|~){3,} *(latex|tikz)/;
-
 
 type HandleErrorOptions = {
 	/**
@@ -101,7 +94,6 @@ export class LatexRenderer {
 	}
 
 	private async loadCompiler() {
-
 		if (this.plugin.settings.compiler === CompilerType.TeX) {
 			this.compiler = new PdfTeXCompiler();
 		} else {
@@ -111,9 +103,7 @@ export class LatexRenderer {
 		this.vfs.setPdfCompiler(this.compiler);
 		await this.compiler.loadEngines();
 		await this.cache.loadPackageCache();
-		await this.compiler.setTexliveEndpoint(
-			this.plugin.settings.package_url,
-		);
+		await this.compiler.setTexliveEndpoint(this.plugin.settings.package_url);
 	}
 
 	async restartCompiler() {
@@ -123,11 +113,7 @@ export class LatexRenderer {
 	}
 
 	// i have to also cache the files refrenced my the hash and thar loction becose thar can i a file that is Referencing the same files.But because it's in a different directory, those files in actuality are different, leading to a different render.
-	async codeBlockProcessor(
-		source: string,
-		el: HTMLElement,
-		ctx: MarkdownPostProcessorContext,
-	) {
+	async codeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
 		const isLangTikz = el.classList.contains('block-language-tikz');
 
 		el.classList.remove('block-language-tikz', 'block-language-latex');
@@ -138,19 +124,13 @@ export class LatexRenderer {
 
 		const rawHash = hashLatexContent(source);
 
-		const createResult = await LatexTask.createAsync(
-			this.plugin,
-			isLangTikz,
-			source,
-			el,
-			ctx,
-		);
+		const createResult = await LatexTask.createAsync(this.plugin, isLangTikz, source, el, ctx);
 
 		if (createResult.isError) {
 			this.handleError(
 				el,
 				'Error creating task: ' + createResult.result,
-				this.cache.resultFileCache.getFileStem(rawHash, [])
+				this.cache.resultFileCache.getFileStem(rawHash, []),
 			);
 			return;
 		}
@@ -158,7 +138,7 @@ export class LatexRenderer {
 		// Attach a menu to the element for user interaction, such as re-rendering or viewing logs.
 		this.plugin.menuDecider.add(el, ctx.sourcePath);
 
-		const task = createResult.result as (LatexTask | ProcessableLatexTask);
+		const task = createResult.result as LatexTask | ProcessableLatexTask;
 
 		// PDF file has already been cached
 		// Could have a case where pdfCache has the key but the cached file has been deleted
@@ -184,7 +164,7 @@ export class LatexRenderer {
 		if (await this.shouldSkipStaleTask(task)) return false;
 
 		if (!this.compiler?.isResponsive()) {
-			console.error("Compiler is unresponsive. Aborting task:", task.getDebugInfo());
+			console.error('Compiler is unresponsive. Aborting task:', task.getDebugInfo());
 			this.handleErrorForTask(task, 'Compiler is unresponsive. Please restart the compiler.');
 			return false;
 		}
@@ -197,7 +177,8 @@ export class LatexRenderer {
 				this.handleErrorForTask(task, `Error processing task: ${processError}`);
 				return false;
 			}
-		} else {// We need to make sure there is no file in the VFS
+		} else {
+			// We need to make sure there is no file in the VFS
 			this.vfs.removeNonAutoUseFiles();
 		}
 
@@ -236,9 +217,8 @@ export class LatexRenderer {
 	}
 
 	async detachedProcessAndRender(task: LatexTask) {
-
 		if (!this.compiler?.isResponsive()) {
-			console.error("Compiler is unresponsive. Aborting task:", task.getDebugInfo());
+			console.error('Compiler is unresponsive. Aborting task:', task.getDebugInfo());
 			return new CompileResult(
 				undefined,
 				CompileStatus.EngineCrashed,
@@ -250,27 +230,15 @@ export class LatexRenderer {
 			const processError = await task.process();
 			task.log();
 			if (processError) {
-				return new CompileResult(
-					undefined,
-					CompileStatus.ProcessingError,
-					processError,
-				);
+				return new CompileResult(undefined, CompileStatus.ProcessingError, processError);
 			}
 		}
 		try {
 			const compileMode = task.isProcess() ? VfsCompileMode.compileAll : VfsCompileMode.none;
 
-			return await this.renderLatexToPDF(
-				task.getProcessedContent(),
-				compileMode
-			);
-
+			return await this.renderLatexToPDF(task.getProcessedContent(), compileMode);
 		} catch (err) {
-			return new CompileResult(
-				undefined,
-				CompileStatus.CompileError,
-				toErrorString(err),
-			);
+			return new CompileResult(undefined, CompileStatus.CompileError, toErrorString(err));
 		}
 	}
 
@@ -301,9 +269,7 @@ export class LatexRenderer {
 
 		if (blockIdsToRemove.size === 0) return;
 
-		this.queue.removeFromWaiting((task) =>
-			blockIdsToRemove.has(task.getBlockId()),
-		);
+		this.queue.removeFromWaiting((task) => blockIdsToRemove.has(task.getBlockId()));
 	}
 
 	async onunload() {
@@ -346,21 +312,16 @@ export class LatexRenderer {
 
 		try {
 			const compileMode = task.isProcess() ? VfsCompileMode.compileAll : VfsCompileMode.none;
-			const result = await this.renderLatexToPDF(content, compileMode, { 
+			const result = await this.renderLatexToPDF(content, compileMode, {
 				fetchPkgData: true,
-				md5Hash: rawHash, 
-				dependencyPaths 
+				md5Hash: rawHash,
+				dependencyPaths,
 			});
 
 			el.innerHTML = '';
 			await this.translatePDF(result.pdf, el, stem);
 
-			this.cache.resultFileCache.addFile(
-				el.innerHTML,
-				rawHash,
-				dependencyPaths,
-				sourcePath,
-			);
+			this.cache.resultFileCache.addFile(el.innerHTML, rawHash, dependencyPaths, sourcePath);
 		} catch (err) {
 			this.handleErrorForTask(task, toErrorString(err), {
 				parseErr: true,
@@ -377,7 +338,7 @@ export class LatexRenderer {
 	private async renderLatexToPDF(
 		source: string,
 		vfsCompileMode: VfsCompileMode,
-		config: { fetchPkgData?: boolean; md5Hash?: string, dependencyPaths?: string[] } = {},
+		config: { fetchPkgData?: boolean; md5Hash?: string; dependencyPaths?: string[] } = {},
 	): Promise<CompileResult> {
 		await this.compiler!.waitUntilReady();
 
@@ -442,10 +403,7 @@ export class LatexRenderer {
 }
 
 //TODO: put this somewahere better
-function restoreFromCache(
-	task: LatexTask,
-	plugin: LatexCompilerPlugin,
-) {
+function restoreFromCache(task: LatexTask, plugin: LatexCompilerPlugin) {
 	return plugin.latexRenderer.cache.resultFileCache.restoreFromCache(
 		task.el,
 		task.rawHash,
@@ -456,7 +414,7 @@ function restoreFromCache(
 			}
 			return Promise.resolve([]);
 		},
-	)
+	);
 }
 
 async function getCacheDependencyPaths(
@@ -470,9 +428,9 @@ async function getCacheDependencyPaths(
 
 	const autoUsePaths = plugin.settings.compilerVfsEnabled
 		? vfs
-			.getAutoUseFiles()
-			.map((file) => file.path)
-			.filter((path) => !explicitDeps.includes(path))
+				.getAutoUseFiles()
+				.map((file) => file.path)
+				.filter((path) => !explicitDeps.includes(path))
 		: [];
 
 	return [...new Set([...explicitDeps, ...autoUsePaths])].sort();

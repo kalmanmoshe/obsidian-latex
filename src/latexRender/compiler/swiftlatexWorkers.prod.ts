@@ -1,28 +1,21 @@
 import { pdftexWorkerGzipBase64 } from '../../generated/pdftexWorker.payload';
 import { xetexWorkerGzipBase64 } from '../../generated/xetexWorker.payload';
 import { dviWorkerGzipBase64 } from '../../generated/dviWorker.payload';
-import { decompressGzipText } from "src/util/decompressPayload";
+import { decompressGzipText } from 'src/util/decompressPayload';
 
-async function createWorkerFromCompressedPayload(
-    base64Payload: string,
-): Promise<Worker> {
-    const source = await decompressGzipText(
-        base64Payload,
-    );
+async function createWorkerFromCompressedPayload(base64Payload: string): Promise<Worker> {
+	const source = await decompressGzipText(base64Payload);
 
-    const blob = new Blob(
-        [source],
-        { type: "text/javascript" },
-    );
+	const blob = new Blob([source], { type: 'text/javascript' });
 
-    const url = URL.createObjectURL(blob);
-    const worker = new Worker(url);
+	const url = URL.createObjectURL(blob);
+	const worker = new Worker(url);
 
-    setTimeout(() => {
-        URL.revokeObjectURL(url);
-    }, 0);
+	setTimeout(() => {
+		URL.revokeObjectURL(url);
+	}, 0);
 
-    return worker;
+	return worker;
 }
 
 export const pdftexWorkerFactory = async (): Promise<Worker> => {

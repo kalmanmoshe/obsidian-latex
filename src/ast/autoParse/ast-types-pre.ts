@@ -10,7 +10,6 @@ let rawParse: (str: string) => any;
  */
 let rawParseMath: any;
 
-
 import('@unified-latex/unified-latex-util-parse').then((module) => {
 	rawParse = module.parse;
 	rawParseMath = module.parseMath;
@@ -144,10 +143,7 @@ function isArgumentClassArray(content: any[]): content is ArgumentClass[] {
 	return content.every((node) => node instanceof ArgumentClass);
 }
 
-function validateNodeContent(
-	ast: ContentNode,
-	errorMessagePrefix: string,
-): NodeClass[] {
+function validateNodeContent(ast: ContentNode, errorMessagePrefix: string): NodeClass[] {
 	const content = ast.content.map(migrateToClassStructure);
 	if (!isNodeClassArray(content)) {
 		throw new Error(
@@ -161,25 +157,17 @@ function validateNodeContent(
 
 function migrateToClassStructure(ast: Ast): AstClass {
 	if (Array.isArray(ast)) {
-		const nodes: NodeClass[] = ast
-			.map(migrateToClassStructure)
-			.map((node) => {
-				if (Array.isArray(node) || node instanceof ArgumentClass) {
-					throw new Error(
-						'Array of nodes must contain only BaseNode instances/children',
-					);
-				}
-				return node;
-			});
+		const nodes: NodeClass[] = ast.map(migrateToClassStructure).map((node) => {
+			if (Array.isArray(node) || node instanceof ArgumentClass) {
+				throw new Error('Array of nodes must contain only BaseNode instances/children');
+			}
+			return node;
+		});
 		return nodes;
 	}
 	switch (ast.type) {
 		case 'root':
-			return new RootClass(
-				validateNodeContent(ast, 'root'),
-				ast._renderInfo,
-				ast.position,
-			);
+			return new RootClass(validateNodeContent(ast, 'root'), ast._renderInfo, ast.position);
 		case 'string':
 			return new StringClass(ast.content, ast._renderInfo, ast.position);
 		case 'whitespace':
@@ -198,15 +186,14 @@ function migrateToClassStructure(ast: Ast): AstClass {
 		case 'macro':
 			const macroArgs = ast.args?.map(migrateToClassStructure);
 			if (macroArgs && !isArgumentClassArray(macroArgs)) {
-				throw new Error(
-					'macro node args must be an array of Arguments',
-				);
+				throw new Error('macro node args must be an array of Arguments');
 			}
-			
-			const isDependency = macroArgs !== undefined &&
+
+			const isDependency =
+				macroArgs !== undefined &&
 				macroArgs.length === 1 &&
 				isDependencyMacroType(ast.content);
-			
+
 			if (isDependency) {
 				return new DependencyMacro(
 					ast.content,
@@ -228,18 +215,16 @@ function migrateToClassStructure(ast: Ast): AstClass {
 		case 'environment':
 			const envArgs = ast.args?.map(migrateToClassStructure);
 			if (envArgs && !isArgumentClassArray(envArgs)) {
-				throw new Error(
-					'environment node args must be an array of Arguments',
-				);
+				throw new Error('environment node args must be an array of Arguments');
 			}
 			const newEnv = new EnvironmentClass(
-					ast.type,
-					ast.env,
-					validateNodeContent(ast, 'anv'),
-					envArgs,
-					ast._renderInfo,
-					ast.position,
-				);
+				ast.type,
+				ast.env,
+				validateNodeContent(ast, 'anv'),
+				envArgs,
+				ast._renderInfo,
+				ast.position,
+			);
 			setEnvironmentArguments(newEnv);
 			return newEnv;
 		case 'verbatim':
@@ -262,11 +247,7 @@ function migrateToClassStructure(ast: Ast): AstClass {
 				ast.position,
 			);
 		case 'group':
-			return new GroupClass(
-				validateNodeContent(ast, 'group'),
-				ast._renderInfo,
-				ast.position,
-			);
+			return new GroupClass(validateNodeContent(ast, 'group'), ast._renderInfo, ast.position);
 		case 'argument':
 			return new ArgumentClass(
 				ast.openMark,
@@ -276,13 +257,7 @@ function migrateToClassStructure(ast: Ast): AstClass {
 				ast.position,
 			);
 		case 'verb':
-			return new VerbClass(
-				ast.env,
-				ast.escape,
-				ast.content,
-				ast._renderInfo,
-				ast.position,
-			);
+			return new VerbClass(ast.env, ast.escape, ast.content, ast._renderInfo, ast.position);
 		default:
 			throw new Error(`Unknown node type: ${ast.type}`);
 	}
@@ -292,9 +267,9 @@ function setEnvironmentArguments(env: EnvironmentClass) {
 	const hasArgs = env.args != undefined;
 	if (hasArgs) return;
 
-	const firstNode = env.content.find(node => !(node instanceof WhitespaceClass) )
-	if (!firstNode || !(firstNode.isString() && firstNode.content == "[")) return;
-	
+	const firstNode = env.content.find((node) => !(node instanceof WhitespaceClass));
+	if (!firstNode || !(firstNode.isString() && firstNode.content == '[')) return;
+
 	const args = findEnvironmentArgs(env.content);
 	env.args = args;
 }

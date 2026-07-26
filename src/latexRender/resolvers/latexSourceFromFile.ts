@@ -25,9 +25,7 @@ export async function extractAllSectionsByFile() {
 	const sectionsByFile = await Promise.all(
 		files.map(async (file) => ({
 			file,
-			codeBlockSections: await getLatexTaskSectionInfosFromFile(
-				file as TFile,
-			),
+			codeBlockSections: await getLatexTaskSectionInfosFromFile(file as TFile),
 		})),
 	);
 	return sectionsByFile;
@@ -63,8 +61,6 @@ export function extractCodeBlockName(codeBlock: string): string | undefined {
  */
 export async function getLatexHashesFromFile(file: TFile) {
 	const codeBlocks = await getLatexTaskSectionInfosFromFile(file);
-	const hashes = codeBlocks.map((block) =>
-		hashLatexContent(codeBlockToContent(block.codeBlock)),
-	);
+	const hashes = codeBlocks.map((block) => hashLatexContent(codeBlockToContent(block.codeBlock)));
 	return hashes;
 }

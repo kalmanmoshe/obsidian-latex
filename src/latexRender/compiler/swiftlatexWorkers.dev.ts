@@ -1,6 +1,6 @@
-import PdfTexWorker from "./swiftlatexpdftex/swiftlatexpdftex.worker.js";
-import XeTexWorker from "./swiftlatexxetex/swiftlatexxetex.worker.js";
-import DviWorker from "./swiftlatexxetex/swiftlatexdvipdfm.worker.js";
+import PdfTexWorker from './swiftlatexpdftex/swiftlatexpdftex.worker.js';
+import XeTexWorker from './swiftlatexxetex/swiftlatexxetex.worker.js';
+import DviWorker from './swiftlatexxetex/swiftlatexdvipdfm.worker.js';
 
 export const pdftexWorkerFactory = async (): Promise<Worker> => {
 	return new PdfTexWorker();

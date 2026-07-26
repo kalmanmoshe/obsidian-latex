@@ -23,9 +23,7 @@ export class LogDisplayModal extends Modal {
 			...(this.log.files.length > 0
 				? [{ name: 'Files', render: this.renderFiles.bind(this) }]
 				: []),
-			...(this.log.raw?.trim()
-				? [{ name: 'Raw', render: this.renderRaw.bind(this) }]
-				: []),
+			...(this.log.raw?.trim() ? [{ name: 'Raw', render: this.renderRaw.bind(this) }] : []),
 		];
 
 		const tabsContainer = contentEl.createDiv('latex-compiler-log-tabs');
@@ -37,17 +35,13 @@ export class LogDisplayModal extends Modal {
 				text: name,
 				cls: 'latex-compiler-log-tab-button',
 			});
-			const section = sectionsContainer.createDiv(
-				'latex-compiler-log-tab-content',
-			);
+			const section = sectionsContainer.createDiv('latex-compiler-log-tab-content');
 			section.style.display = 'none';
 			contentSections[name] = section;
 
 			button.onclick = () => {
-				for (const sec of Object.values(contentSections))
-					sec.style.display = 'none';
-				for (const btn of Array.from(buttonsContainer.children))
-					btn.removeClass('active');
+				for (const sec of Object.values(contentSections)) sec.style.display = 'none';
+				for (const btn of Array.from(buttonsContainer.children)) btn.removeClass('active');
 				section.style.display = '';
 				button.addClass('active');
 			};
@@ -69,9 +63,7 @@ export class LogDisplayModal extends Modal {
 			return severity[a.level] - severity[b.level];
 		});
 		allErrors.forEach((err) => {
-			const box = container.createDiv(
-				'latex-compiler-log-error-box ' + `level-${err.level}`,
-			);
+			const box = container.createDiv('latex-compiler-log-error-box ' + `level-${err.level}`);
 
 			box.createDiv({
 				text: `${err.level.toUpperCase()}: ${err.message}`,
@@ -103,9 +95,7 @@ export class LogDisplayModal extends Modal {
 
 	private renderFiles(container: HTMLElement) {
 		const renderTree = (file: File, parent: HTMLElement, depth = 0) => {
-			const wrapper = parent.createDiv(
-				'latex-compiler-log-file-wrapper depth-' + depth,
-			);
+			const wrapper = parent.createDiv('latex-compiler-log-file-wrapper depth-' + depth);
 
 			if (file.files?.length) {
 				const details = wrapper.createEl('details', {
@@ -115,9 +105,7 @@ export class LogDisplayModal extends Modal {
 					text: file.path,
 					cls: 'latex-compiler-log-file-summary',
 				});
-				file.files.forEach((child) =>
-					renderTree(child, details, depth + 1),
-				);
+				file.files.forEach((child) => renderTree(child, details, depth + 1));
 			} else {
 				// Just a line, no <details>
 				wrapper.createEl('div', {
@@ -141,10 +129,7 @@ export class LogDisplayModal extends Modal {
 
 		const rawPre = scrollContainer.createEl('pre');
 		rawPre.textContent = this.log.raw;
-		rawPre.setAttribute(
-			'style',
-			'margin: 0; white-space: pre; user-select: text;',
-		);
+		rawPre.setAttribute('style', 'margin: 0; white-space: pre; user-select: text;');
 
 		const copyButton = wrapper.createEl('button', { text: 'Copy' });
 		copyButton.setAttribute('style', 'margin-top: 5px;');

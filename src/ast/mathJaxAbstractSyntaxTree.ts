@@ -1,13 +1,6 @@
 import { parse } from './autoParse/ast-types-pre';
 import { LatexAbstractSyntaxTree } from './LatexAbstractSyntaxTree';
-import {
-	Whitespace,
-	Parbreak,
-	Macro,
-	Argument,
-	Ast,
-	Node,
-} from './typs/astNodes';
+import { Whitespace, Parbreak, Macro, Argument, Ast, Node } from './typs/astNodes';
 
 export class MathJaxAbstractSyntaxTree extends LatexAbstractSyntaxTree {
 	content: Node[];
@@ -29,24 +22,16 @@ export class MathJaxAbstractSyntaxTree extends LatexAbstractSyntaxTree {
 		const args = findTextMacros(this.content);
 		for (const arg of args) {
 			const text = arg.toString();
-			let tokens = text.match(/([א-ת]+|\s+|[^א-ת\s]+)/g) as
-				| string[]
-				| null;
+			let tokens = text.match(/([א-ת]+|\s+|[^א-ת\s]+)/g) as string[] | null;
 			if (!tokens) continue;
 			tokens = mergeHebrewTokens(tokens);
-			const newNodeArr = parse (
-					tokens
-						.map((t) =>
-							/[א-ת]/.test(t) ? [...t].reverse().join('') : t,
-						)
-						.join(''),
+			const newNodeArr = parse(
+				tokens.map((t) => (/[א-ת]/.test(t) ? [...t].reverse().join('') : t)).join(''),
 			).content;
 			if (newNodeArr instanceof Array) {
 				arg.content = newNodeArr;
 			} else {
-				throw new Error(
-					'Root not found it is not in Array, got: ' + newNodeArr,
-				);
+				throw new Error('Root not found it is not in Array, got: ' + newNodeArr);
 			}
 		}
 	}
@@ -73,11 +58,7 @@ function mergeHebrewTokens(tokens: string[]): string[] {
 	while (i < tokens.length) {
 		if (isHeb(tokens[i])) {
 			let merged = tokens[i++];
-			while (
-				i + 1 < tokens.length &&
-				/^\s+$/.test(tokens[i]) &&
-				isHeb(tokens[i + 1])
-			) {
+			while (i + 1 < tokens.length && /^\s+$/.test(tokens[i]) && isHeb(tokens[i + 1])) {
 				merged += tokens[i] + tokens[i + 1];
 				i += 2;
 			}

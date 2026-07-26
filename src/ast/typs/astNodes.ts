@@ -28,10 +28,7 @@ export abstract class BaseNode {
 	renderInfo?: RenderInfo;
 	position?: Position;
 
-	constructor(
-		renderInfo?: RenderInfo,
-		position?: Position,
-	) {
+	constructor(renderInfo?: RenderInfo, position?: Position) {
 		if (renderInfo) this.renderInfo = renderInfo;
 		if (position) this.position = position;
 	}
@@ -53,9 +50,7 @@ export abstract class BaseNode {
 	 * @returns {Node[] | undefined} - An array of nodes matching the predicate, or `undefined` if no match is found.
 	 */
 	deepFind(predicate: (node: Node) => boolean) {
-		return findNodeWithPath<BaseNode>(this, predicate)?.node as
-			| (Node | Argument)
-			| null;
+		return findNodeWithPath<BaseNode>(this, predicate)?.node as (Node | Argument) | null;
 	}
 	deepFindWithPath(predicate: (node: Node) => boolean) {
 		return findNodeWithPath<BaseNode>(this, predicate);
@@ -74,11 +69,7 @@ export abstract class BaseNode {
 	}
 
 	isWhitespaceLike(): this is Whitespace | Parbreak | Comment {
-		return (
-			this instanceof Whitespace ||
-			this instanceof Parbreak ||
-			this instanceof Comment
-		);
+		return this instanceof Whitespace || this instanceof Parbreak || this instanceof Comment;
 	}
 
 	isContentNode(): this is ContentNode {
@@ -93,9 +84,7 @@ export abstract class BaseNode {
 		const children = this.getChildren();
 		if (children[0] instanceof Argument) {
 			return children
-				.map((child) =>
-					child instanceof Argument ? child.content : child,
-				)
+				.map((child) => (child instanceof Argument ? child.content : child))
 				.flat();
 		}
 		return children as Node[];
@@ -149,7 +138,7 @@ export abstract class ContentNode extends BaseNode {
 			this.renderInfo,
 			clonePosition(this.position),
 		);
-		Object.assign(clone, this)
+		Object.assign(clone, this);
 		return clone;
 	}
 }
@@ -182,7 +171,7 @@ export class String extends StringNode {
 			this.renderInfo,
 			clonePosition(this.position),
 		) as this;
-		
+
 		return clone;
 	}
 }
@@ -221,31 +210,22 @@ export class Whitespace extends BaseNode {
 	}
 
 	clone(): this {
-		const clone = new Whitespace(
-			this.renderInfo, 
-			clonePosition(this.position)
-		) as this;
-		
+		const clone = new Whitespace(this.renderInfo, clonePosition(this.position)) as this;
+
 		return clone;
 	}
 }
 
 export class Parbreak extends BaseNode {
 	type = 'parbreak';
-	constructor(
-		renderInfo?: RenderInfo,
-		position?: typeof BaseNode.prototype.position,
-	) {
+	constructor(renderInfo?: RenderInfo, position?: typeof BaseNode.prototype.position) {
 		super(renderInfo, position);
 	}
 	toString(): string {
 		return '\n';
 	}
 	clone(): this {
-		const clone = new Parbreak(
-			this.renderInfo, 
-			clonePosition(this.position)
-		) as this;
+		const clone = new Parbreak(this.renderInfo, clonePosition(this.position)) as this;
 		return clone;
 	}
 }
@@ -266,12 +246,11 @@ export class Comment extends StringNode {
 		super(content, renderInfo, position);
 		if (sameline !== undefined) this.sameline = sameline;
 		if (suffixLinebreak !== undefined) this.suffixLinebreak = suffixLinebreak;
-		if (leadingWhitespace !== undefined)
-			this.leadingWhitespace = leadingWhitespace;
+		if (leadingWhitespace !== undefined) this.leadingWhitespace = leadingWhitespace;
 	}
 
 	toString(): string {
-		const leading = (this.sameline && this.leadingWhitespace) ? ' ' : ''; 
+		const leading = this.sameline && this.leadingWhitespace ? ' ' : '';
 		const suffix = this.suffixLinebreak ? '\n' : '';
 
 		return `${leading}%${this.content}${suffix}`;
@@ -286,7 +265,7 @@ export class Comment extends StringNode {
 			this.renderInfo,
 			clonePosition(this.position),
 		) as this;
-		
+
 		return clone;
 	}
 }
@@ -326,9 +305,7 @@ export class Macro extends StringNode {
 	toString(): string {
 		const prefix = this.renderInfo?.escapeToken || '';
 		return (
-			prefix +
-			this.content +
-			(this.args ? this.toStringArgs() : '')// +
+			prefix + this.content + (this.args ? this.toStringArgs() : '') // +
 			//(this.renderInfo?.breakAfter ? '\n' : '')
 		);
 	}
@@ -341,23 +318,16 @@ export class Macro extends StringNode {
 			this.renderInfo,
 			clonePosition(this.position),
 		) as this;
-		
+
 		return clone;
 	}
 }
 
-export const DependencyMacroTypes = [
-	'input',
-	'include',
-	'import',
-	'subfile',
-] as const;
+export const DependencyMacroTypes = ['input', 'include', 'import', 'subfile'] as const;
 
-export type DependencyMacroType = typeof DependencyMacroTypes[number];
+export type DependencyMacroType = (typeof DependencyMacroTypes)[number];
 
-export function isDependencyMacroType(
-	content: string,
-): content is DependencyMacroType {
+export function isDependencyMacroType(content: string): content is DependencyMacroType {
 	return DependencyMacroTypes.includes(content as DependencyMacroType);
 }
 
@@ -386,10 +356,9 @@ export class DependencyMacro extends Macro {
 			this.renderInfo,
 			clonePosition(this.position),
 		) as this;
-		
+
 		return clone;
 	}
-
 }
 
 const macros_Not_To_escape_Regex = /(_|\^)/;
@@ -403,9 +372,7 @@ function formatRenderInfo(content: string, info?: RenderInfo) {
 	return Object.assign({}, defConfig, info);
 }
 
-const getDefaultMacroRenderInfoConfig = (
-	content: string,
-): RenderInfo | undefined => {
+const getDefaultMacroRenderInfoConfig = (content: string): RenderInfo | undefined => {
 	let info: RenderInfo = {};
 	if (!macros_Not_To_escape_Regex.test(content)) {
 		info.escapeToken = '\\';
@@ -457,8 +424,8 @@ export class Environment extends ContentNode {
 		}
 		string +=
 			//'\n' +
-			indentString(this.content.map((node) => node.toString()).join(''))// +
-			//'\n';
+			indentString(this.content.map((node) => node.toString()).join('')); // +
+		//'\n';
 		string += `\\end{${this.env}}\n`;
 		return string;
 	}
@@ -493,7 +460,7 @@ export class VerbatimEnvironment extends StringNode {
 			this.renderInfo,
 			clonePosition(this.position),
 		) as this;
-		
+
 		return clone;
 	}
 }
@@ -502,11 +469,8 @@ export class DisplayMath extends ContentNode {
 	type = 'displaymath';
 
 	toString(): string {
-		return (
-			'$$' + this.content.map((node) => node.toString()).join('') + '$$'
-		);
+		return '$$' + this.content.map((node) => node.toString()).join('') + '$$';
 	}
-
 }
 
 export class Group extends ContentNode {
@@ -519,9 +483,7 @@ export class Group extends ContentNode {
 export class InlineMath extends ContentNode {
 	readonly type = 'inlinemath';
 	toString(): string {
-		return (
-			'$' + this.content.map((node) => node.toString()).join('') + '$'
-		);
+		return '$' + this.content.map((node) => node.toString()).join('') + '$';
 	}
 }
 
@@ -553,7 +515,7 @@ export class Verb extends StringNode {
 			this.renderInfo,
 			clonePosition(this.position),
 		) as this;
-		
+
 		return clone;
 	}
 }
@@ -582,20 +544,17 @@ export class Argument extends ContentNode {
 			this.renderInfo,
 			clonePosition(this.position),
 		);
-		
+
 		return clone;
 	}
-	
+
 	toString(): string {
-		let string =
-			this.openMark +
-			this.toStringContent() +
-			this.closeMark;
+		let string = this.openMark + this.toStringContent() + this.closeMark;
 		return string;
 	}
 
 	toStringContent(): string {
-		return this.content.map((node) => node.toString()).join('')
+		return this.content.map((node) => node.toString()).join('');
 	}
 }
 

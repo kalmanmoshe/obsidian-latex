@@ -1,7 +1,4 @@
-import LatexLogParser, {
-	CurrentError,
-	ProcessedLog,
-} from './latex-log-parser';
+import LatexLogParser, { CurrentError, ProcessedLog } from './latex-log-parser';
 
 export default function parseLatexLog(
 	rawLog: string,
@@ -72,10 +69,7 @@ export function errorDiv(info: ErrorMessage): HTMLElement {
 		[ErrorClasses.Title, title],
 		[ErrorClasses.Explanation, explanation],
 		[ErrorClasses.Cause, cause && `Triggered from ${cause}`],
-		[
-			ErrorClasses.Package,
-			triggeringPackage ? `Package: ${triggeringPackage}` : undefined,
-		],
+		[ErrorClasses.Package, triggeringPackage ? `Package: ${triggeringPackage}` : undefined],
 		[ErrorClasses.Line, line ? `At line: ${line}` : undefined],
 	];
 

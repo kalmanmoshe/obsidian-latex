@@ -1,23 +1,16 @@
-import { decompressGzipText } from "src/util/decompressPayload";
+import { decompressGzipText } from 'src/util/decompressPayload';
 
-export async function createWorkerFromCompressedPayload(
-    base64Payload: string,
-): Promise<Worker> {
-    const source = await decompressGzipText(
-        base64Payload,
-    );
+export async function createWorkerFromCompressedPayload(base64Payload: string): Promise<Worker> {
+	const source = await decompressGzipText(base64Payload);
 
-    const blob = new Blob(
-        [source],
-        { type: "text/javascript" },
-    );
+	const blob = new Blob([source], { type: 'text/javascript' });
 
-    const url = URL.createObjectURL(blob);
-    const worker = new Worker(url);
+	const url = URL.createObjectURL(blob);
+	const worker = new Worker(url);
 
-    setTimeout(() => {
-        URL.revokeObjectURL(url);
-    }, 0);
+	setTimeout(() => {
+		URL.revokeObjectURL(url);
+	}, 0);
 
-    return worker;
+	return worker;
 }

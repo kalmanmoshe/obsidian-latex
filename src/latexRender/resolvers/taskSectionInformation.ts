@@ -44,9 +44,7 @@ function getLatexTaskSectionInfosFromString(
 ): TaskSectionInformation[] {
 	const lines = string.split('\n');
 	// Filter sections that are code blocks with latex or tikz language hints.
-	sections = sections.filter(
-		(section: SectionCache) => section.type === 'code',
-	);
+	sections = sections.filter((section: SectionCache) => section.type === 'code');
 	let codeBlocks: {
 		lineStart: number;
 		lineEnd: number;
@@ -67,14 +65,10 @@ function getLatexTaskSectionInfosFromString(
 	return codeBlocks;
 }
 
-export async function findTaskSectionInfoFromHashInFile(
-	file: TFile,
-	hash: string,
-) {
+export async function findTaskSectionInfoFromHashInFile(file: TFile, hash: string) {
 	const blockSections = await getLatexTaskSectionInfosFromFile(file);
 	const matchedSections = blockSections.filter(
-		(section) =>
-			hashLatexContent(codeBlockToContent(section.codeBlock)) === hash,
+		(section) => hashLatexContent(codeBlockToContent(section.codeBlock)) === hash,
 	);
 	if (matchedSections.length === 0) {
 		return undefined;

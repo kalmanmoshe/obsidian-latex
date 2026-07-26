@@ -3,7 +3,11 @@ import LatexCompiler from './compiler/base/compilerBase/compiler';
 import { LatexDependencyNode, LatexDependencyParser } from './task/LatexDependencyParser';
 import { Notice } from 'obsidian';
 import { DependencyGraphStore } from 'src/dependency/DependencyGraphStore';
-import { createDependency, DependencyConfig, LatexDependency } from 'src/dependency/LatexDependency';
+import {
+	createDependency,
+	DependencyConfig,
+	LatexDependency,
+} from 'src/dependency/LatexDependency';
 
 enum VFSstatus {
 	undefined,
@@ -22,10 +26,8 @@ export enum VfsCompileMode {
 	none,
 	compileAll,
 	compileAutoUseOnly,
-	compileNonAutoUseOnly
+	compileNonAutoUseOnly,
 }
-
-
 
 /**
  * Pauses without blocking external code execution until a given condition returns true, or until a timeout occurs.
@@ -54,13 +56,18 @@ type VirtualFile = {
 	 */
 	path: string;
 	content: string;
-	autoUse?: boolean
+	autoUse?: boolean;
 };
 type LatexDependencyNodeWithDeps = LatexDependency & {
-	dependencies: LatexDependencyNode<LatexAbstractSyntaxTree, DependencyConfig<LatexAbstractSyntaxTree>>[];
+	dependencies: LatexDependencyNode<
+		LatexAbstractSyntaxTree,
+		DependencyConfig<LatexAbstractSyntaxTree>
+	>[];
 };
 
-function hasDeps(file: VirtualFile | LatexDependencyNodeWithDeps): file is LatexDependencyNodeWithDeps {
+function hasDeps(
+	file: VirtualFile | LatexDependencyNodeWithDeps,
+): file is LatexDependencyNodeWithDeps {
 	return 'dependencies' in file;
 }
 
@@ -69,7 +76,8 @@ export class VirtualFileSystem {
 	/**
 	 * a flat map of file paths to their corresponding dependencies. This is used to quickly check if a file is already in the virtual file system and to get its content and other information.
 	 */
-	private graph: DependencyGraphStore<LatexAbstractSyntaxTree, LatexDependency> = new DependencyGraphStore();
+	private graph: DependencyGraphStore<LatexAbstractSyntaxTree, LatexDependency> =
+		new DependencyGraphStore();
 
 	private parser: LatexDependencyParser<LatexAbstractSyntaxTree, LatexDependency>;
 
@@ -85,7 +93,7 @@ export class VirtualFileSystem {
 		const parserAdapter = {
 			parseContentToAst: LatexAbstractSyntaxTree.parse,
 			createDependency,
-			getDependencyFromGraph: this.getFile.bind(this)
+			getDependencyFromGraph: this.getFile.bind(this),
 		};
 
 		this.parser = new LatexDependencyParser(parserAdapter);
@@ -150,7 +158,8 @@ export class VirtualFileSystem {
 	 */
 	getAutoUseFilePaths() {
 		this.checkEnabled();
-		return this.graph.getFiles()
+		return this.graph
+			.getFiles()
 			.filter((file) => file.autoUse)
 			.map((file) => file.path);
 	}
@@ -162,7 +171,7 @@ export class VirtualFileSystem {
 
 	async addOrReplaceFile(file: VirtualFile | LatexDependencyNodeWithDeps) {
 		let newDep: LatexDependencyNodeWithDeps;
-		
+
 		if (hasDeps(file)) {
 			newDep = file;
 		} else {
@@ -211,7 +220,9 @@ export class VirtualFileSystem {
 	 * @param file
 	 */
 	async addOrReplaceFiles(
-		files: VirtualFile[] | (LatexDependency & {dependencies: LatexDependencyNodeWithDeps[]})[]
+		files:
+			| VirtualFile[]
+			| (LatexDependency & { dependencies: LatexDependencyNodeWithDeps[] })[],
 	) {
 		for (const file of files) {
 			await this.addOrReplaceFile(file);
@@ -233,18 +244,16 @@ export class VirtualFileSystem {
 	 * @returns Promise<void>
 	 */
 	async loadVirtualFileSystemFiles(vfsCompileMode: VfsCompileMode) {
-		const upToDateWithMode = this.compilerState.status === VFSstatus.uptodate && this.compilerState.mode === vfsCompileMode;
+		const upToDateWithMode =
+			this.compilerState.status === VFSstatus.uptodate &&
+			this.compilerState.mode === vfsCompileMode;
 		if (!this.checkEnabled(false) || upToDateWithMode) {
 			return;
 		}
 
 		if (this.compilerState.status === VFSstatus.undefined) {
-			console.warn(
-				'Virtual file system status is undefined. Waiting until it is outdated.',
-			);
-			await nonBlockingWaitUntil(
-				() => this.compilerState.status === VFSstatus.outdated,
-			);
+			console.warn('Virtual file system status is undefined. Waiting until it is outdated.');
+			await nonBlockingWaitUntil(() => this.compilerState.status === VFSstatus.outdated);
 		}
 		try {
 			await this.compiler.flushWorkCache();
@@ -286,10 +295,12 @@ export class VirtualFileSystem {
 		await this.removeFiles();
 	}
 
-	private async removeFiles(options: {
-		autoUseOnly?: boolean;
-		nonAutoUseOnly?: boolean;
-	} = {}) {
+	private async removeFiles(
+		options: {
+			autoUseOnly?: boolean;
+			nonAutoUseOnly?: boolean;
+		} = {},
+	) {
 		if (!this.checkEnabled(false)) return;
 
 		const { autoUseOnly = false, nonAutoUseOnly = false } = options;
@@ -321,10 +332,7 @@ export class VirtualFileSystem {
 		}
 	}
 
-	isNeededForAutoUse(
-		file: LatexDependency | string,
-		visited = new Set<string>(),
-	): boolean {
+	isNeededForAutoUse(file: LatexDependency | string, visited = new Set<string>()): boolean {
 		if (typeof file === 'string') {
 			const fileObj = this.graph.getFile(file);
 			if (!fileObj) return false;
@@ -355,5 +363,4 @@ export class VirtualFileSystem {
 	getParser() {
 		return this.parser;
 	}
-
 }

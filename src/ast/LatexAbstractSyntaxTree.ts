@@ -3,8 +3,6 @@ import { parse } from './autoParse/ast-types-pre';
 import { LatexDependency } from 'src/dependency/LatexDependency';
 import { verifyEnvironmentWrap } from './verifyEnvironmentWrap';
 
-
-
 //I need to Stop using the AST for inputs and only add and remove inputs through the dependencies.
 export class LatexAbstractSyntaxTree {
 	protected content: Node[];
@@ -64,17 +62,12 @@ export class LatexAbstractSyntaxTree {
 		for (const dependency of dependencies) {
 			const name = dependency.stem + '.' + dependency.extension;
 			macros.push(
-				new DependencyMacro(
-					'input',
-					dependency.autoUse ?? false,
-					undefined,
-					[
-						new Argument('{', '}', [new String(name)]),
-					],
-				),
+				new DependencyMacro('input', dependency.autoUse ?? false, undefined, [
+					new Argument('{', '}', [new String(name)]),
+				]),
 			);
 		}
-		const index = this.getAddInputFileIndex(dependencies.some(dep => dep.autoUse));
+		const index = this.getAddInputFileIndex(dependencies.some((dep) => dep.autoUse));
 
 		this.spliceContent(index, 0, ...macros);
 	}
@@ -87,9 +80,7 @@ export class LatexAbstractSyntaxTree {
 			if (node.content === 'documentclass') return false;
 			if (node instanceof DependencyMacro) {
 				// If the file is auto use, then we want the index to be after only the auto use files.
-				return isAutoUseFile
-					? !node.autoUse
-					: false;
+				return isAutoUseFile ? !node.autoUse : false;
 			}
 			// important: normal macro like pgfplotsset
 			// should be the insertion point
@@ -111,8 +102,7 @@ export class LatexAbstractSyntaxTree {
 	getInputFilesPaths() {
 		return this.usdInputFiles().map((input) => {
 			const args = input.args;
-			if (!args || args.length !== 1)
-				throw new Error('Unexpected input file format');
+			if (!args || args.length !== 1) throw new Error('Unexpected input file format');
 			return input.toStringArgsContent();
 		});
 	}
@@ -129,7 +119,9 @@ export class LatexAbstractSyntaxTree {
 		return this.content.splice(index, deleteCount, ...nodes);
 	}
 
-	getClonedContent() { return this.content.map(node => node.clone()); }
+	getClonedContent() {
+		return this.content.map((node) => node.clone());
+	}
 
 	/** Internal use only. Mutates AST directly. */
 	_getMutableContent(): Node[] {
@@ -137,9 +129,7 @@ export class LatexAbstractSyntaxTree {
 	}
 
 	clone(): this {
-		return new LatexAbstractSyntaxTree(
-			this.content.map((node) => node.clone())
-		) as this;
+		return new LatexAbstractSyntaxTree(this.content.map((node) => node.clone())) as this;
 	}
 
 	reParse() {
@@ -149,23 +139,11 @@ export class LatexAbstractSyntaxTree {
 	}
 }
 
-const texExtensions = [
-	'latex',
-	'tex',
-	'sty',
-	'cls',
-	'texlive',
-	'texmf',
-	'texmf',
-	'cnf',
-];
+const texExtensions = ['latex', 'tex', 'sty', 'cls', 'texlive', 'texmf', 'texmf', 'cnf'];
 
 export function isExtensionTex(extension: string) {
-	return extension
-		.split('.')
-		.some((ext) => texExtensions.includes(ext.toLowerCase()));
+	return extension.split('.').some((ext) => texExtensions.includes(ext.toLowerCase()));
 }
-
 
 export function findUsdInputFiles(ast: Ast): Macro[] {
 	const inputMacros: Macro[] = [];
@@ -184,9 +162,7 @@ export function findUsdInputFiles(ast: Ast): Macro[] {
 
 export async function inlineDependencies<TAst extends LatexAbstractSyntaxTree>(
 	ast: TAst,
-	resolveDependency: (
-		inputPath: string,
-	) => Promise<TAst | undefined>,
+	resolveDependency: (inputPath: string) => Promise<TAst | undefined>,
 	seen = new Set<string>(),
 ): Promise<TAst> {
 	const cloned = ast.clone();
@@ -210,11 +186,7 @@ export async function inlineDependencies<TAst extends LatexAbstractSyntaxTree>(
 
 				if (!depAst) continue;
 
-				const inlinedDep = await inlineDependencies(
-					depAst,
-					resolveDependency,
-					seen,
-				);
+				const inlinedDep = await inlineDependencies(depAst, resolveDependency, seen);
 
 				nodes.splice(i, 1, ...inlinedDep.getClonedContent());
 				i--;

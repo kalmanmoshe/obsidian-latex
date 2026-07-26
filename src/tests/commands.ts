@@ -1,10 +1,7 @@
 import { Command, Modal, Notice, TFile } from 'obsidian';
 import { LatexTask } from 'src/latexRender/task/latexTask';
 import LatexCompilerPlugin from 'src/main';
-import {
-	CompileResult,
-	CompileStatus,
-} from 'src/latexRender/compiler/base/compilerBase/engine';
+import { CompileResult, CompileStatus } from 'src/latexRender/compiler/base/compilerBase/engine';
 import {
 	getLatexTaskSectionInfosFromFile,
 	TaskSectionInformation,
@@ -174,9 +171,7 @@ class CompileTest {
 		this.sectionsByFile = await Promise.all(
 			files.map(async (file) => ({
 				file,
-				codeBlockSections: await getLatexTaskSectionInfosFromFile(
-					file as TFile,
-				),
+				codeBlockSections: await getLatexTaskSectionInfosFromFile(file as TFile),
 			})),
 		);
 
@@ -204,8 +199,7 @@ class CompileTest {
 
 				const duration = performance.now() - start;
 
-				const index =
-					result.compileResult.status === CompileStatus.Success ? 0 : 1;
+				const index = result.compileResult.status === CompileStatus.Success ? 0 : 1;
 
 				const trackerIndex = result.task.getCacheStatusAsNum() + index;
 
@@ -229,11 +223,8 @@ class CompileTest {
 		file: TFile,
 		section: TaskSectionInformation,
 	): Promise<CompileAnalysisResult> {
-		const task = LatexTask.fromSectionInfos(this.plugin, file.path, [
-			section,
-		]);
-		const compileResult =
-			await this.plugin.latexRenderer.detachedProcessAndRender(task);
+		const task = LatexTask.fromSectionInfos(this.plugin, file.path, [section]);
+		const compileResult = await this.plugin.latexRenderer.detachedProcessAndRender(task);
 		return { compileResult, task, section };
 	}
 }
@@ -332,16 +323,11 @@ class TestResultModal extends Modal {
 		return section;
 	}
 
-	addResult(
-		labelIndex: number,
-		result: CompileAnalysisResult,
-		duration: number,
-	) {
+	addResult(labelIndex: number, result: CompileAnalysisResult, duration: number) {
 		this.totalDuration += duration;
 		const completedBlocks = this.processed + 1;
 
-		const average =
-			this.processed === 0 ? 0 : this.totalDuration / completedBlocks;
+		const average = this.processed === 0 ? 0 : this.totalDuration / completedBlocks;
 
 		this.averageEl.setText(`Average per block: ${average.toFixed(1)}ms`);
 
@@ -404,16 +390,14 @@ class TestResultModal extends Modal {
 	}
 
 	private updateStats() {
-		const successPercent =
-			this.processed === 0 ? 0 : (this.success / this.processed) * 100;
+		const successPercent = this.processed === 0 ? 0 : (this.success / this.processed) * 100;
 
-		const failurePercent =
-			this.processed === 0 ? 0 : (this.failure / this.processed) * 100;
+		const failurePercent = this.processed === 0 ? 0 : (this.failure / this.processed) * 100;
 
 		this.statsEl.setText(
 			`Processed: ${this.processed}/${this.totalSections} | ` +
-			`Success: ${this.success} (${successPercent.toFixed(1)}%) | ` +
-			`Failure: ${this.failure} (${failurePercent.toFixed(1)}%)`,
+				`Success: ${this.success} (${successPercent.toFixed(1)}%) | ` +
+				`Failure: ${this.failure} (${failurePercent.toFixed(1)}%)`,
 		);
 	}
 
@@ -422,15 +406,10 @@ class TestResultModal extends Modal {
 		let idx = 0;
 		if (app.vault.getAbstractFileByPath('compile-report.md') !== null) {
 			idx++;
-			while (
-				app.vault.getAbstractFileByPath(
-					'compile-report' + idx + '.md',
-				) !== null
-			) { }
+			while (app.vault.getAbstractFileByPath('compile-report' + idx + '.md') !== null) {}
 		}
 
-		const path =
-			idx === 0 ? 'compile-report.md' : 'compile-report-' + idx + '.md';
+		const path = idx === 0 ? 'compile-report.md' : 'compile-report-' + idx + '.md';
 
 		const report = this.generateMarkdownReport(tracker);
 		await app.vault.create(path, report);

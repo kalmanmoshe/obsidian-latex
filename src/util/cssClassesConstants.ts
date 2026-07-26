@@ -11,12 +11,9 @@ export const CssClasses = {
 
 	block: {
 		languageLatexSvg: 'block-language-latexsvg',
-		languageLatexSvgOverflowDownscale:
-			'block-language-latexsvg.overflow-downscale',
-		languageLatexSvgOverflowScroll:
-			'block-language-latexsvg.overflow-scroll',
-		languageLatexSvgOverflowHidden:
-			'block-language-latexsvg.overflow-hidden',
+		languageLatexSvgOverflowDownscale: 'block-language-latexsvg.overflow-downscale',
+		languageLatexSvgOverflowScroll: 'block-language-latexsvg.overflow-scroll',
+		languageLatexSvgOverflowHidden: 'block-language-latexsvg.overflow-hidden',
 
 		latexError: 'block-latex-error',
 	},
@@ -63,5 +60,4 @@ export const CssClasses = {
 			cause: 'latex-compiler-log-error-cause',
 		},
 	},
-
 } as const;

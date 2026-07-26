@@ -43,10 +43,7 @@ export function optimizeSVG(svg: string, full: boolean): string {
 		const { width, height } = extractDimensions(svg);
 		let optimizedSvg = optimize(svg, config).data;
 		if (width && height) {
-			optimizedSvg = optimizedSvg.replace(
-				/<svg/,
-				`<svg width="${width}" height="${height}"`,
-			); // Ensure dimensions are preserved
+			optimizedSvg = optimizedSvg.replace(/<svg/, `<svg width="${width}" height="${height}"`); // Ensure dimensions are preserved
 		}
 		return optimizedSvg;
 	} catch (e) {

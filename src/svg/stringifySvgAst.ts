@@ -9,10 +9,7 @@ interface IStringifyOptions {
 	newline?: string; // string used for newlines (default: "\n")
 }
 
-export function stringify(
-	_ast: svgNode,
-	options: IStringifyOptions = {},
-): string {
+export function stringify(_ast: svgNode, options: IStringifyOptions = {}): string {
 	const {
 		transformAttr = (key, value, escape) => `${key}="${escape(value)}"`,
 		transformNode = (node) => node,
@@ -34,11 +31,7 @@ export function stringify(
 
 		let attributes = '';
 		for (const attr in node.attributes) {
-			const attrStr = transformAttr(
-				attr,
-				node.attributes[attr],
-				escapeAttr,
-			);
+			const attrStr = transformAttr(attr, node.attributes[attr], escapeAttr);
 			attributes += attrStr ? ` ${attrStr}` : '';
 		}
 
@@ -57,9 +50,7 @@ export function stringify(
 const escapeText = (text: string) => {
 	if (text) {
 		const str = String(text);
-		return /[&<>]/.test(str)
-			? `<![CDATA[${str.replace(/]]>/, ']]]]><![CDATA[>')}]]>`
-			: str;
+		return /[&<>]/.test(str) ? `<![CDATA[${str.replace(/]]>/, ']]]]><![CDATA[>')}]]>` : str;
 	}
 	return '';
 };

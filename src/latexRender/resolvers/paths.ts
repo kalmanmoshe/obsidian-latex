@@ -5,20 +5,11 @@ import { codeBlockToContent } from 'obsidian-dev-utils';
 
 export const CODE_BLOCK_NAME_SEPARATOR = '#';
 const TRADITIONAL_PATH_SEPARATORS = ['/', '\\'];
-const PATH_SEPARATORS = [
-	...TRADITIONAL_PATH_SEPARATORS,
-	CODE_BLOCK_NAME_SEPARATOR,
-];
+const PATH_SEPARATORS = [...TRADITIONAL_PATH_SEPARATORS, CODE_BLOCK_NAME_SEPARATOR];
 const PATH_SEPARATORS_REGEX = new RegExp(PATH_SEPARATORS.join('|'), 'g');
-const CODE_BLOCK_NAME_SEPARATOR_REGEX = new RegExp(
-	CODE_BLOCK_NAME_SEPARATOR,
-	'g',
-);
+const CODE_BLOCK_NAME_SEPARATOR_REGEX = new RegExp(CODE_BLOCK_NAME_SEPARATOR, 'g');
 
-export function resolvePathRelToVault(
-	path: string,
-	currentPath: string,
-): string {
+export function resolvePathRelToVault(path: string, currentPath: string): string {
 	const { file, remainingPath } = findRelativeFile(path, currentPath);
 	const absPath = file.path;
 	if (!remainingPath) return absPath;
@@ -45,8 +36,8 @@ export async function getFileContent(path: string): Promise<string> {
 	if (parts.length > 2 || parts.length === 0) {
 		throw new Error(
 			"Invalid path format. Use '" +
-			CODE_BLOCK_NAME_SEPARATOR +
-			"' to separate file path and code block name.",
+				CODE_BLOCK_NAME_SEPARATOR +
+				"' to separate file path and code block name.",
 		);
 	}
 	const filePath = parts.shift()!;
@@ -56,9 +47,7 @@ export async function getFileContent(path: string): Promise<string> {
 	}
 	const fileText = await app.vault.read(file);
 	if (parts.length === 0) return fileText;
-	const codeBlockStem = extractStemAndExtension(
-		parts.shift()!,
-	).stem;
+	const codeBlockStem = extractStemAndExtension(parts.shift()!).stem;
 
 	const codeBlocks = await getLatexTaskSectionInfosFromFile(file);
 	const potentialTargets = codeBlocks.filter(
@@ -67,10 +56,7 @@ export async function getFileContent(path: string): Promise<string> {
 	const target = potentialTargets.shift();
 	if (!target) {
 		throw new Error(
-			'No code block found with name: ' +
-			codeBlockStem +
-			' in file: ' +
-			file.path,
+			'No code block found with name: ' + codeBlockStem + ' in file: ' + file.path,
 		);
 	}
 	if (potentialTargets.length > 0) {
@@ -110,10 +96,7 @@ function findRelativeFile(filePath: string, currentPath: string) {
 		throw new Error('Source file not found');
 	}
 
-	const [rawFilePath, remainingPath] = filePath.split(
-		CODE_BLOCK_NAME_SEPARATOR,
-		2,
-	);
+	const [rawFilePath, remainingPath] = filePath.split(CODE_BLOCK_NAME_SEPARATOR, 2);
 
 	// "#block" means block inside the current file
 	if (!rawFilePath) {
@@ -131,9 +114,7 @@ function findRelativeFile(filePath: string, currentPath: string) {
 	const parts = resolved.parts;
 
 	while (parts.length > 1 && current instanceof TFolder) {
-		const next = current.children.find(
-			(c) => c instanceof TFolder && c.name === parts[0],
-		);
+		const next = current.children.find((c) => c instanceof TFolder && c.name === parts[0]);
 
 		if (!(next instanceof TFolder)) break;
 
@@ -154,8 +135,7 @@ function findRelativeFile(filePath: string, currentPath: string) {
 	const file = current.children.find(
 		(c) =>
 			c instanceof TFile &&
-			(c.name === fileName ||
-				(c.basename === fileName && c.name.endsWith('.md'))),
+			(c.name === fileName || (c.basename === fileName && c.name.endsWith('.md'))),
 	);
 
 	if (!file) {
@@ -200,9 +180,7 @@ function resolveStartingFolder(
 
 		if (part === '..') {
 			if (!current.parent) {
-				throw new Error(
-					`Reached root without resolving full path from: ${start.path}`,
-				);
+				throw new Error(`Reached root without resolving full path from: ${start.path}`);
 			}
 
 			current = current.parent;
@@ -223,8 +201,8 @@ export function extractStemAndExtension(path: string) {
 	if (path.split(CODE_BLOCK_NAME_SEPARATOR).length > 2) {
 		throw new Error(
 			"Invalid path format. Use '" +
-			CODE_BLOCK_NAME_SEPARATOR +
-			"' to separate file path and code block name.",
+				CODE_BLOCK_NAME_SEPARATOR +
+				"' to separate file path and code block name.",
 		);
 	}
 	const parts = path
@@ -278,7 +256,7 @@ export function joinPaths(...paths: string[]): string {
 	return normalizePath(
 		paths
 			.filter(Boolean)
-			.map((p) => p.replace(/^\/+|\/+$/g, ""))
-			.join("/")
+			.map((p) => p.replace(/^\/+|\/+$/g, ''))
+			.join('/'),
 	);
 }

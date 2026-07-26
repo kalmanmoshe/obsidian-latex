@@ -31,7 +31,7 @@ export class SVGroot {
 	value: string;
 	attributes: Record<string, string>;
 	children: svgNode[];
-	
+
 	constructor(
 		name: string,
 		type: string,
@@ -57,7 +57,7 @@ export class SVGroot {
 	toString() {
 		return stringify(this);
 	}
-	
+
 	idSvg(id: string) {
 		this.attributes['data-id'] = id;
 	}

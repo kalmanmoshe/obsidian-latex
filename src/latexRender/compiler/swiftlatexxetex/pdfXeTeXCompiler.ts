@@ -8,8 +8,8 @@ export class PdfXeTeXCompiler extends LatexCompiler {
 
 	constructor() {
 		super();
-		this.xetEng = new LatexEngine(xetexWorkerFactory, "xetex");
-		this.dviEng = new LatexEngine(dviWorkerFactory, "dvipdfm");
+		this.xetEng = new LatexEngine(xetexWorkerFactory, 'xetex');
+		this.dviEng = new LatexEngine(dviWorkerFactory, 'dvipdfm');
 
 		this.engines = [this.xetEng, this.dviEng];
 	}
@@ -40,7 +40,7 @@ export class PdfXeTeXCompiler extends LatexCompiler {
 		await this.dviEng.writeMemFSFile('main.xdv', xetResult.pdf);
 		await this.dviEng.setEngineMainFile('main.xdv');
 		const dviResult = await this.dviEng.compilePDF();
-		dviResult.log = xetResult.log + "\n" + dviResult.log;
+		dviResult.log = xetResult.log + '\n' + dviResult.log;
 
 		return dviResult;
 	}

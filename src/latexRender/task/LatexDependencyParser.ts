@@ -1,21 +1,40 @@
-import { findUsdInputFiles, isExtensionTex, LatexAbstractSyntaxTree } from "src/ast/LatexAbstractSyntaxTree";
-import { resolvePathRelToVault, extractStemAndExtension, getFileContent, isValidFileStem, CODE_BLOCK_NAME_SEPARATOR } from "../resolvers/paths";
+import {
+	findUsdInputFiles,
+	isExtensionTex,
+	LatexAbstractSyntaxTree,
+} from 'src/ast/LatexAbstractSyntaxTree';
+import {
+	resolvePathRelToVault,
+	extractStemAndExtension,
+	getFileContent,
+	isValidFileStem,
+	CODE_BLOCK_NAME_SEPARATOR,
+} from '../resolvers/paths';
 import { String as StringClass } from '../../ast/typs/astNodes';
-import { DependencyConfig } from "src/dependency/LatexDependency";
+import { DependencyConfig } from 'src/dependency/LatexDependency';
 
-export interface LatexDependencyNode<TAst extends LatexAbstractSyntaxTree, TDep extends DependencyConfig<TAst>> {
+export interface LatexDependencyNode<
+	TAst extends LatexAbstractSyntaxTree,
+	TDep extends DependencyConfig<TAst>,
+> {
 	dependency: TDep;
 	dependencies: LatexDependencyNode<TAst, TDep>[];
 }
 
-export interface ParsedLatexFile<TAst extends LatexAbstractSyntaxTree, TDep extends DependencyConfig<TAst>> {
+export interface ParsedLatexFile<
+	TAst extends LatexAbstractSyntaxTree,
+	TDep extends DependencyConfig<TAst>,
+> {
 	content: string;
 	path: string;
 	ast: TAst;
 	dependencies: LatexDependencyNode<TAst, TDep>[];
 }
 
-export interface LatexParserAdapter<TAst extends LatexAbstractSyntaxTree, TDep extends DependencyConfig<TAst>> {
+export interface LatexParserAdapter<
+	TAst extends LatexAbstractSyntaxTree,
+	TDep extends DependencyConfig<TAst>,
+> {
 	parseContentToAst(content: string): TAst;
 
 	createDependency(
@@ -31,11 +50,14 @@ export interface LatexParserAdapter<TAst extends LatexAbstractSyntaxTree, TDep e
 	getDependencyFromGraph(path: string): TDep | undefined;
 }
 
-export class LatexDependencyParser<TAst extends LatexAbstractSyntaxTree, TDep extends DependencyConfig<TAst>> {
+export class LatexDependencyParser<
+	TAst extends LatexAbstractSyntaxTree,
+	TDep extends DependencyConfig<TAst>,
+> {
 	constructor(
 		private adapter: LatexParserAdapter<TAst, TDep>,
 		private possibleNames: string[] = [],
-	) { }
+	) {}
 
 	async parseFile(content: string | TAst, path: string): Promise<ParsedLatexFile<TAst, TDep>> {
 		let ast: TAst;
@@ -60,10 +82,7 @@ export class LatexDependencyParser<TAst extends LatexAbstractSyntaxTree, TDep ex
 		};
 	}
 
-	async collectSurfaceDependencyPaths(
-		content: string,
-		sourcePath: string,
-	): Promise<string[]> {
+	async collectSurfaceDependencyPaths(content: string, sourcePath: string): Promise<string[]> {
 		const ast = this.adapter.parseContentToAst(content);
 
 		let basePath = sourcePath;
@@ -115,10 +134,7 @@ export class LatexDependencyParser<TAst extends LatexAbstractSyntaxTree, TDep ex
 		return dependencies;
 	}
 
-	async resolveDependency(
-		filePath: string,
-		basePath: string,
-	): Promise<TDep> {
+	async resolveDependency(filePath: string, basePath: string): Promise<TDep> {
 		const resolvedPath = resolvePathRelToVault(filePath, basePath);
 		const { stem, extension } = extractStemAndExtension(resolvedPath);
 
@@ -134,7 +150,7 @@ export class LatexDependencyParser<TAst extends LatexAbstractSyntaxTree, TDep ex
 		const content = await getFileContent(resolvedPath);
 
 		return this.adapter.createDependency(content, resolvedPath, {
-			isTex: isExtensionTex(extension)
+			isTex: isExtensionTex(extension),
 		});
 	}
 

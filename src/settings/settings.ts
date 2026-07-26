@@ -44,11 +44,7 @@ export type CacheMap = Map<string, CacheEntry[]>;
 /**
  * JSON-serializable version of a CacheEntry (Set → Array).
  */
-export type CacheEntryJson = [
-	deps: string[],
-	depsHash: string,
-	referencedBy: string[],
-];
+export type CacheEntryJson = [deps: string[], depsHash: string, referencedBy: string[]];
 // OR for common case:
 export type ShortCacheEntryJson = string[]; // means nodeps
 
@@ -58,15 +54,13 @@ export type ShortCacheEntryJson = string[]; // means nodeps
  * Structure:
  * - Array of [RawHash, CacheEntryJson[]] tuples.
  */
-export type CacheJson = Array<
-	[rawHash: string, entries: (CacheEntryJson | ShortCacheEntryJson)[]]
->;
+export type CacheJson = Array<[rawHash: string, entries: (CacheEntryJson | ShortCacheEntryJson)[]]>;
 
 export interface PackageCacheData {
-    missingPackages: StringMap;
-    cachedPackages: StringMap;
-    missingFonts: StringMap;
-    cachedFonts: StringMap;
+	missingPackages: StringMap;
+	cachedPackages: StringMap;
+	missingFonts: StringMap;
+	cachedFonts: StringMap;
 }
 
 export interface LatexCompilerPluginSettings {
@@ -112,8 +106,7 @@ export const DEFAULT_SETTINGS: LatexCompilerPluginSettings = {
 	autoRemoveWhitespace: true,
 	dirtyResultFiles: [],
 
-	package_url:
-		'http://46.101.255.60:3000/' /*`https://texlive2.swiftlatex.com/`*/,
+	package_url: 'http://46.101.255.60:3000/' /*`https://texlive2.swiftlatex.com/`*/,
 	physicalCache: true,
 	physicalCacheLocation: '',
 	cache: [],

@@ -1,415 +1,407 @@
 export enum EngineStatus {
-  Init,
-  Ready,
-  Busy,
-  Error,
-  Unresponsive,
+	Init,
+	Ready,
+	Busy,
+	Error,
+	Unresponsive,
 }
 
 export enum CompileStatus {
-  Success = 0,
-  ProcessingError,
-  CompileError,
-  FileNotFound = -253,
-  EngineCrashed = -254,
+	Success = 0,
+	ProcessingError,
+	CompileError,
+	FileNotFound = -253,
+	EngineCrashed = -254,
 }
 
 export class CompileResult {
-  pdf: Uint8Array;
-  status: number = -254;
-  log: string = 'No log';
+	pdf: Uint8Array;
+	status: number = -254;
+	log: string = 'No log';
 
-  constructor(
-    pdf: Uint8Array | undefined,
-    status: number,
-    log: string,
-  ) {
-    if (pdf) this.pdf = pdf;
-    this.status = status;
-    this.log = log;
-  }
-  
+	constructor(pdf: Uint8Array | undefined, status: number, log: string) {
+		if (pdf) this.pdf = pdf;
+		this.status = status;
+		this.log = log;
+	}
 }
 
 enum EngineCommands {
-  WorkerError = 'workererror',
-  WorkerRejection = 'workerrejection',
-  Compilelatex = 'compilelatex',
-  Grace = 'grace',
-  Settexliveurl = 'settexliveurl',
-  Mkdir = 'mkdir',
-  Compileformat = 'compileformat',
-  Writecache = 'writecache',
-  Fetchfile = 'fetchfile',
-  FetchWorkFiles = 'fetchWorkFiles',
-  FetchCache = 'fetchcache',
-  Writetexfile = 'writetexfile',
-  Setmainfile = 'setmainfile',
-  Writefile = 'writefile',
-  Flushcatche = 'flushcache',
-  FlushWorkDirectory = 'flushworkcache',
-  Removefile = 'removefile',
-  Compilepdf = 'compilepdf',
+	WorkerError = 'workererror',
+	WorkerRejection = 'workerrejection',
+	Compilelatex = 'compilelatex',
+	Grace = 'grace',
+	Settexliveurl = 'settexliveurl',
+	Mkdir = 'mkdir',
+	Compileformat = 'compileformat',
+	Writecache = 'writecache',
+	Fetchfile = 'fetchfile',
+	FetchWorkFiles = 'fetchWorkFiles',
+	FetchCache = 'fetchcache',
+	Writetexfile = 'writetexfile',
+	Setmainfile = 'setmainfile',
+	Writefile = 'writefile',
+	Flushcatche = 'flushcache',
+	FlushWorkDirectory = 'flushworkcache',
+	Removefile = 'removefile',
+	Compilepdf = 'compilepdf',
 }
 
 export default class LatexEngine {
+	protected worker: Worker | undefined;
+	protected engineStatus: EngineStatus = EngineStatus.Init;
+	protected tasks: string[] = [];
 
-  protected worker: Worker | undefined;
-  protected engineStatus: EngineStatus = EngineStatus.Init;
-  protected tasks: string[] = [];
-
-  constructor(
+	constructor(
 		private readonly createWorker: () => Promise<Worker>,
-    //name of the engine, used for logging and debugging
-    protected engineName: string
+		//name of the engine, used for logging and debugging
+		protected engineName: string,
 	) {}
 
-  async loadEngine(): Promise<void> {
-    if (this.worker) {
-      throw new Error("Other instance is running, abort()");
-    }
+	async loadEngine(): Promise<void> {
+		if (this.worker) {
+			throw new Error('Other instance is running, abort()');
+		}
 
-    this.engineStatus = EngineStatus.Init;
+		this.engineStatus = EngineStatus.Init;
 
-    this.worker = await this.createWorker();
+		this.worker = await this.createWorker();
 
-    await new Promise<void>((resolve, reject) => {
-      this.worker!.onmessage = (ev: MessageEvent<any>) => {
-        const data = ev.data;
+		await new Promise<void>((resolve, reject) => {
+			this.worker!.onmessage = (ev: MessageEvent<any>) => {
+				const data = ev.data;
 
-        if (data.result === "ok") {
-          this.engineStatus = EngineStatus.Ready;
-          resolve();
-          return;
-        }
+				if (data.result === 'ok') {
+					this.engineStatus = EngineStatus.Ready;
+					resolve();
+					return;
+				}
 
-        this.worker?.terminate();
-        this.worker = undefined;
-        this.engineStatus = EngineStatus.Error;
+				this.worker?.terminate();
+				this.worker = undefined;
+				this.engineStatus = EngineStatus.Error;
 
-        reject(
-          new Error(
-            `${this.engineName} failed to initialize`,
-          ),
-        );
-      };
+				reject(new Error(`${this.engineName} failed to initialize`));
+			};
 
-      this.worker!.onerror = (ev: ErrorEvent) => {
-        this.worker?.terminate();
-        this.worker = undefined;
-        this.engineStatus = EngineStatus.Error;
+			this.worker!.onerror = (ev: ErrorEvent) => {
+				this.worker?.terminate();
+				this.worker = undefined;
+				this.engineStatus = EngineStatus.Error;
 
-        reject(
-          new Error(
-            `${this.engineName} worker error: ${ev.message}`,
-          ),
-        );
-      };
-    });
-  }
+				reject(new Error(`${this.engineName} worker error: ${ev.message}`));
+			};
+		});
+	}
 
-  isReady(): boolean {
-    return this.engineStatus === EngineStatus.Ready;
-  }
+	isReady(): boolean {
+		return this.engineStatus === EngineStatus.Ready;
+	}
 
-  getEngineStatus(): EngineStatus {
-    return this.engineStatus;
-  }
+	getEngineStatus(): EngineStatus {
+		return this.engineStatus;
+	}
 
-  protected checkEngineStatus(cmd?: string): this is { worker: Worker } {
-    if (!this.isReady()) {
-      const errorMessage =
-        `Engine is not ready! engineStatus: ${EngineStatus[this.engineStatus]}, last task: ${this.tasks[this.tasks.length - 1]}.` +
-        (cmd ? `, Attempted command: ${cmd}` : '');
-      throw new Error(errorMessage);
-    }
-    if (this.worker === undefined) {
-      throw new Error(
-        'Engine is not initialized! Please call loadEngine() first.',
-      );
-    }
-    return true;
-  }
+	protected checkEngineStatus(cmd?: string): this is { worker: Worker } {
+		if (!this.isReady()) {
+			const errorMessage =
+				`Engine is not ready! engineStatus: ${EngineStatus[this.engineStatus]}, last task: ${this.tasks[this.tasks.length - 1]}.` +
+				(cmd ? `, Attempted command: ${cmd}` : '');
+			throw new Error(errorMessage);
+		}
+		if (this.worker === undefined) {
+			throw new Error('Engine is not initialized! Please call loadEngine() first.');
+		}
+		return true;
+	}
 
-  async compileLaTeX(): Promise<CompileResult> {
-    const startCompileTime = performance.now();
-    const data = await this.task<{
-      pdf?: Uint8Array;
-      status: number;
-      log: string;
-    }>({
-      cmd: EngineCommands.Compilelatex,
-    });
-    console.log(
-      `Engine ${this.engineName} compilation finished in ${performance.now() - startCompileTime} ms`,
-    );
-    return new CompileResult(
-      data.pdf ? new Uint8Array(data.pdf) : undefined,
-      data.status,
-      data.log,
-    );
-  }
+	async compileLaTeX(): Promise<CompileResult> {
+		const startCompileTime = performance.now();
+		const data = await this.task<{
+			pdf?: Uint8Array;
+			status: number;
+			log: string;
+		}>({
+			cmd: EngineCommands.Compilelatex,
+		});
+		console.log(
+			`Engine ${this.engineName} compilation finished in ${performance.now() - startCompileTime} ms`,
+		);
+		return new CompileResult(
+			data.pdf ? new Uint8Array(data.pdf) : undefined,
+			data.status,
+			data.log,
+		);
+	}
 
-  async compilePDF(): Promise<CompileResult> {
-    const startCompileTime = performance.now();
-    const data = await this.task<{
-      pdf?: Uint8Array;
-      status: number;
-      log: string;
-    }>({ cmd: EngineCommands.Compilepdf });
+	async compilePDF(): Promise<CompileResult> {
+		const startCompileTime = performance.now();
+		const data = await this.task<{
+			pdf?: Uint8Array;
+			status: number;
+			log: string;
+		}>({ cmd: EngineCommands.Compilepdf });
 
-    console.log(
-      `Engine ${this.engineName} compilation finish ` +
-      (performance.now() - startCompileTime),
-    );
-    return new CompileResult(
-      data.pdf ? new Uint8Array(data.pdf) : undefined,
-      data.status,
-      data.log,
-    );
-  }
+		console.log(
+			`Engine ${this.engineName} compilation finish ` +
+				(performance.now() - startCompileTime),
+		);
+		return new CompileResult(
+			data.pdf ? new Uint8Array(data.pdf) : undefined,
+			data.status,
+			data.log,
+		);
+	}
 
-  getCompiler() {
-    return this.worker;
-  }
+	getCompiler() {
+		return this.worker;
+	}
 
-  async compileFormat(): Promise<void> {
-    const data = await this.task<{ pdf: Uint8Array; log?: string }>({
-      cmd: EngineCommands.Compileformat,
-    });
-    const formatBlob = new Blob([new Uint8Array(data.pdf)], {
-      type: 'application/octet-stream',
-    });
-    const formatURL = URL.createObjectURL(formatBlob);
-    setTimeout(() => URL.revokeObjectURL(formatURL), 30000);
-    console.log(`Engine ${this.engineName} download format file via ` + formatURL);
-  }
+	async compileFormat(): Promise<void> {
+		const data = await this.task<{ pdf: Uint8Array; log?: string }>({
+			cmd: EngineCommands.Compileformat,
+		});
+		const formatBlob = new Blob([new Uint8Array(data.pdf)], {
+			type: 'application/octet-stream',
+		});
+		const formatURL = URL.createObjectURL(formatBlob);
+		setTimeout(() => URL.revokeObjectURL(formatURL), 30000);
+		console.log(`Engine ${this.engineName} download format file via ` + formatURL);
+	}
 
-  async fetchCacheData() {
-    const recordToString = (record: Record<string, number>) =>
-      Object.fromEntries(
-        Object.entries(record).map(([key, value]) => [key, String(value)]),
-      );
+	async fetchCacheData() {
+		const recordToString = (record: Record<string, number>) =>
+			Object.fromEntries(Object.entries(record).map(([key, value]) => [key, String(value)]));
 
-    const data = await this.task<{
-      texlive404: Record<string, number>;
-      texlive200: Record<string, string>;
-      font404: Record<string, number>;
-      font200: Record<string, string>;
-    }>({
-      cmd: EngineCommands.FetchCache,
-    });
-    console.warn(`Engine ${this.engineName} got cache data from worker`, data);
+		const data = await this.task<{
+			texlive404: Record<string, number>;
+			texlive200: Record<string, string>;
+			font404: Record<string, number>;
+			font200: Record<string, string>;
+		}>({
+			cmd: EngineCommands.FetchCache,
+		});
+		console.warn(`Engine ${this.engineName} got cache data from worker`, data);
 
-    if (!data) {
-      throw new Error(`Engine ${this.engineName} received no cache data from the worker.`);
-    }
+		if (!data) {
+			throw new Error(`Engine ${this.engineName} received no cache data from the worker.`);
+		}
 
-    return {
-      missingPackages: recordToString(data.texlive404),
-      cachedPackages: data.texlive200,
-      missingFonts: recordToString(data.font404),
-      cachedFonts: data.font200,
-    };
-  }
+		return {
+			missingPackages: recordToString(data.texlive404),
+			cachedPackages: data.texlive200,
+			missingFonts: recordToString(data.font404),
+			cachedFonts: data.font200,
+		};
+	}
 
-  writeCacheData(
-    texlive404_cache: any,
-    texlive200_cache: any,
-    font404_cache: any,
-    font200_cache: any,
-  ) {
-    return this.task({
-      cmd: EngineCommands.Writecache,
-      texlive404_cache,
-      texlive200_cache,
-      font404_cache,
-      font200_cache,
-    });
-  }
+	writeCacheData(
+		texlive404_cache: any,
+		texlive200_cache: any,
+		font404_cache: any,
+		font200_cache: any,
+	) {
+		return this.task({
+			cmd: EngineCommands.Writecache,
+			texlive404_cache,
+			texlive200_cache,
+			font404_cache,
+			font200_cache,
+		});
+	}
 
-  async fetchWorkFiles() {
-    return this.task<{ file: String[] }>({
-      cmd: EngineCommands.FetchWorkFiles,
-    });
-  }
+	async fetchWorkFiles() {
+		return this.task<{ file: String[] }>({
+			cmd: EngineCommands.FetchWorkFiles,
+		});
+	}
 
-  /**
-   * Fetches a list of TeX files from a virtual file system and returns them contents.
-   *
-   * @param filenames - An array of filenames to fetch from the virtual file system.
-   */
-  async fetchTexFiles(fileNames: string[]) {
-    const files = [];
-    for (const fileName of fileNames) {
-      const data = await this.task<{ content: Uint8Array<any> }>({
-        cmd: EngineCommands.Fetchfile,
-        fileName,
-      });
-      // Is intentionally designed to skip over files that do not exist, rather than throwing an error.
-      if (!data || !data.content) {
-        continue;
-      }
-      const fileContent = new Uint8Array(data.content);
-      files.push({ name: fileName, content: fileContent });
-    }
-    return files;
-  }
+	/**
+	 * Fetches a list of TeX files from a virtual file system and returns them contents.
+	 *
+	 * @param filenames - An array of filenames to fetch from the virtual file system.
+	 */
+	async fetchTexFiles(fileNames: string[]) {
+		const files = [];
+		for (const fileName of fileNames) {
+			const data = await this.task<{ content: Uint8Array<any> }>({
+				cmd: EngineCommands.Fetchfile,
+				fileName,
+			});
+			// Is intentionally designed to skip over files that do not exist, rather than throwing an error.
+			if (!data || !data.content) {
+				continue;
+			}
+			const fileContent = new Uint8Array(data.content);
+			files.push({ name: fileName, content: fileContent });
+		}
+		return files;
+	}
 
-  //todo: take down timer revert to 15000 when loding pkg for the first time it taks a lot of time
-  task<T = void>(task: any, timeoutMs = 1500000): Promise<T> {
-    const command = task.cmd;
-  
-    this.checkEngineStatus(command);
-    this.engineStatus = EngineStatus.Busy;
-    this.tasks.push(command);
-  
-    const worker = this.worker!;
-  
-    return new Promise<T>((resolve, reject) => {
-      let settled = false;
-  
-      const cleanup = () => {
-        worker.onmessage = null;
-        worker.onerror = null;
-      };
-  
-      const ok = (v: T) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        resolve(v);
-      };
-  
-      const fail = (e: unknown) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        reject(e instanceof Error ? e : new Error(String(e)));
-      };
-  
-      const timer = window.setTimeout(() => {
-        // Mark as unresponsive so closeWorker() terminates.
-        this.engineStatus = EngineStatus.Unresponsive;
-        fail(new Error(`Engine timeout on cmd=${command} after ${timeoutMs}ms`));
-      }, timeoutMs);
-  
-      worker.onmessage = (ev: MessageEvent<any>) => {
-        try {
-          console.log(`Engine ${this.engineName} worker message received for cmd=${command}:`, ev.data);
-          if (ev.data?.cmd === EngineCommands.WorkerError || ev.data?.cmd === EngineCommands.WorkerRejection) {
-            this.engineStatus = EngineStatus.Error;
-            fail(new Error(`Engine ${this.engineName} worker error: ${ev.data ?? "unknown error"}`));
-            return;
-          }
+	//todo: take down timer revert to 15000 when loding pkg for the first time it taks a lot of time
+	task<T = void>(task: any, timeoutMs = 1500000): Promise<T> {
+		const command = task.cmd;
 
-          // IMPORTANT: don't throw on other messages
-          if (ev.data?.cmd !== command) return;
-  
-          window.clearTimeout(timer);
+		this.checkEngineStatus(command);
+		this.engineStatus = EngineStatus.Busy;
+		this.tasks.push(command);
 
-          if (ev.data.result !== "ok") {
-            this.engineStatus = EngineStatus.Error;
-            fail(new Error(`Engine failed cmd=${command}: ${ev.data.result ?? "unknown error"}`));
-            return;
-          }
-  
-          this.engineStatus = EngineStatus.Ready;
-  
-          const data = { ...ev.data };
-          delete (data as any).result;
-          delete (data as any).cmd;
-  
-          ok((Object.keys(data).length ? (data as T) : (undefined as T)));
-        } catch (err) {
-          window.clearTimeout(timer);
-          this.engineStatus = EngineStatus.Error;
-          fail(err);
-        }
-      };
-  
-      worker.onerror = (err: ErrorEvent) => {
-        window.clearTimeout(timer);
-        this.engineStatus = EngineStatus.Error;
-        console.error(`Engine ${this.engineName} worker error:`, err);
-        fail(new Error(`Engine ${this.engineName} worker error: ${err.message}`));
-      };
-      console.log(`Sending task to engine ${this.engineName} worker:`, task);
-      worker.postMessage(task);
-    });
-  }
-  
-  /**
-   *
-   */
-  writeTexFSFile(filename: string, srcCode: Uint8Array) {
-    return this.task({
-      cmd: EngineCommands.Writetexfile,
-      url: filename,
-      src: srcCode,
-    });
-  }
+		const worker = this.worker!;
 
-  setEngineMainFile(filename: string) {
-    return this.task({ cmd: EngineCommands.Setmainfile, url: filename });
-  }
-  /**
-   * Writes a file to the in-memory filesystem managed by the LaTeX worker.
-   *
-   * @param filename - The name (or URL path) of the file to be written.
-   * @param srcCode - The source code or content to write into the file.
-   */
-  writeMemFSFile(
-    filename: string,
-    srcCode: string | Uint8Array,
-  ) {
-    return this.task({
-      cmd: EngineCommands.Writefile,
-      url: filename,
-      src: srcCode,
-    });
-  }
+		return new Promise<T>((resolve, reject) => {
+			let settled = false;
 
-  /**
-   * Removes a file to the in-memory filesystem managed by the LaTeX worker.
-   *
-   * @param filename - The name (or URL path) of the file to be removed.
-   */
-  removeMemFSFile(filename: string) {
-    return this.task({ cmd: EngineCommands.Removefile, url: filename });
-  }
+			const cleanup = () => {
+				worker.onmessage = null;
+				worker.onerror = null;
+			};
 
-  makeMemFSFolder(folder: string) {
-    if (!folder || folder === '/') return Promise.resolve();
-    return this.task({ cmd: EngineCommands.Mkdir, url: folder });
-  }
+			const ok = (v: T) => {
+				if (settled) return;
+				settled = true;
+				cleanup();
+				resolve(v);
+			};
 
-  flushWorkCache(): Promise<void> {
-    return this.task({ cmd: EngineCommands.FlushWorkDirectory });
-  }
+			const fail = (e: unknown) => {
+				if (settled) return;
+				settled = true;
+				cleanup();
+				reject(e instanceof Error ? e : new Error(String(e)));
+			};
 
-  flushCache(): Promise<void> {
-    return this.task({ cmd: EngineCommands.Flushcatche });
-  }
+			const timer = window.setTimeout(() => {
+				// Mark as unresponsive so closeWorker() terminates.
+				this.engineStatus = EngineStatus.Unresponsive;
+				fail(new Error(`Engine timeout on cmd=${command} after ${timeoutMs}ms`));
+			}, timeoutMs);
 
-  setTexliveEndpoint(url: string): Promise<void> {
-    return this.task({ cmd: EngineCommands.Settexliveurl, url });
-  }
+			worker.onmessage = (ev: MessageEvent<any>) => {
+				try {
+					console.log(
+						`Engine ${this.engineName} worker message received for cmd=${command}:`,
+						ev.data,
+					);
+					if (
+						ev.data?.cmd === EngineCommands.WorkerError ||
+						ev.data?.cmd === EngineCommands.WorkerRejection
+					) {
+						this.engineStatus = EngineStatus.Error;
+						fail(
+							new Error(
+								`Engine ${this.engineName} worker error: ${ev.data ?? 'unknown error'}`,
+							),
+						);
+						return;
+					}
 
-  closeWorker(): void {
-    if (this.worker) {
-      if (this.engineStatus === EngineStatus.Unresponsive) {
-        try {
-          // If it’s hung, it will never process "grace" anyway.
-          // Terminate is the only reliable stop.
-          this.worker.terminate();
-        } catch { }
-      } else {
-        this.worker.postMessage({ cmd: EngineCommands.Grace });
-      }
-      this.worker = undefined;
-    }
-    this.engineStatus = EngineStatus.Init;
-  }
+					// IMPORTANT: don't throw on other messages
+					if (ev.data?.cmd !== command) return;
 
+					window.clearTimeout(timer);
+
+					if (ev.data.result !== 'ok') {
+						this.engineStatus = EngineStatus.Error;
+						fail(
+							new Error(
+								`Engine failed cmd=${command}: ${ev.data.result ?? 'unknown error'}`,
+							),
+						);
+						return;
+					}
+
+					this.engineStatus = EngineStatus.Ready;
+
+					const data = { ...ev.data };
+					delete (data as any).result;
+					delete (data as any).cmd;
+
+					ok(Object.keys(data).length ? (data as T) : (undefined as T));
+				} catch (err) {
+					window.clearTimeout(timer);
+					this.engineStatus = EngineStatus.Error;
+					fail(err);
+				}
+			};
+
+			worker.onerror = (err: ErrorEvent) => {
+				window.clearTimeout(timer);
+				this.engineStatus = EngineStatus.Error;
+				console.error(`Engine ${this.engineName} worker error:`, err);
+				fail(new Error(`Engine ${this.engineName} worker error: ${err.message}`));
+			};
+			console.log(`Sending task to engine ${this.engineName} worker:`, task);
+			worker.postMessage(task);
+		});
+	}
+
+	/**
+	 *
+	 */
+	writeTexFSFile(filename: string, srcCode: Uint8Array) {
+		return this.task({
+			cmd: EngineCommands.Writetexfile,
+			url: filename,
+			src: srcCode,
+		});
+	}
+
+	setEngineMainFile(filename: string) {
+		return this.task({ cmd: EngineCommands.Setmainfile, url: filename });
+	}
+	/**
+	 * Writes a file to the in-memory filesystem managed by the LaTeX worker.
+	 *
+	 * @param filename - The name (or URL path) of the file to be written.
+	 * @param srcCode - The source code or content to write into the file.
+	 */
+	writeMemFSFile(filename: string, srcCode: string | Uint8Array) {
+		return this.task({
+			cmd: EngineCommands.Writefile,
+			url: filename,
+			src: srcCode,
+		});
+	}
+
+	/**
+	 * Removes a file to the in-memory filesystem managed by the LaTeX worker.
+	 *
+	 * @param filename - The name (or URL path) of the file to be removed.
+	 */
+	removeMemFSFile(filename: string) {
+		return this.task({ cmd: EngineCommands.Removefile, url: filename });
+	}
+
+	makeMemFSFolder(folder: string) {
+		if (!folder || folder === '/') return Promise.resolve();
+		return this.task({ cmd: EngineCommands.Mkdir, url: folder });
+	}
+
+	flushWorkCache(): Promise<void> {
+		return this.task({ cmd: EngineCommands.FlushWorkDirectory });
+	}
+
+	flushCache(): Promise<void> {
+		return this.task({ cmd: EngineCommands.Flushcatche });
+	}
+
+	setTexliveEndpoint(url: string): Promise<void> {
+		return this.task({ cmd: EngineCommands.Settexliveurl, url });
+	}
+
+	closeWorker(): void {
+		if (this.worker) {
+			if (this.engineStatus === EngineStatus.Unresponsive) {
+				try {
+					// If it’s hung, it will never process "grace" anyway.
+					// Terminate is the only reliable stop.
+					this.worker.terminate();
+				} catch {}
+			} else {
+				this.worker.postMessage({ cmd: EngineCommands.Grace });
+			}
+			this.worker = undefined;
+		}
+		this.engineStatus = EngineStatus.Init;
+	}
 }

@@ -3,15 +3,15 @@ import LatexCompiler from '../base/compilerBase/compiler.js';
 import { pdftexWorkerFactory } from '@swiftlatex-workers';
 
 export default class PdfTeXCompiler extends LatexCompiler {
-  texEng: LatexEngine;
+	texEng: LatexEngine;
 
-  constructor() {
-    super();
-    this.texEng = new LatexEngine(pdftexWorkerFactory, "pdftex");
-    this.engines = [this.texEng];
-  }
+	constructor() {
+		super();
+		this.texEng = new LatexEngine(pdftexWorkerFactory, 'pdftex');
+		this.engines = [this.texEng];
+	}
 
-  compileLaTeX(): Promise<CompileResult> {
-    return this.texEng.compileLaTeX();
-  }
+	compileLaTeX(): Promise<CompileResult> {
+		return this.texEng.compileLaTeX();
+	}
 }

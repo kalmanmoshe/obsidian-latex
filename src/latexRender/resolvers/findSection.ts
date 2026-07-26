@@ -1,18 +1,9 @@
-import {
-	Editor,
-	MarkdownSectionInformation,
-	SectionCache,
-	TFile,
-} from 'obsidian';
+import { Editor, MarkdownSectionInformation, SectionCache, TFile } from 'obsidian';
 import { EditorView } from '@codemirror/view';
 import { getFileSections } from 'obsidian-dev-utils';
 import { getFileSectionsFromPath } from './sectionCache';
 
-
-export async function getCurrentCursorLocationSection(
-	file: TFile,
-	editor: Editor,
-) {
+export async function getCurrentCursorLocationSection(file: TFile, editor: Editor) {
 	const sections = await getFileSections(file, true);
 	if (!sections) return;
 	const selection = ((editor as any).cm as EditorView).state.selection;
@@ -32,12 +23,11 @@ export async function findMatchingCodeBlockSections(
 ): Promise<MarkdownSectionInformation[] | undefined> {
 	const { fileText, sections } = await getFileSectionsFromPath(path);
 
-	const sectionMatches: SectionCache[] | undefined =
-		extractPossibleSectionCatchesOfString(
-			sections,
-			fileText,
-			codeBlock,
-		)?.filter((sec) => sec.position);
+	const sectionMatches: SectionCache[] | undefined = extractPossibleSectionCatchesOfString(
+		sections,
+		fileText,
+		codeBlock,
+	)?.filter((sec) => sec.position);
 
 	if (!sectionMatches || sectionMatches.length === 0) return;
 
@@ -93,10 +83,7 @@ function findInnermostSection(
  * @param searchString
  * @returns
  */
-function getAllLineStartIndexesOfString(
-	fileText: string,
-	searchString: string,
-): number[] {
+function getAllLineStartIndexesOfString(fileText: string, searchString: string): number[] {
 	const textLines = fileText.split('\n'); // Split the full text into lines
 	const searchLines = searchString.split('\n'); // Split the search string into lines
 	const searchLength = searchLines.length;

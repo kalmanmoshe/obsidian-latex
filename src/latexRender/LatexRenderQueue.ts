@@ -3,150 +3,144 @@ import { LatexTask } from './task/latexTask';
 import { CssClasses } from 'src/util/cssClassesConstants';
 
 export type QueueRenderer = {
-    renderTask(task: LatexTask): Promise<boolean>;
-    getCooldown(): number;
+	renderTask(task: LatexTask): Promise<boolean>;
+	getCooldown(): number;
 };
 
 type InternalTask<T> = {
-    data: T;
-    callback: Function;
-    next: InternalTask<T> | null;
+	data: T;
+	callback: Function;
+	next: InternalTask<T> | null;
 };
 
 type QueueObject<T> = async.QueueObject<T> & {
-    _tasks: {
-        head: InternalTask<T> | null;
-        tail: InternalTask<T> | null;
-        length: number;
-        remove: (testFn: (node: InternalTask<T>) => boolean) => void;
-    };
+	_tasks: {
+		head: InternalTask<T> | null;
+		tail: InternalTask<T> | null;
+		length: number;
+		remove: (testFn: (node: InternalTask<T>) => boolean) => void;
+	};
 };
 
-
 export class LatexRenderQueue {
+	private queue: QueueObject<LatexTask>;
+	//@ts-ignore
+	private currentTask: LatexTask | null = null;
 
-    private queue: QueueObject<LatexTask>;
-    //@ts-ignore
-    private currentTask: LatexTask | null = null;
+	constructor(private renderer: QueueRenderer) {
+		this.configQueue();
+	}
 
-    constructor(private renderer: QueueRenderer) {
-        this.configQueue();
-    }
+	push(task: LatexTask) {
+		const blockId = task.getBlockId();
 
-    push(task: LatexTask) {
-        const blockId = task.getBlockId();
+		this.queue.remove((node) => node.data.getBlockId() === blockId);
 
-        this.queue.remove((node) => node.data.getBlockId() === blockId);
+		const index = this.queue.running() + this.queue.length();
 
-        const index = this.queue.running() + this.queue.length();
+		task.el.appendChild(createWaitingCountdown(index));
+		this.queue.push(task);
 
-        task.el.appendChild(createWaitingCountdown(index));
-        this.queue.push(task);
+		updateQueueCountdown(this.queue);
+	}
 
-        updateQueueCountdown(this.queue);
-    }
+	removeFromWaiting(filterFn: (task: LatexTask) => boolean) {
+		this.queue.remove((node) => filterFn(node.data));
+	}
 
-    removeFromWaiting(filterFn: (task: LatexTask) => boolean) {
-        this.queue.remove((node) => filterFn(node.data));
-    }
+	abortAllWaiting() {
+		let node = this.queue._tasks.head;
 
-    abortAllWaiting() {
-        let node = this.queue._tasks.head;
+		while (node) {
+			node.data.el.innerHTML = '';
+			node = node.next;
+		}
 
-        while (node) {
-            node.data.el.innerHTML = '';
-            node = node.next;
-        }
+		this.queue.kill();
+	}
 
-        this.queue.kill();
-    }
+	rebuild() {
+		this.abortAllWaiting();
+		this.configQueue();
+	}
 
-    rebuild() {
-        this.abortAllWaiting();
-        this.configQueue();
-    }
+	length() {
+		return this.queue.length();
+	}
 
-    length() {
-        return this.queue.length();
-    }
+	running() {
+		return this.queue.running();
+	}
 
-    running() {
-        return this.queue.running();
-    }
+	idle() {
+		return this.queue.idle();
+	}
 
-    idle() {
-        return this.queue.idle();
-    }
+	getWaitingTasks(): LatexTask[] {
+		const tasks: LatexTask[] = [];
 
-    getWaitingTasks(): LatexTask[] {
-        const tasks: LatexTask[] = [];
+		let node = this.queue._tasks.head;
 
-        let node = this.queue._tasks.head;
+		while (node) {
+			tasks.push(node.data);
+			node = node.next;
+		}
 
-        while (node) {
-            tasks.push(node.data);
-            node = node.next;
-        }
+		return tasks;
+	}
 
-        return tasks;
-    }
+	configQueue() {
+		this.queue = async.queue((task: LatexTask, done) => {
+			this.currentTask = task;
+			(async () => {
+				const didRender = await this.renderer.renderTask(task);
+				updateQueueCountdown(this.queue);
 
-    configQueue() {
-        this.queue = async.queue((task: LatexTask, done) => {
-            this.currentTask = task;
-            (async () => {
-                const didRender = await this.renderer.renderTask(task);
-                updateQueueCountdown(this.queue);
-
-                if (didRender) {
-                    setTimeout(() => { this.currentTask = null; done(); }, this.renderer.getCooldown());
-                } else {
-                    this.currentTask = null;
-                    done();
-                }
-            })().catch((err) => {
-                console.error(
-                    'Queue worker crashed:',
-                    err,
-                    task.getDebugInfo(),
-                );
-                this.currentTask = null;
-                done();
-            });
-        }, 1) as QueueObject<LatexTask>; // Concurrency is set to 1, so tasks run one at a time
-    }
+				if (didRender) {
+					setTimeout(() => {
+						this.currentTask = null;
+						done();
+					}, this.renderer.getCooldown());
+				} else {
+					this.currentTask = null;
+					done();
+				}
+			})().catch((err) => {
+				console.error('Queue worker crashed:', err, task.getDebugInfo());
+				this.currentTask = null;
+				done();
+			});
+		}, 1) as QueueObject<LatexTask>; // Concurrency is set to 1, so tasks run one at a time
+	}
 }
 
-
 const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
-    let taskNode = queue._tasks.head;
-    let index = queue.running();
-    while (taskNode) {
-        const task = taskNode.data;
-        const countdown = task.el.querySelector(
-            '.' + CssClasses.loader.renderCountdown,
-        );
-        if (countdown) countdown.textContent = index.toString();
-        else console.warn(`Countdown not found for task ${index}`);
-        taskNode = taskNode.next;
-        index++;
-    }
+	let taskNode = queue._tasks.head;
+	let index = queue.running();
+	while (taskNode) {
+		const task = taskNode.data;
+		const countdown = task.el.querySelector('.' + CssClasses.loader.renderCountdown);
+		if (countdown) countdown.textContent = index.toString();
+		else console.warn(`Countdown not found for task ${index}`);
+		taskNode = taskNode.next;
+		index++;
+	}
 };
 
 function createWaitingCountdown(index: number) {
-    const parentContainer = Object.assign(document.createElement('div'), {
-        className: CssClasses.loader.loaderParentContainer,
-    });
+	const parentContainer = Object.assign(document.createElement('div'), {
+		className: CssClasses.loader.loaderParentContainer,
+	});
 
-    const loader = Object.assign(document.createElement('div'), {
-        className: CssClasses.loader.renderLoader,
-    });
+	const loader = Object.assign(document.createElement('div'), {
+		className: CssClasses.loader.renderLoader,
+	});
 
-    const countdown = Object.assign(document.createElement('div'), {
-        className: CssClasses.loader.renderCountdown,
-        textContent: index.toString(),
-    });
-    parentContainer.appendChild(loader);
-    parentContainer.appendChild(countdown);
-    return parentContainer;
+	const countdown = Object.assign(document.createElement('div'), {
+		className: CssClasses.loader.renderCountdown,
+		textContent: index.toString(),
+	});
+	parentContainer.appendChild(loader);
+	parentContainer.appendChild(countdown);
+	return parentContainer;
 }

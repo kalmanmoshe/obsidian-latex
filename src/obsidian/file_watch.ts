@@ -1,13 +1,6 @@
 // credit to The amazing people at obsidian latex suite which this code is influenced from
 
-import {
-	Vault,
-	TFile,
-	TFolder,
-	TAbstractFile,
-	Notice,
-	debounce,
-} from 'obsidian';
+import { Vault, TFile, TFolder, TAbstractFile, Notice, debounce } from 'obsidian';
 import LatexCompilerPlugin from 'src/main';
 
 const REFRESH_TIMEOUT_MS = 500;
@@ -21,7 +14,7 @@ const refreshMathJaxFromFiles = debounce(
 	},
 	REFRESH_TIMEOUT_MS,
 	true,
-)
+);
 
 const refreshLatexFromFiles = debounce(
 	async (plugin: LatexCompilerPlugin) => {
@@ -32,24 +25,21 @@ const refreshLatexFromFiles = debounce(
 	},
 	REFRESH_TIMEOUT_MS,
 	true,
-)
+);
 
-
-/** 
+/**
  * chack if the file is a vfs/mathjax preamble file
  * @param plugin
  * @param file
  * @returns
  */
 const checkFileMonitoringStatus = (plugin: LatexCompilerPlugin, file: TFile) => {
-	const {
-		compilerVfsEnabled,
-		mathjaxPreambleEnabled,
-	} = plugin.settings;
+	const { compilerVfsEnabled, mathjaxPreambleEnabled } = plugin.settings;
 
 	return {
-		autoLoadedMonitored: compilerVfsEnabled && plugin.latexRenderer.vfs.isNeededForAutoUse(file.path),
-		mathJaxMonitored: mathjaxPreambleEnabled && plugin.mathJaxVFS.hasFile(file.path)
+		autoLoadedMonitored:
+			compilerVfsEnabled && plugin.latexRenderer.vfs.isNeededForAutoUse(file.path),
+		mathJaxMonitored: mathjaxPreambleEnabled && plugin.mathJaxVFS.hasFile(file.path),
 	};
 };
 
@@ -64,7 +54,6 @@ export const onFileChange = (plugin: LatexCompilerPlugin, file: TAbstractFile) =
 	if (fileMonitoringStatus.autoLoadedMonitored) {
 		refreshLatexFromFiles(plugin);
 	}
-
 };
 
 export const onFileCreate = (plugin: LatexCompilerPlugin, file: TAbstractFile) => {
@@ -75,20 +64,17 @@ export const onFileDelete = (plugin: LatexCompilerPlugin, file: TAbstractFile) =
 	if (!(file instanceof TFile)) return;
 	// There's no point checking mathjax over here as it won't do anything you cannot delete the file from cache Only change it
 	const wasVfsFile =
-		plugin.settings.compilerVfsEnabled &&
-		plugin.latexRenderer.vfs.hasFile(file.path);
+		plugin.settings.compilerVfsEnabled && plugin.latexRenderer.vfs.hasFile(file.path);
 
 	if (wasVfsFile) {
 		refreshLatexFromFiles(plugin);
 	}
-
 };
 
 function* generateFilesWithin(fileOrFolder: TAbstractFile): Generator<TFile> {
 	if (fileOrFolder instanceof TFile) yield fileOrFolder;
 	else if (fileOrFolder instanceof TFolder)
-		for (const child of fileOrFolder.children)
-			yield* generateFilesWithin(child);
+		for (const child of fileOrFolder.children) yield* generateFilesWithin(child);
 }
 
 function getFilesWithin(vault: Vault, path: string): Set<TFile> {
@@ -120,9 +106,7 @@ export function getFileSets(plugin: LatexCompilerPlugin): FileSets {
 
 export type PreambleFile = { path: string; name: string; content: string };
 
-export async function getPreambleFromFiles(
-	files: Set<TFile>,
-): Promise<PreambleFile[]> {
+export async function getPreambleFromFiles(files: Set<TFile>): Promise<PreambleFile[]> {
 	const fileContents: { path: string; name: string; content: string }[] = [];
 
 	for (const file of files) {

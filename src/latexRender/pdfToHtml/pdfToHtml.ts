@@ -1,40 +1,32 @@
 import { PDFDocument } from 'pdf-lib';
 import { SVGroot } from 'src/svg/nodes';
 import { optimizeSVG } from './optimizeSVG';
-import PdfToSvgWasm from "@pdf-to-svg-runtime";
+import PdfToSvgWasm from '@pdf-to-svg-runtime';
 
-export async function pdfToSVG(pdfData: Uint8Array,): Promise<string> {
+export async function pdfToSVG(pdfData: Uint8Array): Promise<string> {
 	const module = await PdfToSvgWasm();
 
-	module.FS.writeFile(
-		"/input.pdf",
-		pdfData,
-	);
+	module.FS.writeFile('/input.pdf', pdfData);
 
 	const status = module._convertPdfToSvg();
 
 	if (status !== 0) {
-		throw new Error(
-			`PDF to SVG failed with status ${status}`,
-		);
+		throw new Error(`PDF to SVG failed with status ${status}`);
 	}
 
 	try {
-		return module.FS.readFile(
-			"/input.svg",
-			{
-				encoding: "utf8",
-			},
-		);
+		return module.FS.readFile('/input.svg', {
+			encoding: 'utf8',
+		});
 	} finally {
 		try {
-			module.FS.unlink("/input.pdf");
+			module.FS.unlink('/input.pdf');
 		} catch {
 			// File might not have been created.
 		}
 
 		try {
-			module.FS.unlink("/input.svg");
+			module.FS.unlink('/input.svg');
 		} catch {
 			// Conversion might not have produced it.
 		}
@@ -124,12 +116,7 @@ async function cropSvgByPixels(svgString: string): Promise<string> {
 
 			ctx.drawImage(img, 0, 0);
 
-			const imageData = ctx.getImageData(
-				0,
-				0,
-				canvas.width,
-				canvas.height,
-			);
+			const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 			const pixels = imageData.data;
 
 			let minX = canvas.width,
@@ -183,10 +170,7 @@ async function cropSvgByPixels(svgString: string): Promise<string> {
 			const svg = doc.querySelector('svg');
 
 			if (svg) {
-				svg.setAttribute(
-					'viewBox',
-					`${minX} ${minY} ${cropWidth} ${cropHeight}`,
-				);
+				svg.setAttribute('viewBox', `${minX} ${minY} ${cropWidth} ${cropHeight}`);
 				svg.setAttribute('width', cropWidth.toString());
 				svg.setAttribute('height', cropHeight.toString());
 				resolve(svg.outerHTML);
@@ -205,9 +189,7 @@ async function cropSvgByPixels(svgString: string): Promise<string> {
 	});
 }
 
-async function getPdfDimensions(
-	pdf: any,
-): Promise<{ width: number; height: number }> {
+async function getPdfDimensions(pdf: any): Promise<{ width: number; height: number }> {
 	const pdfDoc = await PDFDocument.load(pdf);
 	const firstPage = pdfDoc.getPages()[0];
 	const { width, height } = firstPage.getSize();
