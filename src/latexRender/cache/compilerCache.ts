@@ -23,11 +23,6 @@ export function hashLatexContent(content: string) {
 	return hashString(content.replace(/\s/g, ''), 16);
 }
 
-export enum CacheStatus {
-	NotCached = 'NotCached',
-	Cached = 'Cached',
-	Error = 'Error',
-}
 /**
  * Manages caching for LaTeX files, logs, and packages.
  */
@@ -103,27 +98,6 @@ export default class CompilerCache {
 	 */
 	async removeAllCachedPackages() {
 		return this.packageCache.removeAllCachedPackages();
-	}
-
-	cacheStatusForHash(hash: string) {
-		switch (true) {
-			case this.resultFileCache.hasRawHash(hash):
-				return CacheStatus.Cached;
-			case this.logCache.hasLog(hash): //We have only the log - this means its in error state
-				return CacheStatus.Error;
-			default:
-				return CacheStatus.NotCached;
-		}
-	}
-
-	cacheStatusForHashAsNum(hash: string): number {
-		const status = this.cacheStatusForHash(hash);
-		const statusToNum: Record<CacheStatus, number> = {
-			[CacheStatus.Cached]: 0,
-			[CacheStatus.Error]: 2,
-			[CacheStatus.NotCached]: 4,
-		};
-		return statusToNum[status];
 	}
 
 	/**

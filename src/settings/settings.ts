@@ -89,7 +89,6 @@ export interface LatexCompilerPluginSettings {
 	 * currently only dealing with texlive200_cache
 	 */
 	packageCache: Array<StringMap>;
-	pdfEngineCooldown: number;
 	saveLogs: boolean;
 	overflowStrategy: OverflowStrategy;
 	compiler: CompilerType;
@@ -111,8 +110,9 @@ export const DEFAULT_SETTINGS: LatexCompilerPluginSettings = {
 	physicalCacheLocation: '',
 	cache: [],
 	packageCache: [{}, {}, {}, {}],
-	pdfEngineCooldown: 1000,
 	saveLogs: false,
 	overflowStrategy: OverflowStrategy.Downscale,
 	compiler: CompilerType.TeX,
 };
+
+export const SOURCE_REVERIFICATION_TIME_MS = 1000;

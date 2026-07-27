@@ -14,6 +14,7 @@ import { codeBlockToContent } from 'obsidian-dev-utils';
 import { sectionToTaskSectionInfo, taskSectionInfoToContent } from '../resolvers/sectionUtils';
 import { processTaskSource } from './latexTaskProcessor';
 import { hashLatexContent } from '../cache/compilerCache';
+import { SOURCE_REVERIFICATION_TIME_MS } from 'src/settings/settings';
 
 function createTask(
 	plugin: LatexCompilerPlugin,
@@ -111,7 +112,7 @@ export class LatexTask {
 	hasSourceChangeTimeExceededMargin() {
 		return (
 			Date.now() - this.lastSectionInfoVerificationTime >
-			this.plugin.settings.pdfEngineCooldown
+			SOURCE_REVERIFICATION_TIME_MS
 		);
 	}
 
@@ -239,14 +240,6 @@ export class LatexTask {
 
 	isProcess(): this is ProcessableLatexTask {
 		return this instanceof ProcessableLatexTask;
-	}
-
-	getCacheStatus() {
-		return this.plugin.latexRenderer.cache.cacheStatusForHash(this.rawHash);
-	}
-
-	getCacheStatusAsNum() {
-		return this.plugin.latexRenderer.cache.cacheStatusForHashAsNum(this.rawHash);
 	}
 
 	setSource(source: string) {

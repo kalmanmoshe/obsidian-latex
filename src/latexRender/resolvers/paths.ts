@@ -230,12 +230,18 @@ export function extractFileName(path: string): string {
 export function isValidFileStem(stem: any): boolean {
 	if (typeof stem !== 'string') return false;
 	stem = stem.trim();
+
 	if (
 		stem === '' ||
 		stem.length > 255 ||
-		/[<>:"/\\|?*\x00-\x1F]/.test(stem) ||
+		/[<>:"/\\|?*]/.test(stem) ||
 		/[. ]$/.test(stem)
 	) {
+		return false;
+	}
+
+	// Check for control characters (ASCII codes 0-31)
+	if ([...stem].some((char) => char.charCodeAt(0) < 32)) {
 		return false;
 	}
 

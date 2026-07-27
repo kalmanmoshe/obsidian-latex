@@ -1,7 +1,8 @@
 import { PDFDocument } from 'pdf-lib';
-import { SVGroot } from 'src/svg/nodes';
 import { optimizeSVG } from './optimizeSVG';
 import PdfToSvgWasm from '@pdf-to-svg-runtime';
+
+export const SVG_ID_KEY = 'data-id';
 
 export async function pdfToSVG(pdfData: Uint8Array): Promise<string> {
 	const module = await PdfToSvgWasm();
@@ -53,10 +54,7 @@ export async function pdfToOptimizedSVG(
 		svg = colorSVGinDarkMode(svg);
 	}
 
-	const parsedSVG = await SVGroot.parse(svg);
-	parsedSVG.idSvg(config.stem);
-	svg = parsedSVG.toString();
-	return svg;
+	return setSvgDataId(svg, config.stem);
 }
 
 function colorSVGinDarkMode(svg: string) {
@@ -74,6 +72,28 @@ function colorSVGinDarkMode(svg: string) {
 	}
 
 	return svg;
+}
+
+function setSvgDataId(svg: string, id: string): string {
+	const escapedId = id
+		.replace(/&/g, '&amp;')
+		.replace(/"/g, '&quot;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
+
+	return svg.replace(
+		/<svg\b([^>]*)>/i,
+		(_, attributes: string) => {
+			if (/\bdata-id\s*=/.test(attributes)) {
+				return `<svg${attributes.replace(
+					/\bdata-id\s*=\s*(?:"[^"]*"|'[^']*')/i,
+					`${SVG_ID_KEY}="${escapedId}"`,
+				)}>`;
+			}
+
+			return `<svg ${SVG_ID_KEY}="${escapedId}"${attributes}>`;
+		},
+	);
 }
 
 export async function pdfToHtml(pdfData: Uint8Array) {

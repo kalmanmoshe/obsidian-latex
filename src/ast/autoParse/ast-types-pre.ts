@@ -183,7 +183,7 @@ function migrateToClassStructure(ast: Ast): AstClass {
 				ast._renderInfo,
 				ast.position,
 			);
-		case 'macro':
+		case 'macro': {
 			const macroArgs = ast.args?.map(migrateToClassStructure);
 			if (macroArgs && !isArgumentClassArray(macroArgs)) {
 				throw new Error('macro node args must be an array of Arguments');
@@ -212,7 +212,7 @@ function migrateToClassStructure(ast: Ast): AstClass {
 				ast._renderInfo,
 				ast.position,
 			);
-		case 'environment':
+		} case 'environment': {
 			const envArgs = ast.args?.map(migrateToClassStructure);
 			if (envArgs && !isArgumentClassArray(envArgs)) {
 				throw new Error('environment node args must be an array of Arguments');
@@ -227,7 +227,7 @@ function migrateToClassStructure(ast: Ast): AstClass {
 			);
 			setEnvironmentArguments(newEnv);
 			return newEnv;
-		case 'verbatim':
+		} case 'verbatim':
 			return new VerbatimEnvironmentClass(
 				ast.env,
 				ast.content,

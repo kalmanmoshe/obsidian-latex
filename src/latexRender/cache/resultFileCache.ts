@@ -97,7 +97,6 @@ export default class ResultFileCache {
 			await this.cache.addFile(name, content);
 		}
 		await physicalCache.deleteCache();
-		this.cache = new ResultFileVirtualCache(this.plugin, resultFileCacheFormat);
 	}
 
 	private async togglePhysicalCacheOn() {

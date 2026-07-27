@@ -1,8 +1,8 @@
 $ErrorActionPreference = "Stop"
 
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
-$defaultPluginRoot = $scriptDirectory
-$configPath = Join-Path $scriptDirectory "scripts\local-config.ps1"
+$defaultPluginRoot = Split-Path -Parent $scriptDirectory
+$configPath = Join-Path $scriptDirectory "local-config.ps1"
 
 if (-not (Test-Path $configPath)) {
     throw @"

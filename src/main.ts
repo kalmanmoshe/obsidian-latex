@@ -1,7 +1,6 @@
 import { Plugin, Notice, MarkdownView, loadMathJax } from 'obsidian';
 import { LatexCompilerPluginSettings, DEFAULT_SETTINGS } from './settings/settings';
 import { LatexCompilerSettingTab } from './settings/settings_tab';
-
 import { getEditorCommands } from './obsidian/editor_commands';
 import { LatexRenderer } from './latexRender/LatexRenderer';
 import { MathJaxAbstractSyntaxTree } from './ast/mathJaxAbstractSyntaxTree';
@@ -78,7 +77,7 @@ export default class LatexCompilerPlugin extends Plugin {
 		if (!window.CodeMirror) return;
 
 		// @ts-ignore
-		const codeMirrorCodeBlocksSyntaxHighlighting = window.CodeMirror.modeInfo; //@ts-ignore
+		const codeMirrorCodeBlocksSyntaxHighlighting = window.CodeMirror.modeInfo;
 		if (!codeMirrorCodeBlocksSyntaxHighlighting.some((el: any) => el.name === 'latexsvg')) {
 			codeMirrorCodeBlocksSyntaxHighlighting.push({
 				name: 'latexsvg',

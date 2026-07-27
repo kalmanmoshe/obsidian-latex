@@ -3,7 +3,7 @@ import { Command, Notice } from 'obsidian';
 import LatexCompilerPlugin from 'src/main';
 import { getTestCommands } from 'src/tests/commands';
 import { extractAllSectionsByFile } from 'src/latexRender/resolvers/latexSourceFromFile';
-import { CacheStatus, hashLatexContent } from 'src/latexRender/cache/compilerCache';
+import { hashLatexContent } from 'src/latexRender/cache/compilerCache';
 import { LatexTask } from 'src/latexRender/task/latexTask';
 import { codeBlockToContent } from 'obsidian-dev-utils';
 
@@ -28,7 +28,7 @@ async function extractAllUnrenderedSectionsByFile(plugin: LatexCompilerPlugin) {
 		for (const section of codeBlockSections) {
 			const codeBlock = codeBlockToContent(section.codeBlock);
 			const hash = hashLatexContent(codeBlock);
-			if (plugin.latexRenderer.cache.cacheStatusForHash(hash) === CacheStatus.NotCached) {
+			if (!plugin.latexRenderer.cache.resultFileCache.hasRawHash(hash)) {
 				fileInfos.push(section);
 			}
 		}

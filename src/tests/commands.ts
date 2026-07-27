@@ -10,31 +10,10 @@ import {
 export function getTestCommands(plugin: LatexCompilerPlugin): Command[] {
 	return [
 		createTestLatexCommand(plugin),
-		createTestOnClipboard(),
 		createCancelTestCommand(),
 		createNewTestLatexCommand(plugin),
 		createOpenLastTestResultCommand(),
 	];
-}
-
-function createTestOnClipboard(): Command {
-	return {
-		id: 'test-clipboard',
-		name: 'Test Clipboard (runs function on its content and writes back to clipboard)',
-		callback: async () => {
-			const clipboardText = await navigator.clipboard.readText();
-			if (!clipboardText) {
-				new Notice('Clipboard is empty or not accessible.');
-				return;
-			}
-			try {
-				//const result = cropSvgByPixels(clipboardText);
-				// navigator.clipboard.writeText(result);
-			} catch (err) {
-				console.error('Error processing clipboard text:', err);
-			}
-		},
-	};
 }
 
 function createTestLatexCommand(plugin: LatexCompilerPlugin): Command {
@@ -70,12 +49,8 @@ function createOpenLastTestResultCommand(): Command {
 }
 
 interface CompileTracker {
-	stableSuccess: CompileAnalysisResult[];
-	stableFailure: CompileAnalysisResult[];
-	fixedErrors: CompileAnalysisResult[];
-	newlyBroken: CompileAnalysisResult[];
-	unknownSuccess: CompileAnalysisResult[];
-	unknownFailure: CompileAnalysisResult[];
+	success: CompileAnalysisResult[];
+	failure: CompileAnalysisResult[];
 }
 
 interface CompileAnalysisResult {
@@ -159,12 +134,8 @@ class CompileTest {
 		this.displayModal.open();
 		this.displayModal.setTestStartTime(this.testStartTime);
 		this.tracker = {
-			stableSuccess: [],
-			stableFailure: [],
-			fixedErrors: [],
-			newlyBroken: [],
-			unknownSuccess: [],
-			unknownFailure: [],
+			success: [],
+			failure: []
 		};
 
 		const files = app.vault.getFiles().filter((f) => f.extension === 'md');
@@ -201,12 +172,10 @@ class CompileTest {
 
 				const index = result.compileResult.status === CompileStatus.Success ? 0 : 1;
 
-				const trackerIndex = result.task.getCacheStatusAsNum() + index;
-
 				const keys = Object.keys(this.tracker) as (keyof CompileTracker)[];
-				this.tracker[keys[trackerIndex]].push(result);
+				this.tracker[keys[index]].push(result);
 
-				this.displayModal.addResult(trackerIndex, result, duration);
+				this.displayModal.addResult(index, result, duration);
 			}
 		}
 
@@ -343,14 +312,6 @@ class TestResultModal extends Modal {
 		entry.createEl('p', {
 			text: `${result.task.sourcePath} (Line ${sectionLine}) — ${duration.toFixed(1)}ms`,
 		});
-
-		entry.createEl('a', {
-			text: 'Go to code block ↗',
-			href: `obsidian://open?path=${encodeURIComponent(
-				result.task.sourcePath,
-			)}#^${sectionLine}`,
-			cls: 'external-link',
-		});
 	}
 
 	finish() {
@@ -404,9 +365,11 @@ class TestResultModal extends Modal {
 	async saveReport() {
 		const tracker = CompileTest.tracker;
 		let idx = 0;
-		if (app.vault.getAbstractFileByPath('compile-report.md') !== null) {
+		let filename = 'compile-report.md';
+
+		while (app.vault.getAbstractFileByPath(filename) !== null) {
 			idx++;
-			while (app.vault.getAbstractFileByPath('compile-report' + idx + '.md') !== null) {}
+			filename = `compile-report${idx}.md`;
 		}
 
 		const path = idx === 0 ? 'compile-report.md' : 'compile-report-' + idx + '.md';
@@ -421,9 +384,7 @@ class TestResultModal extends Modal {
 		const blocks = Object.entries(tracker).map(([label, results]) => {
 			const items = (results as CompileAnalysisResult[])
 				.map((r: CompileAnalysisResult) => {
-					const line = r.section.lineStart;
-					const link = `obsidian://open?path=${encodeURIComponent(r.task.sourcePath)}#^${line}`;
-					return `- [${r.task.sourcePath}](<${link}>) (Line ${line})`;
+					return `- ${r.task.sourcePath} (Line ${r.section.lineStart})`;
 				})
 				.join('\n');
 			return `### ${label} (${results.length})\n${items}`;

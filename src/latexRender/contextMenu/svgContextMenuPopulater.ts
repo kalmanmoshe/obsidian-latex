@@ -7,9 +7,9 @@ import {
 	findTaskSectionInfoFromHashInFile,
 	TaskSectionInformation,
 } from '../resolvers/taskSectionInformation';
-import { SVG_ID_KEY } from 'src/svg/nodes';
 import { codeBlockToContent } from 'obsidian-dev-utils';
 import ResultFileCache from '../cache/resultFileCache';
+import { SVG_ID_KEY } from '../pdfToHtml/pdfToHtml';
 
 async function revealFileWithFocus(path: string) {
 	if (!Platform.isDesktopApp) {
@@ -204,11 +204,15 @@ export class SvgContextMenuPopulater {
 
 	private revealFileInExplorer() {
 		if (this.isError) {
-			throw new Error("Can't reveal file in explorer, this is an error container.");
+			throw new Error("Can't reveal file in explorer, this is an error display. no file to reveal.");
 		}
 		try {
 			if (!this.resultFileCache.isPhysicalCatch()) {
 				new Notice("Result file cache is not physical, can't open file in explorer.");
+				return;
+			}
+			if (!this.resultFileCache.hasRawHash(this.rawHash)) {
+				new Notice("File not found in cache, can't open file in explorer.");
 				return;
 			}
 			const filePath = this.resultFileCache.getAbsolutePathFromStem(this.stem);

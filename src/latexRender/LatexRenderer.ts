@@ -3,7 +3,7 @@ import { CompileResult, CompileStatus } from './compiler/base/compilerBase/engin
 import LatexCompilerPlugin from '../main';
 import { CompilerType } from 'src/settings/settings.js';
 
-import { pdfToHtml, pdfToOptimizedSVG, pdfToSVG } from './pdfToHtml/pdfToHtml';
+import { pdfToHtml, pdfToOptimizedSVG, pdfToSVG, SVG_ID_KEY } from './pdfToHtml/pdfToHtml';
 import parseLatexLog, { createErrorDisplay, errorDiv } from './logs/HumanReadableLogs';
 import { VfsCompileMode, VirtualFileSystem } from './VirtualFileSystem';
 import { ProcessedLog } from './logs/latex-log-parser';
@@ -12,7 +12,6 @@ import { LatexTask, ProcessableLatexTask } from './task/latexTask';
 import { PdfXeTeXCompiler } from './compiler/swiftlatexxetex/pdfXeTeXCompiler';
 import LatexCompiler from './compiler/base/compilerBase/compiler';
 import CompilerCache, { hashLatexContent } from './cache/compilerCache';
-import { SVG_ID_KEY } from 'src/svg/nodes';
 import { LatexRenderQueue } from './LatexRenderQueue';
 import { getLogCacheKey } from './cache/logCache';
 
@@ -61,17 +60,12 @@ export class LatexRenderer {
 
 	async onload(plugin: LatexCompilerPlugin) {
 		this.plugin = plugin;
+		this.cache = new CompilerCache(this.plugin);
 		if (this.isNotIos()) {
-			this.cache = new CompilerCache(this.plugin);
 			await this.loadCompiler();
 
-			this.queue = new LatexRenderQueue({
-				renderTask: this.processAndRenderLatexTask.bind(this),
-				getCooldown: () => this.plugin.settings.pdfEngineCooldown,
-			});
+			this.queue = new LatexRenderQueue(this.processAndRenderLatexTask.bind(this));
 		}
-
-		console.log('SwiftlatexRender loaded');
 	}
 
 	switchCompiler(): Promise<void> {
@@ -134,8 +128,7 @@ export class LatexRenderer {
 			);
 			return;
 		}
-
-		// Attach a menu to the element for user interaction, such as re-rendering or viewing logs.
+		// Attach the menu to the element
 		this.plugin.menuDecider.add(el, ctx.sourcePath);
 
 		const task = createResult.result as LatexTask | ProcessableLatexTask;
@@ -434,13 +427,6 @@ async function getCacheDependencyPaths(
 		: [];
 
 	return [...new Set([...explicitDeps, ...autoUsePaths])].sort();
-}
-
-export class TimeoutError extends Error {
-	constructor(message = 'Timed out') {
-		super(message);
-		this.name = 'TimeoutError';
-	}
 }
 
 function toErrorString(e: unknown): string {

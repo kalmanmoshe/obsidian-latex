@@ -6,7 +6,6 @@ import {
 	addDropdownSetting,
 	addToggleSetting,
 	setPluginInstance,
-	createSetting,
 	addButtonSetting,
 	addFileSearchSetting,
 } from 'obsidian-dev-utils';
@@ -73,20 +72,6 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 				defValue: this.plugin.settings.overflowStrategy,
 			},
 		);
-		const setting = createSetting(containerEl, {
-			name: 'PDF Engine Cooldown Time',
-			description:
-				'The interval (in seconds) between PDF rendering jobs. A higher value decreases performance.',
-		});
-		setting.addSlider((slider) => {
-			slider.setLimits(0, 5, 1);
-			slider.setValue(this.plugin.settings.pdfEngineCooldown / 1000);
-			slider.setDynamicTooltip();
-			slider.onChange((value) => {
-				this.plugin.settings.pdfEngineCooldown = value * 1000;
-				this.plugin.saveSettings();
-			});
-		});
 		addDropdownSetting(
 			containerEl,
 			(value: string) => {

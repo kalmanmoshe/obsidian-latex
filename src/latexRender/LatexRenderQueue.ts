@@ -2,11 +2,6 @@ import async from 'async';
 import { LatexTask } from './task/latexTask';
 import { CssClasses } from 'src/util/cssClassesConstants';
 
-export type QueueRenderer = {
-	renderTask(task: LatexTask): Promise<boolean>;
-	getCooldown(): number;
-};
-
 type InternalTask<T> = {
 	data: T;
 	callback: Function;
@@ -27,7 +22,7 @@ export class LatexRenderQueue {
 	//@ts-ignore
 	private currentTask: LatexTask | null = null;
 
-	constructor(private renderer: QueueRenderer) {
+	constructor(private renderTask: (task: LatexTask) => Promise<boolean>) {
 		this.configQueue();
 	}
 
@@ -93,14 +88,12 @@ export class LatexRenderQueue {
 		this.queue = async.queue((task: LatexTask, done) => {
 			this.currentTask = task;
 			(async () => {
-				const didRender = await this.renderer.renderTask(task);
+				const didRender = await this.renderTask(task);
 				updateQueueCountdown(this.queue);
 
 				if (didRender) {
-					setTimeout(() => {
-						this.currentTask = null;
-						done();
-					}, this.renderer.getCooldown());
+					this.currentTask = null;
+					done();
 				} else {
 					this.currentTask = null;
 					done();
