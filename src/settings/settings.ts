@@ -1,8 +1,8 @@
 export type StringMap = Record<string, string | number>;
 
 export enum CompilerType {
-	TeX = 'tex',
-	XeTeX = 'xetex',
+	PdfTeX = 'PdfTeX',
+	XeTeX = 'XeTeX',
 }
 /**
  * What to do when the content overflows the container.
@@ -79,15 +79,6 @@ export interface LatexCompilerPluginSettings {
 	physicalCache: boolean;
 	physicalCacheLocation: string;
 	cache: CacheJson;
-	/**
-	 * There are four catches:
-	 * 1. texlive404_cache - Not found files
-	 * 2. texlive200_cache
-	 * 3. pk404_cache - Not found files
-	 * 4. pk200_cache - idk
-	 *
-	 * currently only dealing with texlive200_cache
-	 */
 	packageCache: Array<StringMap>;
 	saveLogs: boolean;
 	overflowStrategy: OverflowStrategy;
@@ -104,15 +95,15 @@ export const DEFAULT_SETTINGS: LatexCompilerPluginSettings = {
 	invertColorsInDarkMode: true,
 	autoRemoveWhitespace: true,
 	dirtyResultFiles: [],
-
-	package_url: 'http://46.101.255.60:3000/' /*`https://texlive2.swiftlatex.com/`*/,
+	//its the public mirror of `https://texlive2.swiftlatex.com/` (which is down and not maintained any more) maintained by Texlyre
+	package_url: 'https://texlive.texlyre.org/',
 	physicalCache: true,
 	physicalCacheLocation: '',
 	cache: [],
 	packageCache: [{}, {}, {}, {}],
 	saveLogs: false,
 	overflowStrategy: OverflowStrategy.Downscale,
-	compiler: CompilerType.TeX,
+	compiler: CompilerType.PdfTeX,
 };
 
 export const SOURCE_REVERIFICATION_TIME_MS = 1000;

@@ -4,9 +4,9 @@ export const CssClasses = {
 	},
 
 	loader: {
-		loaderParentContainer: 'latex-compiler-latex-render-loader-parent-container',
-		renderLoader: 'latex-compiler-latex-render-loader',
-		renderCountdown: 'latex-compiler-latex-render-countdown',
+		loaderParentContainer: 'latex-compiler-loader-parent-container',
+		renderLoader: 'latex-compiler-loader',
+		renderCountdown: 'latex-compiler-countdown',
 	},
 
 	block: {

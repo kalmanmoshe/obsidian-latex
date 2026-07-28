@@ -1,14 +1,14 @@
 /*
   latex render elements loder
 */
-.latex-compiler-latex-render-loader-parent-container {
+.latex-compiler-loader-parent-container {
 	display: flex;
 	justify-content: center;
 	align-items: center;
 	position: relative;
 }
 
-.latex-compiler-latex-render-loader {
+.latex-compiler-loader {
 	border: 8px solid #f3f3f3;
 	border-top: 8px solid #3498db;
 	border-radius: 50%;
@@ -19,7 +19,7 @@
 	/* Needed for absolute positioning of the countdown */
 }
 
-.latex-compiler-latex-render-countdown {
+.latex-compiler-countdown {
 	position: absolute;
 	top: 50%;
 	left: 50%;

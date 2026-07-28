@@ -66,25 +66,27 @@ export class SvgContextMenuPopulater {
 	constructor(
 		plugin: LatexCompilerPlugin,
 		menu: Menu,
-		trigeringElement: HTMLElement,
+		triggeringElement: HTMLElement,
 		sourcePath: string,
 	) {
 		this.plugin = plugin;
 		this.menu = menu;
 		this.resultFileCache = this.plugin.latexRenderer.cache.resultFileCache;
-		this.assignElements(trigeringElement);
 		this.sourcePath = sourcePath;
-		this.addDisplayItems();
-	}
 
-	private assignElements(triggeringElement: HTMLElement) {
 		this.blockEl = findSvgContainer(triggeringElement);
+		// A loader has no context-menu items.
+		if (this.checkIsLoader()) {
+			return;
+		}
 
 		this.svgEl = this.findSvg();
 		this.containerEl = this.findErrorContainer();
 		this.isError = !this.svgEl;
-
+		
 		this.assignStem();
+
+		this.addDisplayItems();
 	}
 
 	private findSvg(): SVGElement | undefined {
@@ -98,6 +100,10 @@ export class SvgContextMenuPopulater {
 			(child): child is HTMLElement =>
 				child instanceof HTMLElement && child.classList.contains(ErrorClasses.Container),
 		);
+	}
+
+	private checkIsLoader(): boolean {
+		return findChildEl(this.blockEl, isLoader) !== undefined
 	}
 
 	private assignStem() {
@@ -334,7 +340,7 @@ export class SvgContextMenuPopulater {
 }
 
 function findSvgContainer(el: HTMLElement): HTMLElement {
-	const container = climbToSvgContainer(el) ?? findChildSvgContainer(el);
+	const container = climbToEl(el, isSvgContainer) ?? findChildEl(el, isSvgContainer);
 
 	if (!container) {
 		throw new Error('No SVG container found');
@@ -343,15 +349,15 @@ function findSvgContainer(el: HTMLElement): HTMLElement {
 	return container;
 }
 
-function climbToSvgContainer(el: HTMLElement): HTMLElement | undefined {
+function climbToEl(el: HTMLElement, predicate: (el: HTMLElement) => boolean): HTMLElement | undefined {
 	let current: HTMLElement | null = el;
 
 	while (current) {
-		if (isSvgContainer(current)) {
+		if (predicate(current)) {
 			return current;
 		}
 
-		const childContainer = findChildSvgContainer(current);
+		const childContainer = findChildEl(current, isSvgContainer);
 		if (childContainer) {
 			return childContainer;
 		}
@@ -362,12 +368,16 @@ function climbToSvgContainer(el: HTMLElement): HTMLElement | undefined {
 	return undefined;
 }
 
-function findChildSvgContainer(el: HTMLElement): HTMLElement | undefined {
+function findChildEl(el: HTMLElement, predicate: (el: HTMLElement) => boolean): HTMLElement | undefined {
 	return Array.from(el.children).find(
-		(child): child is HTMLElement => child instanceof HTMLElement && isSvgContainer(child),
+		(child): child is HTMLElement => child instanceof HTMLElement && predicate(child),
 	);
 }
 
 function isSvgContainer(el: HTMLElement) {
 	return el.classList.contains('block-language-latexsvg');
+}
+
+function isLoader(el: HTMLElement) {
+	return el.classList.contains('latex-compiler-loader-parent-container');
 }

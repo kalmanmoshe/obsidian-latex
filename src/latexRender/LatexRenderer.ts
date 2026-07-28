@@ -73,7 +73,7 @@ export class LatexRenderer {
 
 		const isTex =
 			this.compiler instanceof PdfTeXCompiler &&
-			this.plugin.settings.compiler === CompilerType.TeX;
+			this.plugin.settings.compiler === CompilerType.PdfTeX;
 
 		const isXeTeX =
 			this.compiler instanceof PdfXeTeXCompiler &&
@@ -88,7 +88,7 @@ export class LatexRenderer {
 	}
 
 	private async loadCompiler() {
-		if (this.plugin.settings.compiler === CompilerType.TeX) {
+		if (this.plugin.settings.compiler === CompilerType.PdfTeX) {
 			this.compiler = new PdfTeXCompiler();
 		} else {
 			this.compiler = new PdfXeTeXCompiler();
@@ -421,9 +421,9 @@ async function getCacheDependencyPaths(
 
 	const autoUsePaths = plugin.settings.compilerVfsEnabled
 		? vfs
-				.getAutoUseFiles()
-				.map((file) => file.path)
-				.filter((path) => !explicitDeps.includes(path))
+			.getAutoUseFiles()
+			.map((file) => file.path)
+			.filter((path) => !explicitDeps.includes(path))
 		: [];
 
 	return [...new Set([...explicitDeps, ...autoUsePaths])].sort();

@@ -15,7 +15,7 @@ export default abstract class LatexCompiler {
 		return this.engines.every(
 			(engine) =>
 				engine.getEngineStatus() !== EngineStatus.Unresponsive &&
-				engine.getEngineStatus() !== EngineStatus.Error,
+				engine.getEngineStatus() !== EngineStatus.Failed,
 		);
 	}
 
@@ -108,7 +108,7 @@ export default abstract class LatexCompiler {
 
 	getEnginesStatus() {
 		return this.engines.map((engine) => ({
-			name: engine.constructor.name,
+			name: engine.engineName,
 			status: engine.getEngineStatus(),
 		}));
 	}

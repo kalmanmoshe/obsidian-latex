@@ -1,5 +1,4 @@
 import { Command, Notice } from 'obsidian';
-
 import LatexCompilerPlugin from 'src/main';
 import { getTestCommands } from 'src/tests/commands';
 import { extractAllSectionsByFile } from 'src/latexRender/resolvers/latexSourceFromFile';

@@ -2,8 +2,8 @@ export enum EngineStatus {
 	Init,
 	Ready,
 	Busy,
-	Error,
 	Unresponsive,
+	Failed
 }
 
 export enum CompileStatus {
@@ -55,7 +55,7 @@ export default class LatexEngine {
 	constructor(
 		private readonly createWorker: () => Promise<Worker>,
 		//name of the engine, used for logging and debugging
-		protected engineName: string,
+		readonly engineName: string,
 	) {}
 
 	async loadEngine(): Promise<void> {
@@ -79,7 +79,7 @@ export default class LatexEngine {
 
 				this.worker?.terminate();
 				this.worker = undefined;
-				this.engineStatus = EngineStatus.Error;
+				this.engineStatus = EngineStatus.Failed;
 
 				reject(new Error(`${this.engineName} failed to initialize`));
 			};
@@ -87,7 +87,7 @@ export default class LatexEngine {
 			this.worker!.onerror = (ev: ErrorEvent) => {
 				this.worker?.terminate();
 				this.worker = undefined;
-				this.engineStatus = EngineStatus.Error;
+				this.engineStatus = EngineStatus.Failed;
 
 				reject(new Error(`${this.engineName} worker error: ${ev.message}`));
 			};
@@ -181,8 +181,7 @@ export default class LatexEngine {
 		}>({
 			cmd: EngineCommands.FetchCache,
 		});
-		console.warn(`Engine ${this.engineName} got cache data from worker`, data);
-
+		
 		if (!data) {
 			throw new Error(`Engine ${this.engineName} received no cache data from the worker.`);
 		}
@@ -278,15 +277,11 @@ export default class LatexEngine {
 
 			worker.onmessage = (ev: MessageEvent<any>) => {
 				try {
-					console.log(
-						`Engine ${this.engineName} worker message received for cmd=${command}:`,
-						ev.data,
-					);
 					if (
 						ev.data?.cmd === EngineCommands.WorkerError ||
 						ev.data?.cmd === EngineCommands.WorkerRejection
 					) {
-						this.engineStatus = EngineStatus.Error;
+						this.engineStatus = EngineStatus.Failed;
 						fail(
 							new Error(
 								`Engine ${this.engineName} worker error: ${ev.data ?? 'unknown error'}`,
@@ -300,16 +295,6 @@ export default class LatexEngine {
 
 					window.clearTimeout(timer);
 
-					if (ev.data.result !== 'ok') {
-						this.engineStatus = EngineStatus.Error;
-						fail(
-							new Error(
-								`Engine failed cmd=${command}: ${ev.data.result ?? 'unknown error'}`,
-							),
-						);
-						return;
-					}
-
 					this.engineStatus = EngineStatus.Ready;
 
 					const data = { ...ev.data };
@@ -319,14 +304,14 @@ export default class LatexEngine {
 					ok(Object.keys(data).length ? (data as T) : (undefined as T));
 				} catch (err) {
 					window.clearTimeout(timer);
-					this.engineStatus = EngineStatus.Error;
+					this.engineStatus = EngineStatus.Failed;
 					fail(err);
 				}
 			};
 
 			worker.onerror = (err: ErrorEvent) => {
 				window.clearTimeout(timer);
-				this.engineStatus = EngineStatus.Error;
+				this.engineStatus = EngineStatus.Failed;
 				console.error(`Engine ${this.engineName} worker error:`, err);
 				fail(new Error(`Engine ${this.engineName} worker error: ${err.message}`));
 			};

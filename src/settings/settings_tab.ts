@@ -82,10 +82,10 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 			{
 				name: 'Compiler',
 				description:
-					"Choose the LaTeX compiler for rendering diagrams. 'TeX' is the classic engine, while 'XeTeX' offers better Unicode and modern font support. Changing this may affect compatibility and output.",
+					"Choose the LaTeX compiler for rendering diagrams. 'PdfTeX' is the classic engine, while 'XeTeX' offers better Unicode and modern font support. Changing this may affect compatibility and output.",
 				dropDownOptions: {
-					tex: 'TeX',
-					xetex: 'XeTeX',
+					pdftex: CompilerType.PdfTeX,
+					xetex: CompilerType.XeTeX,
 				},
 				defValue: this.plugin.settings.compiler,
 			},
