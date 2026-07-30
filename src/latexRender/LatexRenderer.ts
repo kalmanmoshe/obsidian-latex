@@ -231,7 +231,8 @@ export class LatexRenderer {
 
 			return await this.renderLatexToPDF(task.getProcessedContent(), compileMode);
 		} catch (err) {
-			return new CompileResult(undefined, CompileStatus.CompileError, toErrorString(err));
+			const errorText = err instanceof LatexCompilationError ? err.latexLog : toErrorString(err);
+			return new CompileResult(undefined, CompileStatus.CompileError, errorText);
 		}
 	}
 
@@ -316,7 +317,11 @@ export class LatexRenderer {
 
 			this.cache.resultFileCache.addFile(el.innerHTML, rawHash, dependencyPaths, sourcePath);
 		} catch (err) {
-			this.handleErrorForTask(task, toErrorString(err), {
+			const errorText = err instanceof LatexCompilationError
+				? err.latexLog
+				: toErrorString(err);
+
+				this.handleErrorForTask(task, errorText, {
 				parseErr: true,
 			});
 		} finally {
@@ -350,12 +355,12 @@ export class LatexRenderer {
 			this.cache.addLog(result.log, logCacheKey);
 		}
 
-		if (result.status !== 0) {
-			throw new Error(result.log);
-		}
-
 		if (config.fetchPkgData) {
 			await this.cache.fetchPackageCacheData();
+		}
+
+		if (result.status !== 0) {
+			throw new LatexCompilationError(result.log);
 		}
 
 		return result;
@@ -427,6 +432,13 @@ async function getCacheDependencyPaths(
 		: [];
 
 	return [...new Set([...explicitDeps, ...autoUsePaths])].sort();
+}
+
+class LatexCompilationError extends Error {
+	constructor(public readonly latexLog: string) {
+		super('LaTeX compilation failed');
+		this.name = 'LatexCompilationError';
+	}
 }
 
 function toErrorString(e: unknown): string {

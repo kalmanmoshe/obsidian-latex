@@ -381,7 +381,9 @@ export default class LatexEngine {
 					// If it’s hung, it will never process "grace" anyway.
 					// Terminate is the only reliable stop.
 					this.worker.terminate();
-				} catch {}
+				} catch (err) {
+					console.error(`Error terminating engine ${this.engineName} worker:`, err);
+				}
 			} else {
 				this.worker.postMessage({ cmd: EngineCommands.Grace });
 			}

@@ -4,8 +4,7 @@
   "version": "1.0.0-beta",
   "minAppVersion": "0.15.0",
   "description": "A plugin that compiles LaTeX code in Obsidian.",
-  "author": "moshe weinstock",
-  "authorUrl": "https://obsidian.md",
-  "fundingUrl": "https://obsidian.md/pricing",
+  "author": "Moshe Weinstock",
+  "authorUrl": "https://github.com/kalmanmoshe/",
   "isDesktopOnly": false
 }

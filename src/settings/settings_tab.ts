@@ -1,4 +1,3 @@
-import { EditorView } from '@codemirror/view';
 import { Notice, PluginSettingTab, Setting, setIcon } from 'obsidian';
 import LatexRenderPlugin from '../main';
 import { CompilerType, DEFAULT_SETTINGS, OverflowStrategy } from './settings';
@@ -10,11 +9,10 @@ import {
 	addFileSearchSetting,
 } from 'obsidian-dev-utils';
 
+const FILE_SEARCH_DEBOUNCE_MS = 5000;
+
 export class LatexCompilerSettingTab extends PluginSettingTab {
 	plugin: LatexRenderPlugin;
-	snippetsEditor: EditorView;
-	snippetsFileLocEl: HTMLElement;
-	snippetVariablesFileLocEl: HTMLElement;
 
 	constructor(plugin: LatexRenderPlugin) {
 		super(app, plugin);
@@ -72,6 +70,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 				defValue: this.plugin.settings.overflowStrategy,
 			},
 		);
+		
 		addDropdownSetting(
 			containerEl,
 			(value: string) => {
@@ -84,8 +83,8 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 				description:
 					"Choose the LaTeX compiler for rendering diagrams. 'PdfTeX' is the classic engine, while 'XeTeX' offers better Unicode and modern font support. Changing this may affect compatibility and output.",
 				dropDownOptions: {
-					pdftex: CompilerType.PdfTeX,
-					xetex: CompilerType.XeTeX,
+					[CompilerType.PdfTeX]: 'PdfTeX',
+					[CompilerType.XeTeX]: 'XeTeX',
 				},
 				defValue: this.plugin.settings.compiler,
 			},
@@ -136,7 +135,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 					'The directory where rendered diagrams are stored. Empty for default, "/" for the vault root, or a specific path.',
 				placeholder: DEFAULT_SETTINGS.physicalCacheLocation,
 				defValue: this.plugin.settings.physicalCacheLocation,
-				debounce: { timeout: 5000, resetTimer: true },
+				debounce: { timeout: FILE_SEARCH_DEBOUNCE_MS, resetTimer: true },
 			},
 		);
 		physicalCacheLocationSetting.settingEl.toggleClass(
@@ -193,7 +192,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 					'the file/directory containing the preamble for MathJax requirs reload to take effect',
 				placeholder: DEFAULT_SETTINGS.mathjaxPreambleFileLocation,
 				defValue: this.plugin.settings.mathjaxPreambleFileLocation,
-				debounce: { timeout: 1000, resetTimer: true },
+				debounce: { timeout: FILE_SEARCH_DEBOUNCE_MS, resetTimer: true },
 			},
 		);
 		mathjaxPreambleFileLoc.settingEl.toggleClass(
@@ -261,7 +260,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 					'Specify a directory containing virtual files to automatically include in every LaTeX render. ',
 				placeholder: DEFAULT_SETTINGS.autoloadedVfsFilesDir,
 				defValue: this.plugin.settings.autoloadedVfsFilesDir,
-				debounce: { timeout: 1000, resetTimer: true },
+				debounce: { timeout: FILE_SEARCH_DEBOUNCE_MS, resetTimer: true },
 			},
 		);
 		autoloadedVfsFilesDir.settingEl.toggleClass(
