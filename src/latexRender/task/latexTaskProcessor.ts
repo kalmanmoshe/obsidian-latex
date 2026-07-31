@@ -1,5 +1,5 @@
 import LatexCompilerPlugin from 'src/main';
-import { VirtualFileSystem } from '../VirtualFileSystem';
+import { VirtualFileSystem } from '../../dependency/VirtualFileSystem';
 import { ProcessableLatexTask } from './latexTask';
 
 export async function processTaskSource(

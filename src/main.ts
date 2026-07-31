@@ -1,30 +1,26 @@
-import { Plugin, Notice, MarkdownView, loadMathJax } from 'obsidian';
+import { Plugin, Notice } from 'obsidian';
 import { LatexCompilerPluginSettings, DEFAULT_SETTINGS } from './settings/settings';
 import { LatexCompilerSettingTab } from './settings/settings_tab';
 import { getEditorCommands } from './obsidian/editor_commands';
 import { LatexRenderer } from './latexRender/LatexRenderer';
-import { MathJaxAbstractSyntaxTree } from './ast/mathJaxAbstractSyntaxTree';
 import {
-	getFileSets,
+	getFilesWithin,
 	getPreambleFromFiles,
 	onFileChange,
 	onFileCreate,
 	onFileDelete,
 } from './obsidian/file_watch';
 import { SvgContextMenuDecider } from './latexRender/contextMenu/svgContextMenuDecider';
-import { MathjaxVFS } from './latexRender/MathjaxVFS';
 
 export default class LatexCompilerPlugin extends Plugin {
 	settings: LatexCompilerPluginSettings;
 	latexRenderer: LatexRenderer = new LatexRenderer();
 	menuDecider: SvgContextMenuDecider;
-	mathJaxVFS: MathjaxVFS;
 
 	async onload() {
 		const startTime = performance.now();
 		console.log('Loading Latex Compiler plugin');
 		this.menuDecider = new SvgContextMenuDecider(this);
-		this.mathJaxVFS = new MathjaxVFS();
 
 		await this.loadSettings();
 
@@ -48,7 +44,6 @@ export default class LatexCompilerPlugin extends Plugin {
 
 	private async loadLayoutReadyDependencies() {
 		this.processLatexPreambles(true);
-		this.loadMathJax();
 		// we need to use await here because the codeBlock processor
 		// needs to be loaded before the codeBlocks are processed
 		await this.latexRenderer.onload(this);
@@ -108,109 +103,19 @@ export default class LatexCompilerPlugin extends Plugin {
 		}
 	}
 
-	async loadMathJax(): Promise<void> {
-		await loadMathJax();
-
-		await this.updateMathjaxVFS();
-
-		const MJ = (window as any).MathJax;
-		if (!MJ?.startup?.promise) {
-			this.refreshAllWindows();
-			return;
-		}
-
-		await MJ.startup.promise;
-
-		let preamble = '';
-		if (this.settings.mathjaxPreambleEnabled) {
-			const paths = this.mathJaxVFS.getRootFilePaths();
-
-			const preambles = await Promise.all(
-				paths.map((path) => this.mathJaxVFS.getFileWithInlinedDependencies(path)),
-			);
-			preamble = preambles.join('\n');
-		}
-
-		if (preamble.trim()) {
-			this.seedMathJaxPreamble(MJ, preamble);
-		}
-
-		this.patchMathJaxRender(MJ);
-		this.refreshAllWindows();
-	}
-
-	private seedMathJaxPreamble(MJ: any, preamble: string) {
-		// Important: no $$, no \( \), only macro definitions.
-		// tex2mml parses it and stores \newcommand definitions globally.
-		MJ.tex2mml(preamble);
-	}
-
-	private patchMathJaxRender(MJ: any) {
-		// On plugin reload, if Obsidian itself doesn't reload, the flag will still be true
-		// because the global MathJax object persists through
-		if (MJ.__patchedTex2Chtml) return;
-
-		const original = MJ.tex2chtml.bind(MJ);
-
-		MJ.tex2chtml = (input: string, options: { display: boolean }) => {
-			const processed = this.processMathJax(input);
-			return original(processed, options);
-		};
-
-		MJ.__patchedTex2Chtml = true;
-	}
-
-	private refreshAllWindows() {
-		app.workspace.iterateAllLeaves((leaf) => {
-			if (leaf.view instanceof MarkdownView) {
-				const editor = leaf.view.editor;
-				if (editor) {
-					const cursor = editor.getCursor();
-					editor.setValue(editor.getValue());
-					editor.setCursor(cursor);
-				}
-			}
-		});
-	}
-
-	private async updateMathjaxVFS(): Promise<void> {
-		const mathjaxPreambleFiles = getFileSets(this).mathjaxPreambleFiles;
-
-		const preambles = await getPreambleFromFiles(mathjaxPreambleFiles);
-
-		this.mathJaxVFS.flush();
-		await this.mathJaxVFS.addOrReplaceFiles(preambles);
-	}
-
-	private processMathJax(input: string): string {
-		//return input
-		if (!/[א-ת]/.test(input)) return input;
-		const ast = MathJaxAbstractSyntaxTree.parse(input);
-		ast.reverseRtl();
-
-		return ast.toString();
-	}
-
 	private async loadSettings() {
 		let data = await this.loadData();
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
 		await this.saveSettings();
 	}
 
-	async saveSettings(didMathjaxFileLocationChange = false, didLatexFileLocationChange = false) {
+	async saveSettings(didLatexFileLocationChange = false) {
 		await this.saveData(this.settings);
 		await this.latexRenderer.vfs.setEnabled(this.settings.compilerVfsEnabled);
-		await this.mathJaxVFS.setEnabled(this.settings.mathjaxPreambleEnabled);
 
 		if (didLatexFileLocationChange && this.settings.compilerVfsEnabled) {
 			app.workspace.onLayoutReady(async () => {
 				await this.processLatexPreambles(didLatexFileLocationChange);
-			});
-		}
-
-		if (didMathjaxFileLocationChange && this.settings.mathjaxPreambleEnabled) {
-			app.workspace.onLayoutReady(async () => {
-				await this.loadMathJax();
 			});
 		}
 	}
@@ -232,8 +137,8 @@ export default class LatexCompilerPlugin extends Plugin {
 		becauseFileLocationUpdated: boolean,
 		becauseFileUpdated: boolean,
 	) {
-		const files = getFileSets(this);
-		const coorFiles = await getPreambleFromFiles(files.latexVirtualFiles);
+		const files = getFilesWithin(this.app.vault, this.settings.autoloadedVfsFilesDir);
+		const coorFiles = await getPreambleFromFiles(files);
 		this.showPreambleLoadedNotice(
 			coorFiles.length,
 			becauseFileLocationUpdated,

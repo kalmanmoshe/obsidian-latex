@@ -64,8 +64,6 @@ export interface PackageCacheData {
 }
 
 export interface LatexCompilerPluginSettings {
-	mathjaxPreambleEnabled: boolean;
-	mathjaxPreambleFileLocation: string;
 	compilerVfsEnabled: boolean;
 	autoloadedVfsFilesDir: string;
 	virtualFilesFromCodeBlocks: boolean;
@@ -86,8 +84,6 @@ export interface LatexCompilerPluginSettings {
 }
 
 export const DEFAULT_SETTINGS: LatexCompilerPluginSettings = {
-	mathjaxPreambleEnabled: false,
-	mathjaxPreambleFileLocation: '',
 	compilerVfsEnabled: false,
 	autoloadedVfsFilesDir: '',
 	virtualFilesFromCodeBlocks: false,

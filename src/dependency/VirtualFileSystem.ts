@@ -1,11 +1,9 @@
-import { LatexAbstractSyntaxTree } from 'src/ast/LatexAbstractSyntaxTree';
-import LatexCompiler from './compiler/base/compilerBase/compiler';
-import { LatexDependencyNode, LatexDependencyParser } from './task/LatexDependencyParser';
+import LatexCompiler from '../latexRender/compiler/base/compilerBase/compiler';
+import { LatexDependencyNode, LatexDependencyParser } from './LatexDependencyParser';
 import { Notice } from 'obsidian';
 import { DependencyGraphStore } from 'src/dependency/DependencyGraphStore';
 import {
 	createDependency,
-	DependencyConfig,
 	LatexDependency,
 } from 'src/dependency/LatexDependency';
 
@@ -59,10 +57,7 @@ type VirtualFile = {
 	autoUse?: boolean;
 };
 type LatexDependencyNodeWithDeps = LatexDependency & {
-	dependencies: LatexDependencyNode<
-		LatexAbstractSyntaxTree,
-		DependencyConfig<LatexAbstractSyntaxTree>
-	>[];
+	dependencies: LatexDependencyNode[];
 };
 
 function hasDeps(
@@ -76,10 +71,9 @@ export class VirtualFileSystem {
 	/**
 	 * a flat map of file paths to their corresponding dependencies. This is used to quickly check if a file is already in the virtual file system and to get its content and other information.
 	 */
-	private graph: DependencyGraphStore<LatexAbstractSyntaxTree, LatexDependency> =
-		new DependencyGraphStore();
+	private graph: DependencyGraphStore = new DependencyGraphStore();
 
-	private parser: LatexDependencyParser<LatexAbstractSyntaxTree, LatexDependency>;
+	private parser: LatexDependencyParser;
 
 	//private status: VFSstatus = VFSstatus.undefined;
 	private compilerState: VfsCompilerState = { status: VFSstatus.undefined };
@@ -90,13 +84,7 @@ export class VirtualFileSystem {
 	private compiler: LatexCompiler;
 
 	constructor() {
-		const parserAdapter = {
-			parseContentToAst: LatexAbstractSyntaxTree.parse,
-			createDependency,
-			getDependencyFromGraph: this.getFile.bind(this),
-		};
-
-		this.parser = new LatexDependencyParser(parserAdapter);
+		this.parser = new LatexDependencyParser(this);
 	}
 
 	/**

@@ -5,14 +5,9 @@ import { RenderInfo } from '../typs/info-specs';
  */
 
 let rawParse: (str: string) => any;
-/**
- * Parse str into an AST. Parsing starts in math mode and a list of nodes is returned (instead of a "root" node).
- */
-let rawParseMath: any;
 
 import('@unified-latex/unified-latex-util-parse').then((module) => {
 	rawParse = module.parse;
-	rawParseMath = module.parseMath;
 });
 import {
 	Root as RootClass,
@@ -278,12 +273,5 @@ export function parse(latex: string) {
 	const autoAst = rawParse(latex);
 	const classAst = migrateToClassStructure(autoAst);
 	if (!(classAst instanceof RootClass)) throw new Error('Root not found');
-	return classAst;
-}
-
-export function parseMath(math: string) {
-	const autoAst = rawParseMath(math);
-	const classAst = migrateToClassStructure(autoAst);
-	if (!Array.isArray(classAst)) throw new Error('Expected an array of nodes from math parsing');
 	return classAst;
 }

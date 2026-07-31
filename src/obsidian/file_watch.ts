@@ -5,20 +5,9 @@ import LatexCompilerPlugin from 'src/main';
 
 const REFRESH_TIMEOUT_MS = 500;
 
-const refreshMathJaxFromFiles = debounce(
-	async (plugin: LatexCompilerPlugin) => {
-		if (!plugin.settings.mathjaxPreambleEnabled) {
-			return;
-		}
-		await plugin.loadMathJax();
-	},
-	REFRESH_TIMEOUT_MS,
-	true,
-);
-
 const refreshLatexFromFiles = debounce(
 	async (plugin: LatexCompilerPlugin) => {
-		if (!plugin.settings.mathjaxPreambleEnabled) {
+		if (!plugin.settings.compilerVfsEnabled) {
 			return;
 		}
 		await plugin.processLatexPreambles(false, true);
@@ -27,31 +16,13 @@ const refreshLatexFromFiles = debounce(
 	true,
 );
 
-/**
- * chack if the file is a vfs/mathjax preamble file
- * @param plugin
- * @param file
- * @returns
- */
-const checkFileMonitoringStatus = (plugin: LatexCompilerPlugin, file: TFile) => {
-	const { compilerVfsEnabled, mathjaxPreambleEnabled } = plugin.settings;
-
-	return {
-		autoLoadedMonitored:
-			compilerVfsEnabled && plugin.latexRenderer.vfs.isNeededForAutoUse(file.path),
-		mathJaxMonitored: mathjaxPreambleEnabled && plugin.mathJaxVFS.hasFile(file.path),
-	};
-};
-
 export const onFileChange = (plugin: LatexCompilerPlugin, file: TAbstractFile) => {
 	if (!(file instanceof TFile)) return;
-	const fileMonitoringStatus = checkFileMonitoringStatus(plugin, file);
 
-	if (fileMonitoringStatus.mathJaxMonitored) {
-		refreshMathJaxFromFiles(plugin);
-	}
+	const { compilerVfsEnabled } = plugin.settings;
+	const fileIsMonitored = compilerVfsEnabled && plugin.latexRenderer.vfs.isNeededForAutoUse(file.path)
 
-	if (fileMonitoringStatus.autoLoadedMonitored) {
+	if (fileIsMonitored) {
 		refreshLatexFromFiles(plugin);
 	}
 };
@@ -62,7 +33,6 @@ export const onFileCreate = (plugin: LatexCompilerPlugin, file: TAbstractFile) =
 
 export const onFileDelete = (plugin: LatexCompilerPlugin, file: TAbstractFile) => {
 	if (!(file instanceof TFile)) return;
-	// There's no point checking mathjax over here as it won't do anything you cannot delete the file from cache Only change it
 	const wasVfsFile =
 		plugin.settings.compilerVfsEnabled && plugin.latexRenderer.vfs.hasFile(file.path);
 
@@ -77,7 +47,7 @@ function* generateFilesWithin(fileOrFolder: TAbstractFile): Generator<TFile> {
 		for (const child of fileOrFolder.children) yield* generateFilesWithin(child);
 }
 
-function getFilesWithin(vault: Vault, path: string): Set<TFile> {
+export function getFilesWithin(vault: Vault, path: string): Set<TFile> {
 	const fileOrFolder = vault.getAbstractFileByPath(path);
 
 	if (fileOrFolder === null) {
@@ -87,26 +57,7 @@ function getFilesWithin(vault: Vault, path: string): Set<TFile> {
 	return new Set(files);
 }
 
-interface FileSets {
-	mathjaxPreambleFiles: Set<TFile>;
-	latexVirtualFiles: Set<TFile>;
-}
-
-export function getFileSets(plugin: LatexCompilerPlugin): FileSets {
-	const locations = [
-		plugin.settings.mathjaxPreambleFileLocation,
-		plugin.settings.autoloadedVfsFilesDir,
-	];
-
-	const [mathjaxPreambleFiles, latexVirtualFiles] = locations.map((path) =>
-		getFilesWithin(app.vault, path),
-	);
-	return { mathjaxPreambleFiles, latexVirtualFiles };
-}
-
-export type PreambleFile = { path: string; name: string; content: string };
-
-export async function getPreambleFromFiles(files: Set<TFile>): Promise<PreambleFile[]> {
+export async function getPreambleFromFiles(files: Set<TFile>) {
 	const fileContents: { path: string; name: string; content: string }[] = [];
 
 	for (const file of files) {

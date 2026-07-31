@@ -163,42 +163,6 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 		const containerEl = this.containerEl;
 		this.addHeading(containerEl, 'Preamble', 'pencil');
 
-		addToggleSetting(
-			containerEl,
-			(value: boolean) => {
-				this.plugin.settings.mathjaxPreambleEnabled = value;
-				this.plugin.saveSettings();
-				mathjaxPreambleFileLoc.settingEl.toggleClass(
-					'hidden',
-					!this.plugin.settings.mathjaxPreambleEnabled,
-				);
-			},
-			{
-				name: 'Mathjax preamble enabled.',
-				description: 'Whether to load mathjax preamble',
-				defValue: this.plugin.settings.mathjaxPreambleEnabled,
-			},
-		);
-
-		const mathjaxPreambleFileLoc = addFileSearchSetting(
-			containerEl,
-			async (value) => {
-				this.plugin.settings.mathjaxPreambleFileLocation = value;
-				await this.plugin.saveSettings(true);
-			},
-			{
-				name: 'Mathjax preamble file location',
-				description:
-					'the file/directory containing the preamble for MathJax requirs reload to take effect',
-				placeholder: DEFAULT_SETTINGS.mathjaxPreambleFileLocation,
-				defValue: this.plugin.settings.mathjaxPreambleFileLocation,
-				debounce: { timeout: FILE_SEARCH_DEBOUNCE_MS, resetTimer: true },
-			},
-		);
-		mathjaxPreambleFileLoc.settingEl.toggleClass(
-			'hidden',
-			!this.plugin.settings.mathjaxPreambleEnabled,
-		);
 		const virtualFilesDescription = document.createDocumentFragment();
 
 		const description = document.createElement('span');
@@ -252,7 +216,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 			containerEl,
 			async (value) => {
 				this.plugin.settings.autoloadedVfsFilesDir = value;
-				await this.plugin.saveSettings(false, true);
+				await this.plugin.saveSettings(true);
 			},
 			{
 				name: 'Autoloaded virtual files',

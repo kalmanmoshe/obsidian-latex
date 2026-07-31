@@ -5,14 +5,14 @@ import { CompilerType } from 'src/settings/settings.js';
 
 import { pdfToHtml, pdfToOptimizedSVG, pdfToSVG, SVG_ID_KEY } from './pdfToHtml/pdfToHtml';
 import parseLatexLog, { createErrorDisplay, errorDiv } from './logs/HumanReadableLogs';
-import { VfsCompileMode, VirtualFileSystem } from './VirtualFileSystem';
+import { VfsCompileMode, VirtualFileSystem } from '../dependency/VirtualFileSystem';
 import { ProcessedLog } from './logs/latex-log-parser';
 import PdfTeXCompiler from './compiler/swiftlatexpdftex/PdfTeXCompiler';
 import { LatexTask, ProcessableLatexTask } from './task/latexTask';
 import { PdfXeTeXCompiler } from './compiler/swiftlatexxetex/pdfXeTeXCompiler';
 import LatexCompiler from './compiler/base/compilerBase/compiler';
 import CompilerCache, { hashLatexContent } from './cache/compilerCache';
-import { LatexRenderQueue } from './LatexRenderQueue';
+import { LatexRenderQueue } from './task/LatexRenderQueue';
 import { getLogCacheKey } from './cache/logCache';
 
 export const waitFor = async (condFunc: () => boolean) => {
@@ -321,7 +321,7 @@ export class LatexRenderer {
 				? err.latexLog
 				: toErrorString(err);
 
-				this.handleErrorForTask(task, errorText, {
+			this.handleErrorForTask(task, errorText, {
 				parseErr: true,
 			});
 		} finally {

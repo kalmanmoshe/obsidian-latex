@@ -58,7 +58,6 @@ const args = {
     "electron",
     "react",
     "react-dom",
-    "mathjax", 
     "@codemirror/autocomplete",
     "@codemirror/closebrackets",
     "@codemirror/collab",

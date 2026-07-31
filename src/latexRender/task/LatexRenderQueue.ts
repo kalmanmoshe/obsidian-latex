@@ -1,5 +1,5 @@
 import async from 'async';
-import { LatexTask } from './task/latexTask';
+import { LatexTask } from './latexTask';
 import { CssClasses } from 'src/util/cssClassesConstants';
 
 type InternalTask<T> = {

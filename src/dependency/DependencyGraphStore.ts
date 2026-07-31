@@ -1,15 +1,11 @@
-import { LatexAbstractSyntaxTree } from 'src/ast/LatexAbstractSyntaxTree';
-import { DependencyConfig } from './LatexDependency';
-import { LatexDependencyNode } from 'src/latexRender/task/LatexDependencyParser';
+import { LatexDependency } from './LatexDependency';
+import { LatexDependencyNode } from 'src/dependency/LatexDependencyParser';
 
-export class DependencyGraphStore<
-	TAst extends LatexAbstractSyntaxTree,
-	TDep extends DependencyConfig<TAst>,
-> {
+export class DependencyGraphStore {
 	/**
 	 * a flat map of file paths to their corresponding dependencies. This is used to quickly check if a file is already in the virtual file system and to get its content and other information.
 	 */
-	private filesByPath: Map<string, TDep> = new Map();
+	private filesByPath: Map<string, LatexDependency> = new Map();
 	/**
 	 * a map of file paths to the set of file paths that they depend on. This is used to quickly get the dependencies of a file and to update the virtual file system when a file is added, removed or updated.
 	 */
@@ -19,12 +15,12 @@ export class DependencyGraphStore<
 	 */
 	private referencedBy: Map<string, Set<string>> = new Map();
 	/**
-     * Root files may exist on their own.
-        Dependency files must be reachable from a root.
-     */
+	 * Root files may exist on their own.
+		Dependency files must be reachable from a root.
+	 */
 	private rootFiles: Set<string> = new Set();
 
-	addOrReplaceFile(newDep: TDep, dependencies: LatexDependencyNode<TAst, TDep>[]) {
+	addOrReplaceFile(newDep: LatexDependency, dependencies: LatexDependencyNode[]) {
 		this.removeFileAndUnusedDependencies(newDep.path);
 
 		this.dependenciesByOwner.set(newDep.path, new Set());
@@ -39,7 +35,7 @@ export class DependencyGraphStore<
 		this.garbageCollectDependencies();
 	}
 
-	private addDependencyTree(ownerPath: string, node: LatexDependencyNode<TAst, TDep>) {
+	private addDependencyTree(ownerPath: string, node: LatexDependencyNode) {
 		const dep = node.dependency;
 
 		this.filesByPath.set(dep.path, dep);
@@ -59,7 +55,7 @@ export class DependencyGraphStore<
 	 * @param predicate
 	 * @returns the files it removed from the graph based on the predicate
 	 */
-	removeFiles(predicate: (file: TDep) => boolean) {
+	removeFiles(predicate: (file: LatexDependency) => boolean) {
 		const filesToRemove = Array.from(this.filesByPath.values()).filter((file) =>
 			predicate(file),
 		);

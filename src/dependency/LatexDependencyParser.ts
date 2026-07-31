@@ -9,60 +9,33 @@ import {
 	getFileContent,
 	isValidFileStem,
 	CODE_BLOCK_NAME_SEPARATOR,
-} from '../resolvers/paths';
-import { String as StringClass } from '../../ast/typs/astNodes';
-import { DependencyConfig } from 'src/dependency/LatexDependency';
+} from '../latexRender/resolvers/paths';
+import { String as StringClass } from '../ast/typs/astNodes';
+import { createDependency, LatexDependency } from 'src/dependency/LatexDependency';
+import { VirtualFileSystem } from './VirtualFileSystem';
 
-export interface LatexDependencyNode<
-	TAst extends LatexAbstractSyntaxTree,
-	TDep extends DependencyConfig<TAst>,
-> {
-	dependency: TDep;
-	dependencies: LatexDependencyNode<TAst, TDep>[];
+export interface LatexDependencyNode {
+	dependency: LatexDependency;
+	dependencies: LatexDependencyNode[];
 }
 
-export interface ParsedLatexFile<
-	TAst extends LatexAbstractSyntaxTree,
-	TDep extends DependencyConfig<TAst>,
-> {
+export interface ParsedLatexFile {
 	content: string;
 	path: string;
-	ast: TAst;
-	dependencies: LatexDependencyNode<TAst, TDep>[];
+	ast: LatexAbstractSyntaxTree;
+	dependencies: LatexDependencyNode[];
 }
 
-export interface LatexParserAdapter<
-	TAst extends LatexAbstractSyntaxTree,
-	TDep extends DependencyConfig<TAst>,
-> {
-	parseContentToAst(content: string): TAst;
-
-	createDependency(
-		content: string,
-		path: string,
-		config?: {
-			isTex?: boolean;
-			ast?: TAst;
-			autoUse?: boolean;
-		},
-	): TDep;
-
-	getDependencyFromGraph(path: string): TDep | undefined;
-}
-
-export class LatexDependencyParser<
-	TAst extends LatexAbstractSyntaxTree,
-	TDep extends DependencyConfig<TAst>,
-> {
+export class LatexDependencyParser {
 	constructor(
-		private adapter: LatexParserAdapter<TAst, TDep>,
+		private vfs: VirtualFileSystem,
 		private possibleNames: string[] = [],
-	) {}
+	) { }
 
-	async parseFile(content: string | TAst, path: string): Promise<ParsedLatexFile<TAst, TDep>> {
-		let ast: TAst;
+	async parseFile(content: string | LatexAbstractSyntaxTree, path: string): Promise<ParsedLatexFile> {
+		let ast: LatexAbstractSyntaxTree;
 		if (typeof content === 'string') {
-			ast = this.adapter.parseContentToAst(content);
+			ast = LatexAbstractSyntaxTree.parse(content);
 		} else {
 			ast = content;
 		}
@@ -83,7 +56,7 @@ export class LatexDependencyParser<
 	}
 
 	async collectSurfaceDependencyPaths(content: string, sourcePath: string): Promise<string[]> {
-		const ast = this.adapter.parseContentToAst(content);
+		const ast = LatexAbstractSyntaxTree.parse(content);
 
 		let basePath = sourcePath;
 		if (basePath.contains(CODE_BLOCK_NAME_SEPARATOR)) {
@@ -102,10 +75,10 @@ export class LatexDependencyParser<
 	}
 
 	private async collectDependencies(
-		ast: TAst,
+		ast: LatexAbstractSyntaxTree,
 		basePath: string,
-	): Promise<LatexDependencyNode<TAst, TDep>[]> {
-		const dependencies: LatexDependencyNode<TAst, TDep>[] = [];
+	): Promise<LatexDependencyNode[]> {
+		const dependencies: LatexDependencyNode[] = [];
 
 		const macros = [...findUsdInputFiles(ast._getMutableContent())];
 
@@ -114,9 +87,9 @@ export class LatexDependencyParser<
 
 			const dep = await this.resolveDependency(dependencyPath, basePath);
 
-			let childDependencies: LatexDependencyNode<TAst, TDep>[] = [];
+			let childDependencies: LatexDependencyNode[] = [];
 
-			if (dep.isTex && this.adapter.getDependencyFromGraph(dep.path) === undefined) {
+			if (dep.isTex && this.vfs.getFile(dep.path) === undefined) {
 				const parsedDep = await this.parseFile(dep.content, dep.path);
 				childDependencies = parsedDep.dependencies;
 				dep.ast = parsedDep.ast;
@@ -134,7 +107,7 @@ export class LatexDependencyParser<
 		return dependencies;
 	}
 
-	async resolveDependency(filePath: string, basePath: string): Promise<TDep> {
+	async resolveDependency(filePath: string, basePath: string): Promise<LatexDependency> {
 		const resolvedPath = resolvePathRelToVault(filePath, basePath);
 		const { stem, extension } = extractStemAndExtension(resolvedPath);
 
@@ -142,14 +115,14 @@ export class LatexDependencyParser<
 			throw new Error(`Name conflict detected for dependency: ${stem}`);
 		}
 
-		const possibleDep = this.adapter.getDependencyFromGraph(resolvedPath);
+		const possibleDep = this.vfs.getFile(resolvedPath);
 		if (possibleDep) {
 			return possibleDep;
 		}
 
 		const content = await getFileContent(resolvedPath);
 
-		return this.adapter.createDependency(content, resolvedPath, {
+		return createDependency(content, resolvedPath, {
 			isTex: isExtensionTex(extension),
 		});
 	}
