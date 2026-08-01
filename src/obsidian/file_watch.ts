@@ -1,6 +1,6 @@
 // credit to The amazing people at obsidian latex suite which this code is influenced from
 
-import { Vault, TFile, TFolder, TAbstractFile, Notice, debounce } from 'obsidian';
+import { Vault, TFile, TFolder, TAbstractFile, Notice, debounce, App } from 'obsidian';
 import LatexCompilerPlugin from 'src/main';
 
 const REFRESH_TIMEOUT_MS = 500;
@@ -57,7 +57,7 @@ export function getFilesWithin(vault: Vault, path: string): Set<TFile> {
 	return new Set(files);
 }
 
-export async function getPreambleFromFiles(files: Set<TFile>) {
+export async function getPreambleFromFiles(files: Set<TFile>, app: App) {
 	const fileContents: { path: string; name: string; content: string }[] = [];
 
 	for (const file of files) {

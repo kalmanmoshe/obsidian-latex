@@ -126,6 +126,7 @@ export default class LatexParser {
 		}
 		return this.postProcess(this.data);
 	}
+	
 	getNextLine() {
 		const line = this.log.nextLine();
 		if (typeof line === 'string') this.currentLine = line;
@@ -206,7 +207,11 @@ export default class LatexParser {
 	}
 
 	parseMultipleWarningLine() {
-		let warningMatch: RegExpMatchArray | null = this.currentLine.match(PACKAGE_WARNING_REGEX)!;
+		let warningMatch: RegExpMatchArray | null = this.currentLine.match(PACKAGE_WARNING_REGEX);
+		if (!warningMatch) {
+			console.error("unexpected null match: " + this.currentLine);
+			return;
+		}
 
 		const warningLines: Array<string | null> = [warningMatch[1]];
 

@@ -47,7 +47,7 @@ export function createErrorDisplay(err: ProcessedLog) {
 	console.error('LaTeX Error:', err);
 	if (err.errors.length === 0) {
 		const errMessage = createLatexErrorMessage();
-		errMessage.title = 'Unknown LaTeX Error';
+		errMessage.title = 'Unknown LaTeX error';
 		errMessage.explanation = err.raw;
 		return errorDiv(errMessage);
 	}
@@ -56,11 +56,11 @@ export function createErrorDisplay(err: ProcessedLog) {
 
 export function errorDiv(info: ErrorMessage): HTMLElement {
 	const { title, cause, line, explanation, triggeringPackage } = info;
-	const container = Object.assign(document.createElement('div'), {
+	const container = Object.assign(activeDocument.createElement('div'), {
 		className: ErrorClasses.Container,
 	});
 
-	const content = Object.assign(document.createElement('div'), {
+	const content = Object.assign(activeDocument.createElement('div'), {
 		className: ErrorClasses.Content,
 	});
 	container.appendChild(content);
@@ -76,7 +76,7 @@ export function errorDiv(info: ErrorMessage): HTMLElement {
 	errorDetails.forEach(([className, textContent]) => {
 		if (!textContent) return;
 		content.appendChild(
-			Object.assign(document.createElement('div'), {
+			Object.assign(activeDocument.createElement('div'), {
 				className,
 				textContent,
 			}),

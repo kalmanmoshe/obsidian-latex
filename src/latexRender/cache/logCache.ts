@@ -74,7 +74,7 @@ export default class LogCache {
 			'Re-rendering the SVG to generate logs. This may take a moment...',
 		);
 
-		const sectionsFromMatching = await findMatchingCodeBlockSections(config.sourcePath, config.source);
+		const sectionsFromMatching = await findMatchingCodeBlockSections(config.sourcePath, config.source, this.plugin.app);
 
 		if (!sectionsFromMatching)
 			throw new Error('No section found for this source');

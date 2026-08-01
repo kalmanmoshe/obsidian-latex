@@ -1,10 +1,15 @@
-import { Modal } from 'obsidian';
+import { App, Modal } from 'obsidian';
 import { ProcessedLog, File, ErrorLevel } from './latex-log-parser';
+
+type LogTab = {
+	name: string;
+	render: (container: HTMLElement) => void;
+};
 
 export class LogDisplayModal extends Modal {
 	log: ProcessedLog;
 
-	constructor(log: ProcessedLog) {
+	constructor(log: ProcessedLog, app: App) {
 		super(app);
 		this.log = log;
 		this.modalEl.addClass('latex-compiler-log-modal');
@@ -14,37 +19,61 @@ export class LogDisplayModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 
-		contentEl.createEl('h2', { text: 'LaTeX Log' });
+		contentEl.createEl('h2', { text: 'LaTeX log' });
 
-		const tabs = [
-			...([this.log.all].length > 0
-				? [{ name: 'Errors', render: this.renderErrors.bind(this) }]
-				: []),
-			...(this.log.files.length > 0
-				? [{ name: 'Files', render: this.renderFiles.bind(this) }]
-				: []),
-			...(this.log.raw?.trim() ? [{ name: 'Raw', render: this.renderRaw.bind(this) }] : []),
-		];
+		const tabs: LogTab[] = [];
+
+		if (this.log.all.length > 0) {
+			tabs.push({
+				name: 'Errors',
+				render: (container) => this.renderErrors(container),
+			});
+		}
+
+		if (this.log.files.length > 0) {
+			tabs.push({
+				name: 'Files',
+				render: (container) => this.renderFiles(container),
+			});
+		}
+
+		if (this.log.raw?.trim()) {
+			tabs.push({
+				name: 'Raw',
+				render: (container) => this.renderRaw(container),
+			});
+		}
 
 		const tabsContainer = contentEl.createDiv('latex-compiler-log-tabs');
 		const buttonsContainer = tabsContainer.createDiv('latex-compiler-log-buttons');
 		const sectionsContainer = tabsContainer.createDiv('latex-compiler-log-sections');
-		const contentSections: Record<string, HTMLElement> = {};
+		const contentSections = new Map<string, HTMLElement>();
+
 		tabs.forEach(({ name, render }) => {
 			const button = buttonsContainer.createEl('button', {
 				text: name,
 				cls: 'latex-compiler-log-tab-button',
 			});
 			const section = sectionsContainer.createDiv('latex-compiler-log-tab-content');
-			section.style.display = 'none';
-			contentSections[name] = section;
+			section.addClass('is-hidden');
 
-			button.onclick = () => {
-				for (const sec of Object.values(contentSections)) sec.style.display = 'none';
-				for (const btn of Array.from(buttonsContainer.children)) btn.removeClass('active');
-				section.style.display = '';
+			contentSections.set(name, section);
+
+			button.addEventListener('click', () => {
+				for (const currentSection of contentSections.values()) {
+					currentSection.addClass('is-hidden');
+				}
+
+				for (const child of Array.from(buttonsContainer.children)) {
+					if (child.instanceOf(HTMLElement)) {
+						child.removeClass('active');
+					}
+				}
+
+				section.removeClass('is-hidden');
 				button.addClass('active');
-			};
+			});
+
 			render(section);
 		});
 
@@ -121,29 +150,30 @@ export class LogDisplayModal extends Modal {
 	private renderRaw(container: HTMLElement) {
 		const wrapper = container.createDiv();
 
-		const scrollContainer = wrapper.createDiv();
-		scrollContainer.setAttribute(
-			'style',
-			'overflow-x: auto; overflow-y: auto; max-height: 500px;',
+		const scrollContainer = wrapper.createDiv(
+			'latex-compiler-log-raw-scroll',
 		);
 
-		const rawPre = scrollContainer.createEl('pre');
-		rawPre.textContent = this.log.raw;
-		rawPre.setAttribute('style', 'margin: 0; white-space: pre; user-select: text;');
+		scrollContainer.createEl('pre', {
+			text: this.log.raw,
+			cls: 'latex-compiler-log-raw-content',
+		});
 
-		const copyButton = wrapper.createEl('button', { text: 'Copy' });
-		copyButton.setAttribute('style', 'margin-top: 5px;');
+		const copyButton = wrapper.createEl('button', {
+			text: 'Copy',
+			cls: 'latex-compiler-log-copy-button',
+		});
 
 		copyButton.addEventListener('click', () => {
 			navigator.clipboard
 				.writeText(this.log.raw)
 				.then(() => {
 					copyButton.textContent = 'Copied!';
-					setTimeout(() => (copyButton.textContent = 'Copy'), 1500);
+					window.setTimeout(() => (copyButton.textContent = 'Copy'), 1500);
 				})
 				.catch(() => {
 					copyButton.textContent = 'Failed';
-					setTimeout(() => (copyButton.textContent = 'Copy'), 1500);
+					window.setTimeout(() => (copyButton.textContent = 'Copy'), 1500);
 				});
 		});
 	}

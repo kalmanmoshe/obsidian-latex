@@ -109,7 +109,6 @@ details summary {
 	margin-left: 12px;
 }
 
-/* Optional: slightly more spacing per depth level */
 .depth-1 {
 	margin-left: 16px;
 }
@@ -200,4 +199,24 @@ details summary {
 .latex-compiler-log-modal {
 	width: 100%;
 	max-width: 1000px;
+}
+
+
+.latex-compiler-log-tab-content.is-hidden {
+	display: none;
+}
+
+.latex-compiler-log-raw-scroll {
+	overflow: auto;
+	max-height: 500px;
+}
+
+.latex-compiler-log-raw-content {
+	margin: 0;
+	white-space: pre;
+	user-select: text;
+}
+
+.latex-compiler-log-copy-button {
+	margin-top: 5px;
 }

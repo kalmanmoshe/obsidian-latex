@@ -11,7 +11,7 @@ async function createWorkerFromCompressedPayload(base64Payload: string): Promise
 	const url = URL.createObjectURL(blob);
 	const worker = new Worker(url);
 
-	setTimeout(() => {
+	window.setTimeout(() => {
 		URL.revokeObjectURL(url);
 	}, 0);
 

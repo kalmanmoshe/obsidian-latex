@@ -4,11 +4,16 @@ import { RenderInfo } from '../typs/info-specs';
  * Parse the string into an AST.
  */
 
-let rawParse: (str: string) => any;
+let rawParse: (str: string) => Ast;
 
-import('@unified-latex/unified-latex-util-parse').then((module) => {
-	rawParse = module.parse;
-});
+import('@unified-latex/unified-latex-util-parse')
+	.then((module) => {
+		rawParse = module.parse;
+	})
+	.catch((error: unknown) => {
+		console.error('Failed to load unified-latex parser:', error);
+	});
+	
 import {
 	Root as RootClass,
 	String as StringClass,
@@ -130,11 +135,11 @@ type Node =
 
 type Ast = Node | Argument | Node[];
 
-function isNodeClassArray(content: any[]): content is NodeClass[] {
+function isNodeClassArray(content: unknown[]): content is NodeClass[] {
 	return content.every((node) => node instanceof BaseNodeClass);
 }
 
-function isArgumentClassArray(content: any[]): content is ArgumentClass[] {
+function isArgumentClassArray(content: unknown[]): content is ArgumentClass[] {
 	return content.every((node) => node instanceof ArgumentClass);
 }
 
@@ -144,7 +149,7 @@ function validateNodeContent(ast: ContentNode, errorMessagePrefix: string): Node
 		throw new Error(
 			errorMessagePrefix +
 				' node content must be an array of BaseNode instances/children, got: ' +
-				content,
+				content.toString(),
 		);
 	}
 	return content;

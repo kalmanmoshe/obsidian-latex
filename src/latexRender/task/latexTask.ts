@@ -1,5 +1,6 @@
 import LatexCompilerPlugin from 'src/main';
 import {
+	App,
 	MarkdownPostProcessorContext,
 	MarkdownSectionInformation,
 	MarkdownView,
@@ -38,14 +39,16 @@ function createTask(
  */
 async function mdSecInfosFromMdPostProcessorCtx(
 	ctx: MarkdownPostProcessorContext,
+	el: HTMLElement,
 	content: string,
+	app: App
 ) {
-	const sectionFromContext = ctx.getSectionInfo(this.el);
+	const sectionFromContext = ctx.getSectionInfo(el);
 	if (sectionFromContext) {
 		return [sectionFromContext];
 	}
 	// i want to move the logger to the plugin thats why i have the err for now, as a reminder
-	let sectionInfos = await findMatchingCodeBlockSections(ctx.sourcePath, content);
+	let sectionInfos = await findMatchingCodeBlockSections(ctx.sourcePath, content, app);
 
 	if (!sectionInfos || sectionInfos.length === 0) {
 		throw new Error(
@@ -55,7 +58,7 @@ async function mdSecInfosFromMdPostProcessorCtx(
 	return sectionInfos;
 }
 
-export function getEditorTextForPath(path: string): string | undefined {
+export function getEditorTextForPath(path: string, app: App): string | undefined {
 	const leaves = app.workspace.getLeavesOfType('markdown');
 
 	for (const leaf of leaves) {
@@ -126,13 +129,13 @@ export class LatexTask {
 			return value;
 		};
 		this.lastSectionInfoVerificationTime = Date.now();
-		const file = app.vault.getAbstractFileByPath(this.sourcePath);
+		const file = this.plugin.app.vault.getAbstractFileByPath(this.sourcePath);
 		if (!file || !(file instanceof TFile)) return returnVerify(false);
 
 		// First pass: use cached text (fast)
-		const fileText = await app.vault.cachedRead(file);
+		const fileText = await this.plugin.app.vault.cachedRead(file);
 		const lines = fileText.split('\n');
-		const verifiedSectionInfos: any[] = [];
+		const verifiedSectionInfos: TaskSectionInformation[] = [];
 
 		for (const sectionInfo of this.sectionInfos) {
 			if (sectionInfo.lineEnd < lines.length) {
@@ -157,7 +160,7 @@ export class LatexTask {
 	async rebuildTaskFromContent(): Promise<boolean> {
 		const verifiedSectionInfos: TaskSectionInformation[] = [];
 
-		const sectionInfos = await findMatchingCodeBlockSections(this.sourcePath, this.content);
+		const sectionInfos = await findMatchingCodeBlockSections(this.sourcePath, this.content, this.plugin.app);
 
 		if (!sectionInfos || sectionInfos.length === 0) return false;
 
@@ -213,7 +216,7 @@ export class LatexTask {
 			plugin,
 			isProcess,
 			content,
-			el ?? document.createElement('div'),
+			el ?? activeDocument.createElement('div'),
 			path,
 			sectionInfos,
 		);
@@ -227,12 +230,11 @@ export class LatexTask {
 		ctx: MarkdownPostProcessorContext,
 	) {
 		try {
-			const mdSectionInfos = await mdSecInfosFromMdPostProcessorCtx(ctx, content);
+			const mdSectionInfos = await mdSecInfosFromMdPostProcessorCtx(ctx, el, content, plugin.app);
 			const infos = mdSectionInfos.map((sec) => sectionToTaskSectionInfo(sec));
 			const task = createTask(plugin, process, content, el, ctx.sourcePath, infos);
-			console.log('Created task from context:', task);
 			return { isError: false, result: task };
-		} catch (err) {
+		} catch (err: unknown) {
 			console.error('Error while ensuring section info for task:', err);
 			return { isError: true, result: err };
 		}
@@ -266,12 +268,12 @@ export class LatexTask {
 		for (const info of infos) {
 			const taskInfo = 'text' in info ? sectionToTaskSectionInfo(info) : info;
 			this.sectionInfos ??= [];
-			this.sectionInfos.push(taskInfo as TaskSectionInformation);
+			this.sectionInfos.push(taskInfo);
 		}
 
-		this.sectionInfos!.sort((a, b) => a.lineStart - b.lineStart);
+		this.sectionInfos.sort((a, b) => a.lineStart - b.lineStart);
 
-		const numberKey = this.sectionInfos!.map((sec) => sec.lineStart).join('|');
+		const numberKey = this.sectionInfos.map((sec) => sec.lineStart).join('|');
 		this.blockId = this.sourcePath.replace(/ /g, '_') + '||' + numberKey;
 	}
 
@@ -389,18 +391,8 @@ export class ProcessableLatexTask extends LatexTask {
 		this.resolvedHash = hashLatexContent(this.astContent);
 	}
 
-	/**
-	 * Logs the task information to the console.
-	 * (for debugging purposes rm later)
-	 */
-	log() {
-		console.log(`[TIMER] Total processing time: ${(this.processingTime || NaN).toFixed(2)} ms`);
-		console.log('ast', this.ast?.clone());
-		console.log('task', this);
-	}
-
 	async process(): Promise<void | string> {
-		return await processTaskSource(this, this.plugin.latexRenderer.vfs, this.plugin);
+		return processTaskSource(this, this.plugin.latexRenderer.vfs, this.plugin);
 	}
 
 	getDebugInfo() {

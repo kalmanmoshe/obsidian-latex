@@ -1,4 +1,4 @@
-import { normalizePath, TAbstractFile, TFile, TFolder } from 'obsidian';
+import { App, normalizePath, TAbstractFile, TFile, TFolder } from 'obsidian';
 import { getLatexTaskSectionInfosFromFile } from './taskSectionInformation';
 import { extractCodeBlockName } from './latexSourceFromFile';
 import { codeBlockToContent } from 'obsidian-dev-utils';
@@ -9,8 +9,8 @@ const PATH_SEPARATORS = [...TRADITIONAL_PATH_SEPARATORS, CODE_BLOCK_NAME_SEPARAT
 const PATH_SEPARATORS_REGEX = new RegExp(PATH_SEPARATORS.join('|'), 'g');
 const CODE_BLOCK_NAME_SEPARATOR_REGEX = new RegExp(CODE_BLOCK_NAME_SEPARATOR, 'g');
 
-export function resolvePathRelToVault(path: string, currentPath: string): string {
-	const { file, remainingPath } = findRelativeFile(path, currentPath);
+export function resolvePathRelToVault(path: string, currentPath: string, app: App): string {
+	const { file, remainingPath } = findRelativeFile(path, currentPath, app);
 	const absPath = file.path;
 	if (!remainingPath) return absPath;
 
@@ -31,7 +31,7 @@ export function resolvePathRelToVault(path: string, currentPath: string): string
  * @param path The path to the file, relative to the vault root.
  * @returns
  */
-export async function getFileContent(path: string): Promise<string> {
+export async function getFileContent(path: string, app: App): Promise<string> {
 	const parts = path.split(CODE_BLOCK_NAME_SEPARATOR);
 	if (parts.length > 2 || parts.length === 0) {
 		throw new Error(
@@ -49,7 +49,7 @@ export async function getFileContent(path: string): Promise<string> {
 	if (parts.length === 0) return fileText;
 	const codeBlockStem = extractStemAndExtension(parts.shift()!).stem;
 
-	const codeBlocks = await getLatexTaskSectionInfosFromFile(file);
+	const codeBlocks = await getLatexTaskSectionInfosFromFile(file, app);
 	const potentialTargets = codeBlocks.filter(
 		(block) => extractCodeBlockName(block.codeBlock) === codeBlockStem,
 	);
@@ -84,7 +84,7 @@ export async function getFileContent(path: string): Promise<string> {
  * @param currentPath Path of the source file used as the relative starting point.
  * @returns The resolved file and optional code block / section name.
  */
-function findRelativeFile(filePath: string, currentPath: string) {
+function findRelativeFile(filePath: string, currentPath: string, app: App) {
 	if (currentPath.contains(CODE_BLOCK_NAME_SEPARATOR)) {
 		throw new Error(
 			`Current path must be a file and not contain code block separator: ${CODE_BLOCK_NAME_SEPARATOR}`,
@@ -158,8 +158,10 @@ function resolveFolder(fileOrFolder: TAbstractFile): TFolder {
 			throw new Error(`Source file has no parent folder: ${fileOrFolder.path}`);
 		}
 		return fileOrFolder.parent;
+	} else if (fileOrFolder instanceof TFolder) {
+		return fileOrFolder; // can be only TFolder here
 	} else {
-		return fileOrFolder as TFolder; // can be only TFolder here
+		throw new Error(`Invalid file or folder: ${fileOrFolder.path}`);
 	}
 }
 
@@ -207,10 +209,14 @@ export function extractStemAndExtension(path: string) {
 	}
 	const parts = path
 		.split(CODE_BLOCK_NAME_SEPARATOR_REGEX)
-		.pop()!
-		.split(PATH_SEPARATORS_REGEX)
 		.pop()
-		?.split('.')!;
+		?.split(PATH_SEPARATORS_REGEX)
+		.pop()
+		?.split('.');
+	if (!parts || parts.length < 2) {
+		throw new Error(`Invalid path format. Expected a file name with extension: ${path}`);
+	}
+
 	const extension = parts.pop()!;
 	const stem = parts.join('.');
 
@@ -227,9 +233,8 @@ export function extractFileName(path: string): string {
 	return parts.pop()!;
 }
 
-export function isValidFileStem(stem: any): boolean {
+export function isValidFileStem(stem: unknown): boolean {
 	if (typeof stem !== 'string') return false;
-	stem = stem.trim();
 
 	if (
 		stem === '' ||

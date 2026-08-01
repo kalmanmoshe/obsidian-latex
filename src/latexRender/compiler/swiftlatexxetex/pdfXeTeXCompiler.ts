@@ -25,7 +25,7 @@ export class PdfXeTeXCompiler extends LatexCompiler {
 	override async compileLaTeX(): Promise<CompileResult> {
 		const xetResult = await this.xetEng.compileLaTeX();
 
-		if (xetResult.status !== 0) {
+		if (!xetResult.isStatus(CompileStatus.Success)) {
 			return xetResult;
 		}
 

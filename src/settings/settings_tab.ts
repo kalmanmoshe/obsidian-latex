@@ -15,7 +15,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 	plugin: LatexRenderPlugin;
 
 	constructor(plugin: LatexRenderPlugin) {
-		super(app, plugin);
+		super(plugin.app, plugin);
 		this.plugin = plugin;
 		setPluginInstance(plugin);
 	}
@@ -43,7 +43,8 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 		addToggleSetting(
 			containerEl,
 			(value: boolean) => {
-				((this.plugin.settings.invertColorsInDarkMode = value), this.plugin.saveSettings());
+				this.plugin.settings.invertColorsInDarkMode = value;
+				void this.plugin.saveSettings()
 			},
 			{
 				name: 'Invert colors in dark mode',
@@ -56,7 +57,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 			containerEl,
 			(value: string) => {
 				this.plugin.settings.overflowStrategy = value as OverflowStrategy;
-				this.plugin.saveSettings();
+				void this.plugin.saveSettings();
 			},
 			{
 				name: 'Overflow strategy',
@@ -73,10 +74,10 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 		
 		addDropdownSetting(
 			containerEl,
-			(value: string) => {
+			async (value: string) => {
 				this.plugin.settings.compiler = value as CompilerType;
-				this.plugin.saveSettings();
-				this.plugin.latexRenderer.switchCompiler();
+				await this.plugin.saveSettings();
+				void this.plugin.latexRenderer.switchCompiler();
 			},
 			{
 				name: 'Compiler',
@@ -93,7 +94,8 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 		addToggleSetting(
 			containerEl,
 			(value: boolean) => {
-				((this.plugin.settings.saveLogs = value), this.plugin.saveSettings());
+				this.plugin.settings.saveLogs = value;
+				void this.plugin.saveSettings();
 			},
 			{
 				name: 'Save latex logs',
@@ -110,7 +112,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 			containerEl,
 			async (value: boolean) => {
 				this.plugin.settings.physicalCache = value;
-				this.plugin.saveSettings();
+				await this.plugin.saveSettings();
 				await this.plugin.latexRenderer.cache.resultFileCache.togglePhysicalCache();
 				physicalCacheLocationSetting.settingEl.toggleClass('hidden', !value);
 			},
@@ -124,7 +126,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 
 		const physicalCacheLocationSetting = addFileSearchSetting(
 			containerEl,
-			async (value) => {
+			async (value: string) => {
 				this.plugin.settings.physicalCacheLocation = value;
 				await this.plugin.saveSettings();
 				await this.plugin.latexRenderer.cache.resultFileCache.changeCacheDirectory();
@@ -146,7 +148,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 			containerEl,
 			async () => {
 				await this.plugin.latexRenderer.cache.resultFileCache.removeAllCached();
-				new Notice('Cleared cached SVGs');
+				new Notice('Cleared cached svgs');
 			},
 			{
 				name: 'Clear cached SVGs',
@@ -163,9 +165,9 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 		const containerEl = this.containerEl;
 		this.addHeading(containerEl, 'Preamble', 'pencil');
 
-		const virtualFilesDescription = document.createDocumentFragment();
+		const virtualFilesDescription = activeDocument.createDocumentFragment();
 
-		const description = document.createElement('span');
+		const description = activeDocument.createElement('span');
 		description.textContent =
 			'Allows the LaTeX engine to load external files into its virtual filesystem. ' +
 			'Enabling this lets you use commands such as \\include{} to reference external files. ' +
@@ -186,8 +188,8 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 				passToSave: { didFileLocationChange: true },
 			},
 		);
-		const descriptionFragment = document.createDocumentFragment();
-		const descriptionDetails = document.createElement('span');
+		const descriptionFragment = activeDocument.createDocumentFragment();
+		const descriptionDetails = activeDocument.createElement('span');
 		descriptionDetails.textContent =
 			"When enabled, code blocks with a header specifying a name (e.g., 'name: someAwesomeCode') " +
 			'can be included directly in your LaTeX code using commands like \\include{}. ' +
@@ -214,7 +216,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 		);
 		const autoloadedVfsFilesDir = addFileSearchSetting(
 			containerEl,
-			async (value) => {
+			async (value: string) => {
 				this.plugin.settings.autoloadedVfsFilesDir = value;
 				await this.plugin.saveSettings(true);
 			},

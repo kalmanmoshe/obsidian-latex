@@ -11,19 +11,27 @@ import { codeBlockToContent } from 'obsidian-dev-utils';
 import ResultFileCache from '../cache/resultFileCache';
 import { SVG_ID_KEY } from '../pdfToHtml/pdfToHtml';
 
+type RequireFunction = {
+	(moduleName: 'child_process'): {
+		exec(this: void, command: string): void;
+	};
+};
+
+type WindowWithRequire = Window & {
+	require: RequireFunction;
+};
+
 async function revealFileWithFocus(path: string) {
 	if (!Platform.isDesktopApp) {
 		new Notice('Reveal in file explorer is only available on desktop.');
 		return;
 	}
 
-	const req = (globalThis as any).require;
-
-	const { exec } = req('child_process');
+	const childProcess = (activeWindow as WindowWithRequire).require('child_process');
 
 	if (Platform.isWin) {
 		const winPath = path.replace(/\//g, '\\');
-		exec(`start "" explorer.exe /select,"${winPath}"`);
+		childProcess.exec(`start "" explorer.exe /select,"${winPath}"`);
 	} else if (Platform.isMacOS) {
 		const script = `
 			tell application "Finder"
@@ -31,7 +39,7 @@ async function revealFileWithFocus(path: string) {
 				activate
 			end tell
 		`;
-		exec(`osascript -e '${script.replace(/\n/g, '')}'`);
+		childProcess.exec(`osascript -e '${script.replace(/\n/g, '')}'`);
 	} else {
 		const { shell } = await import('electron');
 		shell.showItemInFolder(path);
@@ -91,14 +99,14 @@ export class SvgContextMenuPopulater {
 
 	private findSvg(): SVGElement | undefined {
 		return Array.from(this.blockEl.children).find(
-			(child): child is SVGElement => child instanceof SVGElement,
+			(child): child is SVGElement => child.instanceOf(SVGElement),
 		);
 	}
 
 	private findErrorContainer(): HTMLElement | undefined {
 		return Array.from(this.blockEl.children).find(
 			(child): child is HTMLElement =>
-				child instanceof HTMLElement && child.classList.contains(ErrorClasses.Container),
+				child.instanceOf(HTMLElement) && child.classList.contains(ErrorClasses.Container),
 		);
 	}
 
@@ -136,15 +144,6 @@ export class SvgContextMenuPopulater {
 			{ hiddenOnError: true },
 		);
 
-		this.addItem(
-			'properties',
-			'settings',
-			async () => {
-				console.log('properties');
-			},
-			{ hiddenOnError: true },
-		);
-
 		this.addItem('remove & re-render', 'trash', async () => await this.removeAndReRender(), {
 			hiddenOnIos: true,
 		});
@@ -153,7 +152,7 @@ export class SvgContextMenuPopulater {
 			'Show logs',
 			'info',
 			async () => {
-				this.showLogs();
+				void this.showLogs();
 			},
 			{ hiddenOnIos: true },
 		);
@@ -164,7 +163,7 @@ export class SvgContextMenuPopulater {
 			async () => {
 				this.revealFileInExplorer();
 			},
-			{ hiddenOnError: true },
+			{ hiddenOnError: true, hiddenOnMobile: true },
 		);
 
 		this.addDebugDisplayItems();
@@ -196,9 +195,14 @@ export class SvgContextMenuPopulater {
 		title: string,
 		icon: string,
 		onClick: () => void | Promise<void>,
-		options?: { hiddenOnError?: boolean; hiddenOnIos?: boolean },
+		options?: { 
+			hiddenOnError?: boolean; 
+			hiddenOnMobile?: boolean;
+			hiddenOnIos?: boolean 
+		},
 	) {
 		if (options?.hiddenOnError && this.isError) return;
+		if (options?.hiddenOnMobile && Platform.isMobile) return;
 		if (options?.hiddenOnIos && !this.plugin.latexRenderer.isNotIos()) return;
 
 		this.menu.addItem((item) => {
@@ -222,14 +226,14 @@ export class SvgContextMenuPopulater {
 				return;
 			}
 			const filePath = this.resultFileCache.getAbsolutePathFromStem(this.stem);
-			revealFileWithFocus(filePath);
+			void revealFileWithFocus(filePath);
 		} catch (err) {
 			console.error('Failed to open file in explorer:', err);
 		}
 	}
 
 	private async showLogs() {
-		this.assignLatexContent();
+		void this.assignLatexContent();
 		let log = this.plugin.latexRenderer.cache.getLog(this.stem);
 		if (!log) {
 			await this.assignLatexContent();
@@ -238,7 +242,7 @@ export class SvgContextMenuPopulater {
 				sourcePath: this.sourcePath,
 			});
 		}
-		const modal = new LogDisplayModal(log);
+		const modal = new LogDisplayModal(log, this.plugin.app);
 		modal.open();
 	}
 
@@ -255,8 +259,7 @@ export class SvgContextMenuPopulater {
 	}
 
 	private async getFile() {
-		console.log('Getting file for source path:', this.sourcePath);
-		const file = app.vault.getAbstractFileByPath(this.sourcePath);
+		const file = this.plugin.app.vault.getAbstractFileByPath(this.sourcePath);
 		if (!file) throw new Error('File not found');
 		if (!(file instanceof TFile)) throw new Error('File is not a TFile');
 		return file;
@@ -265,7 +268,7 @@ export class SvgContextMenuPopulater {
 	async getTask(): Promise<LatexTask> {
 		await this.assignLatexContent();
 		const file = await this.getFile();
-		const sectionInfos = await findTaskSectionInfoFromHashInFile(file, this.rawHash);
+		const sectionInfos = await findTaskSectionInfoFromHashInFile(file, this.rawHash, this.plugin.app);
 		if (!sectionInfos)
 			throw new Error(
 				'No section info found for hash: ' + this.rawHash + ' in file: ' + file.path,
@@ -281,7 +284,7 @@ export class SvgContextMenuPopulater {
 
 	async getSectionInfo(): Promise<TaskSectionInformation> {
 		const file = await this.getFile();
-		const sectionInfos = await findTaskSectionInfoFromHashInFile(file, this.rawHash);
+		const sectionInfos = await findTaskSectionInfoFromHashInFile(file, this.rawHash, this.plugin.app);
 		if (!sectionInfos)
 			throw new Error(
 				'No section info found for hash: ' + this.rawHash + ' in file: ' + file.path,
@@ -370,7 +373,7 @@ function climbToEl(el: HTMLElement, predicate: (el: HTMLElement) => boolean): HT
 
 function findChildEl(el: HTMLElement, predicate: (el: HTMLElement) => boolean): HTMLElement | undefined {
 	return Array.from(el.children).find(
-		(child): child is HTMLElement => child instanceof HTMLElement && predicate(child),
+		(child): child is HTMLElement => child.instanceOf(HTMLElement) && predicate(child),
 	);
 }
 

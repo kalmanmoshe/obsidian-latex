@@ -46,6 +46,10 @@ function evaluateCommonJsModule(source: string): PdfToSvgFactory {
 		throw new Error(`Compressed pdfToSvgWasm tried to require "${moduleName}".`);
 	};
 
+	// The source is generated and bundled with the plugin, not user-controlled.
+	// Runtime evaluation is required to load the compressed CommonJS wrapper.
+	// TODO: maby compress only the wasm binary and load the wrapper from a separate file instead of compressing the entire wrapper.
+	// eslint-disable-next-line @typescript-eslint/no-implied-eval
 	const execute = new Function(
 		'module',
 		'exports',

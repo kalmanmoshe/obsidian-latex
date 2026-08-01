@@ -6,6 +6,7 @@ import {
 	createDependency,
 	LatexDependency,
 } from 'src/dependency/LatexDependency';
+import LatexCompilerPlugin from 'src/main';
 
 enum VFSstatus {
 	undefined,
@@ -43,7 +44,7 @@ async function nonBlockingWaitUntil(
 			throw new Error('Timeout waiting for condition.');
 		}
 		// Yield control to allow external code execution.
-		await new Promise((resolve) => setTimeout(resolve, checkInterval));
+		await new Promise((resolve) => window.setTimeout(resolve, checkInterval));
 	}
 }
 
@@ -81,10 +82,13 @@ export class VirtualFileSystem {
 	 * whether the virtual file system is enabled. If disabled, the virtual file system will flush the pdf engine and no longer update the files in said engine.
 	 */
 	private vfsEnabled: boolean = false;
+	// We intentionally do not use the plugin to access the compiler directly. 
+	// This ensures that we have control over changes to the compiler instance within the plugin.
 	private compiler: LatexCompiler;
 
-	constructor() {
-		this.parser = new LatexDependencyParser(this);
+	constructor(plugin: LatexCompilerPlugin) {
+		this.parser = new LatexDependencyParser(this, plugin.app);
+		void this.setEnabled(plugin.settings.compilerVfsEnabled);
 	}
 
 	/**
@@ -112,7 +116,7 @@ export class VirtualFileSystem {
 		if (this.vfsEnabled && !enabled) {
 			this.graph.flush();
 			this.compilerState = { status: VFSstatus.undefined };
-			await this.compiler.flushWorkCache();
+			await this.compiler?.flushWorkCache();
 		}
 		this.vfsEnabled = enabled;
 	}
@@ -186,7 +190,7 @@ export class VirtualFileSystem {
 				return;
 			}
 
-			const parsed = await this.parser.parseFile(newDep.ast!!, newDep.path);
+			const parsed = await this.parser.parseFile(newDep.ast!, newDep.path);
 
 			newDep.ast = parsed.ast;
 			newDep.content = parsed.content;
@@ -259,7 +263,7 @@ export class VirtualFileSystem {
 				case VfsCompileMode.none:
 					break;
 				default:
-					throw new Error(`Unknown VfsCompileMode: ${vfsCompileMode}`);
+					throw new Error(`Unknown VfsCompileMode: ${vfsCompileMode as any}`);
 			}
 			for (const file of filesToLoad) {
 				await this.compiler.writeMemFSFile(file.name, file.content);

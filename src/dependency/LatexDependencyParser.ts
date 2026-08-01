@@ -13,6 +13,7 @@ import {
 import { String as StringClass } from '../ast/typs/astNodes';
 import { createDependency, LatexDependency } from 'src/dependency/LatexDependency';
 import { VirtualFileSystem } from './VirtualFileSystem';
+import { App } from 'obsidian';
 
 export interface LatexDependencyNode {
 	dependency: LatexDependency;
@@ -29,6 +30,7 @@ export interface ParsedLatexFile {
 export class LatexDependencyParser {
 	constructor(
 		private vfs: VirtualFileSystem,
+		private app: App,
 		private possibleNames: string[] = [],
 	) { }
 
@@ -45,7 +47,7 @@ export class LatexDependencyParser {
 			filePath = filePath.split(CODE_BLOCK_NAME_SEPARATOR)[0];
 		}
 
-		const dependencies = await this.collectDependencies(ast, filePath);
+		const dependencies = await this.collectDependencies(ast, filePath, this.app);
 
 		return {
 			content: ast.toString(),
@@ -55,7 +57,7 @@ export class LatexDependencyParser {
 		};
 	}
 
-	async collectSurfaceDependencyPaths(content: string, sourcePath: string): Promise<string[]> {
+	async collectSurfaceDependencyPaths(content: string, sourcePath: string, app: App): Promise<string[]> {
 		const ast = LatexAbstractSyntaxTree.parse(content);
 
 		let basePath = sourcePath;
@@ -67,7 +69,7 @@ export class LatexDependencyParser {
 
 		for (const macro of findUsdInputFiles(ast._getMutableContent())) {
 			const rawPath = macro.toStringArgsContent();
-			const resolvedPath = resolvePathRelToVault(rawPath, basePath);
+			const resolvedPath = resolvePathRelToVault(rawPath, basePath, app);
 			paths.push(resolvedPath);
 		}
 
@@ -77,6 +79,7 @@ export class LatexDependencyParser {
 	private async collectDependencies(
 		ast: LatexAbstractSyntaxTree,
 		basePath: string,
+		app: App
 	): Promise<LatexDependencyNode[]> {
 		const dependencies: LatexDependencyNode[] = [];
 
@@ -85,7 +88,7 @@ export class LatexDependencyParser {
 		for (const macro of macros) {
 			const dependencyPath = macro.toStringArgsContent();
 
-			const dep = await this.resolveDependency(dependencyPath, basePath);
+			const dep = await this.resolveDependency(dependencyPath, basePath, app);
 
 			let childDependencies: LatexDependencyNode[] = [];
 
@@ -107,8 +110,8 @@ export class LatexDependencyParser {
 		return dependencies;
 	}
 
-	async resolveDependency(filePath: string, basePath: string): Promise<LatexDependency> {
-		const resolvedPath = resolvePathRelToVault(filePath, basePath);
+	async resolveDependency(filePath: string, basePath: string, app: App): Promise<LatexDependency> {
+		const resolvedPath = resolvePathRelToVault(filePath, basePath, app);
 		const { stem, extension } = extractStemAndExtension(resolvedPath);
 
 		if (this.isNameConflict(stem)) {
@@ -120,7 +123,7 @@ export class LatexDependencyParser {
 			return possibleDep;
 		}
 
-		const content = await getFileContent(resolvedPath);
+		const content = await getFileContent(resolvedPath, app);
 
 		return createDependency(content, resolvedPath, {
 			isTex: isExtensionTex(extension),

@@ -4,7 +4,7 @@ import { CssClasses } from 'src/util/cssClassesConstants';
 
 type InternalTask<T> = {
 	data: T;
-	callback: Function;
+	callback: (data: T) => void | Promise<void>;
 	next: InternalTask<T> | null;
 };
 
@@ -34,7 +34,7 @@ export class LatexRenderQueue {
 		const index = this.queue.running() + this.queue.length();
 
 		task.el.appendChild(createWaitingCountdown(index));
-		this.queue.push(task);
+		void this.queue.push(task);
 
 		updateQueueCountdown(this.queue);
 	}
@@ -121,15 +121,15 @@ const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
 };
 
 function createWaitingCountdown(index: number) {
-	const parentContainer = Object.assign(document.createElement('div'), {
+	const parentContainer = Object.assign(activeDocument.createElement('div'), {
 		className: CssClasses.loader.loaderParentContainer,
 	});
 
-	const loader = Object.assign(document.createElement('div'), {
+	const loader = Object.assign(activeDocument.createElement('div'), {
 		className: CssClasses.loader.renderLoader,
 	});
 
-	const countdown = Object.assign(document.createElement('div'), {
+	const countdown = Object.assign(activeDocument.createElement('div'), {
 		className: CssClasses.loader.renderCountdown,
 		textContent: index.toString(),
 	});

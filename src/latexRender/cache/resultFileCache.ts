@@ -1,5 +1,5 @@
 import LatexCompilerPlugin from 'src/main';
-import { normalizePath, Notice, TFile } from 'obsidian';
+import { FileSystemAdapter, normalizePath, Notice, TFile } from 'obsidian';
 import { getLatexHashesFromFile } from '../resolvers/latexSourceFromFile';
 import { CacheBase, CacheFileType } from './cacheBase/cacheBase';
 import {
@@ -15,6 +15,7 @@ import {
 import { isValidFileStem } from '../resolvers/paths';
 import { optimizeSVG } from '../pdfToHtml/optimizeSVG';
 import { getDependencyHash } from './compilerCache';
+import { insertSvg } from '../pdfToHtml/pdfToHtml';
 
 
 export const resultFileCacheFormat = new Map([
@@ -38,7 +39,7 @@ export default class ResultFileCache {
 			this.cache = new ResultFileVirtualCache(this.plugin, resultFileCacheFormat);
 		}
 
-		this.onload();
+		void this.onload();
 	}
 
 	private async onload() {
@@ -122,7 +123,7 @@ export default class ResultFileCache {
 		} else {
 			await this.togglePhysicalCacheOff();
 		}
-		this.cleanUpCache();
+		void this.cleanUpCache();
 	}
 
 	private loadCache() {
@@ -333,7 +334,7 @@ export default class ResultFileCache {
 		// if the resolve hash is the same as the raw hash, we can directly get the file from the cache so we dont have to check
 		const data = await this.getResultFileFromRawHash(rawHash, filePath, resolveDeps);
 		if (data === undefined) return false;
-		el.innerHTML = data;
+		insertSvg(data, el)
 		return true;
 	}
 
@@ -375,7 +376,7 @@ export default class ResultFileCache {
 		const rawHashesToRemove: string[] = [];
 		// Find files that dont exsist anymaor if file dose exist, remove unused caches for it.
 		for (const filePath of this.getAllFilePathsFromCache()) {
-			const file = app.vault.getAbstractFileByPath(filePath);
+			const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
 			if (!file) {
 				filePathsToRemove.push(filePath);
 			} else if (file instanceof TFile) {
@@ -413,7 +414,7 @@ export default class ResultFileCache {
 	 * If a hash is no longer referenced by any file, it is removed from the cache.
 	 */
 	private async removeUnusedCachesForFile(file: TFile) {
-		const rawHashesInFile = await getLatexHashesFromFile(file);
+		const rawHashesInFile = await getLatexHashesFromFile(file, this.plugin.app);
 		const rawHashesInCache =
 			this.getRawHashesFromCacheForReferencingFile(file).rawHashes;
 
@@ -442,7 +443,7 @@ export default class ResultFileCache {
 				await this.cache.deleteFile(resultFile);
 			}
 		}
-		this.saveCache();
+		void this.saveCache();
 	}
 
 	async removeResultFileFromCache(stem: string): Promise<boolean> {
@@ -504,7 +505,7 @@ export default class ResultFileCache {
 		await this.cache.clearCache();
 		this.cacheMap.clear();
 		this.plugin.settings.dirtyResultFiles = [];
-		this.saveCache();
+		void this.saveCache();
 	}
 
 	private stemToFileName(hash: string): string {
@@ -550,11 +551,16 @@ export default class ResultFileCache {
 				'Physical cache is not enabled, cannot get absolute path from stem.',
 			);
 		}
-		const fileName = this.stemToFileName(stem);
-		//@ts-ignore (Obsidian doesn't expose this API)
-		const vaultPath = this.plugin.app.vault.adapter.basePath;
-		const vaultRelativeFilePath = (this.cache as ResultFilePhysicalCache).getCacheFilePath(fileName);
+		const adapter = this.plugin.app.vault.adapter;
 
-		return normalizePath(`${vaultPath}/${vaultRelativeFilePath}`);
+		if (!(adapter instanceof FileSystemAdapter)) {
+			throw new Error(
+				'Vault adapter is not a FileSystemAdapter, cannot get absolute path.',
+			);
+		}
+		const fileName = this.stemToFileName(stem);
+		const relativePath = (this.cache as ResultFilePhysicalCache).getCacheFilePath(fileName);
+
+		return adapter.getFullPath(normalizePath(relativePath));
 	}
 }

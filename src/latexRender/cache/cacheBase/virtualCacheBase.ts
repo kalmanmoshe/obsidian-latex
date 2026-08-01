@@ -73,8 +73,8 @@ export abstract class VirtualCacheBase extends CacheBase {
 	}
 
 	async deleteCache() {
+		// its virtual cache, so we just clear the map
 		this.cache.clear();
-		this.cache = undefined as any;
 	}
 
 	async clearCache() {

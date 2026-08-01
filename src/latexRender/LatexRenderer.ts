@@ -3,7 +3,7 @@ import { CompileResult, CompileStatus } from './compiler/base/compilerBase/engin
 import LatexCompilerPlugin from '../main';
 import { CompilerType } from 'src/settings/settings.js';
 
-import { pdfToHtml, pdfToOptimizedSVG, pdfToSVG, SVG_ID_KEY } from './pdfToHtml/pdfToHtml';
+import { insertSvg, pdfToHtml, pdfToOptimizedSVG, pdfToSVG, SVG_ID_KEY } from './pdfToHtml/pdfToHtml';
 import parseLatexLog, { createErrorDisplay, errorDiv } from './logs/HumanReadableLogs';
 import { VfsCompileMode, VirtualFileSystem } from '../dependency/VirtualFileSystem';
 import { ProcessedLog } from './logs/latex-log-parser';
@@ -15,18 +15,13 @@ import CompilerCache, { hashLatexContent } from './cache/compilerCache';
 import { LatexRenderQueue } from './task/LatexRenderQueue';
 import { getLogCacheKey } from './cache/logCache';
 
-export const waitFor = async (condFunc: () => boolean) => {
-	return new Promise<void>((resolve) => {
-		if (condFunc()) {
-			resolve();
-		} else {
-			setTimeout(async () => {
-				await waitFor(condFunc);
-				resolve();
-			}, 100);
-		}
-	});
-};
+export async function waitFor(condFunc: () => boolean): Promise<void> {
+	while (!condFunc()) {
+		await new Promise<void>((resolve) => {
+			window.setTimeout(resolve, 100);
+		});
+	}
+}
 
 export const latexCodeBlockNamesRegex = /(`|~){3,} *(latex|tikz)/;
 
@@ -53,18 +48,19 @@ type HandleErrorOptions = {
  */
 export class LatexRenderer {
 	plugin: LatexCompilerPlugin;
-	vfs: VirtualFileSystem = new VirtualFileSystem();
+	vfs: VirtualFileSystem;
 	compiler?: LatexCompiler;
 	cache: CompilerCache;
 	queue?: LatexRenderQueue;
 
 	async onload(plugin: LatexCompilerPlugin) {
 		this.plugin = plugin;
+		this.vfs = new VirtualFileSystem(plugin);
 		this.cache = new CompilerCache(this.plugin);
 		if (this.isNotIos()) {
 			await this.loadCompiler();
 
-			this.queue = new LatexRenderQueue(this.processAndRenderLatexTask.bind(this));
+			this.queue = new LatexRenderQueue((t) => this.processAndRenderLatexTask(t));
 		}
 	}
 
@@ -82,7 +78,7 @@ export class LatexRenderer {
 		if (isTex || isXeTeX) return Promise.resolve();
 
 		this.compiler.closeWorkers();
-		this.compiler = undefined as any;
+		this.compiler = undefined;
 
 		return this.loadCompiler();
 	}
@@ -121,9 +117,13 @@ export class LatexRenderer {
 		const createResult = await LatexTask.createAsync(this.plugin, isLangTikz, source, el, ctx);
 
 		if (createResult.isError) {
+			const errorMessage = createResult.result instanceof Error
+					? createResult.result.message
+					: String(createResult.result);
+
 			this.handleError(
 				el,
-				'Error creating task: ' + createResult.result,
+				`Error creating task: ${errorMessage}`,
 				this.cache.resultFileCache.getFileStem(rawHash, []),
 			);
 			return;
@@ -139,7 +139,7 @@ export class LatexRenderer {
 
 		if (wasRestoredFromCache) return;
 
-		this.queue?.push(task as LatexTask);
+		this.queue?.push(task);
 	}
 
 	/**
@@ -150,7 +150,6 @@ export class LatexRenderer {
 	 */
 	private async processAndRenderLatexTask(task: LatexTask): Promise<boolean> {
 		if (await restoreFromCache(task, this.plugin)) {
-			console.log('Found in catch for', task.getBlockId());
 			return false;
 		}
 
@@ -165,14 +164,14 @@ export class LatexRenderer {
 		if (task.isProcess()) {
 			const processError = await task.process();
 
-			task.log();
 			if (processError) {
 				this.handleErrorForTask(task, `Error processing task: ${processError}`);
 				return false;
 			}
 		} else {
 			// We need to make sure there is no file in the VFS
-			this.vfs.removeNonAutoUseFiles();
+			// (no need to await this, the compiler isReady will await the VFS to be ready)
+			void this.vfs.removeNonAutoUseFiles();
 		}
 
 		console.log('Rendering task:', task.getDebugInfo());
@@ -221,7 +220,6 @@ export class LatexRenderer {
 
 		if (task.isProcess()) {
 			const processError = await task.process();
-			task.log();
 			if (processError) {
 				return new CompileResult(undefined, CompileStatus.ProcessingError, processError);
 			}
@@ -238,7 +236,7 @@ export class LatexRenderer {
 
 	async detachedProcessAndRenderToResultFile(task: LatexTask) {
 		const compileResult = await this.detachedProcessAndRender(task);
-		if (compileResult.status === CompileStatus.CompileError) {
+		if (compileResult.isStatus(CompileStatus.CompileError)) {
 			return;
 		}
 		const resultFile = pdfToSVG(compileResult.pdf);
@@ -298,7 +296,7 @@ export class LatexRenderer {
 
 		child.setAttribute(SVG_ID_KEY, hash);
 		el.appendChild(child);
-		if (options.throw) throw err;
+		if (options.throw) throw new Error(err);
 	}
 
 	private async renderLatexToElement(task: LatexTask): Promise<void> {
@@ -315,14 +313,16 @@ export class LatexRenderer {
 			el.innerHTML = '';
 			await this.translatePDF(result.pdf, el, stem);
 
-			this.cache.resultFileCache.addFile(el.innerHTML, rawHash, dependencyPaths, sourcePath);
+			void this.cache.resultFileCache.addFile(el.innerHTML, rawHash, dependencyPaths, sourcePath);
 		} catch (err) {
-			const errorText = err instanceof LatexCompilationError
+			const isCompilationError = err instanceof LatexCompilationError;
+			const errorText = isCompilationError
 				? err.latexLog
 				: toErrorString(err);
-
+				
+			console.error('Error rendering LaTeX to element:', err);
 			this.handleErrorForTask(task, errorText, {
-				parseErr: true,
+				parseErr: isCompilationError,
 			});
 		} finally {
 			if (!this.compiler?.isResponsive()) {
@@ -359,7 +359,7 @@ export class LatexRenderer {
 			await this.cache.fetchPackageCacheData();
 		}
 
-		if (result.status !== 0) {
+		if (!result.isStatus(CompileStatus.Success)) {
 			throw new LatexCompilationError(result.log);
 		}
 
@@ -372,24 +372,18 @@ export class LatexRenderer {
 		stem: string,
 		outputSVG = true,
 	): Promise<void> {
-		return new Promise<void>((resolve) => {
-			const config = {
-				invertColorsInDarkMode: this.plugin.settings.invertColorsInDarkMode,
-				autoRemoveWhitespace: this.plugin.settings.autoRemoveWhitespace,
-				stem,
-			};
-			if (outputSVG) {
-				pdfToOptimizedSVG(pdfData, config).then((svg: string) => {
-					el.innerHTML = svg;
-					resolve();
-				});
-			} else {
-				pdfToHtml(pdfData).then((htmlData) => {
-					el.createEl('object', htmlData);
-					resolve();
-				});
-			}
-		});
+		const config = {
+			invertColorsInDarkMode: this.plugin.settings.invertColorsInDarkMode,
+			autoRemoveWhitespace: this.plugin.settings.autoRemoveWhitespace,
+			stem,
+		};
+		if (outputSVG) {
+			const svgString = await pdfToOptimizedSVG(pdfData, config)
+			insertSvg(svgString, el);
+		} else {
+			const htmlData = await pdfToHtml(pdfData);
+			el.createEl('object', htmlData);
+		}
 	}
 
 	isNotIos(): this is LatexRenderer & {
@@ -422,7 +416,7 @@ async function getCacheDependencyPaths(
 ): Promise<string[]> {
 	const explicitDeps = await vfs
 		.getParser()
-		.collectSurfaceDependencyPaths(task.getContent(), task.sourcePath);
+		.collectSurfaceDependencyPaths(task.getContent(), task.sourcePath, plugin.app);
 
 	const autoUsePaths = plugin.settings.compilerVfsEnabled
 		? vfs

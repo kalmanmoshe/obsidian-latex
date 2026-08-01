@@ -1,4 +1,4 @@
-import { Command, Modal, Notice, TFile } from 'obsidian';
+import { App, Command, Modal, Notice, TFile } from 'obsidian';
 import { LatexTask } from 'src/latexRender/task/latexTask';
 import LatexCompilerPlugin from 'src/main';
 import { CompileResult, CompileStatus } from 'src/latexRender/compiler/base/compilerBase/engine';
@@ -48,10 +48,7 @@ function createOpenLastTestResultCommand(): Command {
 	};
 }
 
-interface CompileTracker {
-	success: CompileAnalysisResult[];
-	failure: CompileAnalysisResult[];
-}
+type CompileTracker = Record<string, CompileAnalysisResult[]>;
 
 interface CompileAnalysisResult {
 	compileResult: CompileResult;
@@ -92,7 +89,7 @@ class CompileTest {
 			this.cancelCurrentTest();
 		}
 
-		this.startTest(plugin);
+		void this.startTest(plugin);
 	}
 
 	static openLastTestResult() {
@@ -119,7 +116,7 @@ class CompileTest {
 			return;
 		}
 
-		this.startTest(plugin);
+		void this.startTest(plugin);
 	}
 
 	private static async startTest(plugin: LatexCompilerPlugin) {
@@ -130,19 +127,19 @@ class CompileTest {
 		const token = this.activeToken;
 		this.testStartTime = Date.now();
 
-		this.displayModal = new TestResultModal();
+		this.displayModal = new TestResultModal(plugin.app);
 		this.displayModal.open();
 		this.displayModal.setTestStartTime(this.testStartTime);
 		this.tracker = {
-			success: [],
-			failure: []
+			"success": [],
+			"failure": []
 		};
 
-		const files = app.vault.getFiles().filter((f) => f.extension === 'md');
+		const files = this.plugin.app.vault.getFiles().filter((f) => f.extension === 'md');
 		this.sectionsByFile = await Promise.all(
 			files.map(async (file) => ({
 				file,
-				codeBlockSections: await getLatexTaskSectionInfosFromFile(file as TFile),
+				codeBlockSections: await getLatexTaskSectionInfosFromFile(file, plugin.app),
 			})),
 		);
 
@@ -153,7 +150,7 @@ class CompileTest {
 
 		this.displayModal.setTotalSections(totalSections);
 
-		this.analyzeLatexCodeBlocks(token);
+		void this.analyzeLatexCodeBlocks(token);
 	}
 
 	static async analyzeLatexCodeBlocks(token: string) {
@@ -166,13 +163,13 @@ class CompileTest {
 				const start = performance.now();
 				const result = await this.analyzeSection(file, section);
 
-				this.displayModal.recordResult(result.compileResult.status);
+				this.displayModal.recordResult(result.compileResult.isStatus(CompileStatus.Success));
 
 				const duration = performance.now() - start;
 
-				const index = result.compileResult.status === CompileStatus.Success ? 0 : 1;
+				const index = result.compileResult.isStatus(CompileStatus.Success) ? 0 : 1;
 
-				const keys = Object.keys(this.tracker) as (keyof CompileTracker)[];
+				const keys = Object.keys(this.tracker);
 				this.tracker[keys[index]].push(result);
 
 				this.displayModal.addResult(index, result, duration);
@@ -216,7 +213,7 @@ class TestResultModal extends Modal {
 	success = 0;
 	failure = 0;
 
-	constructor() {
+	constructor(app: App) {
 		super(app);
 		this.set();
 	}
@@ -225,7 +222,7 @@ class TestResultModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 		contentEl.createEl('h3', {
-			text: 'Running LaTeX Compilation Tests...',
+			text: 'Running LaTeX compilation tests...',
 		});
 		this.elapsedEl = contentEl.createEl('p', {
 			text: 'Elapsed: 0.0s',
@@ -239,15 +236,15 @@ class TestResultModal extends Modal {
 		});
 
 		this.currentFileEl = contentEl.createEl('p', {
-			text: 'Current File: ...',
+			text: 'Current file: ...',
 		});
 		this.currentSectionEl = contentEl.createEl('p', {
-			text: 'Current Section: ...',
+			text: 'Current section: ...',
 		});
 		this.resultsContainer = contentEl.createDiv();
 
 		contentEl.createEl('button', {
-			text: 'Save Report to Vault',
+			text: 'Save report to vault',
 			cls: 'mod-cta',
 		}).onclick = () => this.saveReport();
 	}
@@ -324,11 +321,11 @@ class TestResultModal extends Modal {
 
 		this.elapsedEl.setText(`Elapsed: ${totalTime}s`);
 
-		this.currentFileEl.setText('✔️ All files processed.');
+		this.currentFileEl.setText('All files processed.');
 		this.currentSectionEl.setText('');
 
 		this.contentEl.createEl('button', {
-			text: 'Save Report to Vault',
+			text: 'Save report to vault',
 			cls: 'mod-cta',
 		}).onclick = () => this.saveReport();
 	}
@@ -338,10 +335,10 @@ class TestResultModal extends Modal {
 		this.updateStats();
 	}
 
-	recordResult(status: CompileStatus) {
+	recordResult(isSuccess: boolean) {
 		this.processed++;
 
-		if (status === CompileStatus.Success) {
+		if (isSuccess) {
 			this.success++;
 		} else {
 			this.failure++;
@@ -367,7 +364,7 @@ class TestResultModal extends Modal {
 		let idx = 0;
 		let filename = 'compile-report.md';
 
-		while (app.vault.getAbstractFileByPath(filename) !== null) {
+		while (this.app.vault.getAbstractFileByPath(filename) !== null) {
 			idx++;
 			filename = `compile-report${idx}.md`;
 		}
@@ -375,14 +372,14 @@ class TestResultModal extends Modal {
 		const path = idx === 0 ? 'compile-report.md' : 'compile-report-' + idx + '.md';
 
 		const report = this.generateMarkdownReport(tracker);
-		await app.vault.create(path, report);
+		await this.app.vault.create(path, report);
 		new Notice(`Report saved to ${path}`);
 	}
 
 	generateMarkdownReport(tracker: CompileTracker): string {
 		const date = new Date(this.testStartTime).toLocaleString();
 		const blocks = Object.entries(tracker).map(([label, results]) => {
-			const items = (results as CompileAnalysisResult[])
+			const items = results
 				.map((r: CompileAnalysisResult) => {
 					return `- ${r.task.sourcePath} (Line ${r.section.lineStart})`;
 				})

@@ -39,7 +39,7 @@ export default abstract class LatexCompiler {
 		);
 	}
 
-	async writeTexFSFile(filename: string, srccode: any): Promise<void> {
+	async writeTexFSFile(filename: string, srccode: Uint8Array | string): Promise<void> {
 		return Promise.all(
 			this.engines.map((engine) => engine.writeTexFSFile(filename, srccode)),
 		).then(() => {});

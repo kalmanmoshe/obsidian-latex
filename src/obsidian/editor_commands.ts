@@ -11,14 +11,14 @@ function removeAllCachedPackages(plugin: LatexCompilerPlugin): Command {
 		id: 'remove-all-cached-packages',
 		name: 'Remove all cached packages',
 		callback() {
-			plugin.latexRenderer.cache.removeAllCachedPackages();
+			void plugin.latexRenderer.cache.removeAllCachedPackages();
 			new Notice('All cached packages removed');
 		},
 	};
 }
 
 async function extractAllUnrenderedSectionsByFile(plugin: LatexCompilerPlugin) {
-	const sectionsByFile = await extractAllSectionsByFile();
+	const sectionsByFile = await extractAllSectionsByFile(plugin.app);
 	const sectionInfosByFile = [];
 
 	for (const { file, codeBlockSections } of sectionsByFile) {
@@ -44,14 +44,15 @@ async function renderAllUnrenderedCodeBlocks(plugin: LatexCompilerPlugin) {
 		throw new Error('Render all unrendered code blocks is not supported on iOS');
 	}
 	const sectionInfosByFile = await extractAllUnrenderedSectionsByFile(plugin);
-	console.log('Unrendered sections found:', sectionInfosByFile, sectionInfosByFile.length);
+	let count = 0;
 	for (const { file, codeBlockSections } of sectionInfosByFile) {
 		for (const codeBlock of codeBlockSections) {
 			const task = LatexTask.fromSectionInfos(plugin, file.path, [codeBlock]);
 			plugin.latexRenderer.queue.push(task);
+			count++;
 		}
 	}
-	console.log('All unrendered code blocks are being processed', plugin.latexRenderer.queue);
+	new Notice(`${count} code blocks in ${sectionInfosByFile.length} are being processed`);
 }
 
 function getRenderAllUnrenderedCodeBlocks(plugin: LatexCompilerPlugin) {
@@ -61,7 +62,7 @@ function getRenderAllUnrenderedCodeBlocks(plugin: LatexCompilerPlugin) {
 		id: 'render-all-unrendered-code-blocks',
 		name: 'Render All Unrendered Code Blocks',
 		callback: async () => {
-			renderAllUnrenderedCodeBlocks(plugin);
+			await renderAllUnrenderedCodeBlocks(plugin);
 			new Notice('All unrendered code blocks are being processed');
 		},
 	};

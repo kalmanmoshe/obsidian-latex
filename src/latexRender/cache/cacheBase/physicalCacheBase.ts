@@ -20,7 +20,6 @@ export abstract class PhysicalCacheBase extends CacheBase {
 
 	private async validateDir() {
 		this.cacheFolderPath = this.getCacheFolderPath();
-		console.log(this.constructor.name, "Validating cache directory:", this.cacheFolderPath);
 		await mkdirRecursive(this.plugin.app.vault.adapter, this.cacheFolderPath);
 	}
 

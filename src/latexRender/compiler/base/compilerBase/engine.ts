@@ -1,3 +1,5 @@
+import { StringMap } from "src/settings/settings";
+
 export enum EngineStatus {
 	Init,
 	Ready,
@@ -6,24 +8,15 @@ export enum EngineStatus {
 	Failed
 }
 
-export enum CompileStatus {
-	Success = 0,
-	ProcessingError,
-	CompileError,
-	FileNotFound = -253,
-	EngineCrashed = -254,
+interface EngineTask {
+	cmd: EngineCommands;
+	[key: string]: unknown;
 }
 
-export class CompileResult {
-	pdf: Uint8Array;
-	status: number = -254;
-	log: string = 'No log';
-
-	constructor(pdf: Uint8Array | undefined, status: number, log: string) {
-		if (pdf) this.pdf = pdf;
-		this.status = status;
-		this.log = log;
-	}
+interface WorkerMessage {
+	cmd: EngineCommands;
+	result?: unknown;
+	[key: string]: unknown;
 }
 
 enum EngineCommands {
@@ -47,6 +40,30 @@ enum EngineCommands {
 	Compilepdf = 'compilepdf',
 }
 
+export enum CompileStatus {
+	Success = 0,
+	ProcessingError = 20,
+	CompileError = 1,
+	FileNotFound = -253,
+	EngineCrashed = -254,
+}
+
+export class CompileResult {
+	pdf: Uint8Array;
+	status: number = -254;
+	log: string = 'No log';
+
+	constructor(pdf: Uint8Array | undefined, status: number, log: string) {
+		if (pdf) this.pdf = pdf;
+		this.status = status;
+		this.log = log;
+	}
+	
+	isStatus(status: CompileStatus): boolean {
+		return this.status === Number(status);
+	}
+}
+
 export default class LatexEngine {
 	protected worker: Worker | undefined;
 	protected engineStatus: EngineStatus = EngineStatus.Init;
@@ -68,7 +85,7 @@ export default class LatexEngine {
 		this.worker = await this.createWorker();
 
 		await new Promise<void>((resolve, reject) => {
-			this.worker!.onmessage = (ev: MessageEvent<any>) => {
+			this.worker!.onmessage = (ev: MessageEvent<WorkerMessage>) => {
 				const data = ev.data;
 
 				if (data.result === 'ok') {
@@ -116,7 +133,6 @@ export default class LatexEngine {
 	}
 
 	async compileLaTeX(): Promise<CompileResult> {
-		const startCompileTime = performance.now();
 		const data = await this.task<{
 			pdf?: Uint8Array;
 			status: number;
@@ -124,9 +140,6 @@ export default class LatexEngine {
 		}>({
 			cmd: EngineCommands.Compilelatex,
 		});
-		console.log(
-			`Engine ${this.engineName} compilation finished in ${performance.now() - startCompileTime} ms`,
-		);
 		return new CompileResult(
 			data.pdf ? new Uint8Array(data.pdf) : undefined,
 			data.status,
@@ -135,17 +148,12 @@ export default class LatexEngine {
 	}
 
 	async compilePDF(): Promise<CompileResult> {
-		const startCompileTime = performance.now();
 		const data = await this.task<{
 			pdf?: Uint8Array;
 			status: number;
 			log: string;
 		}>({ cmd: EngineCommands.Compilepdf });
 
-		console.log(
-			`Engine ${this.engineName} compilation finish ` +
-				(performance.now() - startCompileTime),
-		);
 		return new CompileResult(
 			data.pdf ? new Uint8Array(data.pdf) : undefined,
 			data.status,
@@ -165,7 +173,7 @@ export default class LatexEngine {
 			type: 'application/octet-stream',
 		});
 		const formatURL = URL.createObjectURL(formatBlob);
-		setTimeout(() => URL.revokeObjectURL(formatURL), 30000);
+		window.setTimeout(() => URL.revokeObjectURL(formatURL), 30000);
 		console.log(`Engine ${this.engineName} download format file via ` + formatURL);
 	}
 
@@ -195,10 +203,10 @@ export default class LatexEngine {
 	}
 
 	writeCacheData(
-		texlive404_cache: any,
-		texlive200_cache: any,
-		font404_cache: any,
-		font200_cache: any,
+		texlive404_cache: StringMap,
+		texlive200_cache: StringMap,
+		font404_cache: StringMap,
+		font200_cache: StringMap,
 	) {
 		return this.task({
 			cmd: EngineCommands.Writecache,
@@ -210,7 +218,7 @@ export default class LatexEngine {
 	}
 
 	async fetchWorkFiles() {
-		return this.task<{ file: String[] }>({
+		return this.task<{ file: string[] }>({
 			cmd: EngineCommands.FetchWorkFiles,
 		});
 	}
@@ -223,7 +231,7 @@ export default class LatexEngine {
 	async fetchTexFiles(fileNames: string[]) {
 		const files = [];
 		for (const fileName of fileNames) {
-			const data = await this.task<{ content: Uint8Array<any> }>({
+			const data = await this.task<{ content: Uint8Array<ArrayBuffer> }>({
 				cmd: EngineCommands.Fetchfile,
 				fileName,
 			});
@@ -238,7 +246,7 @@ export default class LatexEngine {
 	}
 
 	//todo: take down timer revert to 15000 when loding pkg for the first time it taks a lot of time
-	task<T = void>(task: any, timeoutMs = 1500000): Promise<T> {
+	task<T = void>(task: EngineTask, timeoutMs = 1500000): Promise<T> {
 		const command = task.cmd;
 
 		this.checkEngineStatus(command);
@@ -275,31 +283,34 @@ export default class LatexEngine {
 				fail(new Error(`Engine timeout on cmd=${command} after ${timeoutMs}ms`));
 			}, timeoutMs);
 
-			worker.onmessage = (ev: MessageEvent<any>) => {
+			worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
 				try {
+					const message = event.data;
 					if (
-						ev.data?.cmd === EngineCommands.WorkerError ||
-						ev.data?.cmd === EngineCommands.WorkerRejection
+						message?.cmd === EngineCommands.WorkerError ||
+						message?.cmd === EngineCommands.WorkerRejection
 					) {
 						this.engineStatus = EngineStatus.Failed;
 						fail(
 							new Error(
-								`Engine ${this.engineName} worker error: ${ev.data ?? 'unknown error'}`,
+								`Engine ${this.engineName} worker error: ${JSON.stringify(message) ?? 'unknown error'}`,
 							),
 						);
 						return;
 					}
 
 					// IMPORTANT: don't throw on other messages
-					if (ev.data?.cmd !== command) return;
+					if (message?.cmd !== command) return;
 
 					window.clearTimeout(timer);
 
 					this.engineStatus = EngineStatus.Ready;
 
-					const data = { ...ev.data };
-					delete (data as any).result;
-					delete (data as any).cmd;
+					const {
+						result: _result,
+						cmd: _cmd,
+						...data
+					} = message;
 
 					ok(Object.keys(data).length ? (data as T) : (undefined as T));
 				} catch (err) {
@@ -315,7 +326,7 @@ export default class LatexEngine {
 				console.error(`Engine ${this.engineName} worker error:`, err);
 				fail(new Error(`Engine ${this.engineName} worker error: ${err.message}`));
 			};
-			console.log(`Sending task to engine ${this.engineName} worker:`, task);
+			
 			worker.postMessage(task);
 		});
 	}
@@ -323,7 +334,7 @@ export default class LatexEngine {
 	/**
 	 *
 	 */
-	writeTexFSFile(filename: string, srcCode: Uint8Array) {
+	writeTexFSFile(filename: string, srcCode: Uint8Array | string) {
 		return this.task({
 			cmd: EngineCommands.Writetexfile,
 			url: filename,

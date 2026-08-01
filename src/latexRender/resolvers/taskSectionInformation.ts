@@ -1,4 +1,4 @@
-import { SectionCache, TFile } from 'obsidian';
+import { App, SectionCache, TFile } from 'obsidian';
 import { getFileSectionsFromPath } from './sectionCache';
 import { latexCodeBlockNamesRegex } from '../LatexRenderer';
 import { codeBlockToContent } from 'obsidian-dev-utils';
@@ -24,8 +24,8 @@ export interface TaskSectionInformation {
  * @param file
  * @returns
  */
-export async function getLatexTaskSectionInfosFromFile(file: TFile) {
-	const { fileText, sections } = await getFileSectionsFromPath(file.path);
+export async function getLatexTaskSectionInfosFromFile(file: TFile, app: App) {
+	const { fileText, sections } = await getFileSectionsFromPath(file.path, app);
 	if (!sections) return [];
 	return getLatexTaskSectionInfosFromString(fileText, sections);
 }
@@ -65,8 +65,8 @@ function getLatexTaskSectionInfosFromString(
 	return codeBlocks;
 }
 
-export async function findTaskSectionInfoFromHashInFile(file: TFile, hash: string) {
-	const blockSections = await getLatexTaskSectionInfosFromFile(file);
+export async function findTaskSectionInfoFromHashInFile(file: TFile, hash: string, app: App) {
+	const blockSections = await getLatexTaskSectionInfosFromFile(file, app);
 	const matchedSections = blockSections.filter(
 		(section) => hashLatexContent(codeBlockToContent(section.codeBlock)) === hash,
 	);

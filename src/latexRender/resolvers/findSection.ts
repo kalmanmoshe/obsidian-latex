@@ -1,13 +1,18 @@
-import { Editor, MarkdownSectionInformation, SectionCache, TFile } from 'obsidian';
-import { EditorView } from '@codemirror/view';
+import { App, Editor, MarkdownSectionInformation, SectionCache, TFile } from 'obsidian';
+import type { EditorView } from '@codemirror/view';
 import { getFileSections } from 'obsidian-dev-utils';
 import { getFileSectionsFromPath } from './sectionCache';
+
+type CodeMirrorEditor = Editor & {
+	cm: EditorView;
+};
 
 export async function getCurrentCursorLocationSection(file: TFile, editor: Editor) {
 	const sections = await getFileSections(file, true);
 	if (!sections) return;
-	const selection = ((editor as any).cm as EditorView).state.selection;
-	const head = selection.main.head;
+
+	const cmEditor = editor as CodeMirrorEditor;
+	const head = cmEditor.cm.state.selection.main.head;
 	const lineIndex = editor.offsetToPos(head).line;
 	const section = findInnermostSection(sections, lineIndex);
 	return section;
@@ -20,8 +25,9 @@ export async function getCurrentCursorLocationSection(file: TFile, editor: Edito
 export async function findMatchingCodeBlockSections(
 	path: string,
 	codeBlock: string,
+	app: App
 ): Promise<MarkdownSectionInformation[] | undefined> {
-	const { fileText, sections } = await getFileSectionsFromPath(path);
+	const { fileText, sections } = await getFileSectionsFromPath(path, app);
 
 	const sectionMatches: SectionCache[] | undefined = extractPossibleSectionCatchesOfString(
 		sections,

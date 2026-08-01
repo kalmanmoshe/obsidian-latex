@@ -42,8 +42,9 @@ export function optimizeSVG(svg: string, full: boolean): string {
 	try {
 		const { width, height } = extractDimensions(svg);
 		let optimizedSvg = optimize(svg, config).data;
+		// Ensure dimensions are preserved
 		if (width && height) {
-			optimizedSvg = optimizedSvg.replace(/<svg/, `<svg width="${width}" height="${height}"`); // Ensure dimensions are preserved
+			optimizedSvg = setSvgDimensions(optimizedSvg, width, height);
 		}
 		return optimizedSvg;
 	} catch (e) {
@@ -65,4 +66,18 @@ function extractDimensions(svg: string): { width?: string; height?: string } {
 		width: widthMatch?.[1],
 		height: heightMatch?.[1],
 	};
+}
+
+function setSvgDimensions(
+	svg: string,
+	width: string | number,
+	height: string | number,
+): string {
+	return svg.replace(/<svg\b([^>]*)>/i, (_, attributes: string) => {
+		const withoutDimensions = attributes
+			.replace(/\s+width\s*=\s*(?:"[^"]*"|'[^']*')/gi, '')
+			.replace(/\s+height\s*=\s*(?:"[^"]*"|'[^']*')/gi, '');
+
+		return `<svg width="${width}" height="${height}"${withoutDimensions}>`;
+	});
 }

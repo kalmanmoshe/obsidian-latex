@@ -1,4 +1,4 @@
-import { TFile } from 'obsidian';
+import { App, TFile } from 'obsidian';
 import { latexCodeBlockNamesRegex } from '../LatexRenderer';
 import { getLatexTaskSectionInfosFromFile } from './taskSectionInformation';
 import { codeBlockLanguageRegex, codeBlockToContent } from 'obsidian-dev-utils';
@@ -20,12 +20,12 @@ import { hashLatexContent } from '../cache/compilerCache';
  * @returns
  */
 
-export async function extractAllSectionsByFile() {
+export async function extractAllSectionsByFile(app: App) {
 	const files = app.vault.getFiles().filter((f) => f.extension === 'md');
 	const sectionsByFile = await Promise.all(
 		files.map(async (file) => ({
 			file,
-			codeBlockSections: await getLatexTaskSectionInfosFromFile(file as TFile),
+			codeBlockSections: await getLatexTaskSectionInfosFromFile(file, app),
 		})),
 	);
 	return sectionsByFile;
@@ -59,8 +59,8 @@ export function extractCodeBlockName(codeBlock: string): string | undefined {
  * @param app
  * @returns
  */
-export async function getLatexHashesFromFile(file: TFile) {
-	const codeBlocks = await getLatexTaskSectionInfosFromFile(file);
+export async function getLatexHashesFromFile(file: TFile, app: App) {
+	const codeBlocks = await getLatexTaskSectionInfosFromFile(file, app);
 	const hashes = codeBlocks.map((block) => hashLatexContent(codeBlockToContent(block.codeBlock)));
 	return hashes;
 }

@@ -151,10 +151,10 @@ export default class PackageCache extends PhysicalCacheBase {
 			}
 
 			this.plugin.settings.packageCache = [
-				Object.assign({}, ...cacheData.map((data) => data.missingPackages)),
-				Object.assign({}, ...cacheData.map((data) => data.cachedPackages)),
-				Object.assign({}, ...cacheData.map((data) => data.missingFonts)),
-				Object.assign({}, ...cacheData.map((data) => data.cachedFonts)),
+				mergeRecords(cacheData.map((data) => data.missingPackages)),
+				mergeRecords(cacheData.map((data) => data.cachedPackages)),
+				mergeRecords(cacheData.map((data) => data.missingFonts)),
+				mergeRecords(cacheData.map((data) => data.cachedFonts)),
 			];
 
 			await this.plugin.saveSettings();
@@ -169,7 +169,7 @@ export default class PackageCache extends PhysicalCacheBase {
 	async removeAllCachedPackages(): Promise<void> {
 		await clearFolder(this.plugin.app.vault.adapter, this.getCacheFolderPath());
 		this.plugin.settings.packageCache = [{}, {}, {}, {}];
-		this.plugin.saveSettings()
+		void this.plugin.saveSettings()
 	}
 
 	private compiler() {
@@ -178,4 +178,8 @@ export default class PackageCache extends PhysicalCacheBase {
 		}
 		return this.plugin.latexRenderer.compiler;
 	}
+}
+
+function mergeRecords<T extends object>(records: readonly T[]): T {
+	return Object.assign({}, ...records) as T;
 }

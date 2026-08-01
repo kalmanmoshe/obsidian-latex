@@ -38,13 +38,14 @@ export function findNodeWithPath<T extends object>(
 		if (isTarget(cur)) return cur;
 
 		// Only own, enumerable properties (works for most class fields)
-		for (const key of Object.keys(cur as AnyObj)) {
+		for (const key of Object.keys(cur)) {
 			const val = (cur as AnyObj)[key];
 			if (!shouldDescend(key, val, cur)) continue;
 
 			if (Array.isArray(val)) {
+				const children = val as unknown[];
 				for (let i = 0; i < val.length; i++) {
-					const child = val[i];
+					const child = children[i];
 					if (!isTraversableNode(child)) continue;
 					path.push({ key, index: i });
 					const found = dfs(child);

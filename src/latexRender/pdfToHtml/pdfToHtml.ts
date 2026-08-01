@@ -61,7 +61,7 @@ function colorSVGinDarkMode(svg: string) {
 	// Replace the color "black" with currentColor (the current text color)
 	// so that diagram axes, etc are visible in dark mode
 	// and replace "white" with the background color
-	if (document.body.classList.contains('theme-dark')) {
+	if (activeDocument.body.classList.contains('theme-dark')) {
 		svg = svg
 			.replace(/rgb\(0%, 0%, 0%\)/g, 'currentColor')
 			.replace(/rgb\(100%, 100%, 100%\)/g, 'var(--background-primary)');
@@ -96,6 +96,35 @@ function setSvgDataId(svg: string, id: string): string {
 	);
 }
 
+// Obsidian dose not allow directly inserting SVG into the DOM, so we need to parse it and insert it as a node.
+export function insertSvg(svgString: string, el: HTMLElement): void {
+	const ownerDocument = el.ownerDocument;
+	const ownerWindow = ownerDocument.defaultView;
+
+	if (!ownerWindow) {
+		throw new Error('Element is not attached to a window.');
+	}
+
+	const parsedDocument = new ownerWindow.DOMParser().parseFromString(
+		svgString,
+		'image/svg+xml',
+	);
+
+	const svg = parsedDocument.documentElement;
+
+	if (svg.tagName.toLowerCase() !== 'svg') {
+		throw new Error('Generated output is not a valid SVG.');
+	}
+
+	if (!svg.hasAttribute(SVG_ID_KEY)) {
+		throw new Error(
+			`SVG element is missing the required ${SVG_ID_KEY} attribute.`,
+		);
+	}
+
+	el.replaceChildren(ownerDocument.adoptNode(svg));
+}
+
 export async function pdfToHtml(pdfData: Uint8Array) {
 	const { width, height } = await getPdfDimensions(pdfData);
 	const ratio = width / height;
@@ -124,7 +153,7 @@ async function cropSvgByPixels(svgString: string): Promise<string> {
 		const img = new Image();
 
 		img.onload = () => {
-			const canvas = document.createElement('canvas');
+			const canvas = activeDocument.createElement('canvas');
 			canvas.width = img.width;
 			canvas.height = img.height;
 			const ctx = canvas.getContext('2d');
@@ -144,8 +173,7 @@ async function cropSvgByPixels(svgString: string): Promise<string> {
 				maxX = 0,
 				maxY = 0;
 			for (let y = 0; y < canvas.height; y++) {
-				let minXinRow = undefined,
-					maxXinRow = undefined;
+				let minXinRow = undefined;
 
 				// Left to right -> find first visible pixel in row
 				for (let x = 0; x < canvas.width; x++) {
@@ -159,6 +187,7 @@ async function cropSvgByPixels(svgString: string): Promise<string> {
 				// Skip if row is fully transparent
 				if (minXinRow === undefined) continue;
 
+				let maxXinRow = minXinRow;
 				// Right to left -> find last visible pixel in row
 				for (let x = canvas.width - 1; x >= 0; x--) {
 					const i = (y * canvas.width + x) * 4;
@@ -169,7 +198,7 @@ async function cropSvgByPixels(svgString: string): Promise<string> {
 				}
 
 				minX = Math.min(minX, minXinRow);
-				maxX = Math.max(maxX, maxXinRow!);
+				maxX = Math.max(maxX, maxXinRow);
 				minY = Math.min(minY, y);
 				maxY = Math.max(maxY, y);
 			}
@@ -209,7 +238,7 @@ async function cropSvgByPixels(svgString: string): Promise<string> {
 	});
 }
 
-async function getPdfDimensions(pdf: any): Promise<{ width: number; height: number }> {
+async function getPdfDimensions(pdf: Uint8Array): Promise<{ width: number; height: number }> {
 	const pdfDoc = await PDFDocument.load(pdf);
 	const firstPage = pdfDoc.getPages()[0];
 	const { width, height } = firstPage.getSize();

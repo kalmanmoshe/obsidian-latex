@@ -34,7 +34,7 @@ export class SvgContextMenuDecider {
 				if (!best) return;
 
 				best.handled = true;
-				clearTimeout(best.timeoutId);
+				window.clearTimeout(best.timeoutId);
 				this.pendings.delete(best.id);
 
 				this.decorateEditorMenu(menu, best);
@@ -52,7 +52,7 @@ export class SvgContextMenuDecider {
 				// sweep expired pendings
 				for (const [id, p] of [...this.pendings]) {
 					if (p.handled || p.deadline >= now) continue;
-					clearTimeout(p.timeoutId);
+					window.clearTimeout(p.timeoutId);
 					this.pendings.delete(id);
 				}
 

@@ -1,14 +1,14 @@
-import { SectionCache, TFile } from 'obsidian';
+import { App, SectionCache, TFile } from 'obsidian';
 import { parseNestedCodeBlocks, shiftSections } from 'obsidian-dev-utils';
 import { getEditorTextForPath } from '../task/latexTask';
 
 //get a better name later
-export async function getFileSectionsFromPath(path: string) {
+export async function getFileSectionsFromPath(path: string, app: App) {
 	const file = app.vault.getAbstractFileByPath(path);
 	if (!(file instanceof TFile)) throw new Error('File not found');
 	//we cant use the file cache
-	const source = getEditorTextForPath(file.path) ?? (await app.vault.read(file));
-	const sections = await getCodeBlockSectionsFromFile(file);
+	const source = getEditorTextForPath(file.path, app) ?? (await app.vault.read(file));
+	const sections = await getCodeBlockSectionsFromFile(file, app);
 	if (!sections) throw new Error('No sections found in metadata');
 	return {
 		file,
@@ -17,8 +17,8 @@ export async function getFileSectionsFromPath(path: string) {
 	};
 }
 
-async function getCodeBlockSectionsFromFile(file: TFile): Promise<SectionCache[]> {
-	const source = getEditorTextForPath(file.path) ?? (await app.vault.read(file));
+async function getCodeBlockSectionsFromFile(file: TFile, app: App): Promise<SectionCache[]> {
+	const source = getEditorTextForPath(file.path, app) ?? (await app.vault.read(file));
 	return parseCodeBlockSections(source);
 }
 

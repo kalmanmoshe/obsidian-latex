@@ -32,6 +32,7 @@ export abstract class BaseNode {
 		if (renderInfo) this.renderInfo = renderInfo;
 		if (position) this.position = position;
 	}
+	
 	/**
 	 * Creates a deep copy of the current node instance. Must be implemented by subclasses.
 	 */
@@ -52,6 +53,7 @@ export abstract class BaseNode {
 	deepFind(predicate: (node: Node) => boolean) {
 		return findNodeWithPath<BaseNode>(this, predicate)?.node as (Node | Argument) | null;
 	}
+	
 	deepFindWithPath(predicate: (node: Node) => boolean) {
 		return findNodeWithPath<BaseNode>(this, predicate);
 	}
@@ -99,7 +101,7 @@ export abstract class BaseNode {
 		return [];
 	}
 
-	getMacroDef(): null | any {
+	getMacroDef(): null | string {
 		if (!this.isMacro()) return null;
 		if (this.content !== 'def') return null;
 		return this.content;
