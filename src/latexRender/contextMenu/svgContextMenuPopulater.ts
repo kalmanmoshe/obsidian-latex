@@ -9,7 +9,8 @@ import {
 } from '../resolvers/taskSectionInformation';
 import { codeBlockToContent } from 'obsidian-dev-utils';
 import ResultFileCache from '../cache/resultFileCache';
-import { SVG_ID_KEY } from '../pdfToHtml/pdfToHtml';
+import { LATEX_RENDER_ID_KEY } from '../pdfConversion/pdfToSVG';
+import { ResultFileFormat } from 'src/settings/settings';
 
 type RequireFunction = {
 	(moduleName: 'child_process'): {
@@ -46,30 +47,43 @@ async function revealFileWithFocus(path: string) {
 	}
 }
 
+type RenderOutput =
+	| {
+		type: 'svg';
+		element: SVGElement;
+	}
+	| {
+		type: 'pdf';
+		element: HTMLObjectElement;
+	}
+	| {
+		type: 'error';
+		element: HTMLElement;
+	};
+
 /**add:
  * - show logs (soch as \print{} \message{"hello world"} and more)
  * - properties (such as size, dependencies, hash, date created, )
  */
-export class SvgContextMenuPopulater {
-	plugin: LatexCompilerPlugin;
-	menu: Menu;
-	svgEl?: SVGElement;
+export class LatexContextMenuPopulater {
+
+	private readonly plugin: LatexCompilerPlugin;
+	private readonly menu: Menu;
+	private readonly sourcePath: string;
+	private readonly resultFileCache: ResultFileCache;
+
 	/**
-	 * the container element that holds the SVG/err container.
+	 * The parent el of the code block
 	 */
-	containerEl?: HTMLElement;
-	/**
-	 * The parent el of the code block has class block-language-latexsvg
-	 */
-	blockEl: HTMLElement;
-	sourcePath: string;
-	isError: boolean;
-	content: string;
+	private readonly blockEl: HTMLElement;
+	private readonly output: RenderOutput;
+
 	private sourceAssignmentPromise: Promise<boolean> | null = null;
-	stem: string;
-	rawHash: string;
-	depsHash: string;
-	private resultFileCache: ResultFileCache;
+
+	private content!: string;
+	private stem!: string;
+	private rawHash!: string;
+	private depsHash!: string;
 
 	constructor(
 		plugin: LatexCompilerPlugin,
@@ -79,71 +93,84 @@ export class SvgContextMenuPopulater {
 	) {
 		this.plugin = plugin;
 		this.menu = menu;
-		this.resultFileCache = this.plugin.latexRenderer.cache.resultFileCache;
 		this.sourcePath = sourcePath;
+		this.resultFileCache = this.plugin.latexRenderer.cache.resultFileCache;
 
-		this.blockEl = findSvgContainer(triggeringElement);
+		this.blockEl = findLatexContainer(triggeringElement);
 		// A loader has no context-menu items.
 		if (this.checkIsLoader()) {
 			return;
 		}
 
-		this.svgEl = this.findSvg();
-		this.containerEl = this.findErrorContainer();
-		this.isError = !this.svgEl;
-		
+		this.output = this.findOutput();
 		this.assignStem();
 
-		this.addDisplayItems();
+		this.addCommonItems();
+		this.addFormatSpecificItems();
+		this.addDebugDisplayItems();
 	}
 
-	private findSvg(): SVGElement | undefined {
-		return Array.from(this.blockEl.children).find(
-			(child): child is SVGElement => child.instanceOf(SVGElement),
+	private findOutput(): RenderOutput {
+		const svg = this.blockEl.querySelector<SVGElement>('svg');
+
+		if (svg) {
+			return {
+				type: 'svg',
+				element: svg,
+			};
+		}
+
+		const pdf = this.blockEl.querySelector<HTMLObjectElement>(
+			'object.latex-pdf-object',
 		);
+
+		if (pdf) {
+			return {
+				type: 'pdf',
+				element: pdf,
+			};
+		}
+
+		const error = this.blockEl.querySelector<HTMLElement>(
+			`.${ErrorClasses.Container}`,
+		);
+
+		if (error) {
+			return {
+				type: 'error',
+				element: error,
+			};
+		}
+
+		throw new Error('No LaTeX output element found');
 	}
 
-	private findErrorContainer(): HTMLElement | undefined {
-		return Array.from(this.blockEl.children).find(
-			(child): child is HTMLElement =>
-				child.instanceOf(HTMLElement) && child.classList.contains(ErrorClasses.Container),
-		);
-	}
 
 	private checkIsLoader(): boolean {
 		return findChildEl(this.blockEl, isLoader) !== undefined
 	}
 
-	private assignStem() {
-		const stem =
-			this.svgEl?.getAttribute(SVG_ID_KEY) ?? this.containerEl?.getAttribute(SVG_ID_KEY);
+	private assignStem(): void {
+		const stem = this.output.element.getAttribute(LATEX_RENDER_ID_KEY);
 
 		if (!stem) {
-			console.error('No stem found for SVG/error container', this.svgEl, this.containerEl);
-			throw new Error('No stem found for SVG/error container');
+			console.error(
+				'No stem found for rendered LaTeX output',
+				this.output,
+			);
+
+			throw new Error('No stem found for rendered LaTeX output');
 		}
 
 		this.stem = stem;
 
-		({ rawHash: this.rawHash, depsHash: this.depsHash } = this.resultFileCache.stemToHashes(
-			this.stem,
-		));
+		({
+			rawHash: this.rawHash,
+			depsHash: this.depsHash,
+		} = this.resultFileCache.stemToHashes(this.stem));
 	}
 
-	private addDisplayItems() {
-		this.addItem(
-			'Copy SVG',
-			'copy',
-			async () => {
-				const svg = this.svgEl;
-				if (svg) {
-					const svgString = new XMLSerializer().serializeToString(svg);
-					await navigator.clipboard.writeText(svgString);
-				}
-			},
-			{ hiddenOnError: true },
-		);
-
+	private addCommonItems(): void {
 		this.addItem('remove & re-render', 'trash', async () => await this.removeAndReRender(), {
 			hiddenOnIos: true,
 		});
@@ -165,9 +192,40 @@ export class SvgContextMenuPopulater {
 			},
 			{ hiddenOnError: true, hiddenOnMobile: true },
 		);
-
-		this.addDebugDisplayItems();
 	}
+
+	private addFormatSpecificItems(): void {
+		switch (this.output.type) {
+			case 'svg':
+				this.addSvgItems(this.output.element);
+				break;
+
+			case 'pdf':
+				//placeholder for future pdf context menu items
+				//this.addPdfItems(this.output.element);
+				break;
+
+			case 'error':
+				break;
+		}
+	}
+
+	private addSvgItems(svg: SVGElement): void {
+		this.addItem(
+			'Copy SVG',
+			'copy',
+			async () => {
+				if (svg) {
+					const svgString = new XMLSerializer().serializeToString(svg);
+					await navigator.clipboard.writeText(svgString);
+				}
+			},
+			{ hiddenOnError: true },
+		);
+	}
+
+	// place holder for when i get around to adding pdf context menu items
+	// private addPdfItems(pdfObject: HTMLObjectElement): void {}
 
 	private addDebugDisplayItems() {
 		this.addItem('Copy parsed source', 'copy', async () => {
@@ -195,10 +253,10 @@ export class SvgContextMenuPopulater {
 		title: string,
 		icon: string,
 		onClick: () => void | Promise<void>,
-		options?: { 
-			hiddenOnError?: boolean; 
+		options?: {
+			hiddenOnError?: boolean;
 			hiddenOnMobile?: boolean;
-			hiddenOnIos?: boolean 
+			hiddenOnIos?: boolean
 		},
 	) {
 		if (options?.hiddenOnError && this.isError) return;
@@ -217,7 +275,7 @@ export class SvgContextMenuPopulater {
 			throw new Error("Can't reveal file in explorer, this is an error display. no file to reveal.");
 		}
 		try {
-			if (!this.resultFileCache.isPhysicalCatch()) {
+			if (!this.resultFileCache.isPhysicalCache()) {
 				new Notice("Result file cache is not physical, can't open file in explorer.");
 				return;
 			}
@@ -225,7 +283,8 @@ export class SvgContextMenuPopulater {
 				new Notice("File not found in cache, can't open file in explorer.");
 				return;
 			}
-			const filePath = this.resultFileCache.getAbsolutePathFromStem(this.stem);
+			let format: ResultFileFormat = this.output.type === 'svg' ? 'svg' : 'pdf';
+			const filePath = this.resultFileCache.getAbsolutePathFromStem(this.stem, format);
 			void revealFileWithFocus(filePath);
 		} catch (err) {
 			console.error('Failed to open file in explorer:', err);
@@ -307,7 +366,11 @@ export class SvgContextMenuPopulater {
 	 */
 	private async removeAndReRender() {
 		if (!this.isError) {
-			const success = await this.resultFileCache.removeResultFileFromCache(this.stem);
+			const success = await this.resultFileCache.removeResultFileFromCache(
+				this.rawHash,
+				this.depsHash,
+				this.output.type as ResultFileFormat
+			);
 			if (!success) {
 				console.error('Failed to remove result file from cache:', this.stem);
 			}
@@ -340,9 +403,13 @@ export class SvgContextMenuPopulater {
 		const result = await this.plugin.latexRenderer.detachedProcessAndRenderToResultFile(task);
 		return result;
 	}
+
+	private get isError(): boolean {
+		return this.output.type === 'error';
+	}
 }
 
-function findSvgContainer(el: HTMLElement): HTMLElement {
+function findLatexContainer(el: HTMLElement): HTMLElement {
 	const container = climbToEl(el, isSvgContainer) ?? findChildEl(el, isSvgContainer);
 
 	if (!container) {

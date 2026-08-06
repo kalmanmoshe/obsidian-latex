@@ -73,7 +73,7 @@ export abstract class CacheBase {
 	 * Returns list of cached file names (with extension).
 	 */
 	abstract listCacheFiles(): Promise<string[]>;
-	abstract cleanCache(): Promise<void>;
+	abstract purgeInvalidCacheFiles(): Promise<void>;
 	abstract clearCache(): Promise<void>;
 	abstract deleteCache(): Promise<void>;
 

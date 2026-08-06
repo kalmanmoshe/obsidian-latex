@@ -144,7 +144,7 @@ export abstract class PhysicalCacheBase extends CacheBase {
 			.filter((file) => this.isValidFileName(file));
 	}
 
-	async cleanCache() {
+	async purgeInvalidCacheFiles() {
 		await this.ensureReady();
 
 		const listed = await this.plugin.app.vault.adapter.list(

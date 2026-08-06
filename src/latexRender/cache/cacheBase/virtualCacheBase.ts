@@ -81,7 +81,7 @@ export abstract class VirtualCacheBase extends CacheBase {
 		this.cache.clear();
 	}
 
-	async cleanCache(): Promise<void> {
+	async purgeInvalidCacheFiles(): Promise<void> {
 		const keys = [...this.cache.keys()];
 		keys.forEach((key) => {
 			if (!this.isValidFileName(key)) {

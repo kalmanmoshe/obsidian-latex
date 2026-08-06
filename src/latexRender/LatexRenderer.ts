@@ -3,17 +3,18 @@ import { CompileResult, CompileStatus } from './compiler/base/compilerBase/engin
 import LatexCompilerPlugin from '../main';
 import { CompilerType } from 'src/settings/settings.js';
 
-import { insertSvg, pdfToHtml, pdfToOptimizedSVG, pdfToSVG, SVG_ID_KEY } from './pdfToHtml/pdfToHtml';
+import { insertPdf } from './pdfConversion/pdfToHtml';
 import parseLatexLog, { createErrorDisplay, errorDiv } from './logs/HumanReadableLogs';
 import { VfsCompileMode, VirtualFileSystem } from '../dependency/VirtualFileSystem';
 import { ProcessedLog } from './logs/latex-log-parser';
 import PdfTeXCompiler from './compiler/swiftlatexpdftex/PdfTeXCompiler';
-import { LatexTask, ProcessableLatexTask } from './task/latexTask';
+import { LatexRenderMode, LatexTask, ProcessableLatexTask } from './task/latexTask';
 import { PdfXeTeXCompiler } from './compiler/swiftlatexxetex/pdfXeTeXCompiler';
 import LatexCompiler from './compiler/base/compilerBase/compiler';
 import CompilerCache, { hashLatexContent } from './cache/compilerCache';
 import { LatexRenderQueue } from './task/LatexRenderQueue';
 import { getLogCacheKey } from './cache/logCache';
+import { pdfToSVG, LATEX_RENDER_ID_KEY, pdfToOptimizedSVG, insertSvg } from './pdfConversion/pdfToSVG';
 
 export async function waitFor(condFunc: () => boolean): Promise<void> {
 	while (!condFunc()) {
@@ -23,7 +24,7 @@ export async function waitFor(condFunc: () => boolean): Promise<void> {
 	}
 }
 
-export const latexCodeBlockNamesRegex = /(`|~){3,} *(latex|tikz)/;
+export const latexCodeBlockLanguageRegex: RegExp = /(`|~){3,} *(latex|tikz)/;
 
 type HandleErrorOptions = {
 	/**
@@ -103,9 +104,12 @@ export class LatexRenderer {
 	}
 
 	// i have to also cache the files refrenced my the hash and thar loction becose thar can i a file that is Referencing the same files.But because it's in a different directory, those files in actuality are different, leading to a different render.
-	async codeBlockProcessor(source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) {
-		const isLangTikz = el.classList.contains('block-language-tikz');
-
+	async codeBlockProcessor(
+		source: string,
+		el: HTMLElement,
+		ctx: MarkdownPostProcessorContext,
+		renderMode: LatexRenderMode
+	) {
 		el.classList.remove('block-language-tikz', 'block-language-latex');
 		el.classList.add(
 			'block-language-latexsvg',
@@ -114,12 +118,12 @@ export class LatexRenderer {
 
 		const rawHash = hashLatexContent(source);
 
-		const createResult = await LatexTask.createAsync(this.plugin, isLangTikz, source, el, ctx);
+		const createResult = await LatexTask.createAsync(this.plugin, renderMode, source, el, ctx);
 
 		if (createResult.isError) {
 			const errorMessage = createResult.result instanceof Error
-					? createResult.result.message
-					: String(createResult.result);
+				? createResult.result.message
+				: String(createResult.result);
 
 			this.handleError(
 				el,
@@ -132,12 +136,15 @@ export class LatexRenderer {
 		this.plugin.menuDecider.add(el, ctx.sourcePath);
 
 		const task = createResult.result as LatexTask | ProcessableLatexTask;
-
-		// PDF file has already been cached
-		// Could have a case where pdfCache has the key but the cached file has been deleted
-		const wasRestoredFromCache = await restoreFromCache(task, this.plugin);
-
-		if (wasRestoredFromCache) return;
+	
+		try {
+			// PDF file has already been cached
+			// Could have a case where pdfCache has the key but the cached file has been deleted
+			const wasRestoredFromCache = await restoreFromCache(task, this.plugin);
+			if (wasRestoredFromCache) return;
+		} catch (err) {
+			console.error('Error restoring from cache:', err, task.getDebugInfo());
+		}
 
 		this.queue?.push(task);
 	}
@@ -294,13 +301,13 @@ export class LatexRenderer {
 			child = errorDiv({ title: err });
 		}
 
-		child.setAttribute(SVG_ID_KEY, hash);
+		child.setAttribute(LATEX_RENDER_ID_KEY, hash);
 		el.appendChild(child);
 		if (options.throw) throw new Error(err);
 	}
 
 	private async renderLatexToElement(task: LatexTask): Promise<void> {
-		const { el, content, rawHash, sourcePath, dependencyPaths, stem } = task.getRenderData();
+		const { el, content, rawHash, sourcePath, dependencyPaths, stem, format } = task.getRenderData();
 
 		try {
 			const compileMode = task.isProcess() ? VfsCompileMode.compileAll : VfsCompileMode.none;
@@ -310,16 +317,22 @@ export class LatexRenderer {
 				dependencyPaths,
 			});
 
-			el.innerHTML = '';
-			await this.translatePDF(result.pdf, el, stem);
-
-			void this.cache.resultFileCache.addFile(el.innerHTML, rawHash, dependencyPaths, sourcePath);
+			const toSvg = format === 'svg';
+			await this.translatePDF(result.pdf, el, stem, sourcePath, toSvg);
+			
+			void this.cache.resultFileCache.addFile(
+				toSvg ? el.innerHTML : result.pdf,
+				rawHash,
+				dependencyPaths,
+				sourcePath,
+				format
+			);
 		} catch (err) {
 			const isCompilationError = err instanceof LatexCompilationError;
 			const errorText = isCompilationError
 				? err.latexLog
 				: toErrorString(err);
-				
+
 			console.error('Error rendering LaTeX to element:', err);
 			this.handleErrorForTask(task, errorText, {
 				parseErr: isCompilationError,
@@ -370,6 +383,7 @@ export class LatexRenderer {
 		pdfData: Uint8Array,
 		el: HTMLElement,
 		stem: string,
+		sourcePath: string,
 		outputSVG = true,
 	): Promise<void> {
 		const config = {
@@ -380,10 +394,10 @@ export class LatexRenderer {
 		if (outputSVG) {
 			const svgString = await pdfToOptimizedSVG(pdfData, config)
 			insertSvg(svgString, el);
-		} else {
-			const htmlData = await pdfToHtml(pdfData);
-			el.createEl('object', htmlData);
+			return
 		}
+
+		await insertPdf(pdfData, el, stem, sourcePath, this.plugin);
 	}
 
 	isNotIos(): this is LatexRenderer & {
@@ -400,6 +414,7 @@ function restoreFromCache(task: LatexTask, plugin: LatexCompilerPlugin) {
 		task.el,
 		task.rawHash,
 		task.sourcePath,
+		task.getResultFileFormat(),
 		() => {
 			if (task instanceof ProcessableLatexTask) {
 				return getCacheDependencyPaths(task, plugin.latexRenderer.vfs, plugin);

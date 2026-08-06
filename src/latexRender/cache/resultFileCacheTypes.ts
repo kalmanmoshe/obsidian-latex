@@ -5,7 +5,7 @@ import { joinPaths } from '../resolvers/paths';
 import { mkdirRecursive } from './compilerCache';
 
 // This is just for naming consistency with the physical cache.
-export class ResultFileVirtualCache extends VirtualCacheBase {}
+export class ResultFileVirtualCache extends VirtualCacheBase { }
 
 export class ResultFilePhysicalCache extends PhysicalCacheBase {
 

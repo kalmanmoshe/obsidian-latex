@@ -15,46 +15,48 @@ export enum OverflowStrategy {
 	Scroll = 'scroll',
 	Hidden = 'hidden',
 }
+export type ResultFileFormat = 'svg' | 'pdf';
 
 /**
- * Represents a single compilation entry for a code block.
+ * Runtime representation of one cached compilation result.
  */
-export type CacheEntry = {
-	/** List of resolved file paths that this code block depends on */
-	dependencies: string[];
+export interface CacheEntry {
+	/** The stored output format. */
+	format: ResultFileFormat;
 
-	/** A deterministic hash computed from the sorted list of dependencies */
+	/** Hash of the resolved dependency state. */
 	depsHash: string;
 
-	/** Set of file paths that reference this specific source+dependency combination */
-	referencedBy: Set<string>;
-};
+	/** Resolved vault paths used by this compilation. */
+	dependencies: string[];
 
-/**
- * In-memory cache structure for tracking compiled code blocks.
- *
- * Structure:
- * - Key: raw hash of the standardized code block (quick to compute).
- * - Value: array of CacheEntry objects, each corresponding to a unique set of dependencies.
- *
- * Type: Map<RawHash, CacheEntry[]>
- */
+	/** Vault files currently referencing (they have a code block with a rawHash of this entry with the same format and depsHash) this result. */
+	referencedBy: Set<string>;
+}
+
 export type CacheMap = Map<string, CacheEntry[]>;
 
 /**
- * JSON-serializable version of a CacheEntry (Set → Array).
+ * Compact persisted representation:
+ *
+ * [
+ *   format,
+ *   dependency hash,
+ *   dependency paths,
+ *   referencing file paths
+ * ]
  */
-export type CacheEntryJson = [deps: string[], depsHash: string, referencedBy: string[]];
-// OR for common case:
-export type ShortCacheEntryJson = string[]; // means nodeps
+export type CacheEntryJson = [
+	format: ResultFileFormat,
+	depsHash: string,
+	dependencies: string[],
+	referencedBy: string[],
+];
 
 /**
- * JSON-safe cache structure for persisting CacheMap to disk.
- *
- * Structure:
- * - Array of [RawHash, CacheEntryJson[]] tuples.
+ * Raw source hash -> serialized result entries.
  */
-export type CacheJson = Array<[rawHash: string, entries: (CacheEntryJson | ShortCacheEntryJson)[]]>;
+export type CacheJson = Record<string, CacheEntryJson[]>;
 
 export interface PackageCacheData {
 	missingPackages: StringMap;
@@ -95,7 +97,7 @@ export const DEFAULT_SETTINGS: LatexCompilerPluginSettings = {
 	package_url: 'https://texlive.texlyre.org/',
 	physicalCache: true,
 	physicalCacheLocation: '',
-	cache: [],
+	cache: {},
 	packageCache: [{}, {}, {}, {}],
 	saveLogs: false,
 	overflowStrategy: OverflowStrategy.Downscale,

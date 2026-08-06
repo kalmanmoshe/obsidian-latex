@@ -11,6 +11,7 @@ import {
 	onFileDelete,
 } from './obsidian/file_watch';
 import { SvgContextMenuDecider } from './latexRender/contextMenu/svgContextMenuDecider';
+import { LatexRenderMode } from './latexRender/task/latexTask';
 
 type WindowWithCodeMirror = Window & {
 	CodeMirror?: {
@@ -71,11 +72,11 @@ export default class LatexCompilerPlugin extends Plugin {
 		// (that only hapens once on load, and the queue takes care of most of it)
 		this.registerMarkdownCodeBlockProcessor(
 			'tikz',
-			(s, e, c) => this.latexRenderer.codeBlockProcessor(s, e, c),
+			(s, e, c) => this.latexRenderer.codeBlockProcessor(s, e, c, LatexRenderMode.SVG),
 		);
 		this.registerMarkdownCodeBlockProcessor(
 			'latex',
-			(s, e, c) => this.latexRenderer.codeBlockProcessor(s, e, c),
+			(s, e, c) => this.latexRenderer.codeBlockProcessor(s, e, c, LatexRenderMode.PDF),
 		);
 	}
 

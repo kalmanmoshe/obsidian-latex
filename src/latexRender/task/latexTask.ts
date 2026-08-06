@@ -15,19 +15,20 @@ import { codeBlockToContent } from 'obsidian-dev-utils';
 import { sectionToTaskSectionInfo, taskSectionInfoToContent } from '../resolvers/sectionUtils';
 import { processTaskSource } from './latexTaskProcessor';
 import { hashLatexContent } from '../cache/compilerCache';
-import { SOURCE_REVERIFICATION_TIME_MS } from 'src/settings/settings';
+import { ResultFileFormat, SOURCE_REVERIFICATION_TIME_MS } from 'src/settings/settings';
 
 function createTask(
 	plugin: LatexCompilerPlugin,
-	process: boolean,
+	renderMode: LatexRenderMode,
 	content: string,
 	el: HTMLElement,
 	sourcePath: string,
 	infos: TaskSectionInformation[],
 ): LatexTask | ProcessableLatexTask {
+	const process = true;//TODO: rm hard coded
 	return process
-		? new ProcessableLatexTask(plugin, content, el, sourcePath, infos)
-		: new LatexTask(plugin, content, el, sourcePath, infos);
+		? new ProcessableLatexTask(plugin, renderMode, content, el, sourcePath, infos)
+		: new LatexTask(plugin, renderMode, content, el, sourcePath, infos);
 }
 
 /**
@@ -73,10 +74,17 @@ export function getEditorTextForPath(path: string, app: App): string | undefined
 	return undefined;
 }
 
+export enum LatexRenderMode {
+	SVG,
+	PDF,
+	TIKZJAX_SVG
+}
+
 export class LatexTask {
 	plugin: LatexCompilerPlugin;
 	protected content: string;
 	sourcePath: string;
+	readonly renderMode: LatexRenderMode;
 	readonly uuid = crypto.randomUUID();
 	rawHash: string;
 	/**
@@ -92,12 +100,14 @@ export class LatexTask {
 
 	constructor(
 		plugin: LatexCompilerPlugin,
+		renderMode: LatexRenderMode,
 		source: string,
 		el: HTMLElement,
 		sourcePath: string,
 		sectionInfos: TaskSectionInformation[],
 	) {
 		this.plugin = plugin;
+		this.renderMode = renderMode;
 		this.setSource(source);
 		this.el = el;
 		this.sourcePath = sourcePath;
@@ -171,14 +181,14 @@ export class LatexTask {
 
 	static baseCreate(
 		plugin: LatexCompilerPlugin,
-		process: boolean,
+		renderMode: LatexRenderMode,
 		content: string,
 		el: HTMLElement,
 		sourcePath: string,
 		sectionInfo: TaskSectionInformation | TaskSectionInformation[],
 	): LatexTask {
 		const sectionInfos = Array.isArray(sectionInfo) ? sectionInfo : [sectionInfo];
-		const task = createTask(plugin, process, content, el, sourcePath, sectionInfos);
+		const task = createTask(plugin, renderMode, content, el, sourcePath, sectionInfos);
 		return task;
 	}
 
@@ -211,10 +221,22 @@ export class LatexTask {
 				'All section metadata languages must be the same for creating a task from multiple sections.',
 			);
 		}
-		const isProcess = metadatas[0].language === 'tikz';
+
+		let renderMode: LatexRenderMode;
+		switch (metadatas[0].language) {
+			case "tikz":
+				renderMode = LatexRenderMode.TIKZJAX_SVG;
+				break;
+			case "latex":
+				renderMode = LatexRenderMode.PDF;
+				break;
+			default:
+				throw new Error("Unsupported language for render mode.");
+		}
+
 		return LatexTask.baseCreate(
 			plugin,
-			isProcess,
+			renderMode,
 			content,
 			el ?? activeDocument.createElement('div'),
 			path,
@@ -224,7 +246,7 @@ export class LatexTask {
 
 	static async createAsync(
 		plugin: LatexCompilerPlugin,
-		process: boolean,
+		renderMode: LatexRenderMode,
 		content: string,
 		el: HTMLElement,
 		ctx: MarkdownPostProcessorContext,
@@ -232,7 +254,7 @@ export class LatexTask {
 		try {
 			const mdSectionInfos = await mdSecInfosFromMdPostProcessorCtx(ctx, el, content, plugin.app);
 			const infos = mdSectionInfos.map((sec) => sectionToTaskSectionInfo(sec));
-			const task = createTask(plugin, process, content, el, ctx.sourcePath, infos);
+			const task = createTask(plugin, renderMode, content, el, ctx.sourcePath, infos);
 			return { isError: false, result: task };
 		} catch (err: unknown) {
 			console.error('Error while ensuring section info for task:', err);
@@ -296,6 +318,10 @@ export class LatexTask {
 		);
 	}
 
+	getResultFileFormat(): ResultFileFormat {
+		return this.renderMode === LatexRenderMode.PDF ? 'pdf' : 'svg';
+	}
+
 	getRenderData() {
 		return {
 			el: this.el,
@@ -304,6 +330,7 @@ export class LatexTask {
 			sourcePath: this.sourcePath,
 			dependencyPaths: this.getDependencyPaths(),
 			stem: this.getStem(),
+			format: this.getResultFileFormat(),
 		};
 	}
 
@@ -343,12 +370,13 @@ export class ProcessableLatexTask extends LatexTask {
 
 	constructor(
 		plugin: LatexCompilerPlugin,
+		renderMode: LatexRenderMode,
 		content: string,
 		el: HTMLElement,
 		sourcePath: string,
 		infos: TaskSectionInformation[],
 	) {
-		super(plugin, content, el, sourcePath, infos);
+		super(plugin, renderMode, content, el, sourcePath, infos);
 	}
 
 	//TODO: rm this is temp for debugging

@@ -46,8 +46,8 @@ const args = {
 	},
   alias: {
     "@pdf-to-svg-runtime": prod
-      ? path.join(projectRoot, "src/latexRender/pdfToHtml/loadCompressedPdfToSvgWasm.ts")
-      : path.join(projectRoot, "src/latexRender/pdfToHtml/pdfToSvgWasm.js"),
+      ? path.join(projectRoot, "src/latexRender/pdfConversion/loadCompressedPdfToSvgWasm.ts")
+      : path.join(projectRoot, "src/latexRender/pdfConversion/pdfToSvgWasm.js"),
     "@swiftlatex-workers": prod
 			? path.join(projectRoot, "src/latexRender/compiler/swiftlatexWorkers.prod.ts")
 			: path.join(projectRoot, "src/latexRender/compiler/swiftlatexWorkers.dev.ts"),

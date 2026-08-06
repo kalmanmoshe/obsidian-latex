@@ -1,8 +1,9 @@
 import { App, TFile } from 'obsidian';
-import { latexCodeBlockNamesRegex } from '../LatexRenderer';
+import { latexCodeBlockLanguageRegex } from '../LatexRenderer';
 import { getLatexTaskSectionInfosFromFile } from './taskSectionInformation';
 import { codeBlockLanguageRegex, codeBlockToContent } from 'obsidian-dev-utils';
 import { hashLatexContent } from '../cache/compilerCache';
+import { extractCodeBlockLanguage } from 'obsidian-dev-utils';
 /** rooles:
  * - find = Might be undefined
  * - get = Will always return a value or throw an error
@@ -48,7 +49,7 @@ export function extractCodeBlockMetadata(text: string): {
 export function extractCodeBlockName(codeBlock: string): string | undefined {
 	const nameMatch = codeBlock
 		.split('\n')[0]
-		.replace(latexCodeBlockNamesRegex, '')
+		.replace(latexCodeBlockLanguageRegex, '')
 		.trim()
 		.match(/name: *([-\wא-ת.]+)/); // Match names with letters, numbers, underscores, dashes, and Hebrew characters
 	return nameMatch ? nameMatch[1] : undefined;
@@ -61,6 +62,9 @@ export function extractCodeBlockName(codeBlock: string): string | undefined {
  */
 export async function getLatexHashesFromFile(file: TFile, app: App) {
 	const codeBlocks = await getLatexTaskSectionInfosFromFile(file, app);
-	const hashes = codeBlocks.map((block) => hashLatexContent(codeBlockToContent(block.codeBlock)));
+	const hashes = codeBlocks.map((block) => ({
+		hash: hashLatexContent(codeBlockToContent(block.codeBlock)),
+		name: extractCodeBlockLanguage(block.codeBlock)! //(the code blocks are already filtered to be latex or tikz, so this should always return a value)
+	}));
 	return hashes;
 }

@@ -1,6 +1,6 @@
 import { App, SectionCache, TFile } from 'obsidian';
 import { getFileSectionsFromPath } from './sectionCache';
-import { latexCodeBlockNamesRegex } from '../LatexRenderer';
+import { latexCodeBlockLanguageRegex } from '../LatexRenderer';
 import { codeBlockToContent } from 'obsidian-dev-utils';
 import { hashLatexContent } from '../cache/compilerCache';
 export interface TaskSectionInformation {
@@ -54,7 +54,7 @@ function getLatexTaskSectionInfosFromString(
 		const codeBlock = lines
 			.slice(section.position.start.line, section.position.end.line + 1)
 			.join('\n');
-		if (!codeBlock.split('\n')[0].match(latexCodeBlockNamesRegex)) continue;
+		if (!codeBlock.split('\n')[0].match(latexCodeBlockLanguageRegex)) continue;
 		codeBlocks.push({
 			lineStart: section.position.start.line,
 			lineEnd: section.position.end.line,

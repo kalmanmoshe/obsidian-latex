@@ -1,6 +1,6 @@
 import LatexCompilerPlugin from 'src/main';
 import { Menu, MarkdownView } from 'obsidian';
-import { SvgContextMenuPopulater } from './svgContextMenuPopulater';
+import { LatexContextMenuPopulater } from './svgContextMenuPopulater';
 
 type Pending = {
 	id: number;
@@ -37,7 +37,7 @@ export class SvgContextMenuDecider {
 				window.clearTimeout(best.timeoutId);
 				this.pendings.delete(best.id);
 
-				this.decorateEditorMenu(menu, best);
+				this.decorateEditorMenu(menu, best.el, best.filePath)
 			}),
 		);
 	}
@@ -75,8 +75,9 @@ export class SvgContextMenuDecider {
 					this.pendings.delete(id);
 
 					try {
+						//TODO: remove reduntent
 						const menu = new Menu();
-						this.decorateEditorMenu(menu, pending);
+						this.decorateEditorMenu(menu, pending.el, pending.filePath);
 						menu.showAtMouseEvent?.(event);
 					} catch (err) {
 						console.error('[SvgContextMenuDecider] custom menu open failed', err);
@@ -89,7 +90,23 @@ export class SvgContextMenuDecider {
 		);
 	}
 
-	private decorateEditorMenu(menu: Menu, p: Pending) {
-		new SvgContextMenuPopulater(this.plugin, menu, p.el, p.filePath);
+	private decorateEditorMenu(menu: Menu, el: HTMLElement, filePath: string) {
+		new LatexContextMenuPopulater(this.plugin, menu, el, filePath);
+	}
+
+	openMenu(
+		event: MouseEvent,
+		el: HTMLElement,
+		filePath: string,
+	): void {
+		const menu = new Menu();
+
+		this.decorateEditorMenu(
+			menu,
+			el,
+			filePath,
+		);
+
+		menu.showAtMouseEvent(event);
 	}
 }
