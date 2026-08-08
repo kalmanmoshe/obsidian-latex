@@ -1,6 +1,6 @@
 import LatexCompilerPlugin from 'src/main';
 import { Menu, MarkdownView } from 'obsidian';
-import { LatexContextMenuPopulater } from './svgContextMenuPopulater';
+import { LatexContextMenuPopulater } from './latexContextMenuPopulater';
 
 type Pending = {
 	id: number;
@@ -12,7 +12,7 @@ type Pending = {
 	handled: boolean;
 };
 
-export class SvgContextMenuDecider {
+export class LatexContextMenuDecider {
 	private nextId = 1;
 	private pendings = new Map<number, Pending>();
 	private windowMs = 60;

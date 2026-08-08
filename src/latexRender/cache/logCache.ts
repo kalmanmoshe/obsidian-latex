@@ -1,6 +1,6 @@
 import LatexCompilerPlugin from 'src/main';
-import { ProcessedLog } from '../logs/latex-log-parser';
-import parseLatexLog from '../logs/HumanReadableLogs';
+import { ProcessedLog } from '../logs/latexLogParser';
+import parseLatexLog from '../logs/humanReadableLogs';
 import { Notice } from 'obsidian';
 import { findMatchingCodeBlockSections } from '../resolvers/findSection';
 import { LatexTask } from '../task/latexTask';

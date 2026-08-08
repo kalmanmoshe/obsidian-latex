@@ -1,6 +1,5 @@
 import async from 'async';
 import { LatexTask } from './latexTask';
-import { CssClasses } from 'src/util/cssClassesConstants';
 
 type InternalTask<T> = {
 	data: T;
@@ -19,8 +18,6 @@ type QueueObject<T> = async.QueueObject<T> & {
 
 export class LatexRenderQueue {
 	private queue: QueueObject<LatexTask>;
-	//@ts-ignore
-	private currentTask: LatexTask | null = null;
 
 	constructor(private renderTask: (task: LatexTask) => Promise<boolean>) {
 		this.configQueue();
@@ -86,21 +83,13 @@ export class LatexRenderQueue {
 
 	configQueue() {
 		this.queue = async.queue((task: LatexTask, done) => {
-			this.currentTask = task;
 			(async () => {
-				const didRender = await this.renderTask(task);
+				await this.renderTask(task);
 				updateQueueCountdown(this.queue);
-
-				if (didRender) {
-					this.currentTask = null;
-					done();
-				} else {
-					this.currentTask = null;
-					done();
-				}
+			
+				done();
 			})().catch((err) => {
 				console.error('Queue worker crashed:', err, task.getDebugInfo());
-				this.currentTask = null;
 				done();
 			});
 		}, 1) as QueueObject<LatexTask>; // Concurrency is set to 1, so tasks run one at a time
@@ -112,7 +101,7 @@ const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
 	let index = queue.running();
 	while (taskNode) {
 		const task = taskNode.data;
-		const countdown = task.el.querySelector('.' + CssClasses.loader.renderCountdown);
+		const countdown = task.el.querySelector(".latex-compiler-countdown");
 		if (countdown) countdown.textContent = index.toString();
 		else console.warn(`Countdown not found for task ${index}`);
 		taskNode = taskNode.next;
@@ -122,15 +111,15 @@ const updateQueueCountdown = (queue: QueueObject<LatexTask>) => {
 
 function createWaitingCountdown(index: number) {
 	const parentContainer = Object.assign(activeDocument.createElement('div'), {
-		className: CssClasses.loader.loaderParentContainer,
+		className: 'latex-compiler-loader-parent-container',
 	});
 
 	const loader = Object.assign(activeDocument.createElement('div'), {
-		className: CssClasses.loader.renderLoader,
+		className: 'latex-compiler-loader',
 	});
 
 	const countdown = Object.assign(activeDocument.createElement('div'), {
-		className: CssClasses.loader.renderCountdown,
+		className: 'latex-compiler-countdown',
 		textContent: index.toString(),
 	});
 	parentContainer.appendChild(loader);

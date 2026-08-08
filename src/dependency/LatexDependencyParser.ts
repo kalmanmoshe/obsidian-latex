@@ -2,7 +2,7 @@ import {
 	findUsdInputFiles,
 	isExtensionTex,
 	LatexAbstractSyntaxTree,
-} from 'src/ast/LatexAbstractSyntaxTree';
+} from 'src/ast/latexAbstractSyntaxTree';
 import {
 	resolvePathRelToVault,
 	extractStemAndExtension,

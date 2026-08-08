@@ -7,7 +7,7 @@ import {
 	TFile,
 } from 'obsidian';
 import { extractCodeBlockMetadata, extractCodeBlockName } from '../resolvers/latexSourceFromFile';
-import { LatexAbstractSyntaxTree } from '../../ast/LatexAbstractSyntaxTree';
+import { LatexAbstractSyntaxTree } from '../../ast/latexAbstractSyntaxTree';
 import { findMatchingCodeBlockSections } from '../resolvers/findSection';
 import { TaskSectionInformation } from '../resolvers/taskSectionInformation';
 
@@ -16,19 +16,21 @@ import { sectionToTaskSectionInfo, taskSectionInfoToContent } from '../resolvers
 import { processTaskSource } from './latexTaskProcessor';
 import { hashLatexContent } from '../cache/compilerCache';
 import { ResultFileFormat, SOURCE_REVERIFICATION_TIME_MS } from 'src/settings/settings';
+import { LatexRenderChild } from './latexRenderChild';
 
 function createTask(
 	plugin: LatexCompilerPlugin,
 	renderMode: LatexRenderMode,
 	content: string,
 	el: HTMLElement,
+	rendererChild: LatexRenderChild | undefined,
 	sourcePath: string,
 	infos: TaskSectionInformation[],
 ): LatexTask | ProcessableLatexTask {
 	const process = true;//TODO: rm hard coded
 	return process
-		? new ProcessableLatexTask(plugin, renderMode, content, el, sourcePath, infos)
-		: new LatexTask(plugin, renderMode, content, el, sourcePath, infos);
+		? new ProcessableLatexTask(plugin, renderMode, content, el, rendererChild, sourcePath, infos)
+		: new LatexTask(plugin, renderMode, content, el, rendererChild, sourcePath, infos);
 }
 
 /**
@@ -80,8 +82,26 @@ export enum LatexRenderMode {
 	TIKZJAX_SVG
 }
 
+export function getRenderModeForCodeBlock(
+	codeBlockLanguage: string,
+): LatexRenderMode {
+	switch (codeBlockLanguage.toLowerCase()) {
+		case 'latex':
+			return LatexRenderMode.PDF;
+
+		case 'tikz':
+		case 'latexsvg':
+			return LatexRenderMode.SVG;
+
+		default:
+			throw new Error(
+				`Unsupported LaTeX code block language: ${codeBlockLanguage}`,
+			);
+	}
+}
+
 export class LatexTask {
-	plugin: LatexCompilerPlugin;
+	protected plugin: LatexCompilerPlugin;
 	protected content: string;
 	sourcePath: string;
 	readonly renderMode: LatexRenderMode;
@@ -90,12 +110,11 @@ export class LatexTask {
 	/**
 	 * The resolved hash is the hash of the content after it has been processed and the dependencies have been resolved.
 	 */
-	resolvedHash: string;
+	protected resolvedHash: string;
 	protected blockId: string;
 	el: HTMLElement;
+	renderChild?: LatexRenderChild;
 	protected sectionInfos: TaskSectionInformation[];
-	protected onCompiled?: (task: LatexTask) => void;
-	private error: string;
 	private lastSectionInfoVerificationTime: number = Date.now();
 
 	constructor(
@@ -103,6 +122,7 @@ export class LatexTask {
 		renderMode: LatexRenderMode,
 		source: string,
 		el: HTMLElement,
+		rendererChild: LatexRenderChild | undefined,
 		sourcePath: string,
 		sectionInfos: TaskSectionInformation[],
 	) {
@@ -110,16 +130,9 @@ export class LatexTask {
 		this.renderMode = renderMode;
 		this.setSource(source);
 		this.el = el;
+		this.renderChild = rendererChild;
 		this.sourcePath = sourcePath;
 		this.setSectionInfos(sectionInfos);
-	}
-
-	set onCompiledCallback(callback: (task: LatexTask) => void) {
-		this.onCompiled = callback;
-	}
-
-	isError() {
-		return !!this.error;
 	}
 
 	hasSourceChangeTimeExceededMargin() {
@@ -179,19 +192,6 @@ export class LatexTask {
 		return true;
 	}
 
-	static baseCreate(
-		plugin: LatexCompilerPlugin,
-		renderMode: LatexRenderMode,
-		content: string,
-		el: HTMLElement,
-		sourcePath: string,
-		sectionInfo: TaskSectionInformation | TaskSectionInformation[],
-	): LatexTask {
-		const sectionInfos = Array.isArray(sectionInfo) ? sectionInfo : [sectionInfo];
-		const task = createTask(plugin, renderMode, content, el, sourcePath, sectionInfos);
-		return task;
-	}
-
 	/**
 	 * this method creates a LatexTask from a section information object. it creates a temp div element to hold the task.
 	 * @param plugin
@@ -222,25 +222,16 @@ export class LatexTask {
 			);
 		}
 
-		let renderMode: LatexRenderMode;
-		switch (metadatas[0].language) {
-			case "tikz":
-				renderMode = LatexRenderMode.TIKZJAX_SVG;
-				break;
-			case "latex":
-				renderMode = LatexRenderMode.PDF;
-				break;
-			default:
-				throw new Error("Unsupported language for render mode.");
-		}
+		const renderMode = getRenderModeForCodeBlock(metadatas[0].language ?? '');
 
-		return LatexTask.baseCreate(
+		return createTask(
 			plugin,
 			renderMode,
 			content,
 			el ?? activeDocument.createElement('div'),
+			undefined,
 			path,
-			sectionInfos,
+			sectionInfos
 		);
 	}
 
@@ -254,7 +245,9 @@ export class LatexTask {
 		try {
 			const mdSectionInfos = await mdSecInfosFromMdPostProcessorCtx(ctx, el, content, plugin.app);
 			const infos = mdSectionInfos.map((sec) => sectionToTaskSectionInfo(sec));
-			const task = createTask(plugin, renderMode, content, el, ctx.sourcePath, infos);
+			const rendererChild = new LatexRenderChild(el);
+			ctx.addChild(rendererChild);
+			const task = createTask(plugin, renderMode, content, el, rendererChild, ctx.sourcePath, infos);
 			return { isError: false, result: task };
 		} catch (err: unknown) {
 			console.error('Error while ensuring section info for task:', err);
@@ -304,6 +297,12 @@ export class LatexTask {
 			throw new Error('Block ID is not set. Call setSectionInfo first.');
 		}
 		return this.blockId;
+	}
+
+	// Detached tasks have no DOM lifecycle.
+	// Managed render tasks are valid only while their element is still attached.
+	isStillValid() {
+		return this.renderChild === undefined || this.el.isConnected;
 	}
 
 	// on the processed child class we will override this to return the actual dependencies.
@@ -361,7 +360,6 @@ export class ProcessableLatexTask extends LatexTask {
 	processed: boolean = false;
 	processingTime: number;
 	private ast: LatexAbstractSyntaxTree | null = null;
-	sectionInfos: TaskSectionInformation[];
 	private astContent: string | null = null;
 	/**
 	 * all of the paths of root dependencies that this task depends on. includeing auto use files.
@@ -373,15 +371,11 @@ export class ProcessableLatexTask extends LatexTask {
 		renderMode: LatexRenderMode,
 		content: string,
 		el: HTMLElement,
+		rendererChild: LatexRenderChild | undefined,
 		sourcePath: string,
 		infos: TaskSectionInformation[],
 	) {
-		super(plugin, renderMode, content, el, sourcePath, infos);
-	}
-
-	//TODO: rm this is temp for debugging
-	getAst() {
-		return this.ast;
+		super(plugin, renderMode, content, el, rendererChild, sourcePath, infos);
 	}
 
 	getProcessedContent(): string {

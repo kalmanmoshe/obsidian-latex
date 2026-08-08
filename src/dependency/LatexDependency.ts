@@ -1,4 +1,4 @@
-import { LatexAbstractSyntaxTree, isExtensionTex } from 'src/ast/LatexAbstractSyntaxTree';
+import { LatexAbstractSyntaxTree, isExtensionTex } from 'src/ast/latexAbstractSyntaxTree';
 import { extractStemAndExtension } from 'src/latexRender/resolvers/paths';
 
 /**
@@ -13,7 +13,7 @@ export class LatexDependency {
 		public isTex: boolean,
 		public ast?: LatexAbstractSyntaxTree,
 		public autoUse?: boolean,
-	) {}
+	) { }
 
 	get name(): string {
 		return `${this.stem}.${this.extension}`;

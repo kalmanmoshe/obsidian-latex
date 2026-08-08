@@ -1,12 +1,11 @@
 import { MarkdownPostProcessorContext, Platform } from 'obsidian';
 import { CompileResult, CompileStatus } from './compiler/base/compilerBase/engine';
 import LatexCompilerPlugin from '../main';
-import { CompilerType } from 'src/settings/settings.js';
-
+import { CompilerType, ResultFileFormat } from 'src/settings/settings.js';
 import { insertPdf } from './pdfConversion/pdfToHtml';
-import parseLatexLog, { createErrorDisplay, errorDiv } from './logs/HumanReadableLogs';
+import parseLatexLog, { createErrorDisplay, errorDiv } from './logs/humanReadableLogs';
 import { VfsCompileMode, VirtualFileSystem } from '../dependency/VirtualFileSystem';
-import { ProcessedLog } from './logs/latex-log-parser';
+import { ProcessedLog } from './logs/latexLogParser';
 import PdfTeXCompiler from './compiler/swiftlatexpdftex/PdfTeXCompiler';
 import { LatexRenderMode, LatexTask, ProcessableLatexTask } from './task/latexTask';
 import { PdfXeTeXCompiler } from './compiler/swiftlatexxetex/pdfXeTeXCompiler';
@@ -15,6 +14,7 @@ import CompilerCache, { hashLatexContent } from './cache/compilerCache';
 import { LatexRenderQueue } from './task/LatexRenderQueue';
 import { getLogCacheKey } from './cache/logCache';
 import { pdfToSVG, LATEX_RENDER_ID_KEY, pdfToOptimizedSVG, insertSvg } from './pdfConversion/pdfToSVG';
+import { CacheContent } from './cache/cacheBase/cacheBase';
 
 export async function waitFor(condFunc: () => boolean): Promise<void> {
 	while (!condFunc()) {
@@ -37,16 +37,6 @@ type HandleErrorOptions = {
 	throw?: boolean;
 };
 
-/**
- * add command to rerender all fils using (\input{}) this file
- * add resove tab indentasins setting
- * The goust bubble happens when I do ctrl z
- * add replac all & replace in selection
- *
- */
-/**
- * add option for Persistent preamble.so it won't get deleted.after use Instead, saved until overwritten
- */
 export class LatexRenderer {
 	plugin: LatexCompilerPlugin;
 	vfs: VirtualFileSystem;
@@ -110,10 +100,9 @@ export class LatexRenderer {
 		ctx: MarkdownPostProcessorContext,
 		renderMode: LatexRenderMode
 	) {
-		el.classList.remove('block-language-tikz', 'block-language-latex');
 		el.classList.add(
-			'block-language-latexsvg',
-			`overflow-${this.plugin.settings.overflowStrategy}`,
+			'latex-compiler-render',
+			`latex-compiler-overflow-${this.plugin.settings.overflowStrategy}`,
 		);
 
 		const rawHash = hashLatexContent(source);
@@ -128,19 +117,18 @@ export class LatexRenderer {
 			this.handleError(
 				el,
 				`Error creating task: ${errorMessage}`,
+				ctx.sourcePath,
 				this.cache.resultFileCache.getFileStem(rawHash, []),
 			);
 			return;
 		}
-		// Attach the menu to the element
-		this.plugin.menuDecider.add(el, ctx.sourcePath);
 
 		const task = createResult.result as LatexTask | ProcessableLatexTask;
-	
+
 		try {
 			// PDF file has already been cached
 			// Could have a case where pdfCache has the key but the cached file has been deleted
-			const wasRestoredFromCache = await restoreFromCache(task, this.plugin);
+			const wasRestoredFromCache = await this.restoreFromCache(task);
 			if (wasRestoredFromCache) return;
 		} catch (err) {
 			console.error('Error restoring from cache:', err, task.getDebugInfo());
@@ -156,7 +144,7 @@ export class LatexRenderer {
 	 * @returns `true` if the task was compiled and rendered; `false` if it was restored from cache or failed during processing.
 	 */
 	private async processAndRenderLatexTask(task: LatexTask): Promise<boolean> {
-		if (await restoreFromCache(task, this.plugin)) {
+		if (await this.restoreFromCache(task)) {
 			return false;
 		}
 
@@ -189,7 +177,7 @@ export class LatexRenderer {
 	}
 
 	private async shouldSkipStaleTask(task: LatexTask): Promise<boolean> {
-		if (!task.hasSourceChangeTimeExceededMargin()) return false;
+		if (!task.isStillValid() || !task.hasSourceChangeTimeExceededMargin()) return false;
 		if (await task.verifySource()) return false;
 
 		if (this.hasNewerQueuedTask(task)) {
@@ -261,7 +249,7 @@ export class LatexRenderer {
 		const waitingTasks = this.queue.getWaitingTasks();
 
 		for (const task of waitingTasks) {
-			if (await restoreFromCache(task, this.plugin)) {
+			if (await this.restoreFromCache(task)) {
 				blockIdsToRemove.add(task.getBlockId());
 			}
 		}
@@ -280,15 +268,14 @@ export class LatexRenderer {
 		err: string,
 		options: HandleErrorOptions = {},
 	): void {
-		const el = task.el;
-		const stem = task.getStem();
-		this.handleError(el, err, stem, options);
+		this.handleError(task.el, err, task.getStem(), task.sourcePath, options);
 	}
 
 	private handleError(
 		el: HTMLElement,
 		err: string,
 		hash: string,
+		sourcePath: string,
 		options: HandleErrorOptions = {},
 	): void {
 		el.innerHTML = '';
@@ -303,11 +290,12 @@ export class LatexRenderer {
 
 		child.setAttribute(LATEX_RENDER_ID_KEY, hash);
 		el.appendChild(child);
+		this.plugin.menuDecider.add(el, sourcePath)
 		if (options.throw) throw new Error(err);
 	}
 
 	private async renderLatexToElement(task: LatexTask): Promise<void> {
-		const { el, content, rawHash, sourcePath, dependencyPaths, stem, format } = task.getRenderData();
+		const { content, rawHash, sourcePath, dependencyPaths, stem, format } = task.getRenderData();
 
 		try {
 			const compileMode = task.isProcess() ? VfsCompileMode.compileAll : VfsCompileMode.none;
@@ -317,11 +305,12 @@ export class LatexRenderer {
 				dependencyPaths,
 			});
 
-			const toSvg = format === 'svg';
-			await this.translatePDF(result.pdf, el, stem, sourcePath, toSvg);
-			
-			void this.cache.resultFileCache.addFile(
-				toSvg ? el.innerHTML : result.pdf,
+			const resultFile = await this.createResultFile(result.pdf, stem, format);
+
+			await this.renderResultFile(task, resultFile);
+
+			await this.cache.resultFileCache.addFile(
+				resultFile,
 				rawHash,
 				dependencyPaths,
 				sourcePath,
@@ -379,25 +368,70 @@ export class LatexRenderer {
 		return result;
 	}
 
-	private async translatePDF(
-		pdfData: Uint8Array,
-		el: HTMLElement,
-		stem: string,
-		sourcePath: string,
-		outputSVG = true,
-	): Promise<void> {
+	private async createResultFile(pdfData: Uint8Array, stem: string, format: ResultFileFormat): Promise<CacheContent> {
+		if (format === 'pdf') return pdfData;
+
 		const config = {
 			invertColorsInDarkMode: this.plugin.settings.invertColorsInDarkMode,
 			autoRemoveWhitespace: this.plugin.settings.autoRemoveWhitespace,
 			stem,
 		};
-		if (outputSVG) {
-			const svgString = await pdfToOptimizedSVG(pdfData, config)
-			insertSvg(svgString, el);
-			return
+
+		return await pdfToOptimizedSVG(pdfData, config)
+	}
+
+	private async restoreFromCache(task: LatexTask) {
+		const result = await this.cache.resultFileCache.getResultFileFromRawHash(
+			task.rawHash,
+			task.sourcePath,
+			task.getResultFileFormat(),
+			() => {
+				if (task instanceof ProcessableLatexTask) {
+					return getCacheDependencyPaths(task, this.vfs, this.plugin);
+				}
+				return Promise.resolve([]);
+			},
+		);
+		if (result === undefined) return false;
+
+		return this.renderResultFile(task, result.data);
+	}
+
+	private async renderResultFile(
+		task: LatexTask,
+		data: CacheContent,
+	): Promise<boolean> {
+		// using getStem here will work fine and we dont have to worry about it not being generated yet because we are only calling this function after a successful compilation/fetch from cache, which will always generate the stem before calling this function.
+		const renderChild = task.renderChild, stem = task.getStem();
+		//we successfully restored from cache, but the task has no renderer child to render to. 
+		if (!renderChild) return true;
+
+		if (task.getResultFileFormat() === 'svg') {
+			if (typeof data !== 'string') {
+				console.warn(`Expected SVG cache entry ${stem} to contain text data.`);
+				return false;
+			}
+
+			insertSvg(data, task.el, task.sourcePath, this.plugin);
+			return true;
 		}
 
-		await insertPdf(pdfData, el, stem, sourcePath, this.plugin);
+		if (!(data instanceof Uint8Array)) {
+			console.warn(
+				`Expected PDF cache entry ${stem} to contain binary data.`,
+			);
+			return false;
+		}
+
+		await insertPdf(
+			data,
+			renderChild,
+			stem,
+			task.sourcePath,
+			this.plugin,
+		);
+
+		return true;
 	}
 
 	isNotIos(): this is LatexRenderer & {
@@ -406,22 +440,6 @@ export class LatexRenderer {
 	} {
 		return !Platform.isIosApp;
 	}
-}
-
-//TODO: put this somewahere better
-function restoreFromCache(task: LatexTask, plugin: LatexCompilerPlugin) {
-	return plugin.latexRenderer.cache.resultFileCache.restoreFromCache(
-		task.el,
-		task.rawHash,
-		task.sourcePath,
-		task.getResultFileFormat(),
-		() => {
-			if (task instanceof ProcessableLatexTask) {
-				return getCacheDependencyPaths(task, plugin.latexRenderer.vfs, plugin);
-			}
-			return Promise.resolve([]);
-		},
-	);
 }
 
 async function getCacheDependencyPaths(

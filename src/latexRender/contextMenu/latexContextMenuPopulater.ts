@@ -2,7 +2,7 @@ import { Menu, Notice, TFile, Platform } from 'obsidian';
 import LatexCompilerPlugin from 'src/main';
 import { LogDisplayModal } from '../logs/logDisplayModal';
 import { LatexTask, ProcessableLatexTask } from '../task/latexTask';
-import { ErrorClasses } from '../logs/HumanReadableLogs';
+import { ErrorClasses } from '../logs/humanReadableLogs';
 import {
 	findTaskSectionInfoFromHashInFile,
 	TaskSectionInformation,
@@ -111,15 +111,7 @@ export class LatexContextMenuPopulater {
 	}
 
 	private findOutput(): RenderOutput {
-		const svg = this.blockEl.querySelector<SVGElement>('svg');
-
-		if (svg) {
-			return {
-				type: 'svg',
-				element: svg,
-			};
-		}
-
+		//Important: the order of these checks matters. PDF must be checked before SVG, because the PDF is rendered with a container that contains an SVG.
 		const pdf = this.blockEl.querySelector<HTMLObjectElement>(
 			'object.latex-pdf-object',
 		);
@@ -128,6 +120,15 @@ export class LatexContextMenuPopulater {
 			return {
 				type: 'pdf',
 				element: pdf,
+			};
+		}
+
+		const svg = this.blockEl.querySelector<SVGElement>('svg');
+
+		if (svg) {
+			return {
+				type: 'svg',
+				element: svg,
 			};
 		}
 
@@ -410,7 +411,7 @@ export class LatexContextMenuPopulater {
 }
 
 function findLatexContainer(el: HTMLElement): HTMLElement {
-	const container = climbToEl(el, isSvgContainer) ?? findChildEl(el, isSvgContainer);
+	const container = climbToEl(el, isRenderContainer) ?? findChildEl(el, isRenderContainer);
 
 	if (!container) {
 		throw new Error('No SVG container found');
@@ -427,7 +428,7 @@ function climbToEl(el: HTMLElement, predicate: (el: HTMLElement) => boolean): HT
 			return current;
 		}
 
-		const childContainer = findChildEl(current, isSvgContainer);
+		const childContainer = findChildEl(current, isRenderContainer);
 		if (childContainer) {
 			return childContainer;
 		}
@@ -444,8 +445,8 @@ function findChildEl(el: HTMLElement, predicate: (el: HTMLElement) => boolean): 
 	);
 }
 
-function isSvgContainer(el: HTMLElement) {
-	return el.classList.contains('block-language-latexsvg');
+function isRenderContainer(el: HTMLElement) {
+	return el.classList.contains('latex-compiler-render');
 }
 
 function isLoader(el: HTMLElement) {

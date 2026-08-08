@@ -46,7 +46,7 @@ export type ProcessedLog = {
 	raw: string;
 };
 
-export default class LatexParser {
+export default class LatexLogParser {
 	state: STATE = STATE.NORMAL;
 	ignoreDuplicates?: boolean;
 	data: Array<CurrentError> = [];

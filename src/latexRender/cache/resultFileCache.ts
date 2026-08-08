@@ -16,9 +16,7 @@ import {
 import { extractStemAndExtension, isValidFileStem } from '../resolvers/paths';
 import { optimizeSVG } from '../pdfConversion/optimizeSVG';
 import { getDependencyHash } from './compilerCache';
-import { insertSvg } from '../pdfConversion/pdfToSVG';
-import { LatexRenderMode } from 'src/latexRender/task/latexTask';
-import { insertPdf } from '../pdfConversion/pdfToHtml';
+import { getRenderModeForCodeBlock, LatexRenderMode } from 'src/latexRender/task/latexTask';
 
 export const resultFileCacheFormats = new Map<ResultFileFormat, CacheFileType>([
 	['svg', CacheFileType.Text],
@@ -27,24 +25,6 @@ export const resultFileCacheFormats = new Map<ResultFileFormat, CacheFileType>([
 
 function getResultFileFormat(renderMode: LatexRenderMode): ResultFileFormat {
 	return renderMode === LatexRenderMode.PDF ? 'pdf' : 'svg'
-}
-
-function getRenderModeForCodeBlock(
-	codeBlockLanguage: string,
-): LatexRenderMode {
-	switch (codeBlockLanguage.toLowerCase()) {
-		case 'latex':
-			return LatexRenderMode.PDF;
-
-		case 'tikz':
-		case 'latexsvg':
-			return LatexRenderMode.SVG;
-
-		default:
-			throw new Error(
-				`Unsupported LaTeX code block language: ${codeBlockLanguage}`,
-			);
-	}
 }
 
 function getResultFormatForCodeBlock(codeBlockLanguage: string): ResultFileFormat {
@@ -304,7 +284,7 @@ export default class ResultFileCache {
 		}
 	}
 
-	private async getResultFileFromRawHash(
+	async getResultFileFromRawHash(
 		rawHash: string,
 		filePath: string,
 		format: ResultFileFormat,
@@ -363,51 +343,6 @@ export default class ResultFileCache {
 		}
 
 		return { stem, data };
-	}
-
-	/**
-	 * Restores the cached content for a given element and hash.
-	 * If the content is found in the cache, it sets the innerHTML of the element to the cached content.
-	 */
-	async restoreFromCache(
-		el: HTMLElement,
-		rawHash: string,
-		filePath: string,
-		format: ResultFileFormat,
-		resolveDeps: () => Promise<string[]>,
-	): Promise<boolean> {
-		// if the resolve hash is the same as the raw hash, we can directly get the file from the cache so we dont have to check
-		const result = await this.getResultFileFromRawHash(rawHash, filePath, format, resolveDeps);
-		if (result === undefined) return false;
-
-		const { stem, data } = result;
-
-		if (format === 'svg') {
-			if (typeof data !== 'string') {
-				console.warn(`Expected SVG cache entry ${stem} to contain text data.`);
-				return false;
-			}
-
-			insertSvg(data, el);
-			return true;
-		}
-
-		if (!(data instanceof Uint8Array)) {
-			console.warn(
-				`Expected PDF cache entry ${stem} to contain binary data.`,
-			);
-			return false;
-		}
-		
-		await insertPdf(
-			data,
-			el,
-			stem,
-			filePath,
-			this.plugin,
-		);
-
-		return true;
 	}
 
 	hasRawHash(rawHash: string): boolean {
@@ -518,7 +453,7 @@ export default class ResultFileCache {
 				}
 			}
 		}
-		console.warn("cleanUpcache",this,filePathsToRemove)
+		
 		for (const filePath of filePathsToRemove) {
 			await this.removeReferencingFileFromCache(filePath);
 		}

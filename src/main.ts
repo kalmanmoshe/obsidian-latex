@@ -1,16 +1,16 @@
 import { Plugin, Notice } from 'obsidian';
 import { LatexCompilerPluginSettings, DEFAULT_SETTINGS } from './settings/settings';
-import { LatexCompilerSettingTab } from './settings/settings_tab';
-import { getEditorCommands } from './obsidian/editor_commands';
-import { LatexRenderer } from './latexRender/LatexRenderer';
+import { LatexCompilerSettingTab } from './settings/settingsTab';
+import { getEditorCommands } from './obsidian/editorCommands';
+import { LatexRenderer } from './latexRender/latexRenderer';
 import {
 	getFilesWithin,
 	getPreambleFromFiles,
 	onFileChange,
 	onFileCreate,
 	onFileDelete,
-} from './obsidian/file_watch';
-import { SvgContextMenuDecider } from './latexRender/contextMenu/svgContextMenuDecider';
+} from './obsidian/fileWatch';
+import { LatexContextMenuDecider } from './latexRender/contextMenu/latexContextMenuDecider';
 import { LatexRenderMode } from './latexRender/task/latexTask';
 
 type WindowWithCodeMirror = Window & {
@@ -25,12 +25,12 @@ type WindowWithCodeMirror = Window & {
 export default class LatexCompilerPlugin extends Plugin {
 	settings: LatexCompilerPluginSettings;
 	latexRenderer: LatexRenderer = new LatexRenderer();
-	menuDecider: SvgContextMenuDecider;
+	menuDecider: LatexContextMenuDecider;
 
 	async onload() {
 		const startTime = performance.now();
 		console.log('Loading Latex Compiler plugin');
-		this.menuDecider = new SvgContextMenuDecider(this);
+		this.menuDecider = new LatexContextMenuDecider(this);
 
 		await this.loadSettings();
 

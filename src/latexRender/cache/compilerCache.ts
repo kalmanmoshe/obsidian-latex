@@ -2,7 +2,7 @@ import { DataAdapter, normalizePath } from 'obsidian';
 import { Md5 } from 'ts-md5';
 import LatexCompilerPlugin from 'src/main';
 import ResultFileCache from './resultFileCache';
-import { ProcessedLog } from '../logs/latex-log-parser';
+import { ProcessedLog } from '../logs/latexLogParser';
 import PackageCache from './packageCache';
 import LogCache from './logCache';
 

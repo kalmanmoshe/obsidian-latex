@@ -2,17 +2,19 @@ import { PDFDocument } from 'pdf-lib';
 import LatexCompilerPlugin from 'src/main';
 import { LATEX_RENDER_ID_KEY } from './pdfToSVG';
 import { setIcon } from 'obsidian';
+import { LatexRenderChild } from '../task/latexRenderChild';
 
 export async function insertPdf(
 	pdfData: Uint8Array,
-	el: HTMLElement,
+	renderChild: LatexRenderChild,
 	stem: string,
 	sourcePath: string,
 	plugin: LatexCompilerPlugin,
 ) {
-	const pdfHTML = await pdfToHtml(pdfData);
-
+	const { attr, url } = await pdfToHtml(pdfData);
+	const el = renderChild.containerEl;
 	el.empty();
+	renderChild.setObjectUrl(url);
 
 	const wrapper = el.createDiv({
 		cls: 'latex-pdf-wrapper',
@@ -36,20 +38,22 @@ export async function insertPdf(
 
 	setIcon(menuButton, 'more-vertical');
 
-	const pdfObject = wrapper.createEl('object', pdfHTML);
+	const pdfObject = wrapper.createEl('object', { attr });
+
 	pdfObject.addClass('latex-pdf-object');
 	pdfObject.setAttribute(LATEX_RENDER_ID_KEY, stem);
 
-	plugin.registerDomEvent(menuButton, 'click', (event: MouseEvent) => {
+	const openMenu = (event: MouseEvent) => {
+		console.log('Opening PDF menu', event.type);
+
 		event.preventDefault();
 		event.stopPropagation();
 
-		plugin.menuDecider.openMenu(
-			event,
-			menuButton,
-			sourcePath,
-		);
-	});
+		plugin.menuDecider.openMenu(event, menuButton, sourcePath);
+	};
+
+	plugin.registerDomEvent(menuButton, 'click', openMenu);
+	plugin.registerDomEvent(menuButton, 'contextmenu', openMenu);
 }
 
 async function pdfToHtml(pdfData: Uint8Array) {
@@ -65,11 +69,12 @@ async function pdfToHtml(pdfData: Uint8Array) {
 	const objectURL = URL.createObjectURL(pdfblob);
 	return {
 		attr: {
-			data: `${objectURL}#view=FitH&toolbar=1`,
+			data: `${objectURL}#view=FitH&toolbar=0`,
 			type: 'application/pdf',
 			class: 'block-language-latex',
 			style: `width:100%; aspect-ratio:${ratio}`,
 		},
+		url: objectURL
 	};
 }
 

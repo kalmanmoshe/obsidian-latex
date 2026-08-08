@@ -1,6 +1,6 @@
 import { PackageCacheData } from 'src/settings/settings';
 import LatexEngine, { CompileResult, EngineStatus } from './engine';
-import { waitFor } from 'src/latexRender/LatexRenderer';
+import { waitFor } from 'src/latexRender/latexRenderer';
 
 export default abstract class LatexCompiler {
 	protected engines: LatexEngine[];
@@ -35,14 +35,14 @@ export default abstract class LatexCompiler {
 
 	async setTexliveEndpoint(url: string): Promise<void> {
 		return Promise.all(this.engines.map((engine) => engine.setTexliveEndpoint(url))).then(
-			() => {},
+			() => { },
 		);
 	}
 
 	async writeTexFSFile(filename: string, srccode: Uint8Array | string): Promise<void> {
 		return Promise.all(
 			this.engines.map((engine) => engine.writeTexFSFile(filename, srccode)),
-		).then(() => {});
+		).then(() => { });
 	}
 
 	async fetchTexFiles(engine: number, fileNames: string[]) {
@@ -93,7 +93,7 @@ export default abstract class LatexCompiler {
 					packageCacheData.cachedFonts,
 				),
 			),
-		).then(() => {});
+		).then(() => { });
 	}
 
 	removeMemFSFile(engine: number, filename: string) {

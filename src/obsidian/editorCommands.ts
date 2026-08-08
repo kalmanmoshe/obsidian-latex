@@ -119,8 +119,14 @@ function getRestartCompilerCommand(plugin: LatexCompilerPlugin) {
 }
 
 export const getEditorCommands = (plugin: LatexCompilerPlugin): (Command | undefined)[] => {
+	let testCommands: Command[];
+	if (__PRODUCTION__) {
+		testCommands = [];
+	} else {
+		testCommands = getTestCommands(plugin);
+	}
 	return [
-		...getTestCommands(plugin),
+		...testCommands,
 		removeAllCachedPackages(plugin),
 		getRebuildQueue(plugin),
 		getAbortTasks(plugin),

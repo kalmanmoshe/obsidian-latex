@@ -1,5 +1,5 @@
 import { App, Modal } from 'obsidian';
-import { ProcessedLog, File, ErrorLevel } from './latex-log-parser';
+import { ProcessedLog, File, ErrorLevel } from './latexLogParser';
 
 type LogTab = {
 	name: string;

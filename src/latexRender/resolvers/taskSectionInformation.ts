@@ -1,6 +1,6 @@
 import { App, SectionCache, TFile } from 'obsidian';
 import { getFileSectionsFromPath } from './sectionCache';
-import { latexCodeBlockLanguageRegex } from '../LatexRenderer';
+import { latexCodeBlockLanguageRegex } from '../latexRenderer';
 import { codeBlockToContent } from 'obsidian-dev-utils';
 import { hashLatexContent } from '../cache/compilerCache';
 export interface TaskSectionInformation {

@@ -1,5 +1,5 @@
 import { App, TFile } from 'obsidian';
-import { latexCodeBlockLanguageRegex } from '../LatexRenderer';
+import { latexCodeBlockLanguageRegex } from '../latexRenderer';
 import { getLatexTaskSectionInfosFromFile } from './taskSectionInformation';
 import { codeBlockLanguageRegex, codeBlockToContent } from 'obsidian-dev-utils';
 import { hashLatexContent } from '../cache/compilerCache';

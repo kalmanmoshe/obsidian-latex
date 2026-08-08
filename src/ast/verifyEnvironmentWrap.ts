@@ -1,5 +1,5 @@
 import { Macro, Environment, Argument, Node, DependencyMacro } from './typs/astNodes';
-import { LatexAbstractSyntaxTree } from './LatexAbstractSyntaxTree';
+import { LatexAbstractSyntaxTree } from './latexAbstractSyntaxTree';
 import { Notice } from 'obsidian';
 
 const preambleMacros = [

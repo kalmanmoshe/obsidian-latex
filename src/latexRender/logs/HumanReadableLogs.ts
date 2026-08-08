@@ -1,4 +1,4 @@
-import LatexLogParser, { CurrentError, ProcessedLog } from './latex-log-parser';
+import LatexLogParser, { CurrentError, ProcessedLog } from './latexLogParser';
 
 export default function parseLatexLog(
 	rawLog: string,
