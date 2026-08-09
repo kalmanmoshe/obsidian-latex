@@ -44,7 +44,6 @@ export function createLatexErrorMessage(
 }
 
 export function createErrorDisplay(err: ProcessedLog) {
-	console.error('LaTeX Error:', err);
 	if (err.errors.length === 0) {
 		const errMessage = createLatexErrorMessage();
 		errMessage.title = 'Unknown LaTeX error';

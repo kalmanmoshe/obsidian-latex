@@ -48,8 +48,7 @@ export async function insertPdf(
 
 		event.preventDefault();
 		event.stopPropagation();
-
-		plugin.menuDecider.openMenu(event, menuButton, sourcePath);
+		plugin.menuDecider.openMenu(event, renderChild, sourcePath);
 	};
 
 	plugin.registerDomEvent(menuButton, 'click', openMenu);

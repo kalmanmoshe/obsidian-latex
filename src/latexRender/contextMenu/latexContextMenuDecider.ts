@@ -1,10 +1,11 @@
 import LatexCompilerPlugin from 'src/main';
 import { Menu, MarkdownView } from 'obsidian';
 import { LatexContextMenuPopulater } from './latexContextMenuPopulater';
+import { LatexRenderChild } from '../task/latexRenderChild';
 
 type Pending = {
 	id: number;
-	el: HTMLElement;
+	renderChild: LatexRenderChild
 	filePath: string;
 	event: MouseEvent;
 	deadline: number;
@@ -26,7 +27,7 @@ export class LatexContextMenuDecider {
 				for (const p of this.pendings.values()) {
 					if (p.handled || p.deadline < now) continue;
 					const container = view?.contentEl;
-					if (container && container.contains(p.el)) {
+					if (container && container.contains(p.renderChild.containerEl)) {
 						if (!best || p.id > best.id) best = p;
 					}
 				}
@@ -37,22 +38,28 @@ export class LatexContextMenuDecider {
 				window.clearTimeout(best.timeoutId);
 				this.pendings.delete(best.id);
 
-				this.decorateEditorMenu(menu, best.el, best.filePath)
+				this.decorateEditorMenu(menu, best.renderChild, best.filePath)
 			}),
 		);
 	}
 
-	add(el: HTMLElement, filePath: string) {
+	add(renderChild: LatexRenderChild, filePath: string) {
 		this.plugin.registerDomEvent(
-			el,
+			renderChild.containerEl,
 			'contextmenu',
 			(event: MouseEvent) => {
 				const now = Date.now();
 
-				// sweep expired pendings
-				for (const [id, p] of [...this.pendings]) {
-					if (p.handled || p.deadline >= now) continue;
-					window.clearTimeout(p.timeoutId);
+				for (const [id, pending] of this.pendings) {
+					// Remove expired pendings or a previous pending for this render child
+					if (
+						(!pending.handled && pending.deadline >= now) &&
+						pending.renderChild !== renderChild
+					) {
+						continue;
+					}
+
+					window.clearTimeout(pending.timeoutId);
 					this.pendings.delete(id);
 				}
 
@@ -61,7 +68,7 @@ export class LatexContextMenuDecider {
 
 				const pending: Pending = {
 					id,
-					el,
+					renderChild,
 					filePath,
 					event,
 					deadline,
@@ -77,7 +84,7 @@ export class LatexContextMenuDecider {
 					try {
 						//TODO: remove reduntent
 						const menu = new Menu();
-						this.decorateEditorMenu(menu, pending.el, pending.filePath);
+						this.decorateEditorMenu(menu, pending.renderChild, pending.filePath);
 						menu.showAtMouseEvent?.(event);
 					} catch (err) {
 						console.error('[SvgContextMenuDecider] custom menu open failed', err);
@@ -90,20 +97,20 @@ export class LatexContextMenuDecider {
 		);
 	}
 
-	private decorateEditorMenu(menu: Menu, el: HTMLElement, filePath: string) {
-		new LatexContextMenuPopulater(this.plugin, menu, el, filePath);
+	private decorateEditorMenu(menu: Menu, renderChild: LatexRenderChild, filePath: string) {
+		new LatexContextMenuPopulater(this.plugin, menu, renderChild, filePath);
 	}
 
 	openMenu(
 		event: MouseEvent,
-		el: HTMLElement,
+		renderChild: LatexRenderChild,
 		filePath: string,
 	): void {
 		const menu = new Menu();
 
 		this.decorateEditorMenu(
 			menu,
-			el,
+			renderChild,
 			filePath,
 		);
 

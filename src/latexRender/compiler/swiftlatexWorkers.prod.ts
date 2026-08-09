@@ -6,7 +6,9 @@ import { decompressGzipText } from 'src/util/decompressPayload';
 async function createWorkerFromCompressedPayload(base64Payload: string, name: string): Promise<Worker> {
 	const source = await decompressGzipText(base64Payload);
 
-	const blob = new Blob([source], { type: 'text/javascript' });
+	const sourceName = `latex-${name.toLowerCase()}-worker.js`;
+	const namedSource = `${source}\n//# sourceURL=${sourceName}`;
+	const blob = new Blob([namedSource], { type: 'text/javascript' });
 
 	const url = URL.createObjectURL(blob);
 	const worker = new Worker(url, { name: `Latex ${name} Engine` });

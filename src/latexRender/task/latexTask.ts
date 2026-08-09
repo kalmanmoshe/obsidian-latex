@@ -203,7 +203,7 @@ export class LatexTask {
 		plugin: LatexCompilerPlugin,
 		path: string,
 		sectionInfos: TaskSectionInformation[],
-		el?: HTMLElement,
+		renderTarget?: HTMLElement | LatexRenderChild,
 	): LatexTask {
 		if (sectionInfos.length === 0) {
 			throw new Error('No section information provided for creating a task.');
@@ -224,12 +224,21 @@ export class LatexTask {
 
 		const renderMode = getRenderModeForCodeBlock(metadatas[0].language ?? '');
 
+		let renderChild: LatexRenderChild | undefined;
+		let containerEl: HTMLElement;
+
+		if (renderTarget instanceof LatexRenderChild) {
+			renderChild = renderTarget;
+			containerEl = renderTarget.containerEl;
+		} else {
+			containerEl = renderTarget ?? activeDocument.createElement('div');
+		}
 		return createTask(
 			plugin,
 			renderMode,
 			content,
-			el ?? activeDocument.createElement('div'),
-			undefined,
+			containerEl,
+			renderChild,
 			path,
 			sectionInfos
 		);

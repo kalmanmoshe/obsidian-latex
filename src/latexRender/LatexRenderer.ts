@@ -15,6 +15,7 @@ import { LatexRenderQueue } from './task/LatexRenderQueue';
 import { getLogCacheKey } from './cache/logCache';
 import { pdfToSVG, LATEX_RENDER_ID_KEY, pdfToOptimizedSVG, insertSvg } from './pdfConversion/pdfToSVG';
 import { CacheContent } from './cache/cacheBase/cacheBase';
+import { LatexRenderChild } from './task/latexRenderChild';
 
 export async function waitFor(condFunc: () => boolean): Promise<void> {
 	while (!condFunc()) {
@@ -25,17 +26,6 @@ export async function waitFor(condFunc: () => boolean): Promise<void> {
 }
 
 export const latexCodeBlockLanguageRegex: RegExp = /(`|~){3,} *(latex|tikz)/;
-
-type HandleErrorOptions = {
-	/**
-	 * If true, the error will be parsed and displayed as a log.
-	 */
-	parseErr?: boolean;
-	/**
-	 * If true, the error will be thrown after handling.
-	 */
-	throw?: boolean;
-};
 
 export class LatexRenderer {
 	plugin: LatexCompilerPlugin;
@@ -114,11 +104,14 @@ export class LatexRenderer {
 				? createResult.result.message
 				: String(createResult.result);
 
-			this.handleError(
-				el,
+			const child = new LatexRenderChild(el);
+			ctx.addChild(child);
+			this.displayError(
+				child,
 				`Error creating task: ${errorMessage}`,
 				ctx.sourcePath,
 				this.cache.resultFileCache.getFileStem(rawHash, []),
+				false
 			);
 			return;
 		}
@@ -152,7 +145,7 @@ export class LatexRenderer {
 
 		if (!this.compiler?.isResponsive()) {
 			console.error('Compiler is unresponsive. Aborting task:', task.getDebugInfo());
-			this.handleErrorForTask(task, 'Compiler is unresponsive. Please restart the compiler.');
+			this.displayErrorForTask(task, 'Compiler is unresponsive. Please restart the compiler.');
 			return false;
 		}
 
@@ -160,7 +153,7 @@ export class LatexRenderer {
 			const processError = await task.process();
 
 			if (processError) {
-				this.handleErrorForTask(task, `Error processing task: ${processError}`);
+				this.displayErrorForTask(task, `Error processing task: ${processError}`);
 				return false;
 			}
 		} else {
@@ -187,7 +180,7 @@ export class LatexRenderer {
 
 		console.error('Source files changed and could not be resolved:', task.getDebugInfo());
 
-		this.handleErrorForTask(
+		this.displayErrorForTask(
 			task,
 			'Error processing task: Source files have changed and could not be resolved.',
 		);
@@ -263,25 +256,28 @@ export class LatexRenderer {
 		this.compiler?.closeWorkers();
 	}
 
-	private handleErrorForTask(
+	private displayErrorForTask(
 		task: LatexTask,
 		err: string,
-		options: HandleErrorOptions = {},
+		parseErr: boolean = false
 	): void {
-		this.handleError(task.el, err, task.getStem(), task.sourcePath, options);
+		// there is nothing to display the error to, so we just return.
+		if (!task.renderChild) return; 
+		this.displayError(task.renderChild, err, task.getStem(), task.sourcePath, parseErr);
 	}
 
-	private handleError(
-		el: HTMLElement,
+	private displayError(
+		renderChild: LatexRenderChild,
 		err: string,
 		hash: string,
 		sourcePath: string,
-		options: HandleErrorOptions = {},
+		parseErr: boolean
 	): void {
+		const el = renderChild.containerEl;
 		el.innerHTML = '';
 		let child: HTMLElement;
 
-		if (options.parseErr) {
+		if (parseErr) {
 			const processedError: ProcessedLog = this.cache.getLog(hash) || parseLatexLog(err);
 			child = createErrorDisplay(processedError);
 		} else {
@@ -290,8 +286,7 @@ export class LatexRenderer {
 
 		child.setAttribute(LATEX_RENDER_ID_KEY, hash);
 		el.appendChild(child);
-		this.plugin.menuDecider.add(el, sourcePath)
-		if (options.throw) throw new Error(err);
+		this.plugin.menuDecider.add(renderChild, sourcePath)
 	}
 
 	private async renderLatexToElement(task: LatexTask): Promise<void> {
@@ -323,9 +318,7 @@ export class LatexRenderer {
 				: toErrorString(err);
 
 			console.error('Error rendering LaTeX to element:', err);
-			this.handleErrorForTask(task, errorText, {
-				parseErr: isCompilationError,
-			});
+			this.displayErrorForTask(task, errorText, isCompilationError);
 		} finally {
 			if (!this.compiler?.isResponsive()) {
 				console.warn('Compiler is unresponsive.');
@@ -412,7 +405,7 @@ export class LatexRenderer {
 				return false;
 			}
 
-			insertSvg(data, task.el, task.sourcePath, this.plugin);
+			insertSvg(data, renderChild, task.sourcePath, this.plugin);
 			return true;
 		}
 

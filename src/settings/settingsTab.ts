@@ -151,12 +151,12 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 				new Notice('Cleared cached svgs');
 			},
 			{
-				name: 'Clear cached SVGs',
+				name: 'Clear cached result files',
 				description:
-					"SVGs rendered with the plugin or cached, so diagrams don't have to be re-rendered from scratch every time you open a page. Use this to clear the cache and force all diagrams to be re-rendered.",
-				elText: 'Clear cached SVGs',
+					"Result files (pdf, svg) rendered with the plugin are cached, so latex don't have to be re-rendered from scratch every time you open a page. Use this to clear the cache and force all latex to be re-rendered.",
+				elText: 'Clear cached result files',
 				icon: 'trash',
-				tooltip: 'Clear cached SVGs',
+				tooltip: 'Clear cached result files',
 			},
 		);
 	}

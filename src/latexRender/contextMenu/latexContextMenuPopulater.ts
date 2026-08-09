@@ -11,6 +11,7 @@ import { codeBlockToContent } from 'obsidian-dev-utils';
 import ResultFileCache from '../cache/resultFileCache';
 import { LATEX_RENDER_ID_KEY } from '../pdfConversion/pdfToSVG';
 import { ResultFileFormat } from 'src/settings/settings';
+import { LatexRenderChild } from '../task/latexRenderChild';
 
 type RequireFunction = {
 	(moduleName: 'child_process'): {
@@ -76,6 +77,7 @@ export class LatexContextMenuPopulater {
 	 * The parent el of the code block
 	 */
 	private readonly blockEl: HTMLElement;
+	private readonly renderChild: LatexRenderChild;
 	private readonly output: RenderOutput;
 
 	private sourceAssignmentPromise: Promise<boolean> | null = null;
@@ -88,15 +90,16 @@ export class LatexContextMenuPopulater {
 	constructor(
 		plugin: LatexCompilerPlugin,
 		menu: Menu,
-		triggeringElement: HTMLElement,
+		renderChild: LatexRenderChild,
 		sourcePath: string,
 	) {
 		this.plugin = plugin;
 		this.menu = menu;
 		this.sourcePath = sourcePath;
+		this.renderChild = renderChild;
 		this.resultFileCache = this.plugin.latexRenderer.cache.resultFileCache;
 
-		this.blockEl = findLatexContainer(triggeringElement);
+		this.blockEl = findLatexContainer(this.renderChild.containerEl);
 		// A loader has no context-menu items.
 		if (this.checkIsLoader()) {
 			return;
@@ -337,7 +340,7 @@ export class LatexContextMenuPopulater {
 			this.plugin,
 			this.sourcePath,
 			sectionInfos,
-			this.blockEl,
+			this.renderChild,
 		);
 		return task;
 	}
