@@ -1,7 +1,9 @@
 import { App, normalizePath, TAbstractFile, TFile, TFolder } from 'obsidian';
 import { getLatexTaskSectionInfosFromFile } from './taskSectionInformation';
-import { extractCodeBlockName } from './latexSourceFromFile';
+import { extractCodeBlockMetadata, extractCodeBlockName } from './latexSourceFromFile';
 import { codeBlockToContent } from 'obsidian-dev-utils';
+import { LatexSourceType } from 'src/dependency/LatexDependency';
+import { getLatexCodeBlockDefinition } from '../codeBlockTypes';
 
 export const CODE_BLOCK_NAME_SEPARATOR = '#';
 const TRADITIONAL_PATH_SEPARATORS = ['/', '\\'];
@@ -26,18 +28,13 @@ export function resolvePathRelToVault(path: string, currentPath: string, app: Ap
 	return absPath + CODE_BLOCK_NAME_SEPARATOR + codeBlockName;
 }
 
-/**
- *
- * @param path The path to the file, relative to the vault root.
- * @returns
- */
-export async function getFileContent(path: string, app: App): Promise<string> {
+export async function resolveDependencyContent(path: string, app: App): Promise<{ content: string, sourceType: LatexSourceType }> {
 	const parts = path.split(CODE_BLOCK_NAME_SEPARATOR);
 	if (parts.length > 2 || parts.length === 0) {
 		throw new Error(
 			"Invalid path format. Use '" +
-				CODE_BLOCK_NAME_SEPARATOR +
-				"' to separate file path and code block name.",
+			CODE_BLOCK_NAME_SEPARATOR +
+			"' to separate file path and code block name.",
 		);
 	}
 	const filePath = parts.shift()!;
@@ -45,8 +42,13 @@ export async function getFileContent(path: string, app: App): Promise<string> {
 	if (!(file instanceof TFile)) {
 		throw new Error(`File not found: ${filePath}`);
 	}
+
 	const fileText = await app.vault.read(file);
-	if (parts.length === 0) return fileText;
+	if (parts.length === 0) return {
+		content: fileText,
+		sourceType: LatexSourceType.File
+	};
+
 	const codeBlockStem = extractStemAndExtension(parts.shift()!).stem;
 
 	const codeBlocks = await getLatexTaskSectionInfosFromFile(file, app);
@@ -64,7 +66,12 @@ export async function getFileContent(path: string, app: App): Promise<string> {
 			`Multiple code blocks found with name: ${codeBlockStem} in file: ${file.path}`,
 		);
 	}
-	return codeBlockToContent(target.codeBlock);
+
+	const language = extractCodeBlockMetadata(target.codeBlock).language ?? "";
+	return {
+		content: codeBlockToContent(target.codeBlock),
+		sourceType: getLatexCodeBlockDefinition(language).sourceType,
+	};
 }
 
 /**
@@ -139,6 +146,14 @@ function findRelativeFile(filePath: string, currentPath: string, app: App) {
 	);
 
 	if (!file) {
+		console.error(`File not found: ${fileName} in folder: ${current.path}`, {
+			filePath,
+			currentPath,
+			current,
+			parts,
+			fileName,
+			children: current.children.map((c) => c.name),
+		});
 		throw new Error(`File not found: ${fileName}`);
 	}
 
@@ -203,8 +218,8 @@ export function extractStemAndExtension(path: string) {
 	if (path.split(CODE_BLOCK_NAME_SEPARATOR).length > 2) {
 		throw new Error(
 			"Invalid path format. Use '" +
-				CODE_BLOCK_NAME_SEPARATOR +
-				"' to separate file path and code block name.",
+			CODE_BLOCK_NAME_SEPARATOR +
+			"' to separate file path and code block name.",
 		);
 	}
 	const parts = path

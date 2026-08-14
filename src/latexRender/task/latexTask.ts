@@ -17,10 +17,12 @@ import { processTaskSource } from './latexTaskProcessor';
 import { hashLatexContent } from '../cache/compilerCache';
 import { ResultFileFormat, SOURCE_REVERIFICATION_TIME_MS } from 'src/settings/settings';
 import { LatexRenderChild } from './latexRenderChild';
+import { getLatexCodeBlockDefinition, LatexCodeBlockDefinition } from '../codeBlockTypes';
+import { LatexSourceType } from 'src/dependency/LatexDependency';
 
 function createTask(
 	plugin: LatexCompilerPlugin,
-	renderMode: LatexRenderMode,
+	definition: LatexCodeBlockDefinition,
 	content: string,
 	el: HTMLElement,
 	rendererChild: LatexRenderChild | undefined,
@@ -29,8 +31,8 @@ function createTask(
 ): LatexTask | ProcessableLatexTask {
 	const process = true;//TODO: rm hard coded
 	return process
-		? new ProcessableLatexTask(plugin, renderMode, content, el, rendererChild, sourcePath, infos)
-		: new LatexTask(plugin, renderMode, content, el, rendererChild, sourcePath, infos);
+		? new ProcessableLatexTask(plugin, definition, content, el, rendererChild, sourcePath, infos)
+		: new LatexTask(plugin, definition, content, el, rendererChild, sourcePath, infos);
 }
 
 /**
@@ -82,29 +84,11 @@ export enum LatexRenderMode {
 	TIKZJAX_SVG
 }
 
-export function getRenderModeForCodeBlock(
-	codeBlockLanguage: string,
-): LatexRenderMode {
-	switch (codeBlockLanguage.toLowerCase()) {
-		case 'latex':
-			return LatexRenderMode.PDF;
-
-		case 'tikz':
-		case 'latexsvg':
-			return LatexRenderMode.SVG;
-
-		default:
-			throw new Error(
-				`Unsupported LaTeX code block language: ${codeBlockLanguage}`,
-			);
-	}
-}
-
 export class LatexTask {
 	protected plugin: LatexCompilerPlugin;
 	protected content: string;
 	sourcePath: string;
-	readonly renderMode: LatexRenderMode;
+	readonly definition: LatexCodeBlockDefinition;
 	readonly uuid = crypto.randomUUID();
 	rawHash: string;
 	/**
@@ -119,7 +103,7 @@ export class LatexTask {
 
 	constructor(
 		plugin: LatexCompilerPlugin,
-		renderMode: LatexRenderMode,
+		definition: LatexCodeBlockDefinition,
 		source: string,
 		el: HTMLElement,
 		rendererChild: LatexRenderChild | undefined,
@@ -127,13 +111,17 @@ export class LatexTask {
 		sectionInfos: TaskSectionInformation[],
 	) {
 		this.plugin = plugin;
-		this.renderMode = renderMode;
+		this.definition = definition;
 		this.setSource(source);
 		this.el = el;
 		this.renderChild = rendererChild;
 		this.sourcePath = sourcePath;
 		this.setSectionInfos(sectionInfos);
 	}
+
+	get renderMode(): LatexRenderMode { return this.definition.renderMode; }
+	get sourceType(): LatexSourceType { return this.definition.sourceType; }
+	get resultFormat(): ResultFileFormat { return this.definition.resultFormat; }
 
 	hasSourceChangeTimeExceededMargin() {
 		return (
@@ -222,8 +210,6 @@ export class LatexTask {
 			);
 		}
 
-		const renderMode = getRenderModeForCodeBlock(metadatas[0].language ?? '');
-
 		let renderChild: LatexRenderChild | undefined;
 		let containerEl: HTMLElement;
 
@@ -233,9 +219,12 @@ export class LatexTask {
 		} else {
 			containerEl = renderTarget ?? activeDocument.createElement('div');
 		}
+
+		const definition = getLatexCodeBlockDefinition(metadatas[0].language ?? '');
+
 		return createTask(
 			plugin,
-			renderMode,
+			definition,
 			content,
 			containerEl,
 			renderChild,
@@ -246,7 +235,7 @@ export class LatexTask {
 
 	static async createAsync(
 		plugin: LatexCompilerPlugin,
-		renderMode: LatexRenderMode,
+		definition: LatexCodeBlockDefinition,
 		content: string,
 		el: HTMLElement,
 		ctx: MarkdownPostProcessorContext,
@@ -256,7 +245,7 @@ export class LatexTask {
 			const infos = mdSectionInfos.map((sec) => sectionToTaskSectionInfo(sec));
 			const rendererChild = new LatexRenderChild(el);
 			ctx.addChild(rendererChild);
-			const task = createTask(plugin, renderMode, content, el, rendererChild, ctx.sourcePath, infos);
+			const task = createTask(plugin, definition, content, el, rendererChild, ctx.sourcePath, infos);
 			return { isError: false, result: task };
 		} catch (err: unknown) {
 			console.error('Error while ensuring section info for task:', err);
@@ -278,10 +267,6 @@ export class LatexTask {
 
 	getContent() {
 		return this.content;
-	}
-
-	getProcessedContent() {
-		return this.getContent();
 	}
 
 	/**
@@ -326,19 +311,18 @@ export class LatexTask {
 		);
 	}
 
-	getResultFileFormat(): ResultFileFormat {
-		return this.renderMode === LatexRenderMode.PDF ? 'pdf' : 'svg';
-	}
-
 	getRenderData() {
+		const content = this.isProcess()
+			? this.getProcessedContent()
+			: this.getContent();
 		return {
 			el: this.el,
-			content: this.getProcessedContent(),
+			content,
 			rawHash: this.rawHash,
 			sourcePath: this.sourcePath,
 			dependencyPaths: this.getDependencyPaths(),
 			stem: this.getStem(),
-			format: this.getResultFileFormat(),
+			format: this.resultFormat,
 		};
 	}
 
@@ -347,6 +331,7 @@ export class LatexTask {
 			vfsFils: this.plugin.latexRenderer.vfs.getClonedFiles(),
 			sourcePath: this.sourcePath,
 			content: this.content,
+			definition: this.definition,
 			rawHash: this.rawHash,
 			resolvedHash: this.resolvedHash,
 			blockId: this.blockId,
@@ -377,14 +362,14 @@ export class ProcessableLatexTask extends LatexTask {
 
 	constructor(
 		plugin: LatexCompilerPlugin,
-		renderMode: LatexRenderMode,
+		definition: LatexCodeBlockDefinition,
 		content: string,
 		el: HTMLElement,
 		rendererChild: LatexRenderChild | undefined,
 		sourcePath: string,
 		infos: TaskSectionInformation[],
 	) {
-		super(plugin, renderMode, content, el, rendererChild, sourcePath, infos);
+		super(plugin, definition, content, el, rendererChild, sourcePath, infos);
 	}
 
 	getProcessedContent(): string {
@@ -422,7 +407,7 @@ export class ProcessableLatexTask extends LatexTask {
 		this.resolvedHash = hashLatexContent(this.astContent);
 	}
 
-	async process(): Promise<void | string> {
+	async process() {
 		return processTaskSource(this, this.plugin.latexRenderer.vfs, this.plugin);
 	}
 

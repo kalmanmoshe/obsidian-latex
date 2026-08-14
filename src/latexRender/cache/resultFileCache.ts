@@ -16,22 +16,12 @@ import {
 import { extractStemAndExtension, isValidFileStem } from '../resolvers/paths';
 import { optimizeSVG } from '../pdfConversion/optimizeSVG';
 import { getDependencyHash } from './compilerCache';
-import { getRenderModeForCodeBlock, LatexRenderMode } from 'src/latexRender/task/latexTask';
+import { getLatexCodeBlockDefinition } from '../codeBlockTypes';
 
 export const resultFileCacheFormats = new Map<ResultFileFormat, CacheFileType>([
 	['svg', CacheFileType.Text],
 	['pdf', CacheFileType.Binary],
 ]);
-
-function getResultFileFormat(renderMode: LatexRenderMode): ResultFileFormat {
-	return renderMode === LatexRenderMode.PDF ? 'pdf' : 'svg'
-}
-
-function getResultFormatForCodeBlock(codeBlockLanguage: string): ResultFileFormat {
-	return getResultFileFormat(
-		getRenderModeForCodeBlock(codeBlockLanguage),
-	);
-}
 
 export default class ResultFileCache {
 	private plugin: LatexCompilerPlugin;
@@ -497,7 +487,7 @@ export default class ResultFileCache {
 		const references = new Map<string, Set<ResultFileFormat>>();
 
 		for (const { hash, name } of hashes) {
-			const format = getResultFormatForCodeBlock(name);
+			const format = getLatexCodeBlockDefinition(name).resultFormat;
 			addFormatReference(references, hash, format);
 		}
 

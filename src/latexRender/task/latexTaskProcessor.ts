@@ -6,11 +6,11 @@ export async function processTaskSource(
 	task: ProcessableLatexTask,
 	vfs: VirtualFileSystem,
 	plugin: LatexCompilerPlugin,
-): Promise<string | void> {
+): Promise<string | Error | void> {
 	const startTime = performance.now();
 
 	try {
-		const result = await vfs.getParser().parseFile(task.getContent(), task.sourcePath);
+		const result = await vfs.getParser().parseFile(task.getContent(), task.sourcePath, task.sourceType);
 
 		const ast = result.ast;
 
@@ -19,11 +19,6 @@ export async function processTaskSource(
 		const dependencyPaths = surfaceLevelDependencies.map((dep) => dep.path);
 
 		if (plugin.settings.compilerVfsEnabled) {
-			const autoUseFiles = vfs
-				.getAutoUseFiles()
-				.filter((file) => surfaceLevelDependencies.every((dep) => dep.path !== file.path));
-			dependencyPaths.push(...autoUseFiles.map((file) => file.path));
-			ast.addDependenciesToPreamble(autoUseFiles);
 
 			await vfs.addOrReplaceFiles(
 				result.dependencies
@@ -36,13 +31,11 @@ export async function processTaskSource(
 			);
 		}
 
-		ast.verifyProperDocumentStructure();
-
 		task.setAst(ast);
 		task.setDependencyPaths(dependencyPaths);
 		task.processingTime = performance.now() - startTime;
 		task.processed = true;
-	} catch (e) {
-		return e instanceof Error ? e.message : String(e);
+	} catch (e: unknown) {
+		return e instanceof Error ? e : String(e);
 	}
 }

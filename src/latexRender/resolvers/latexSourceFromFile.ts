@@ -1,9 +1,9 @@
 import { App, TFile } from 'obsidian';
-import { latexCodeBlockLanguageRegex } from '../latexRenderer';
 import { getLatexTaskSectionInfosFromFile } from './taskSectionInformation';
 import { codeBlockLanguageRegex, codeBlockToContent } from 'obsidian-dev-utils';
 import { hashLatexContent } from '../cache/compilerCache';
 import { extractCodeBlockLanguage } from 'obsidian-dev-utils';
+import { latexCodeBlockLanguageRegex } from '../codeBlockTypes';
 /** rooles:
  * - find = Might be undefined
  * - get = Will always return a value or throw an error

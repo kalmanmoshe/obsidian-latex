@@ -6,12 +6,12 @@ import {
 import {
 	resolvePathRelToVault,
 	extractStemAndExtension,
-	getFileContent,
+	resolveDependencyContent,
 	isValidFileStem,
 	CODE_BLOCK_NAME_SEPARATOR,
 } from '../latexRender/resolvers/paths';
 import { String as StringClass } from '../ast/typs/astNodes';
-import { createDependency, LatexDependency } from 'src/dependency/LatexDependency';
+import { createDependency, LatexDependency, LatexSourceType } from 'src/dependency/LatexDependency';
 import { VirtualFileSystem } from './VirtualFileSystem';
 import { App } from 'obsidian';
 
@@ -34,7 +34,13 @@ export class LatexDependencyParser {
 		private possibleNames: string[] = [],
 	) { }
 
-	async parseFile(content: string | LatexAbstractSyntaxTree, path: string): Promise<ParsedLatexFile> {
+	async parseFile(
+		content: string | LatexAbstractSyntaxTree,
+		sourcePath: string,
+		sourceType: LatexSourceType,
+		// means that it's a depndency of another file, and not a standalone file.
+		isDependency: boolean = false
+	): Promise<ParsedLatexFile> {
 		let ast: LatexAbstractSyntaxTree;
 		if (typeof content === 'string') {
 			ast = LatexAbstractSyntaxTree.parse(content);
@@ -42,23 +48,63 @@ export class LatexDependencyParser {
 			ast = content;
 		}
 
-		let filePath = path;
+		let filePath = sourcePath;
 		if (filePath.contains(CODE_BLOCK_NAME_SEPARATOR)) {
 			filePath = filePath.split(CODE_BLOCK_NAME_SEPARATOR)[0];
 		}
 
 		const dependencies = await this.collectDependencies(ast, filePath, this.app);
 
+		if (!isDependency) {
+			//the auto use files are added with name only, so collect deps will fall to resolve them 
+			// so process must come affter collect
+			await this.processAst(ast, dependencies, sourceType);
+		}
+
 		return {
 			content: ast.toString(),
-			path,
+			path: sourcePath,
 			ast,
 			dependencies,
 		};
 	}
 
-	async collectSurfaceDependencyPaths(content: string, sourcePath: string, app: App): Promise<string[]> {
-		const ast = LatexAbstractSyntaxTree.parse(content);
+	private async processAst(
+		ast: LatexAbstractSyntaxTree,
+		dependencies: LatexDependencyNode[],
+		sourceType: LatexSourceType,
+	) {
+		switch (sourceType) {
+			case LatexSourceType.File:
+			case LatexSourceType.LatexCodeBlock:
+				break;
+			case LatexSourceType.TikzCodeBlock:
+				await this.processTikzCodeBlock(ast, dependencies, this.vfs);
+				break;
+			default:
+				throw new Error(`Unknown source type: ${sourceType as any}`);
+		}
+	}
+
+	private async processTikzCodeBlock(
+		ast: LatexAbstractSyntaxTree,
+		dependencies: LatexDependencyNode[],
+		vfs: VirtualFileSystem,
+	) {
+		// we want in the preamble the surface level dependencies only, and not dependencies referenced within those. LaTex will automatically include those referenced dependencies when compiling the surface level dependencies.
+		const surfaceDependencyPaths = dependencies.map((depNode) => depNode.dependency.path);
+
+		if (vfs.getEnabled()) {
+			const newAutoUseFiles = vfs
+				.getAutoUseFiles()
+				.filter((file) => surfaceDependencyPaths.every((depPath) => depPath !== file.path));
+
+			ast.addDependenciesToPreamble(newAutoUseFiles);
+		}
+		ast.verifyProperDocumentStructure();
+	}
+
+	async collectSurfaceDependencyPaths(ast: LatexAbstractSyntaxTree, sourcePath: string, app: App): Promise<string[]> {
 
 		let basePath = sourcePath;
 		if (basePath.contains(CODE_BLOCK_NAME_SEPARATOR)) {
@@ -93,7 +139,7 @@ export class LatexDependencyParser {
 			let childDependencies: LatexDependencyNode[] = [];
 
 			if (dep.isTex && this.vfs.getFile(dep.path) === undefined) {
-				const parsedDep = await this.parseFile(dep.content, dep.path);
+				const parsedDep = await this.parseFile(dep.content, dep.path, dep.sourceType, true);
 				childDependencies = parsedDep.dependencies;
 				dep.ast = parsedDep.ast;
 				dep.content = parsedDep.content;
@@ -123,9 +169,9 @@ export class LatexDependencyParser {
 			return possibleDep;
 		}
 
-		const content = await getFileContent(resolvedPath, app);
+		const { content, sourceType } = await resolveDependencyContent(resolvedPath, app);
 
-		return createDependency(content, resolvedPath, {
+		return createDependency(content, resolvedPath, sourceType, {
 			isTex: isExtensionTex(extension),
 		});
 	}

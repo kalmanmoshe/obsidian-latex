@@ -11,7 +11,7 @@ import {
 	onFileDelete,
 } from './obsidian/fileWatch';
 import { LatexContextMenuDecider } from './latexRender/contextMenu/latexContextMenuDecider';
-import { LatexRenderMode } from './latexRender/task/latexTask';
+import { LATEX_CODE_BLOCKS } from './latexRender/codeBlockTypes';
 
 type WindowWithCodeMirror = Window & {
 	CodeMirror?: {
@@ -70,42 +70,51 @@ export default class LatexCompilerPlugin extends Plugin {
 	private setCodeblocks() {
 		//each one refreshes so for each new processor, the block would be rendered multiple times. 
 		// (that only hapens once on load, and the queue takes care of most of it)
-		this.registerMarkdownCodeBlockProcessor(
-			'tikz',
-			(s, e, c) => this.latexRenderer.codeBlockProcessor(s, e, c, LatexRenderMode.SVG),
-		);
-		this.registerMarkdownCodeBlockProcessor(
-			'latex',
-			(s, e, c) => this.latexRenderer.codeBlockProcessor(s, e, c, LatexRenderMode.PDF),
-		);
+		for (const [language, definition] of Object.entries(LATEX_CODE_BLOCKS)) {
+			this.registerMarkdownCodeBlockProcessor(
+				language,
+				(source, el, ctx) =>
+					this.latexRenderer.codeBlockProcessor(
+						source,
+						el,
+						ctx,
+						definition,
+					),
+			);
+		}
 	}
 
 	private addSyntaxHighlighting() {
 		const codeMirror = (activeWindow as WindowWithCodeMirror).CodeMirror;
 		if (!codeMirror) return;
 
-		const codeMirrorCodeBlocksSyntaxHighlighting = codeMirror.modeInfo;
-		if (!codeMirrorCodeBlocksSyntaxHighlighting.some(el => el.name === 'latexsvg')) {
-			codeMirrorCodeBlocksSyntaxHighlighting.push({
-				name: 'latexsvg',
-				mime: 'text/x-latex',
-				mode: 'stex',
-			});
-		}
-		if (!codeMirrorCodeBlocksSyntaxHighlighting.some(el => el.name === 'Tikz')) {
-			codeMirrorCodeBlocksSyntaxHighlighting.push({
-				name: 'Tikz',
-				mime: 'text/x-latex',
-				mode: 'stex',
-			});
+		for (const language of Object.keys(LATEX_CODE_BLOCKS)) {
+			if (language === 'latex') continue;
+
+			if (!codeMirror.modeInfo.some(
+				info => info.name.toLowerCase() === language.toLowerCase()
+			)) {
+				codeMirror.modeInfo.push({
+					name: language,
+					mime: 'text/x-latex',
+					mode: 'stex',
+				});
+			}
 		}
 	}
 
 	private removeSyntaxHighlighting() {
 		const codeMirror = (activeWindow as WindowWithCodeMirror).CodeMirror;
 		if (!codeMirror) return;
+
+		const customLanguages = new Set(
+			Object.keys(LATEX_CODE_BLOCKS)
+				.filter(language => language !== 'latex')
+				.map(language => language.toLowerCase()),
+		);
+
 		codeMirror.modeInfo = codeMirror.modeInfo.filter(
-			el => el.name != 'Tikz' && el.name != 'latexsvg',
+			info => !customLanguages.has(info.name.toLowerCase()),
 		);
 	}
 

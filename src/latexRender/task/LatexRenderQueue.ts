@@ -86,7 +86,6 @@ export class LatexRenderQueue {
 			(async () => {
 				await this.renderTask(task);
 				updateQueueCountdown(this.queue);
-			
 				done();
 			})().catch((err) => {
 				console.error('Queue worker crashed:', err, task.getDebugInfo());

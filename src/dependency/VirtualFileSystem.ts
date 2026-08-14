@@ -5,6 +5,7 @@ import { DependencyGraphStore } from 'src/dependency/DependencyGraphStore';
 import {
 	createDependency,
 	LatexDependency,
+	LatexSourceType,
 } from 'src/dependency/LatexDependency';
 import LatexCompilerPlugin from 'src/main';
 
@@ -141,6 +142,7 @@ export class VirtualFileSystem {
 			file.autoUse = coorVirtualFilePaths.has(file.path);
 			coorVirtualFilePaths.delete(file.path);
 		}
+		console.log("setCoorVirtualFiles", this)
 		for (const filePath of coorVirtualFilePaths)
 			throw new Error('File not found in virtual file system: ' + filePath);
 	}
@@ -167,7 +169,7 @@ export class VirtualFileSystem {
 		if (hasDeps(file)) {
 			newDep = file;
 		} else {
-			const dep = createDependency(file.content, file.path, {
+			const dep = createDependency(file.content, file.path, LatexSourceType.File, {
 				autoUse: file.autoUse,
 			});
 
@@ -190,7 +192,7 @@ export class VirtualFileSystem {
 				return;
 			}
 
-			const parsed = await this.parser.parseFile(newDep.ast!, newDep.path);
+			const parsed = await this.parser.parseFile(newDep.ast!, newDep.path, newDep.sourceType);
 
 			newDep.ast = parsed.ast;
 			newDep.content = parsed.content;

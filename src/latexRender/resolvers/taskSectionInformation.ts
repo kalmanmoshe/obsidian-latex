@@ -1,8 +1,8 @@
 import { App, SectionCache, TFile } from 'obsidian';
 import { getFileSectionsFromPath } from './sectionCache';
-import { latexCodeBlockLanguageRegex } from '../latexRenderer';
 import { codeBlockToContent } from 'obsidian-dev-utils';
 import { hashLatexContent } from '../cache/compilerCache';
+import { latexCodeBlockLanguageRegex } from '../codeBlockTypes';
 export interface TaskSectionInformation {
 	/**
 	 * The line start of the source in the file. (zero-based index)

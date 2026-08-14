@@ -7,7 +7,7 @@ import parseLatexLog, { createErrorDisplay, errorDiv } from './logs/humanReadabl
 import { VfsCompileMode, VirtualFileSystem } from '../dependency/VirtualFileSystem';
 import { ProcessedLog } from './logs/latexLogParser';
 import PdfTeXCompiler from './compiler/swiftlatexpdftex/PdfTeXCompiler';
-import { LatexRenderMode, LatexTask, ProcessableLatexTask } from './task/latexTask';
+import { LatexTask, ProcessableLatexTask } from './task/latexTask';
 import { PdfXeTeXCompiler } from './compiler/swiftlatexxetex/pdfXeTeXCompiler';
 import LatexCompiler from './compiler/base/compilerBase/compiler';
 import CompilerCache, { hashLatexContent } from './cache/compilerCache';
@@ -16,6 +16,8 @@ import { getLogCacheKey } from './cache/logCache';
 import { pdfToSVG, LATEX_RENDER_ID_KEY, pdfToOptimizedSVG, insertSvg } from './pdfConversion/pdfToSVG';
 import { CacheContent } from './cache/cacheBase/cacheBase';
 import { LatexRenderChild } from './task/latexRenderChild';
+import { LatexAbstractSyntaxTree } from 'src/ast/latexAbstractSyntaxTree';
+import { LatexCodeBlockDefinition } from './codeBlockTypes';
 
 export async function waitFor(condFunc: () => boolean): Promise<void> {
 	while (!condFunc()) {
@@ -24,8 +26,6 @@ export async function waitFor(condFunc: () => boolean): Promise<void> {
 		});
 	}
 }
-
-export const latexCodeBlockLanguageRegex: RegExp = /(`|~){3,} *(latex|tikz)/;
 
 export class LatexRenderer {
 	plugin: LatexCompilerPlugin;
@@ -88,7 +88,7 @@ export class LatexRenderer {
 		source: string,
 		el: HTMLElement,
 		ctx: MarkdownPostProcessorContext,
-		renderMode: LatexRenderMode
+		definition: LatexCodeBlockDefinition,
 	) {
 		el.classList.add(
 			'latex-compiler-render',
@@ -96,8 +96,7 @@ export class LatexRenderer {
 		);
 
 		const rawHash = hashLatexContent(source);
-
-		const createResult = await LatexTask.createAsync(this.plugin, renderMode, source, el, ctx);
+		const createResult = await LatexTask.createAsync(this.plugin, definition, source, el, ctx);
 
 		if (createResult.isError) {
 			const errorMessage = createResult.result instanceof Error
@@ -153,7 +152,9 @@ export class LatexRenderer {
 			const processError = await task.process();
 
 			if (processError) {
-				this.displayErrorForTask(task, `Error processing task: ${processError}`);
+				console.error('Error processing task:', processError, task.getDebugInfo());
+				const errorMessage = processError instanceof Error ? processError.message : processError;
+				this.displayErrorForTask(task, `Error processing task: ${errorMessage}`);
 				return false;
 			}
 		} else {
@@ -209,13 +210,24 @@ export class LatexRenderer {
 		if (task.isProcess()) {
 			const processError = await task.process();
 			if (processError) {
-				return new CompileResult(undefined, CompileStatus.ProcessingError, processError);
+				console.error('Error processing task:', processError, task.getDebugInfo());
+				const errorMessage = processError instanceof Error ? processError.message : processError;
+				return new CompileResult(undefined, CompileStatus.ProcessingError, errorMessage);
 			}
 		}
 		try {
-			const compileMode = task.isProcess() ? VfsCompileMode.compileAll : VfsCompileMode.none;
+			let compileMode;
+			let taskContent;
 
-			return await this.renderLatexToPDF(task.getProcessedContent(), compileMode);
+			if (task.isProcess()) {
+				compileMode = VfsCompileMode.compileAll;
+				taskContent = task.getProcessedContent();
+			} else {
+				compileMode = VfsCompileMode.none;
+				taskContent = task.getContent();
+			}
+
+			return await this.renderLatexToPDF(taskContent, compileMode);
 		} catch (err) {
 			const errorText = err instanceof LatexCompilationError ? err.latexLog : toErrorString(err);
 			return new CompileResult(undefined, CompileStatus.CompileError, errorText);
@@ -262,7 +274,7 @@ export class LatexRenderer {
 		parseErr: boolean = false
 	): void {
 		// there is nothing to display the error to, so we just return.
-		if (!task.renderChild) return; 
+		if (!task.renderChild) return;
 		this.displayError(task.renderChild, err, task.getStem(), task.sourcePath, parseErr);
 	}
 
@@ -377,7 +389,7 @@ export class LatexRenderer {
 		const result = await this.cache.resultFileCache.getResultFileFromRawHash(
 			task.rawHash,
 			task.sourcePath,
-			task.getResultFileFormat(),
+			task.resultFormat,
 			() => {
 				if (task instanceof ProcessableLatexTask) {
 					return getCacheDependencyPaths(task, this.vfs, this.plugin);
@@ -399,7 +411,7 @@ export class LatexRenderer {
 		//we successfully restored from cache, but the task has no renderer child to render to. 
 		if (!renderChild) return true;
 
-		if (task.getResultFileFormat() === 'svg') {
+		if (task.resultFormat === 'svg') {
 			if (typeof data !== 'string') {
 				console.warn(`Expected SVG cache entry ${stem} to contain text data.`);
 				return false;
@@ -440,9 +452,10 @@ async function getCacheDependencyPaths(
 	vfs: VirtualFileSystem,
 	plugin: LatexCompilerPlugin,
 ): Promise<string[]> {
+	const ast = LatexAbstractSyntaxTree.parse(task.getContent())
 	const explicitDeps = await vfs
 		.getParser()
-		.collectSurfaceDependencyPaths(task.getContent(), task.sourcePath, plugin.app);
+		.collectSurfaceDependencyPaths(ast, task.sourcePath, plugin.app);
 
 	const autoUsePaths = plugin.settings.compilerVfsEnabled
 		? vfs
