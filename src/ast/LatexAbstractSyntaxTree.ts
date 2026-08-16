@@ -1,4 +1,4 @@
-import { String, Macro, Argument, Ast, Node, DependencyMacro } from './typs/astNodes';
+import { String, Macro, Argument, Node, DependencyMacro } from './typs/astNodes';
 import { parse } from './autoParse/ast-types-pre';
 import { LatexDependency } from 'src/dependency/LatexDependency';
 import { verifyEnvironmentWrap } from './verifyEnvironmentWrap';
@@ -89,28 +89,6 @@ export class LatexAbstractSyntaxTree {
 		return startIndex === -1 ? 0 : startIndex;
 	}
 
-	getDependencyMacros() {
-		return findUsdInputFiles(this.content);
-	}
-
-	usdInputFiles() {
-		return findUsdInputFiles(this.content).filter(
-			(macro) => macro.args && macro.args.length === 1,
-		);
-	}
-
-	getInputFilesPaths() {
-		return this.usdInputFiles().map((input) => {
-			const args = input.args;
-			if (!args || args.length !== 1) throw new Error('Unexpected input file format');
-			return input.toStringArgsContent();
-		});
-	}
-
-	isInputFile(filePath: string) {
-		return this.getInputFilesPaths().some((path) => filePath === path);
-	}
-
 	replaceContent(nodes: Node[]) {
 		this.content = nodes;
 	}
@@ -139,23 +117,13 @@ export class LatexAbstractSyntaxTree {
 	}
 }
 
-const texExtensions = ['latex', 'tex', 'sty', 'cls', 'texlive', 'texmf', 'texmf', 'cnf'];
+const texSourceExtensions = [
+    'tex',
+    'latex',
+    'sty',
+    'cls',
+];
 
-export function isExtensionTex(extension: string) {
-	return extension.split('.').some((ext) => texExtensions.includes(ext.toLowerCase()));
-}
-
-export function findUsdInputFiles(ast: Ast): Macro[] {
-	const inputMacros: Macro[] = [];
-	if (ast instanceof Macro && ast.content === 'input') inputMacros.push(ast);
-	if (Array.isArray(ast)) {
-		inputMacros.push(...ast.map(findUsdInputFiles).flat());
-	}
-	if ('content' in ast && ast.content && Array.isArray(ast.content)) {
-		inputMacros.push(...ast.content.map(findUsdInputFiles).flat());
-	}
-	if ('args' in ast && ast.args) {
-		inputMacros.push(...ast.args.map(findUsdInputFiles).flat());
-	}
-	return inputMacros;
+export function isTexSourceExtension(extension: string): boolean {
+    return texSourceExtensions.includes(extension.toLowerCase());
 }

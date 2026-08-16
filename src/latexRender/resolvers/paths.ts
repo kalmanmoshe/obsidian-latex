@@ -4,6 +4,7 @@ import { extractCodeBlockMetadata, extractCodeBlockName } from './latexSourceFro
 import { codeBlockToContent } from 'obsidian-dev-utils';
 import { LatexSourceType } from 'src/dependency/LatexDependency';
 import { getLatexCodeBlockDefinition } from '../codeBlockTypes';
+import { isTexSourceExtension } from 'src/ast/latexAbstractSyntaxTree';
 
 export const CODE_BLOCK_NAME_SEPARATOR = '#';
 const TRADITIONAL_PATH_SEPARATORS = ['/', '\\'];
@@ -24,7 +25,9 @@ export function resolvePathRelToVault(path: string, currentPath: string, app: Ap
 		throw new Error(`Invalid file stem: ${remainingPath}`);
 	}
 
-	const codeBlockName = remainingPath + '.tex';
+	const potentialExtension = remainingPath.split('.').pop() ?? '';
+
+	const codeBlockName = remainingPath + (isTexSourceExtension(potentialExtension) ? '' : '.tex');
 	return absPath + CODE_BLOCK_NAME_SEPARATOR + codeBlockName;
 }
 

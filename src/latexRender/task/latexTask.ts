@@ -7,7 +7,6 @@ import {
 	TFile,
 } from 'obsidian';
 import { extractCodeBlockMetadata, extractCodeBlockName } from '../resolvers/latexSourceFromFile';
-import { LatexAbstractSyntaxTree } from '../../ast/latexAbstractSyntaxTree';
 import { findMatchingCodeBlockSections } from '../resolvers/findSection';
 import { TaskSectionInformation } from '../resolvers/taskSectionInformation';
 
@@ -19,21 +18,6 @@ import { ResultFileFormat, SOURCE_REVERIFICATION_TIME_MS } from 'src/settings/se
 import { LatexRenderChild } from './latexRenderChild';
 import { getLatexCodeBlockDefinition, LatexCodeBlockDefinition } from '../codeBlockTypes';
 import { LatexSourceType } from 'src/dependency/LatexDependency';
-
-function createTask(
-	plugin: LatexCompilerPlugin,
-	definition: LatexCodeBlockDefinition,
-	content: string,
-	el: HTMLElement,
-	rendererChild: LatexRenderChild | undefined,
-	sourcePath: string,
-	infos: TaskSectionInformation[],
-): LatexTask | ProcessableLatexTask {
-	const process = true;//TODO: rm hard coded
-	return process
-		? new ProcessableLatexTask(plugin, definition, content, el, rendererChild, sourcePath, infos)
-		: new LatexTask(plugin, definition, content, el, rendererChild, sourcePath, infos);
-}
 
 /**
  * sets the section information for the task.
@@ -85,21 +69,32 @@ export enum LatexRenderMode {
 }
 
 export class LatexTask {
-	protected plugin: LatexCompilerPlugin;
-	protected content: string;
-	sourcePath: string;
+	protected readonly plugin: LatexCompilerPlugin;
+	protected readonly content: string;
+	readonly sourcePath: string;
 	readonly definition: LatexCodeBlockDefinition;
 	readonly uuid = crypto.randomUUID();
-	rawHash: string;
+	readonly rawHash: string;
 	/**
 	 * The resolved hash is the hash of the content after it has been processed and the dependencies have been resolved.
 	 */
 	protected resolvedHash: string;
 	protected blockId: string;
-	el: HTMLElement;
+	readonly el: HTMLElement;
 	renderChild?: LatexRenderChild;
 	protected sectionInfos: TaskSectionInformation[];
 	private lastSectionInfoVerificationTime: number = Date.now();
+
+	/**
+	 * Because we can't guarantee one section information per task, there may be situations where there are multiple. we don't have enough information to prefer one over the other, so we must consider them all.
+	 */
+	private possibleNames: string[];
+	processed: boolean = false;
+	private processedContent: string;
+	/**
+	 * all of the paths of root dependencies that this task depends on. includeing auto use files.
+	 */
+	private dependencyPaths: string[] = [];
 
 	constructor(
 		plugin: LatexCompilerPlugin,
@@ -112,7 +107,8 @@ export class LatexTask {
 	) {
 		this.plugin = plugin;
 		this.definition = definition;
-		this.setSource(source);
+		this.content = source;
+		this.rawHash = hashLatexContent(source);
 		this.el = el;
 		this.renderChild = rendererChild;
 		this.sourcePath = sourcePath;
@@ -222,7 +218,7 @@ export class LatexTask {
 
 		const definition = getLatexCodeBlockDefinition(metadatas[0].language ?? '');
 
-		return createTask(
+		return new LatexTask(
 			plugin,
 			definition,
 			content,
@@ -245,23 +241,11 @@ export class LatexTask {
 			const infos = mdSectionInfos.map((sec) => sectionToTaskSectionInfo(sec));
 			const rendererChild = new LatexRenderChild(el);
 			ctx.addChild(rendererChild);
-			const task = createTask(plugin, definition, content, el, rendererChild, ctx.sourcePath, infos);
+			const task = new LatexTask(plugin, definition, content, el, rendererChild, ctx.sourcePath, infos);
 			return { isError: false, result: task };
 		} catch (err: unknown) {
 			console.error('Error while ensuring section info for task:', err);
 			return { isError: true, result: err };
-		}
-	}
-
-	isProcess(): this is ProcessableLatexTask {
-		return this instanceof ProcessableLatexTask;
-	}
-
-	setSource(source: string) {
-		this.content = source;
-		this.rawHash = hashLatexContent(source);
-		if (!this.resolvedHash) {
-			this.resolvedHash = this.rawHash;
 		}
 	}
 
@@ -284,6 +268,14 @@ export class LatexTask {
 
 		const numberKey = this.sectionInfos.map((sec) => sec.lineStart).join('|');
 		this.blockId = this.sourcePath.replace(/ /g, '_') + '||' + numberKey;
+
+		const names = [];
+		for (const section of this.sectionInfos) {
+			const line = section.codeBlock.split('\n')[0];
+			const name = extractCodeBlockName(line);
+			if (name) names.push(name);
+		}
+		this.possibleNames = names;
 	}
 
 	getBlockId() {
@@ -299,25 +291,39 @@ export class LatexTask {
 		return this.renderChild === undefined || this.el.isConnected;
 	}
 
-	// on the processed child class we will override this to return the actual dependencies.
-	getDependencyPaths(): string[] {
-		return [];
-	}
-
 	getStem() {
 		return this.plugin.latexRenderer.cache.resultFileCache.getFileStem(
 			this.rawHash,
 			this.getDependencyPaths(),
 		);
 	}
+	
+	getProcessedContent(): string {
+		if (!this.processedContent) throw new Error('Processed content is not set. Call process() first.');
+		return this.processedContent;
+	}
+
+	setProcessedContent(content: string) { 
+		this.processedContent = content; 
+		this.resolvedHash = hashLatexContent(this.processedContent);
+	}
+
+	setDependencyPaths(paths: string[]) { this.dependencyPaths = paths; }
+
+	getDependencyPaths(): string[] { return this.dependencyPaths; }
+
+	getPossibleNames() {
+		return this.possibleNames;
+	}
+
+	async process() {
+		return processTaskSource(this, this.plugin.latexRenderer.vfs, this.plugin);
+	}
 
 	getRenderData() {
-		const content = this.isProcess()
-			? this.getProcessedContent()
-			: this.getContent();
 		return {
 			el: this.el,
-			content,
+			content: this.getProcessedContent(),
 			rawHash: this.rawHash,
 			sourcePath: this.sourcePath,
 			dependencyPaths: this.getDependencyPaths(),
@@ -341,84 +347,8 @@ export class LatexTask {
 				codeBlock: sec.codeBlock,
 			})),
 			lastSectionInfoVerificationTime: this.lastSectionInfoVerificationTime,
-		};
-	}
-}
-//Create a block ID that is generated from all possible solutions.
-
-export class ProcessableLatexTask extends LatexTask {
-	/**
-	 * Because we can't guarantee one section information per task, there may be situations where there are multiple. we don't have enough information to prefer one over the other, so we must consider them all.
-	 */
-	private possibleNames: string[];
-	processed: boolean = false;
-	processingTime: number;
-	private ast: LatexAbstractSyntaxTree | null = null;
-	private astContent: string | null = null;
-	/**
-	 * all of the paths of root dependencies that this task depends on. includeing auto use files.
-	 */
-	private dependencyPaths: string[] = [];
-
-	constructor(
-		plugin: LatexCompilerPlugin,
-		definition: LatexCodeBlockDefinition,
-		content: string,
-		el: HTMLElement,
-		rendererChild: LatexRenderChild | undefined,
-		sourcePath: string,
-		infos: TaskSectionInformation[],
-	) {
-		super(plugin, definition, content, el, rendererChild, sourcePath, infos);
-	}
-
-	getProcessedContent(): string {
-		if (!this.ast || !this.astContent) throw new Error('AST is not set for this task.');
-		return this.astContent;
-	}
-
-	setDependencyPaths(paths: string[]) {
-		this.dependencyPaths = paths;
-	}
-
-	getDependencyPaths(): string[] {
-		return this.dependencyPaths;
-	}
-
-	protected setSectionInfos(infos: (TaskSectionInformation | MarkdownSectionInformation)[]) {
-		super.setSectionInfos(infos);
-
-		const names = [];
-		for (const section of this.sectionInfos) {
-			const line = section.codeBlock.split('\n')[0];
-			const name = extractCodeBlockName(line);
-			if (name) names.push(name);
-		}
-		this.possibleNames = names;
-	}
-
-	getPossibleNames() {
-		return this.possibleNames;
-	}
-
-	setAst(ast: LatexAbstractSyntaxTree) {
-		this.ast = ast;
-		this.astContent = ast.toString();
-		this.resolvedHash = hashLatexContent(this.astContent);
-	}
-
-	async process() {
-		return processTaskSource(this, this.plugin.latexRenderer.vfs, this.plugin);
-	}
-
-	getDebugInfo() {
-		return {
-			...super.getDebugInfo(),
-			ast: this.ast ? this.ast.clone() : null,
-			astContent: this.astContent,
 			dependencyPaths: this.dependencyPaths,
 			processed: this.processed,
-			processingTime: this.processingTime,
 			possibleNames: this.possibleNames,
 		};
 	}

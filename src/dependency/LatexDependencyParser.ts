@@ -1,6 +1,5 @@
 import {
-	findUsdInputFiles,
-	isExtensionTex,
+	isTexSourceExtension,
 	LatexAbstractSyntaxTree,
 } from 'src/ast/latexAbstractSyntaxTree';
 import {
@@ -10,10 +9,10 @@ import {
 	isValidFileStem,
 	CODE_BLOCK_NAME_SEPARATOR,
 } from '../latexRender/resolvers/paths';
-import { String as StringClass } from '../ast/typs/astNodes';
 import { createDependency, LatexDependency, LatexSourceType } from 'src/dependency/LatexDependency';
 import { VirtualFileSystem } from './VirtualFileSystem';
 import { App } from 'obsidian';
+import { findLatexInputReferences } from './LatexInputScanner';
 
 export interface LatexDependencyNode {
 	dependency: LatexDependency;
@@ -23,79 +22,77 @@ export interface LatexDependencyNode {
 export interface ParsedLatexFile {
 	content: string;
 	path: string;
-	ast: LatexAbstractSyntaxTree;
 	dependencies: LatexDependencyNode[];
+}
+
+interface SourceReplacement {
+	start: number;
+	end: number;
+	value: string;
 }
 
 export class LatexDependencyParser {
 	constructor(
 		private vfs: VirtualFileSystem,
 		private app: App,
+		//TODO: make this a arg in parse file as its not a global config but a per file config
 		private possibleNames: string[] = [],
 	) { }
 
 	async parseFile(
-		content: string | LatexAbstractSyntaxTree,
+		content: string,
 		sourcePath: string,
 		sourceType: LatexSourceType,
-		// means that it's a depndency of another file, and not a standalone file.
-		isDependency: boolean = false
+		isDependency = false,
 	): Promise<ParsedLatexFile> {
-		let ast: LatexAbstractSyntaxTree;
-		if (typeof content === 'string') {
-			ast = LatexAbstractSyntaxTree.parse(content);
-		} else {
-			ast = content;
+
+		const basePath = getBasePath(sourcePath);
+
+		const {
+			dependencies,
+			replacements,
+		} = await this.collectDependencies(content, basePath);
+
+		const resolvedContent = applyReplacements(
+			content,
+			replacements,
+		);
+
+		if (
+			isDependency ||
+			sourceType !== LatexSourceType.TikzCodeBlock
+		) {
+			return {
+				content: resolvedContent,
+				path: sourcePath,
+				dependencies,
+			};
 		}
 
-		let filePath = sourcePath;
-		if (filePath.contains(CODE_BLOCK_NAME_SEPARATOR)) {
-			filePath = filePath.split(CODE_BLOCK_NAME_SEPARATOR)[0];
-		}
+		// From this point onward source fidelity is intentionally irrelevant.
+		const processedAst = LatexAbstractSyntaxTree.parse(resolvedContent);
 
-		const dependencies = await this.collectDependencies(ast, filePath, this.app);
-
-		if (!isDependency) {
-			//the auto use files are added with name only, so collect deps will fall to resolve them 
-			// so process must come affter collect
-			await this.processAst(ast, dependencies, sourceType);
-		}
+		this.processTikzCodeBlock(
+			processedAst,
+			dependencies,
+		);
 
 		return {
-			content: ast.toString(),
+			content: processedAst.toString(),
 			path: sourcePath,
-			ast,
 			dependencies,
 		};
 	}
 
-	private async processAst(
+	private processTikzCodeBlock(
 		ast: LatexAbstractSyntaxTree,
 		dependencies: LatexDependencyNode[],
-		sourceType: LatexSourceType,
-	) {
-		switch (sourceType) {
-			case LatexSourceType.File:
-			case LatexSourceType.LatexCodeBlock:
-				break;
-			case LatexSourceType.TikzCodeBlock:
-				await this.processTikzCodeBlock(ast, dependencies, this.vfs);
-				break;
-			default:
-				throw new Error(`Unknown source type: ${sourceType as any}`);
-		}
-	}
-
-	private async processTikzCodeBlock(
-		ast: LatexAbstractSyntaxTree,
-		dependencies: LatexDependencyNode[],
-		vfs: VirtualFileSystem,
 	) {
 		// we want in the preamble the surface level dependencies only, and not dependencies referenced within those. LaTex will automatically include those referenced dependencies when compiling the surface level dependencies.
 		const surfaceDependencyPaths = dependencies.map((depNode) => depNode.dependency.path);
 
-		if (vfs.getEnabled()) {
-			const newAutoUseFiles = vfs
+		if (this.vfs.getEnabled()) {
+			const newAutoUseFiles = this.vfs
 				.getAutoUseFiles()
 				.filter((file) => surfaceDependencyPaths.every((depPath) => depPath !== file.path));
 
@@ -104,18 +101,12 @@ export class LatexDependencyParser {
 		ast.verifyProperDocumentStructure();
 	}
 
-	async collectSurfaceDependencyPaths(ast: LatexAbstractSyntaxTree, sourcePath: string, app: App): Promise<string[]> {
-
-		let basePath = sourcePath;
-		if (basePath.contains(CODE_BLOCK_NAME_SEPARATOR)) {
-			basePath = basePath.split(CODE_BLOCK_NAME_SEPARATOR)[0];
-		}
+	async collectSurfaceDependencyPaths(content: string, sourcePath: string): Promise<string[]> {
+		const basePath = getBasePath(sourcePath);
 
 		const paths: string[] = [];
-
-		for (const macro of findUsdInputFiles(ast._getMutableContent())) {
-			const rawPath = macro.toStringArgsContent();
-			const resolvedPath = resolvePathRelToVault(rawPath, basePath, app);
+		for (const ref of findLatexInputReferences(content)) {
+			const resolvedPath = resolvePathRelToVault(ref.path, basePath, this.app);
 			paths.push(resolvedPath);
 		}
 
@@ -123,41 +114,44 @@ export class LatexDependencyParser {
 	}
 
 	private async collectDependencies(
-		ast: LatexAbstractSyntaxTree,
-		basePath: string,
-		app: App
-	): Promise<LatexDependencyNode[]> {
+		content: string,
+		basePath: string
+	) {
 		const dependencies: LatexDependencyNode[] = [];
+		const replacements: SourceReplacement[] = [];
 
-		const macros = [...findUsdInputFiles(ast._getMutableContent())];
+		for (const ref of findLatexInputReferences(content)) {
 
-		for (const macro of macros) {
-			const dependencyPath = macro.toStringArgsContent();
-
-			const dep = await this.resolveDependency(dependencyPath, basePath, app);
+			const dependency = await this.resolveDependency(ref.path, basePath);
 
 			let childDependencies: LatexDependencyNode[] = [];
 
-			if (dep.isTex && this.vfs.getFile(dep.path) === undefined) {
-				const parsedDep = await this.parseFile(dep.content, dep.path, dep.sourceType, true);
+			if (dependency.isTex && this.vfs.getFile(dependency.path) === undefined) {
+				const parsedDep = await this.parseFile(dependency.content, dependency.path, dependency.sourceType, true);
 				childDependencies = parsedDep.dependencies;
-				dep.ast = parsedDep.ast;
-				dep.content = parsedDep.content;
+				dependency.content = parsedDep.content;
 			}
-
-			macro.args![0].content = [new StringClass(dep.name)];
+			
+			replacements.push({
+				value: dependency.name,
+				start: ref.pathStart,
+				end: ref.pathEnd,
+			});
 
 			dependencies.push({
-				dependency: dep,
+				dependency: dependency,
 				dependencies: childDependencies,
 			});
 		}
 
-		return dependencies;
+		return {
+			replacements,
+			dependencies
+		};
 	}
 
-	async resolveDependency(filePath: string, basePath: string, app: App): Promise<LatexDependency> {
-		const resolvedPath = resolvePathRelToVault(filePath, basePath, app);
+	async resolveDependency(filePath: string, basePath: string): Promise<LatexDependency> {
+		const resolvedPath = resolvePathRelToVault(filePath, basePath, this.app);
 		const { stem, extension } = extractStemAndExtension(resolvedPath);
 
 		if (this.isNameConflict(stem)) {
@@ -169,14 +163,33 @@ export class LatexDependencyParser {
 			return possibleDep;
 		}
 
-		const { content, sourceType } = await resolveDependencyContent(resolvedPath, app);
+		const { content, sourceType } = await resolveDependencyContent(resolvedPath, this.app);
 
 		return createDependency(content, resolvedPath, sourceType, {
-			isTex: isExtensionTex(extension),
+			isTex: isTexSourceExtension(extension),
 		});
 	}
 
 	private isNameConflict(stem: string): boolean {
 		return isValidFileStem(stem) && this.possibleNames.includes(stem);
 	}
+}
+
+function applyReplacements(source: string, replacements: SourceReplacement[]): string {
+	return replacements
+		.toSorted((a, b) => b.start - a.start)
+		.reduce(
+			(result, replacement) =>
+				result.slice(0, replacement.start) +
+				replacement.value +
+				result.slice(replacement.end),
+			source,
+		);
+}
+
+function getBasePath(sourcePath: string): string {
+	if (sourcePath.contains(CODE_BLOCK_NAME_SEPARATOR)) {
+		sourcePath = sourcePath.split(CODE_BLOCK_NAME_SEPARATOR)[0];
+	}
+	return sourcePath;
 }

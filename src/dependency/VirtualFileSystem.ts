@@ -192,9 +192,8 @@ export class VirtualFileSystem {
 				return;
 			}
 
-			const parsed = await this.parser.parseFile(newDep.ast!, newDep.path, newDep.sourceType);
+			const parsed = await this.parser.parseFile(newDep.content, newDep.path, newDep.sourceType);
 
-			newDep.ast = parsed.ast;
 			newDep.content = parsed.content;
 
 			this.graph.addOrReplaceFile(newDep, parsed.dependencies);

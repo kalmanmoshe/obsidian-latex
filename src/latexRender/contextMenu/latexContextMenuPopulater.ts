@@ -1,7 +1,7 @@
 import { Menu, Notice, TFile, Platform } from 'obsidian';
 import LatexCompilerPlugin from 'src/main';
 import { LogDisplayModal } from '../logs/logDisplayModal';
-import { LatexTask, ProcessableLatexTask } from '../task/latexTask';
+import { LatexTask } from '../task/latexTask';
 import { ErrorClasses } from '../logs/humanReadableLogs';
 import {
 	findTaskSectionInfoFromHashInFile,
@@ -385,18 +385,12 @@ export class LatexContextMenuPopulater {
 		new Notice('SVG removed from cache. Re-rendering...');
 	}
 
-	private async getProcessedTask(): Promise<ProcessableLatexTask | undefined> {
+	private async getProcessedTask(): Promise<LatexTask | undefined> {
 		const task = await this.getTask();
-		if (task.isProcess()) {
-			const result = await task.process();
-			if (result) {
-				new Notice('Failed to process task');
-				console.error('Failed to process task:', result);
-				return undefined;
-			}
-		} else {
-			new Notice('Task is not processable');
-			console.error('Task is not processable:', task);
+		const result = await task.process();
+		if (result) {
+			new Notice('Failed to process task');
+			console.error('Failed to process task:', result);
 			return undefined;
 		}
 		return task;

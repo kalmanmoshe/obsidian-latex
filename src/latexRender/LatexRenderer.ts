@@ -7,7 +7,7 @@ import parseLatexLog, { createErrorDisplay, errorDiv } from './logs/humanReadabl
 import { VfsCompileMode, VirtualFileSystem } from '../dependency/VirtualFileSystem';
 import { ProcessedLog } from './logs/latexLogParser';
 import PdfTeXCompiler from './compiler/swiftlatexpdftex/PdfTeXCompiler';
-import { LatexTask, ProcessableLatexTask } from './task/latexTask';
+import { LatexTask } from './task/latexTask';
 import { PdfXeTeXCompiler } from './compiler/swiftlatexxetex/pdfXeTeXCompiler';
 import LatexCompiler from './compiler/base/compilerBase/compiler';
 import CompilerCache, { hashLatexContent } from './cache/compilerCache';
@@ -16,7 +16,6 @@ import { getLogCacheKey } from './cache/logCache';
 import { pdfToSVG, LATEX_RENDER_ID_KEY, pdfToOptimizedSVG, insertSvg } from './pdfConversion/pdfToSVG';
 import { CacheContent } from './cache/cacheBase/cacheBase';
 import { LatexRenderChild } from './task/latexRenderChild';
-import { LatexAbstractSyntaxTree } from 'src/ast/latexAbstractSyntaxTree';
 import { LatexCodeBlockDefinition } from './codeBlockTypes';
 
 export async function waitFor(condFunc: () => boolean): Promise<void> {
@@ -115,7 +114,7 @@ export class LatexRenderer {
 			return;
 		}
 
-		const task = createResult.result as LatexTask | ProcessableLatexTask;
+		const task = createResult.result as LatexTask;
 
 		try {
 			// PDF file has already been cached
@@ -148,19 +147,13 @@ export class LatexRenderer {
 			return false;
 		}
 
-		if (task.isProcess()) {
-			const processError = await task.process();
+		const processError = await task.process();
 
-			if (processError) {
-				console.error('Error processing task:', processError, task.getDebugInfo());
-				const errorMessage = processError instanceof Error ? processError.message : processError;
-				this.displayErrorForTask(task, `Error processing task: ${errorMessage}`);
-				return false;
-			}
-		} else {
-			// We need to make sure there is no file in the VFS
-			// (no need to await this, the compiler isReady will await the VFS to be ready)
-			void this.vfs.removeNonAutoUseFiles();
+		if (processError) {
+			console.error('Error processing task:', processError, task.getDebugInfo());
+			const errorMessage = processError instanceof Error ? processError.message : processError;
+			this.displayErrorForTask(task, `Error processing task: ${errorMessage}`);
+			return false;
 		}
 
 		console.log('Rendering task:', task.getDebugInfo());
@@ -207,27 +200,18 @@ export class LatexRenderer {
 			);
 		}
 
-		if (task.isProcess()) {
-			const processError = await task.process();
-			if (processError) {
-				console.error('Error processing task:', processError, task.getDebugInfo());
-				const errorMessage = processError instanceof Error ? processError.message : processError;
-				return new CompileResult(undefined, CompileStatus.ProcessingError, errorMessage);
-			}
+		const processError = await task.process();
+		if (processError) {
+			console.error('Error processing task:', processError, task.getDebugInfo());
+			const errorMessage = processError instanceof Error ? processError.message : processError;
+			return new CompileResult(undefined, CompileStatus.ProcessingError, errorMessage);
 		}
+
 		try {
-			let compileMode;
-			let taskContent;
-
-			if (task.isProcess()) {
-				compileMode = VfsCompileMode.compileAll;
-				taskContent = task.getProcessedContent();
-			} else {
-				compileMode = VfsCompileMode.none;
-				taskContent = task.getContent();
-			}
-
-			return await this.renderLatexToPDF(taskContent, compileMode);
+			return await this.renderLatexToPDF(
+				task.getProcessedContent(), 
+				VfsCompileMode.compileAll
+			);
 		} catch (err) {
 			const errorText = err instanceof LatexCompilationError ? err.latexLog : toErrorString(err);
 			return new CompileResult(undefined, CompileStatus.CompileError, errorText);
@@ -305,8 +289,7 @@ export class LatexRenderer {
 		const { content, rawHash, sourcePath, dependencyPaths, stem, format } = task.getRenderData();
 
 		try {
-			const compileMode = task.isProcess() ? VfsCompileMode.compileAll : VfsCompileMode.none;
-			const result = await this.renderLatexToPDF(content, compileMode, {
+			const result = await this.renderLatexToPDF(content, VfsCompileMode.compileAll, {
 				fetchPkgData: true,
 				md5Hash: rawHash,
 				dependencyPaths,
@@ -390,12 +373,7 @@ export class LatexRenderer {
 			task.rawHash,
 			task.sourcePath,
 			task.resultFormat,
-			() => {
-				if (task instanceof ProcessableLatexTask) {
-					return getCacheDependencyPaths(task, this.vfs, this.plugin);
-				}
-				return Promise.resolve([]);
-			},
+			() => getCacheDependencyPaths(task, this.vfs, this.plugin),
 		);
 		if (result === undefined) return false;
 
@@ -448,14 +426,13 @@ export class LatexRenderer {
 }
 
 async function getCacheDependencyPaths(
-	task: ProcessableLatexTask,
+	task: LatexTask,
 	vfs: VirtualFileSystem,
 	plugin: LatexCompilerPlugin,
 ): Promise<string[]> {
-	const ast = LatexAbstractSyntaxTree.parse(task.getContent())
 	const explicitDeps = await vfs
 		.getParser()
-		.collectSurfaceDependencyPaths(ast, task.sourcePath, plugin.app);
+		.collectSurfaceDependencyPaths(task.getContent(), task.sourcePath);
 
 	const autoUsePaths = plugin.settings.compilerVfsEnabled
 		? vfs

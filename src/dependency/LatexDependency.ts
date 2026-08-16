@@ -1,4 +1,4 @@
-import { LatexAbstractSyntaxTree, isExtensionTex } from 'src/ast/latexAbstractSyntaxTree';
+import { isTexSourceExtension } from 'src/ast/latexAbstractSyntaxTree';
 import { extractStemAndExtension } from 'src/latexRender/resolvers/paths';
 
 export enum LatexSourceType {
@@ -18,7 +18,6 @@ export class LatexDependency {
 		public extension: string,
 		public isTex: boolean,
 		public sourceType: LatexSourceType,
-		public ast?: LatexAbstractSyntaxTree,
 		public autoUse?: boolean,
 	) { }
 
@@ -33,13 +32,11 @@ export function createDependency(
 	sourceType: LatexSourceType,
 	config: {
 		isTex?: boolean;
-		ast?: LatexAbstractSyntaxTree;
 		autoUse?: boolean;
 	} = {},
 ): LatexDependency {
-	let { isTex, ast, autoUse } = config;
+	let { isTex, autoUse } = config;
 	const { stem, extension } = extractStemAndExtension(vaultRootedPath);
-	isTex = isTex || isExtensionTex(extension);
-	if (isTex && !ast) ast = LatexAbstractSyntaxTree.parse(content);
-	return new LatexDependency(content, stem, vaultRootedPath, extension, isTex, sourceType, ast, autoUse);
+	isTex = isTex || isTexSourceExtension(extension);
+	return new LatexDependency(content, stem, vaultRootedPath, extension, isTex, sourceType, autoUse);
 }
