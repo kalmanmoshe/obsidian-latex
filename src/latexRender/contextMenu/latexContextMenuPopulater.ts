@@ -2,7 +2,6 @@ import { Menu, Notice, TFile, Platform } from 'obsidian';
 import LatexCompilerPlugin from 'src/main';
 import { LogDisplayModal } from '../logs/logDisplayModal';
 import { LatexTask } from '../task/latexTask';
-import { ErrorClasses } from '../logs/humanReadableLogs';
 import {
 	findTaskSectionInfoFromHashInFile,
 	TaskSectionInformation,
@@ -136,7 +135,7 @@ export class LatexContextMenuPopulater {
 		}
 
 		const error = this.blockEl.querySelector<HTMLElement>(
-			`.${ErrorClasses.Container}`,
+			`.latex-compiler-error-container`,
 		);
 
 		if (error) {
@@ -237,20 +236,6 @@ export class LatexContextMenuPopulater {
 			if (!source) return;
 			await navigator.clipboard.writeText(source);
 		});
-
-		this.addItem(
-			'Copy raw SVG',
-			'copy',
-			async () => {
-				const rawSvg = await this.getRawSvg();
-				if (!rawSvg) {
-					new Notice('Failed to get raw SVG content.');
-					return;
-				}
-				await navigator.clipboard.writeText(rawSvg);
-			},
-			{ hiddenOnError: true },
-		);
 	}
 
 	private addItem(
@@ -387,19 +372,14 @@ export class LatexContextMenuPopulater {
 
 	private async getProcessedTask(): Promise<LatexTask | undefined> {
 		const task = await this.getTask();
-		const result = await task.process();
-		if (result) {
+		try {
+			await task.process();
+		} catch (err) {
 			new Notice('Failed to process task');
-			console.error('Failed to process task:', result);
+			console.error('Failed to process task:', err);
 			return undefined;
 		}
 		return task;
-	}
-
-	private async getRawSvg() {
-		const task = await this.getTask();
-		const result = await this.plugin.latexRenderer.detachedProcessAndRenderToResultFile(task);
-		return result;
 	}
 
 	private get isError(): boolean {

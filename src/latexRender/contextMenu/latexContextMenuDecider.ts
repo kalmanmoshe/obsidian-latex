@@ -81,14 +81,7 @@ export class LatexContextMenuDecider {
 					pending.handled = true;
 					this.pendings.delete(id);
 
-					try {
-						//TODO: remove reduntent
-						const menu = new Menu();
-						this.decorateEditorMenu(menu, pending.renderChild, pending.filePath);
-						menu.showAtMouseEvent?.(event);
-					} catch (err) {
-						console.error('[SvgContextMenuDecider] custom menu open failed', err);
-					}
+					this.openMenu(event, pending.renderChild, pending.filePath);
 				}, this.windowMs);
 
 				this.pendings.set(id, pending);
@@ -104,16 +97,20 @@ export class LatexContextMenuDecider {
 	openMenu(
 		event: MouseEvent,
 		renderChild: LatexRenderChild,
-		filePath: string,
+		filePath: string
 	): void {
-		const menu = new Menu();
+		try {
+			const menu = new Menu();
 
-		this.decorateEditorMenu(
-			menu,
-			renderChild,
-			filePath,
-		);
+			this.decorateEditorMenu(
+				menu,
+				renderChild,
+				filePath
+			);
 
-		menu.showAtMouseEvent(event);
+			menu.showAtMouseEvent(event);
+		} catch (err) {
+			console.error('[SvgContextMenuDecider] custom menu open failed', err);
+		}
 	}
 }

@@ -6,31 +6,28 @@ export async function processTaskSource(
 	task: LatexTask,
 	vfs: VirtualFileSystem,
 	plugin: LatexCompilerPlugin,
-): Promise<string | Error | void> {
-	try {
-		const result = await vfs.getParser().parseFile(task.getContent(), task.sourcePath, task.sourceType);
+): Promise<void> {
+	const result = await vfs.getParser().parseFile(task.getContent(), task.sourcePath, task.sourceType);
 
-		// we want in the preamble the surface level dependencies only, and not dependencies referenced within those. LaTex will automatically include those referenced dependencies when compiling the surface level dependencies.
-		const surfaceLevelDependencies = result.dependencies.map((node) => node.dependency);
-		const dependencyPaths = surfaceLevelDependencies.map((dep) => dep.path);
+	// we want in the preamble the surface level dependencies only, and not dependencies referenced within those. LaTex will automatically include those referenced dependencies when compiling the surface level dependencies.
+	const surfaceLevelDependencies = result.dependencies.map((node) => node.dependency);
+	const dependencyPaths = surfaceLevelDependencies.map((dep) => dep.path);
 
-		if (plugin.settings.compilerVfsEnabled) {
+	if (plugin.settings.compilerVfsEnabled) {
 
-			await vfs.addOrReplaceFiles(
-				result.dependencies
-					.filter((node) => !vfs.hasFile(node.dependency.path))
-					.map((node) =>
-						Object.assign(node.dependency, {
-							dependencies: node.dependencies,
-						}),
-					),
-			);
-		}
-
-		task.setProcessedContent(result.content);
-		task.setDependencyPaths(dependencyPaths);
-		task.processed = true;
-	} catch (e: unknown) {
-		return e instanceof Error ? e : String(e);
+		await vfs.addOrReplaceFiles(
+			result.dependencies
+				.filter((node) => !vfs.hasFile(node.dependency.path))
+				.map((node) =>
+					Object.assign(node.dependency, {
+						dependencies: node.dependencies,
+					}),
+				),
+		);
 	}
+
+	task.setProcessedContent(result.content);
+	task.setDependencyPaths(dependencyPaths);
+	task.processed = true;
+
 }

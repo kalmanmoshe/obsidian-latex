@@ -86,8 +86,7 @@ export default class LogCache {
 			config.sourcePath,
 			sectionInfos,
 		);
-		const result =
-			await this.plugin.latexRenderer.detachedProcessAndRender(task);
+		const result = await this.plugin.latexRenderer.detachedProcessAndRender(task);
 		return parseLatexLog(result.log);
 	}
 

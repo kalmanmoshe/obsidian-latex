@@ -5,6 +5,7 @@ import { codeBlockToContent } from 'obsidian-dev-utils';
 import { LatexSourceType } from 'src/dependency/LatexDependency';
 import { getLatexCodeBlockDefinition } from '../codeBlockTypes';
 import { isTexSourceExtension } from 'src/ast/latexAbstractSyntaxTree';
+import { UserFacingPluginError } from '../errors/pluginErrors';
 
 export const CODE_BLOCK_NAME_SEPARATOR = '#';
 const TRADITIONAL_PATH_SEPARATORS = ['/', '\\'];
@@ -18,11 +19,18 @@ export function resolvePathRelToVault(path: string, currentPath: string, app: Ap
 	if (!remainingPath) return absPath;
 
 	if (!(file instanceof TFile)) {
-		throw new Error(`Invalid path: ${remainingPath}`);
+		throw new UserFacingPluginError(
+			'Invalid dependency path',
+			`"${path}" points to a folder, but a file or LaTeX code block was expected.`,
+			`Resolved "${path}" to folder "${file.path}" with remaining path "${remainingPath}".`,
+		);
 	}
 
 	if (!isValidFileStem(remainingPath)) {
-		throw new Error(`Invalid file stem: ${remainingPath}`);
+		throw new UserFacingPluginError(
+			'Invalid code block name',
+			`"${remainingPath}" is not a valid LaTeX code block name.`,
+		);
 	}
 
 	const potentialExtension = remainingPath.split('.').pop() ?? '';
@@ -34,16 +42,18 @@ export function resolvePathRelToVault(path: string, currentPath: string, app: Ap
 export async function resolveDependencyContent(path: string, app: App): Promise<{ content: string, sourceType: LatexSourceType }> {
 	const parts = path.split(CODE_BLOCK_NAME_SEPARATOR);
 	if (parts.length > 2 || parts.length === 0) {
-		throw new Error(
-			"Invalid path format. Use '" +
-			CODE_BLOCK_NAME_SEPARATOR +
-			"' to separate file path and code block name.",
+		throw new UserFacingPluginError(
+			'Invalid dependency path',
+			`"${path}" is not a valid dependency path. Use "${CODE_BLOCK_NAME_SEPARATOR}" only to separate a file path from a code block name.`,
 		);
 	}
 	const filePath = parts.shift()!;
 	const file = app.vault.getAbstractFileByPath(filePath);
 	if (!(file instanceof TFile)) {
-		throw new Error(`File not found: ${filePath}`);
+		throw new UserFacingPluginError(
+			'Dependency file not found',
+			`Could not find the dependency file "${filePath}". Check that the path is correct and the file exists.`,
+		);
 	}
 
 	const fileText = await app.vault.read(file);
@@ -60,13 +70,15 @@ export async function resolveDependencyContent(path: string, app: App): Promise<
 	);
 	const target = potentialTargets.shift();
 	if (!target) {
-		throw new Error(
-			'No code block found with name: ' + codeBlockStem + ' in file: ' + file.path,
+		throw new UserFacingPluginError(
+			'LaTeX code block not found',
+			`Could not find a LaTeX code block named "${codeBlockStem}" in "${file.path}".`,
 		);
 	}
 	if (potentialTargets.length > 0) {
-		throw new Error(
-			`Multiple code blocks found with name: ${codeBlockStem} in file: ${file.path}`,
+		throw new UserFacingPluginError(
+			'Duplicate LaTeX code block name',
+			`More than one LaTeX code block named "${codeBlockStem}" was found in "${file.path}". Code block names used as dependencies must be unique.`,
 		);
 	}
 
@@ -133,13 +145,20 @@ function findRelativeFile(filePath: string, currentPath: string, app: App) {
 	}
 
 	if (!(current instanceof TFolder)) {
-		throw new Error(`Invalid folder: ${parts[0]}`);
+		throw new UserFacingPluginError(
+			'Dependency folder not found',
+			`Could not find the folder "${parts[0]}" while resolving "${filePath}".`,
+			`Invalid folder "${parts[0]}" while resolving "${filePath}" from "${currentPath}".`,
+		);
 	}
 
 	const fileName = parts.shift();
 
 	if (!fileName) {
-		throw new Error(`File path is empty: ${filePath}`);
+		throw new UserFacingPluginError(
+			'Invalid dependency path',
+			`"${filePath}" does not contain a file name.`,
+		);
 	}
 
 	const file = current.children.find(
@@ -149,19 +168,18 @@ function findRelativeFile(filePath: string, currentPath: string, app: App) {
 	);
 
 	if (!file) {
-		console.error(`File not found: ${fileName} in folder: ${current.path}`, {
-			filePath,
-			currentPath,
-			current,
-			parts,
-			fileName,
-			children: current.children.map((c) => c.name),
-		});
-		throw new Error(`File not found: ${fileName}`);
+		throw new UserFacingPluginError(
+			'Dependency file not found',
+			`Could not find "${fileName}" in "${current.path || '/'}". Check that the dependency path is correct.`,
+			`File "${fileName}" was not found in folder "${current.path}" while resolving "${filePath}" from "${currentPath}".`,
+		);
 	}
 
 	if (parts.length > 0) {
-		throw new Error(`Path not found: ${parts.join('/')}`);
+		throw new UserFacingPluginError(
+			'Dependency path not found',
+			`Could not resolve "${parts.join('/')}" in dependency path "${filePath}".`,
+		);
 	}
 
 	return {
@@ -200,7 +218,11 @@ function resolveStartingFolder(
 
 		if (part === '..') {
 			if (!current.parent) {
-				throw new Error(`Reached root without resolving full path from: ${start.path}`);
+				throw new UserFacingPluginError(
+					'Invalid dependency path',
+					`The dependency path "${filePath}" goes outside the vault.`,
+					`Reached the vault root while resolving "${filePath}" from "${start.path}".`,
+				);
 			}
 
 			current = current.parent;

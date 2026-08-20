@@ -3,7 +3,7 @@ import { CompileResult, CompileStatus } from './compiler/base/compilerBase/engin
 import LatexCompilerPlugin from '../main';
 import { CompilerType, ResultFileFormat } from 'src/settings/settings.js';
 import { insertPdf } from './pdfConversion/pdfToHtml';
-import parseLatexLog, { createErrorDisplay, errorDiv } from './logs/humanReadableLogs';
+import parseLatexLog, { refactorLogToErrorMessage } from './logs/humanReadableLogs';
 import { VfsCompileMode, VirtualFileSystem } from '../dependency/VirtualFileSystem';
 import { ProcessedLog } from './logs/latexLogParser';
 import PdfTeXCompiler from './compiler/swiftlatexpdftex/PdfTeXCompiler';
@@ -13,10 +13,12 @@ import LatexCompiler from './compiler/base/compilerBase/compiler';
 import CompilerCache, { hashLatexContent } from './cache/compilerCache';
 import { LatexRenderQueue } from './task/LatexRenderQueue';
 import { getLogCacheKey } from './cache/logCache';
-import { pdfToSVG, LATEX_RENDER_ID_KEY, pdfToOptimizedSVG, insertSvg } from './pdfConversion/pdfToSVG';
+import { LATEX_RENDER_ID_KEY, pdfToOptimizedSVG, insertSvg } from './pdfConversion/pdfToSVG';
 import { CacheContent } from './cache/cacheBase/cacheBase';
 import { LatexRenderChild } from './task/latexRenderChild';
 import { LatexCodeBlockDefinition } from './codeBlockTypes';
+import { errorDiv, ErrorMessage } from './errors/errorDisplay';
+import { LatexCompilationError, pluginErrorToErrorMessage, toErrorString, UserFacingPluginError } from './errors/pluginErrors';
 
 export async function waitFor(condFunc: () => boolean): Promise<void> {
 	while (!condFunc()) {
@@ -98,18 +100,13 @@ export class LatexRenderer {
 		const createResult = await LatexTask.createAsync(this.plugin, definition, source, el, ctx);
 
 		if (createResult.isError) {
-			const errorMessage = createResult.result instanceof Error
-				? createResult.result.message
-				: String(createResult.result);
-
 			const child = new LatexRenderChild(el);
 			ctx.addChild(child);
 			this.displayError(
 				child,
-				`Error creating task: ${errorMessage}`,
-				ctx.sourcePath,
-				this.cache.resultFileCache.getFileStem(rawHash, []),
-				false
+				createResult.result,
+				this.cache.resultFileCache.getFileStem(rawHash, [])
+				,ctx.sourcePath,
 			);
 			return;
 		}
@@ -143,16 +140,21 @@ export class LatexRenderer {
 
 		if (!this.compiler?.isResponsive()) {
 			console.error('Compiler is unresponsive. Aborting task:', task.getDebugInfo());
-			this.displayErrorForTask(task, 'Compiler is unresponsive. Please restart the compiler.');
+			this.displayErrorForTask(
+				task,
+				new UserFacingPluginError(
+					'Compiler unresponsive',
+					'The LaTeX compiler is not responding. Restart the compiler and try again.',
+				),
+			);
 			return false;
 		}
 
-		const processError = await task.process();
-
-		if (processError) {
+		try {
+		 	await task.process();
+		} catch (processError) {
 			console.error('Error processing task:', processError, task.getDebugInfo());
-			const errorMessage = processError instanceof Error ? processError.message : processError;
-			this.displayErrorForTask(task, `Error processing task: ${errorMessage}`);
+			this.displayErrorForTask(task, processError);
 			return false;
 		}
 
@@ -176,7 +178,10 @@ export class LatexRenderer {
 
 		this.displayErrorForTask(
 			task,
-			'Error processing task: Source files have changed and could not be resolved.',
+			new UserFacingPluginError(
+				'Source changed during rendering',
+				'The source changed while this LaTeX block was being processed. Rerender the block to try again.',
+			)
 		);
 
 		return true;
@@ -199,11 +204,11 @@ export class LatexRenderer {
 				'Compiler is unresponsive. Please restart the compiler.',
 			);
 		}
-
-		const processError = await task.process();
-		if (processError) {
-			console.error('Error processing task:', processError, task.getDebugInfo());
-			const errorMessage = processError instanceof Error ? processError.message : processError;
+		try {
+			await task.process();
+		} catch (err) {
+			console.error('Error processing task:', err, task.getDebugInfo());
+			const errorMessage = toErrorString(err);
 			return new CompileResult(undefined, CompileStatus.ProcessingError, errorMessage);
 		}
 
@@ -216,15 +221,6 @@ export class LatexRenderer {
 			const errorText = err instanceof LatexCompilationError ? err.latexLog : toErrorString(err);
 			return new CompileResult(undefined, CompileStatus.CompileError, errorText);
 		}
-	}
-
-	async detachedProcessAndRenderToResultFile(task: LatexTask) {
-		const compileResult = await this.detachedProcessAndRender(task);
-		if (compileResult.isStatus(CompileStatus.CompileError)) {
-			return;
-		}
-		const resultFile = pdfToSVG(compileResult.pdf);
-		return resultFile;
 	}
 
 	/**
@@ -254,32 +250,31 @@ export class LatexRenderer {
 
 	private displayErrorForTask(
 		task: LatexTask,
-		err: string,
-		parseErr: boolean = false
+		err: unknown
 	): void {
 		// there is nothing to display the error to, so we just return.
 		if (!task.renderChild) return;
-		this.displayError(task.renderChild, err, task.getStem(), task.sourcePath, parseErr);
+		this.displayError(task.renderChild, err, task.getStem(), task.sourcePath);
 	}
 
 	private displayError(
 		renderChild: LatexRenderChild,
-		err: string,
+		err: unknown,
 		hash: string,
-		sourcePath: string,
-		parseErr: boolean
+		sourcePath: string
 	): void {
 		const el = renderChild.containerEl;
 		el.innerHTML = '';
-		let child: HTMLElement;
 
-		if (parseErr) {
-			const processedError: ProcessedLog = this.cache.getLog(hash) || parseLatexLog(err);
-			child = createErrorDisplay(processedError);
+		let processedError: ErrorMessage;
+		if (err instanceof LatexCompilationError) {
+			const processedLog: ProcessedLog = this.cache.getLog(hash) || parseLatexLog(err.latexLog);
+			processedError = refactorLogToErrorMessage(processedLog);
 		} else {
-			child = errorDiv({ title: err });
+			processedError = pluginErrorToErrorMessage(err)
 		}
 
+		const child = errorDiv(processedError);
 		child.setAttribute(LATEX_RENDER_ID_KEY, hash);
 		el.appendChild(child);
 		this.plugin.menuDecider.add(renderChild, sourcePath)
@@ -306,14 +301,9 @@ export class LatexRenderer {
 				sourcePath,
 				format
 			);
-		} catch (err) {
-			const isCompilationError = err instanceof LatexCompilationError;
-			const errorText = isCompilationError
-				? err.latexLog
-				: toErrorString(err);
-
+		} catch (err: unknown) {
 			console.error('Error rendering LaTeX to element:', err);
-			this.displayErrorForTask(task, errorText, isCompilationError);
+			this.displayErrorForTask(task, err);
 		} finally {
 			if (!this.compiler?.isResponsive()) {
 				console.warn('Compiler is unresponsive.');
@@ -444,19 +434,3 @@ async function getCacheDependencyPaths(
 	return [...new Set([...explicitDeps, ...autoUsePaths])].sort();
 }
 
-class LatexCompilationError extends Error {
-	constructor(public readonly latexLog: string) {
-		super('LaTeX compilation failed');
-		this.name = 'LatexCompilationError';
-	}
-}
-
-function toErrorString(e: unknown): string {
-	if (typeof e === 'string') return e;
-	if (e instanceof Error) return e.stack ?? e.message ?? String(e);
-	try {
-		return JSON.stringify(e, null, 2);
-	} catch {
-		return String(e);
-	}
-}
