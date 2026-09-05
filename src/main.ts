@@ -4,9 +4,7 @@ import { LatexCompilerSettingTab } from './settings/settingsTab';
 import { getEditorCommands } from './obsidian/editorCommands';
 import { LatexRenderer } from './latexRender/latexRenderer';
 import {
-	getFilesWithin,
-	getPreambleFromFiles,
-	onFileChange,
+	getAutoUseFilePaths,
 	onFileCreate,
 	onFileDelete,
 } from './obsidian/fileWatch';
@@ -53,7 +51,7 @@ export default class LatexCompilerPlugin extends Plugin {
 	}
 
 	private async loadLayoutReadyDependencies() {
-		void this.processLatexPreambles(true);
+		void this.refreshAutoUseFiles(true);
 		// we need to use await here because the codeBlock processor
 		// needs to be loaded before the codeBlocks are processed
 		await this.latexRenderer.onload(this);
@@ -133,40 +131,30 @@ export default class LatexCompilerPlugin extends Plugin {
 
 	async saveSettings(didLatexFileLocationChange = false) {
 		await this.saveData(this.settings);
-		await this.latexRenderer.vfs?.setEnabled(this.settings.compilerVfsEnabled);
 
-		if (didLatexFileLocationChange && this.settings.compilerVfsEnabled) {
-			this.app.workspace.onLayoutReady(async () => {
-				await this.processLatexPreambles(didLatexFileLocationChange);
+		if (didLatexFileLocationChange) {
+			this.app.workspace.onLayoutReady(() => {
+				this.refreshAutoUseFiles(didLatexFileLocationChange);
 			});
 		}
 	}
 
-	async processLatexPreambles(becauseFileLocationUpdated = false, becauseFileUpdated = false) {
-		const coorPreambles = await this.getlatexPreambleFiles(
-			becauseFileLocationUpdated,
-			becauseFileUpdated,
-		);
-		if (becauseFileLocationUpdated) {
-			await this.latexRenderer.vfs.removeAutoUseFiles();
-		}
-		await this.latexRenderer.vfs.addOrReplaceFiles(coorPreambles);
-		const filePaths = new Set(coorPreambles.map((file) => file.path));
-		this.latexRenderer.vfs.setCoorVirtualFiles(filePaths);
-	}
-
-	private async getlatexPreambleFiles(
-		becauseFileLocationUpdated: boolean,
-		becauseFileUpdated: boolean,
+	refreshAutoUseFiles(
+		becauseFileLocationUpdated = false,
+		becauseFileUpdated = false,
 	) {
-		const files = getFilesWithin(this.app.vault, this.settings.autoloadedVfsFilesDir);
-		const coorFiles = await getPreambleFromFiles(files, this.app);
+		const autoUsePaths = getAutoUseFilePaths(
+			this.app.vault,
+			this.settings.autoloadedVfsFilesDir,
+		);
+		
+		this.latexRenderer.vfs.setAutoUseFilePaths(autoUsePaths);
+
 		this.showPreambleLoadedNotice(
-			coorFiles.length,
+			autoUsePaths.size,
 			becauseFileLocationUpdated,
 			becauseFileUpdated,
 		);
-		return coorFiles;
 	}
 
 	private showPreambleLoadedNotice(
@@ -183,7 +171,7 @@ export default class LatexCompilerPlugin extends Plugin {
 	}
 
 	private watchFiles() {
-		this.registerEvent(this.app.vault.on("modify", (file) => onFileChange(this, file)));
+		this.registerEvent(this.app.vault.on("rename", () => this.refreshAutoUseFiles(false, true)));
 		this.registerEvent(this.app.vault.on("delete", (file) => onFileDelete(this, file)));
 		this.registerEvent(this.app.vault.on("create", (file) => onFileCreate(this, file)));
 	}

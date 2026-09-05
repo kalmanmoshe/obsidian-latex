@@ -1,4 +1,4 @@
-import LatexEngine, { CompileResult } from '../base/compilerBase/engine.js';
+import LatexEngine, { CompileResult, LatexCompilationSession } from '../base/compilerBase/engine.js';
 import LatexCompiler from '../base/compilerBase/compiler.js';
 import { pdftexWorkerFactory } from '@swiftlatex-workers';
 
@@ -11,7 +11,7 @@ export default class PdfTeXCompiler extends LatexCompiler {
 		this.engines = [this.texEng];
 	}
 
-	compileLaTeX(): Promise<CompileResult> {
-		return this.texEng.compileLaTeX();
+	compileLaTeX(session: LatexCompilationSession): Promise<CompileResult> {
+		return this.texEng.compileLaTeX(session);
 	}
 }

@@ -5,13 +5,16 @@ export class UserFacingPluginError extends Error {
         public readonly userTitle: string,
 		public readonly userMessage: string,
 		developerMessage?: string,
+		public readonly relevantToCompilationFailure = false,
 	) {
 		super(developerMessage ?? userMessage);
 	}
 }
 
 export class LatexCompilationError extends Error {
-	constructor(public readonly latexLog: string) {
+	constructor(
+		public readonly latexLog: string
+	) {
 		super('LaTeX compilation failed');
 		this.name = 'LatexCompilationError';
 	}

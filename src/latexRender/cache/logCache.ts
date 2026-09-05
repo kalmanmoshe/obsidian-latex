@@ -5,14 +5,6 @@ import { Notice } from 'obsidian';
 import { findMatchingCodeBlockSections } from '../resolvers/findSection';
 import { LatexTask } from '../task/latexTask';
 import { sectionToTaskSectionInfo } from '../resolvers/sectionUtils';
-import { getDependencyHash } from './compilerCache';
-
-export function getLogCacheKey(rawHash: string, deps: string[] | string): string {
-	const depsHash = Array.isArray(deps)
-		? getDependencyHash(deps)
-		: deps;
-	return `${rawHash}-${depsHash}`;
-}
 
 export default class LogCache {
 	private plugin: LatexCompilerPlugin;

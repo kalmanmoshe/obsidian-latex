@@ -9,7 +9,7 @@ $generatedDirectory = Join-Path `
 $artifacts = @(
     @{
         Name = "PDF-to-SVG WASM"
-        Source = "src\latexRender\pdfToHtml\pdfToSvgWasm.js"
+        Source = "src\latexRender\pdfConversion\pdfToSvgWasm.js"
         Output = "pdfToSvgWasm.payload.ts"
         ExportName = "pdfToSvgWasmGzipBase64"
     },

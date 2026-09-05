@@ -1,28 +1,27 @@
-import { LatexSourceType } from 'src/dependency/LatexDependency';
-import { LatexRenderMode } from './task/latexTask';
-import { ResultFileFormat } from 'src/settings/settings';
+import { LatexSourceType } from 'src/dependency/latexDependency';
+import { CompilePipeline, ResultFileFormat } from 'src/settings/settings';
 
 export interface LatexCodeBlockDefinition {
-	renderMode: LatexRenderMode;
+	compilePipeline: CompilePipeline;
 	sourceType: LatexSourceType;
 	resultFormat: ResultFileFormat;
 }
 
 export const LATEX_CODE_BLOCKS = {
 	latex: {
-		renderMode: LatexRenderMode.PDF,
+		compilePipeline: CompilePipeline.Plain,
 		sourceType: LatexSourceType.LatexCodeBlock,
 		resultFormat: 'pdf',
 	},
 
 	latexsvg: {
-		renderMode: LatexRenderMode.SVG,
+		compilePipeline: CompilePipeline.Plain,
 		sourceType: LatexSourceType.LatexCodeBlock,
 		resultFormat: 'svg',
 	},
 
 	tikz: {
-		renderMode: LatexRenderMode.TIKZJAX_SVG,
+		compilePipeline: CompilePipeline.Process,
 		sourceType: LatexSourceType.TikzCodeBlock,
 		resultFormat: 'svg',
 	},
@@ -55,7 +54,7 @@ export function getLatexCodeBlockDefinition(
 ): LatexCodeBlockDefinition {
 	const definition =
 		LATEX_CODE_BLOCKS[
-			language.toLowerCase() as LatexCodeBlockLanguage
+		language.toLowerCase() as LatexCodeBlockLanguage
 		];
 
 	if (!definition) {

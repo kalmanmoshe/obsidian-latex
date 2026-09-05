@@ -165,29 +165,6 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 		const containerEl = this.containerEl;
 		this.addHeading(containerEl, 'Preamble', 'pencil');
 
-		const virtualFilesDescription = activeDocument.createDocumentFragment();
-
-		const description = activeDocument.createElement('span');
-		description.textContent =
-			'Allows the LaTeX engine to load external files into its virtual filesystem. ' +
-			'Enabling this lets you use commands such as \\include{} to reference external files. ' +
-			'When disabled, all LaTeX commands must rely solely on content provided directly in the code block.';
-
-		virtualFilesDescription.appendChild(description);
-		addToggleSetting(
-			containerEl,
-			(value: boolean) => {
-				this.plugin.settings.compilerVfsEnabled = value;
-				virtualFilesFromCodeBlocks.settingEl.toggleClass('hidden', !value);
-				autoloadedVfsFilesDir.settingEl.toggleClass('hidden', !value);
-			},
-			{
-				name: 'Enable virtual files',
-				description: virtualFilesDescription,
-				defValue: this.plugin.settings.compilerVfsEnabled,
-				passToSave: { didFileLocationChange: true },
-			},
-		);
 		const descriptionFragment = activeDocument.createDocumentFragment();
 		const descriptionDetails = activeDocument.createElement('span');
 		descriptionDetails.textContent =
@@ -198,7 +175,7 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 			"Note: the default file extension is '.tex', unless explicitly specified.";
 		descriptionFragment.appendChild(descriptionDetails);
 
-		const virtualFilesFromCodeBlocks = addToggleSetting(
+		addToggleSetting(
 			containerEl,
 			(value: boolean) => {
 				this.plugin.settings.virtualFilesFromCodeBlocks = value;
@@ -210,11 +187,8 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 				passToSave: { didFileLocationChange: true },
 			},
 		);
-		virtualFilesFromCodeBlocks.settingEl.toggleClass(
-			'hidden',
-			!this.plugin.settings.compilerVfsEnabled,
-		);
-		const autoloadedVfsFilesDir = addFileSearchSetting(
+		
+		addFileSearchSetting(
 			containerEl,
 			async (value: string) => {
 				this.plugin.settings.autoloadedVfsFilesDir = value;
@@ -223,15 +197,11 @@ export class LatexCompilerSettingTab extends PluginSettingTab {
 			{
 				name: 'Autoloaded virtual files',
 				description:
-					'Specify a directory containing virtual files to automatically include in every LaTeX render. ',
+					'Specify a file or folder path containing virtual files to automatically include in every LaTeX render. ',
 				placeholder: DEFAULT_SETTINGS.autoloadedVfsFilesDir,
 				defValue: this.plugin.settings.autoloadedVfsFilesDir,
 				debounce: { timeout: FILE_SEARCH_DEBOUNCE_MS, resetTimer: true },
 			},
-		);
-		autoloadedVfsFilesDir.settingEl.toggleClass(
-			'hidden',
-			!this.plugin.settings.compilerVfsEnabled,
 		);
 	}
 }

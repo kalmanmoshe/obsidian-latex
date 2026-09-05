@@ -1,10 +1,10 @@
 import { MarkdownPostProcessorContext, Platform } from 'obsidian';
 import { CompileResult, CompileStatus } from './compiler/base/compilerBase/engine';
 import LatexCompilerPlugin from '../main';
-import { CompilerType, ResultFileFormat } from 'src/settings/settings.js';
+import { CompilePipeline, CompilerType, ResultFileFormat } from 'src/settings/settings.js';
 import { insertPdf } from './pdfConversion/pdfToHtml';
 import parseLatexLog, { refactorLogToErrorMessage } from './logs/humanReadableLogs';
-import { VfsCompileMode, VirtualFileSystem } from '../dependency/VirtualFileSystem';
+import { VirtualFileSystem } from '../dependency/virtualFileSystem';
 import { ProcessedLog } from './logs/latexLogParser';
 import PdfTeXCompiler from './compiler/swiftlatexpdftex/PdfTeXCompiler';
 import { LatexTask } from './task/latexTask';
@@ -12,13 +12,14 @@ import { PdfXeTeXCompiler } from './compiler/swiftlatexxetex/pdfXeTeXCompiler';
 import LatexCompiler from './compiler/base/compilerBase/compiler';
 import CompilerCache, { hashLatexContent } from './cache/compilerCache';
 import { LatexRenderQueue } from './task/LatexRenderQueue';
-import { getLogCacheKey } from './cache/logCache';
 import { LATEX_RENDER_ID_KEY, pdfToOptimizedSVG, insertSvg } from './pdfConversion/pdfToSVG';
 import { CacheContent } from './cache/cacheBase/cacheBase';
 import { LatexRenderChild } from './task/latexRenderChild';
 import { LatexCodeBlockDefinition } from './codeBlockTypes';
 import { errorDiv, ErrorMessage } from './errors/errorDisplay';
 import { LatexCompilationError, pluginErrorToErrorMessage, toErrorString, UserFacingPluginError } from './errors/pluginErrors';
+import { LatexRenderCompilationSession } from './latexRenderCompilationSession';
+import { getCacheId } from './cache/resultFileCache';
 
 export async function waitFor(condFunc: () => boolean): Promise<void> {
 	while (!condFunc()) {
@@ -30,14 +31,13 @@ export async function waitFor(condFunc: () => boolean): Promise<void> {
 
 export class LatexRenderer {
 	plugin: LatexCompilerPlugin;
-	vfs: VirtualFileSystem;
+	vfs: VirtualFileSystem = new VirtualFileSystem();
 	compiler?: LatexCompiler;
 	cache: CompilerCache;
 	queue?: LatexRenderQueue;
 
 	async onload(plugin: LatexCompilerPlugin) {
 		this.plugin = plugin;
-		this.vfs = new VirtualFileSystem(plugin);
 		this.cache = new CompilerCache(this.plugin);
 		if (this.isNotIos()) {
 			await this.loadCompiler();
@@ -72,7 +72,6 @@ export class LatexRenderer {
 			this.compiler = new PdfXeTeXCompiler();
 		}
 
-		this.vfs.setPdfCompiler(this.compiler);
 		await this.compiler.loadEngines();
 		await this.cache.loadPackageCache();
 		await this.compiler.setTexliveEndpoint(this.plugin.settings.package_url);
@@ -105,8 +104,9 @@ export class LatexRenderer {
 			this.displayError(
 				child,
 				createResult.result,
-				this.cache.resultFileCache.getFileStem(rawHash, [])
-				,ctx.sourcePath,
+				getCacheId(rawHash, ctx.sourcePath, definition.compilePipeline),
+				ctx.sourcePath,
+				definition.compilePipeline
 			);
 			return;
 		}
@@ -151,7 +151,7 @@ export class LatexRenderer {
 		}
 
 		try {
-		 	await task.process();
+			await task.process();
 		} catch (processError) {
 			console.error('Error processing task:', processError, task.getDebugInfo());
 			this.displayErrorForTask(task, processError);
@@ -213,10 +213,11 @@ export class LatexRenderer {
 		}
 
 		try {
-			return await this.renderLatexToPDF(
-				task.getProcessedContent(), 
-				VfsCompileMode.compileAll
+			const { result } = await this.renderLatexToPDF(
+				task.getProcessedContent(),
+				task.sourcePath
 			);
+			return result;
 		} catch (err) {
 			const errorText = err instanceof LatexCompilationError ? err.latexLog : toErrorString(err);
 			return new CompileResult(undefined, CompileStatus.CompileError, errorText);
@@ -254,41 +255,45 @@ export class LatexRenderer {
 	): void {
 		// there is nothing to display the error to, so we just return.
 		if (!task.renderChild) return;
-		this.displayError(task.renderChild, err, task.getStem(), task.sourcePath);
+		this.displayError(task.renderChild, err, task.getStem(), task.sourcePath, task.compilePipeline);
 	}
 
 	private displayError(
 		renderChild: LatexRenderChild,
 		err: unknown,
-		hash: string,
-		sourcePath: string
+		cacheId: string,
+		sourcePath: string,
+		pipeline: CompilePipeline,
 	): void {
 		const el = renderChild.containerEl;
 		el.innerHTML = '';
 
 		let processedError: ErrorMessage;
 		if (err instanceof LatexCompilationError) {
-			const processedLog: ProcessedLog = this.cache.getLog(hash) || parseLatexLog(err.latexLog);
+			const processedLog: ProcessedLog = this.cache.getLog(cacheId) || parseLatexLog(err.latexLog);
 			processedError = refactorLogToErrorMessage(processedLog);
 		} else {
 			processedError = pluginErrorToErrorMessage(err)
 		}
 
 		const child = errorDiv(processedError);
-		child.setAttribute(LATEX_RENDER_ID_KEY, hash);
+		child.setAttribute(LATEX_RENDER_ID_KEY, cacheId);
 		el.appendChild(child);
-		this.plugin.menuDecider.add(renderChild, sourcePath)
+		this.plugin.menuDecider.add(renderChild, sourcePath, pipeline)
 	}
 
 	private async renderLatexToElement(task: LatexTask): Promise<void> {
-		const { content, rawHash, sourcePath, dependencyPaths, stem, format } = task.getRenderData();
+		const { content, rawHash, sourcePath, stem, compilePipeline, format } = task.getRenderData();
 
 		try {
-			const result = await this.renderLatexToPDF(content, VfsCompileMode.compileAll, {
-				fetchPkgData: true,
-				md5Hash: rawHash,
-				dependencyPaths,
-			});
+			const { result, compilationSession } = await this.renderLatexToPDF(
+				content,
+				sourcePath,
+				{
+					fetchPkgData: true,
+					cacheId: getCacheId(rawHash, sourcePath, compilePipeline),
+				}
+			);
 
 			const resultFile = await this.createResultFile(result.pdf, stem, format);
 
@@ -297,8 +302,9 @@ export class LatexRenderer {
 			await this.cache.resultFileCache.addFile(
 				resultFile,
 				rawHash,
-				dependencyPaths,
 				sourcePath,
+				compilationSession.createContentHashRecord(),
+				compilePipeline,
 				format
 			);
 		} catch (err: unknown) {
@@ -315,24 +321,22 @@ export class LatexRenderer {
 
 	private async renderLatexToPDF(
 		source: string,
-		vfsCompileMode: VfsCompileMode,
-		config: { fetchPkgData?: boolean; md5Hash?: string; dependencyPaths?: string[] } = {},
-	): Promise<CompileResult> {
+		sourcePath: string,
+		config: { fetchPkgData?: boolean; cacheId?: string } = {},
+	): Promise<{ result: CompileResult; compilationSession: LatexRenderCompilationSession }> {
 		await this.compiler!.waitUntilReady();
 
-		await this.vfs.loadVirtualFileSystemFiles(vfsCompileMode);
-
+		await this.compiler!.flushWorkCache();
 		await this.compiler!.writeMemFSFile('main.tex', source);
 		await this.compiler!.setEngineMainFile(0, 'main.tex');
 
-		const result = await this.compiler!.compileLaTeX();
-		console.log('Compilation result:', result);
+		const compilationSession = new LatexRenderCompilationSession(this, sourcePath);
+		const result = await this.compiler!.compileLaTeX(compilationSession);
 
-		await this.vfs.removeNonAutoUseFiles();
+		console.log('Compilation result:', result, compilationSession);
 
-		if (config.md5Hash && config.dependencyPaths) {
-			const logCacheKey = getLogCacheKey(config.md5Hash, config.dependencyPaths);
-			this.cache.addLog(result.log, logCacheKey);
+		if (config.cacheId) {
+			this.cache.addLog(result.log, config.cacheId);
 		}
 
 		if (config.fetchPkgData) {
@@ -343,7 +347,7 @@ export class LatexRenderer {
 			throw new LatexCompilationError(result.log);
 		}
 
-		return result;
+		return { result, compilationSession };
 	}
 
 	private async createResultFile(pdfData: Uint8Array, stem: string, format: ResultFileFormat): Promise<CacheContent> {
@@ -359,11 +363,11 @@ export class LatexRenderer {
 	}
 
 	private async restoreFromCache(task: LatexTask) {
-		const result = await this.cache.resultFileCache.getResultFileFromRawHash(
+		const result = await this.cache.resultFileCache.getResultFile(
 			task.rawHash,
 			task.sourcePath,
-			task.resultFormat,
-			() => getCacheDependencyPaths(task, this.vfs, this.plugin),
+			task.compilePipeline,
+			task.resultFormat
 		);
 		if (result === undefined) return false;
 
@@ -385,7 +389,7 @@ export class LatexRenderer {
 				return false;
 			}
 
-			insertSvg(data, renderChild, task.sourcePath, this.plugin);
+			insertSvg(data, renderChild, task.sourcePath, task.compilePipeline, this.plugin);
 			return true;
 		}
 
@@ -401,6 +405,7 @@ export class LatexRenderer {
 			renderChild,
 			stem,
 			task.sourcePath,
+			task.compilePipeline,
 			this.plugin,
 		);
 
@@ -414,23 +419,3 @@ export class LatexRenderer {
 		return !Platform.isIosApp;
 	}
 }
-
-async function getCacheDependencyPaths(
-	task: LatexTask,
-	vfs: VirtualFileSystem,
-	plugin: LatexCompilerPlugin,
-): Promise<string[]> {
-	const explicitDeps = await vfs
-		.getParser()
-		.collectSurfaceDependencyPaths(task.getContent(), task.sourcePath);
-
-	const autoUsePaths = plugin.settings.compilerVfsEnabled
-		? vfs
-			.getAutoUseFiles()
-			.map((file) => file.path)
-			.filter((path) => !explicitDeps.includes(path))
-		: [];
-
-	return [...new Set([...explicitDeps, ...autoUsePaths])].sort();
-}
-

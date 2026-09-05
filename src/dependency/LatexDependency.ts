@@ -1,5 +1,5 @@
 import { isTexSourceExtension } from 'src/ast/latexAbstractSyntaxTree';
-import { extractStemAndExtension } from 'src/latexRender/resolvers/paths';
+import { CODE_BLOCK_NAME_SEPARATOR, extractStemAndExtension } from 'src/latexRender/resolvers/paths';
 
 export enum LatexSourceType {
 	File,
@@ -12,7 +12,7 @@ export enum LatexSourceType {
  */
 export class LatexDependency {
 	constructor(
-		public content: string,
+		public content: string | Uint8Array,
 		public stem: string,
 		public path: string,
 		public extension: string,
@@ -24,10 +24,18 @@ export class LatexDependency {
 	get name(): string {
 		return `${this.stem}.${this.extension}`;
 	}
+
+	get sourcePath (): string {
+		return this.path.split(CODE_BLOCK_NAME_SEPARATOR)[0];
+	}
+
+	isStringContent(): this is { content: string } {
+		return typeof this.content === 'string';
+	}
 }
 
 export function createDependency(
-	content: string,
+	content: string | Uint8Array,
 	vaultRootedPath: string,
 	sourceType: LatexSourceType,
 	config: {

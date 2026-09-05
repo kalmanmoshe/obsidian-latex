@@ -1,76 +1,127 @@
-// credit to The amazing people at obsidian latex suite which this code is influenced from
+import {
+	Vault,
+	TFile,
+	TFolder,
+	TAbstractFile,
+	debounce,
+} from 'obsidian';
 
-import { Vault, TFile, TFolder, TAbstractFile, Notice, debounce, App } from 'obsidian';
 import LatexCompilerPlugin from 'src/main';
 
 const REFRESH_TIMEOUT_MS = 500;
 
-const refreshLatexFromFiles = debounce(
-	async (plugin: LatexCompilerPlugin) => {
-		if (!plugin.settings.compilerVfsEnabled) {
-			return;
-		}
-		await plugin.processLatexPreambles(false, true);
+const refreshAutoUseFiles = debounce(
+	(plugin: LatexCompilerPlugin) => {
+		plugin.refreshAutoUseFiles(false, true);
 	},
 	REFRESH_TIMEOUT_MS,
 	true,
 );
 
-export const onFileChange = (plugin: LatexCompilerPlugin, file: TAbstractFile) => {
+export const onFileCreate = (
+	plugin: LatexCompilerPlugin,
+	file: TAbstractFile,
+) => {
 	if (!(file instanceof TFile)) return;
 
-	const { compilerVfsEnabled } = plugin.settings;
-	const fileIsMonitored = compilerVfsEnabled && plugin.latexRenderer.vfs.isNeededForAutoUse(file.path)
-
-	if (fileIsMonitored) {
-		refreshLatexFromFiles(plugin);
+	if (isInConfiguredAutoUseDir(plugin, file)) {
+		refreshAutoUseFiles(plugin);
 	}
 };
 
-export const onFileCreate = (plugin: LatexCompilerPlugin, file: TAbstractFile) => {
-	onFileChange(plugin, file);
-};
-
-export const onFileDelete = (plugin: LatexCompilerPlugin, file: TAbstractFile) => {
+export const onFileDelete = (
+	plugin: LatexCompilerPlugin,
+	file: TAbstractFile,
+) => {
 	if (!(file instanceof TFile)) return;
-	const wasVfsFile =
-		plugin.settings.compilerVfsEnabled && plugin.latexRenderer.vfs.hasFile(file.path);
 
-	if (wasVfsFile) {
-		refreshLatexFromFiles(plugin);
+	if (isInConfiguredAutoUseDir(plugin, file)) {
+		refreshAutoUseFiles(plugin);
 	}
 };
 
-function* generateFilesWithin(fileOrFolder: TAbstractFile): Generator<TFile> {
-	if (fileOrFolder instanceof TFile) yield fileOrFolder;
-	else if (fileOrFolder instanceof TFolder)
-		for (const child of fileOrFolder.children) yield* generateFilesWithin(child);
+function isInConfiguredAutoUseDir(
+	plugin: LatexCompilerPlugin,
+	file: TFile,
+): boolean {
+	const vfsDir =
+		plugin.app.vault.getAbstractFileByPath(
+			plugin.settings.autoloadedVfsFilesDir,
+		);
+
+	if (!vfsDir) return false;
+
+	return isFileInDir(vfsDir, file);
 }
 
-export function getFilesWithin(vault: Vault, path: string): Set<TFile> {
-	const fileOrFolder = vault.getAbstractFileByPath(path);
-
-	if (fileOrFolder === null) {
-		return new Set();
+function* generateFilesWithin(
+	fileOrFolder: TAbstractFile,
+): Generator<TFile> {
+	if (fileOrFolder instanceof TFile) {
+		yield fileOrFolder;
+		return;
 	}
-	const files = generateFilesWithin(fileOrFolder);
-	return new Set(files);
-}
 
-export async function getPreambleFromFiles(files: Set<TFile>, app: App) {
-	const fileContents: { path: string; name: string; content: string }[] = [];
-
-	for (const file of files) {
-		try {
-			fileContents.push({
-				path: file.path, //path to the root of the vault
-				name: file.name,
-				content: await app.vault.cachedRead(file),
-			});
-		} catch (e) {
-			console.error(`Failed to fetch ${file.path} from memfs: ${e}`);
-			new Notice(`Failed to fetch ${file.path} from memfs: ${e}`);
+	if (fileOrFolder instanceof TFolder) {
+		for (const child of fileOrFolder.children) {
+			yield* generateFilesWithin(child);
 		}
 	}
-	return fileContents;
+}
+
+export function getFilesWithin(
+	vault: Vault,
+	path: string,
+): Set<TFile> {
+	const fileOrFolder =
+		vault.getAbstractFileByPath(path);
+
+	if (!fileOrFolder) {
+		return new Set();
+	}
+
+	return new Set(
+		generateFilesWithin(fileOrFolder),
+	);
+}
+
+export function getAutoUseFilePaths(
+	vault: Vault,
+	path: string,
+): Set<string> {
+	return new Set(
+		[...getFilesWithin(vault, path)]
+			.map((file) => file.path),
+	);
+}
+
+function isFileInFolder(
+	dir: TFolder,
+	file: TFile,
+): boolean {
+	let cur = file.parent;
+
+	while (cur && !cur.isRoot()) {
+		if (cur.path === dir.path) {
+			return true;
+		}
+
+		cur = cur.parent;
+	}
+
+	return false;
+}
+
+function isFileInDir(
+	dir: TAbstractFile,
+	file: TFile,
+): boolean {
+	if (dir instanceof TFolder) {
+		return isFileInFolder(dir, file);
+	}
+
+	return (
+		dir instanceof TFile &&
+		dir.path === file.path
+	);
 }

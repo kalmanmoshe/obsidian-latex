@@ -2,38 +2,13 @@ import { clearFolder } from './compilerCache';
 import { PhysicalCacheBase } from './cacheBase/physicalCacheBase';
 import { extractFileName, joinPaths } from '../resolvers/paths';
 import LatexCompilerPlugin from 'src/main';
-import { CacheFileExtensions, CacheFileType } from './cacheBase/cacheBase';
 import { StringMap } from 'src/settings/settings';
 
-export const packageCacheFormat: CacheFileExtensions = new Map([
-	["tex", CacheFileType.Text],
-	["sty", CacheFileType.Text],
-	["cls", CacheFileType.Text],
-	["clo", CacheFileType.Text],
-	["cfg", CacheFileType.Text],
-	["def", CacheFileType.Text],
-	["fd", CacheFileType.Text],
-	["ldf", CacheFileType.Text],
-	["mkii", CacheFileType.Text],
-	["dict", CacheFileType.Text],
-
-	["pdf", CacheFileType.Binary],
-	["fmt", CacheFileType.Binary],
-	["ttf", CacheFileType.Binary],
-	["pfb", CacheFileType.Binary],
-	["tfm", CacheFileType.Binary],
-	["ofm", CacheFileType.Binary],
-	["otf", CacheFileType.Binary],
-	["enc", CacheFileType.Binary],
-	["map", CacheFileType.Binary],
-	["tec", CacheFileType.Binary],
-	["txt", CacheFileType.Binary],
-]);
-
+//TODO: maybe rename to texlive cache
 export default class PackageCache extends PhysicalCacheBase {
 
 	constructor(plugin: LatexCompilerPlugin) {
-		super(plugin, packageCacheFormat);
+		super(plugin);
 	}
 
 	setCacheFolderPath(): void {
@@ -63,7 +38,7 @@ export default class PackageCache extends PhysicalCacheBase {
 			const fileName = extractFileName(val);
 
 			try {
-				const content = await this.getFile(fileName);
+				const content = await this.getFileAsBinary(fileName);
 
 				if (!content) {
 					throw new Error(

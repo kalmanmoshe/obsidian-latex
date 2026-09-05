@@ -13,13 +13,13 @@ interface EngineTask {
 	[key: string]: unknown;
 }
 
-interface WorkerMessage {
+export interface WorkerMessage {
 	cmd: EngineCommands;
 	result?: unknown;
 	[key: string]: unknown;
 }
 
-enum EngineCommands {
+export enum EngineCommands {
 	WorkerError = 'workererror',
 	WorkerRejection = 'workerrejection',
 	Compilelatex = 'compilelatex',
@@ -28,12 +28,14 @@ enum EngineCommands {
 	Mkdir = 'mkdir',
 	Compileformat = 'compileformat',
 	Writecache = 'writecache',
+	Resolvefile = 'resolvefile',
 	Fetchfile = 'fetchfile',
 	FetchWorkFiles = 'fetchWorkFiles',
 	FetchCache = 'fetchcache',
 	Writetexfile = 'writetexfile',
 	Setmainfile = 'setmainfile',
 	Writefile = 'writefile',
+	RegisterResolvedFile = 'registerResolvedFile',
 	Flushcatche = 'flushcache',
 	FlushWorkDirectory = 'flushworkcache',
 	Removefile = 'removefile',
@@ -58,10 +60,28 @@ export class CompileResult {
 		this.status = status;
 		this.log = log;
 	}
-	
+
 	isStatus(status: CompileStatus): boolean {
 		return this.status === Number(status);
 	}
+}
+
+export interface ResolvedFile {
+	requestedPath: string;
+	requestingPath: string | null;
+	format: number;
+	virtualPath: string;
+}
+
+export interface LatexCompilationSession {
+	handleWorkerMessage(
+		message: WorkerMessage,
+		worker: Worker,
+	): Promise<boolean>;
+
+	getResolvedFiles(): (ResolvedFile & {
+		content: string | Uint8Array;
+	})[];
 }
 
 export default class LatexEngine {
@@ -73,7 +93,7 @@ export default class LatexEngine {
 		private readonly createWorker: () => Promise<Worker>,
 		//name of the engine, used for logging and debugging
 		readonly engineName: string,
-	) {}
+	) { }
 
 	async loadEngine(): Promise<void> {
 		if (this.worker) {
@@ -132,14 +152,17 @@ export default class LatexEngine {
 		return true;
 	}
 
-	async compileLaTeX(): Promise<CompileResult> {
+	async compileLaTeX(session?: LatexCompilationSession): Promise<CompileResult> {
 		const data = await this.task<{
 			pdf?: Uint8Array;
 			status: number;
 			log: string;
-		}>({
-			cmd: EngineCommands.Compilelatex,
-		});
+		}>(
+			{
+				cmd: EngineCommands.Compilelatex,
+			},
+			session ? (message) => session.handleWorkerMessage(message, this.worker!) : undefined
+		);
 		return new CompileResult(
 			data.pdf ? new Uint8Array(data.pdf) : undefined,
 			data.status,
@@ -159,10 +182,6 @@ export default class LatexEngine {
 			data.status,
 			data.log,
 		);
-	}
-
-	getCompiler() {
-		return this.worker;
 	}
 
 	async compileFormat(): Promise<void> {
@@ -189,7 +208,7 @@ export default class LatexEngine {
 		}>({
 			cmd: EngineCommands.FetchCache,
 		});
-		
+
 		if (!data) {
 			throw new Error(`Engine ${this.engineName} received no cache data from the worker.`);
 		}
@@ -246,7 +265,11 @@ export default class LatexEngine {
 	}
 
 	//todo: take down timer revert to 15000 when loding pkg for the first time it taks a lot of time
-	task<T = void>(task: EngineTask, timeoutMs = 1500000): Promise<T> {
+	task<T = void>(
+		task: EngineTask,
+		onIntermediateMessage?: (message: WorkerMessage) => Promise<boolean> | boolean,
+		timeoutMs = 1500000
+	): Promise<T> {
 		const command = task.cmd;
 
 		this.checkEngineStatus(command);
@@ -284,8 +307,9 @@ export default class LatexEngine {
 			}, timeoutMs);
 
 			worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
-				try {
-					const message = event.data;
+				const message = event.data;
+
+				void (async () => {
 					if (
 						message?.cmd === EngineCommands.WorkerError ||
 						message?.cmd === EngineCommands.WorkerRejection
@@ -297,6 +321,14 @@ export default class LatexEngine {
 							),
 						);
 						return;
+					}
+
+					if (onIntermediateMessage) {
+						const handled = await onIntermediateMessage(message);
+
+						if (handled) {
+							return;
+						}
 					}
 
 					// IMPORTANT: don't throw on other messages
@@ -313,11 +345,12 @@ export default class LatexEngine {
 					} = message;
 
 					ok(Object.keys(data).length ? (data as T) : (undefined as T));
-				} catch (err) {
+
+				})().catch((err) => {
 					window.clearTimeout(timer);
 					this.engineStatus = EngineStatus.Failed;
 					fail(err);
-				}
+				});
 			};
 
 			worker.onerror = (err: ErrorEvent) => {
@@ -326,14 +359,11 @@ export default class LatexEngine {
 				console.error(`Engine ${this.engineName} worker error:`, err);
 				fail(new Error(`Engine ${this.engineName} worker error: ${err.message}`));
 			};
-			
+
 			worker.postMessage(task);
 		});
 	}
 
-	/**
-	 *
-	 */
 	writeTexFSFile(filename: string, srcCode: Uint8Array | string) {
 		return this.task({
 			cmd: EngineCommands.Writetexfile,
@@ -345,6 +375,7 @@ export default class LatexEngine {
 	setEngineMainFile(filename: string) {
 		return this.task({ cmd: EngineCommands.Setmainfile, url: filename });
 	}
+
 	/**
 	 * Writes a file to the in-memory filesystem managed by the LaTeX worker.
 	 *
@@ -366,6 +397,10 @@ export default class LatexEngine {
 	 */
 	removeMemFSFile(filename: string) {
 		return this.task({ cmd: EngineCommands.Removefile, url: filename });
+	}
+
+	registerResolvedFile(file: ResolvedFile) {
+		return this.task({ cmd: EngineCommands.RegisterResolvedFile, ...file });
 	}
 
 	makeMemFSFolder(folder: string) {

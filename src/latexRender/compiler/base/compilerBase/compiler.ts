@@ -1,11 +1,11 @@
 import { PackageCacheData } from 'src/settings/settings';
-import LatexEngine, { CompileResult, EngineStatus } from './engine';
+import LatexEngine, { CompileResult, EngineStatus, LatexCompilationSession } from './engine';
 import { waitFor } from 'src/latexRender/latexRenderer';
 
 export default abstract class LatexCompiler {
 	protected engines: LatexEngine[];
 
-	abstract compileLaTeX(): Promise<CompileResult>;
+	abstract compileLaTeX(session: LatexCompilationSession): Promise<CompileResult>;
 
 	isReady() {
 		return this.engines.every((engine) => engine.isReady());

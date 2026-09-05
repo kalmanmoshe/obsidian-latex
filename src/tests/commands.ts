@@ -19,7 +19,7 @@ export function getTestCommands(plugin: LatexCompilerPlugin): Command[] {
 function createTestLatexCommand(plugin: LatexCompilerPlugin): Command {
 	return {
 		id: 'test-latex-code-blocks',
-		name: 'Test LaTeX Code Blocks (if the test is allrdy running, it will continue)',
+		name: 'Test LaTeX Code Blocks (if the test is already running, it will continue)',
 		callback: () => CompileTest.startOrContinueTest(plugin),
 	};
 }

@@ -7,9 +7,9 @@ import {
 	TaskSectionInformation,
 } from '../resolvers/taskSectionInformation';
 import { codeBlockToContent } from 'obsidian-dev-utils';
-import ResultFileCache from '../cache/resultFileCache';
+import ResultFileCache, { splitCacheId } from '../cache/resultFileCache';
 import { LATEX_RENDER_ID_KEY } from '../pdfConversion/pdfToSVG';
-import { ResultFileFormat } from 'src/settings/settings';
+import { ResultFileFormat, CompilePipeline } from 'src/settings/settings';
 import { LatexRenderChild } from '../task/latexRenderChild';
 
 type RequireFunction = {
@@ -78,24 +78,26 @@ export class LatexContextMenuPopulater {
 	private readonly blockEl: HTMLElement;
 	private readonly renderChild: LatexRenderChild;
 	private readonly output: RenderOutput;
+	private readonly compilePipeline: CompilePipeline;
 
 	private sourceAssignmentPromise: Promise<boolean> | null = null;
 
 	private content!: string;
 	private stem!: string;
 	private rawHash!: string;
-	private depsHash!: string;
 
 	constructor(
 		plugin: LatexCompilerPlugin,
 		menu: Menu,
 		renderChild: LatexRenderChild,
 		sourcePath: string,
+		compilePipeline: CompilePipeline,
 	) {
 		this.plugin = plugin;
 		this.menu = menu;
 		this.sourcePath = sourcePath;
 		this.renderChild = renderChild;
+		this.compilePipeline = compilePipeline;
 		this.resultFileCache = this.plugin.latexRenderer.cache.resultFileCache;
 
 		this.blockEl = findLatexContainer(this.renderChild.containerEl);
@@ -166,11 +168,7 @@ export class LatexContextMenuPopulater {
 		}
 
 		this.stem = stem;
-
-		({
-			rawHash: this.rawHash,
-			depsHash: this.depsHash,
-		} = this.resultFileCache.stemToHashes(this.stem));
+		this.rawHash = splitCacheId(this.stem).rawHash;
 	}
 
 	private addCommonItems(): void {
@@ -357,7 +355,8 @@ export class LatexContextMenuPopulater {
 		if (!this.isError) {
 			const success = await this.resultFileCache.removeResultFileFromCache(
 				this.rawHash,
-				this.depsHash,
+				this.sourcePath,
+				this.compilePipeline,
 				this.output.type as ResultFileFormat
 			);
 			if (!success) {

@@ -1,6 +1,7 @@
-import LatexEngine, { CompileResult, CompileStatus } from '../base/compilerBase/engine';
+import LatexEngine, { CompileResult, CompileStatus, LatexCompilationSession } from '../base/compilerBase/engine';
 import LatexCompiler from '../base/compilerBase/compiler';
 import { xetexWorkerFactory, dviWorkerFactory } from '@swiftlatex-workers';
+import { UserFacingPluginError } from 'src/latexRender/errors/pluginErrors';
 
 export class PdfXeTeXCompiler extends LatexCompiler {
 	private xetEng: LatexEngine;
@@ -22,8 +23,8 @@ export class PdfXeTeXCompiler extends LatexCompiler {
 		return this.xetEng.flushCache();
 	}
 
-	override async compileLaTeX(): Promise<CompileResult> {
-		const xetResult = await this.xetEng.compileLaTeX();
+	override async compileLaTeX(session: LatexCompilationSession): Promise<CompileResult> {
+		const xetResult = await this.xetEng.compileLaTeX(session);
 
 		if (!xetResult.isStatus(CompileStatus.Success)) {
 			return xetResult;
@@ -37,10 +38,58 @@ export class PdfXeTeXCompiler extends LatexCompiler {
 			);
 		}
 
+		const writtenVirtualPaths = new Set<string>();
+		const dviResolutionKeys = new Map<string, string>();
+
+		for (const {
+			virtualPath,
+			content,
+			requestedPath,
+			format,
+		} of session.getResolvedFiles()) {
+			const key = `${requestedPath}|${format}`;
+			const existingVirtualPath = dviResolutionKeys.get(key);
+
+			if (existingVirtualPath) {
+				if (existingVirtualPath !== virtualPath) {
+					throw new UserFacingPluginError(
+						'Conflicting file names',
+						`Two different files referenced as "${requestedPath}" are used in this document, ` +
+						`and the PDF converter cannot tell them apart.`,
+						`DVI resolution collision for requestedPath="${requestedPath}", ` +
+						`format=${format}: "${existingVirtualPath}" vs "${virtualPath}".`,
+					);
+				}
+
+				continue;
+			}
+
+			dviResolutionKeys.set(key, virtualPath);
+
+			if (!writtenVirtualPaths.has(virtualPath)) {
+				await this.dviEng.writeMemFSFile(
+					virtualPath,
+					content,
+				);
+
+				writtenVirtualPaths.add(virtualPath);
+			}
+
+			await this.dviEng.registerResolvedFile({
+				requestedPath,
+				requestingPath: null,
+				format,
+				virtualPath,
+			});
+		}
+
 		await this.dviEng.writeMemFSFile('main.xdv', xetResult.pdf);
 		await this.dviEng.setEngineMainFile('main.xdv');
 		const dviResult = await this.dviEng.compilePDF();
-		dviResult.log = xetResult.log + '\n' + dviResult.log;
+		dviResult.log =
+			xetResult.log +
+			'\n\n===== dvipdfmx =====\n\n' +
+			dviResult.log;
 
 		return dviResult;
 	}

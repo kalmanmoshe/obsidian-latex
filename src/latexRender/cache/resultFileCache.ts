@@ -1,26 +1,26 @@
 import LatexCompilerPlugin from 'src/main';
 import { FileSystemAdapter, normalizePath, Notice, TFile } from 'obsidian';
 import { getLatexHashesFromFile } from '../resolvers/latexSourceFromFile';
-import { CacheBase, CacheContent, CacheFileType } from './cacheBase/cacheBase';
+import { CacheBase, CacheContent } from './cacheBase/cacheBase';
 import {
 	CacheEntry,
-	CacheEntryJson,
 	CacheJson,
 	CacheMap,
+	CompilePipeline,
 	ResultFileFormat,
 } from 'src/settings/settings';
 import {
 	ResultFilePhysicalCache,
 	ResultFileVirtualCache,
 } from './resultFileCacheTypes';
-import { extractStemAndExtension, isValidFileStem } from '../resolvers/paths';
+import { extractStemAndExtension, resolveDependencyContent } from '../resolvers/paths';
 import { optimizeSVG } from '../pdfConversion/optimizeSVG';
-import { getDependencyHash } from './compilerCache';
+import { hashContent } from './compilerCache';
 import { getLatexCodeBlockDefinition } from '../codeBlockTypes';
 
-export const resultFileCacheFormats = new Map<ResultFileFormat, CacheFileType>([
-	['svg', CacheFileType.Text],
-	['pdf', CacheFileType.Binary],
+export const resultFileCacheFormats = new Set<ResultFileFormat>([
+	'svg',
+	'pdf',
 ]);
 
 export default class ResultFileCache {
@@ -132,64 +132,30 @@ export default class ResultFileCache {
 
 	private loadCache() {
 		const raw: CacheJson = this.plugin.settings.cache || {};
-		const cache: CacheMap = new Map();
-
-		for (const [hash, entryList] of Object.entries(raw)) {
-			const parsedEntries: CacheEntry[] = entryList.map((entry) => {
-				const [format, depsHash, dependencies, referencedBy] = entry;
-				return {
-					format,
-					depsHash,
-					dependencies,
-					referencedBy: new Set(referencedBy),
-				};
-			});
-
-			cache.set(hash, parsedEntries);
-		}
-
-		this.cacheMap = cache;
+		this.cacheMap = new Map(Object.entries(raw));
 	}
 
 	private async saveCache() {
-		const result: CacheJson = {};
-
-		for (const [hash, entries] of this.cacheMap) {
-			const serializedEntries: CacheEntryJson[] = entries.map((entry) => [
-				entry.format,
-				entry.depsHash,
-				entry.dependencies,
-				[...entry.referencedBy]
-			])
-			result[hash] = serializedEntries;
-		}
-
-		this.plugin.settings.cache = result;
+		this.plugin.settings.cache = Object.fromEntries(this.cacheMap);
 		await this.plugin.saveSettings();
 	}
 
 	/**
 	 * Adds a file to the compiled file cache.
-	 * @param content The file content.
-	 * @param rawHash The raw hash key for the file.
-	 * @param dependencies The list of dependencies for the file (as relative paths to the vault root).
-	 * @param filePath The file path.
-	 * @param format The format of the result file (svg, pdf).
 	 */
 	async addFile(
 		content: string | Uint8Array,
 		rawHash: string,
-		dependencies: string[],
-		filePath: string,
+		sourcePath: string,
+		dependencies: Record<string, string>,
+		pipeline: CompilePipeline,
 		format: ResultFileFormat
 	) {
 		if (!this.isValidFileContent(content)) {
 			// This should never happen, but if it does, we want to know about it.
 			// (PDFs must have headers and SVGs must have a root element, so empty content is invalid.)
-			throw new Error(`Cannot add empty content to cache for ${filePath} with raw hash ${rawHash}.`);
-		}
-		const depsHash = getDependencyHash(dependencies);
-		const stem = this.getFileStem(rawHash, depsHash);
+			throw new Error(`Cannot add empty content to cache for ${sourcePath} with raw hash ${rawHash}.`);
+		};
 
 		let entries = this.cacheMap.get(rawHash);
 		if (!entries) {
@@ -198,40 +164,24 @@ export default class ResultFileCache {
 		}
 
 		await this.removeInvalidCacheEntries(rawHash, entries);
-		let targetEntry = entries.find((e) => e.depsHash === depsHash && e.format === format);
+		let targetEntry = entries.find(
+			(entry) => this.isEntryEqual(entry, { sourcePath, pipeline, format })
+		);
 
 		if (targetEntry) {
-			targetEntry.referencedBy.add(filePath);
+			targetEntry.dependencies = dependencies;
 		} else {
 			targetEntry = {
 				format,
+				sourcePath,
+				pipeline,
 				dependencies,
-				depsHash,
-				referencedBy: new Set([filePath]),
 			};
+
 			entries.push(targetEntry);
 		}
 
-		// A file path should not remain attached to an old dependency variant once the same raw hash and format has been resolved to a new dependency variant.
-		const staleEntries = entries.filter(
-			(entry) =>
-				entry !== targetEntry &&
-				entry.format === format &&
-				entry.referencedBy.has(filePath),
-		);
-
-		for (const staleEntry of staleEntries) {
-			staleEntry.referencedBy.delete(filePath);
-
-			if (staleEntry.referencedBy.size === 0) {
-				await this.removeResultFileFromCache(
-					rawHash,
-					staleEntry.depsHash,
-					staleEntry.format,
-				);
-			}
-		}
-
+		const stem = this.getFileStem(rawHash, targetEntry);
 		const fileName = this.stemToFileName(stem, format);
 		await this.cache.addFile(fileName, content);
 
@@ -245,19 +195,11 @@ export default class ResultFileCache {
 		await this.saveCache();
 	}
 
+	//TODO: recheck if this is needed, or even if i can merge it with something else
 	private async removeInvalidCacheEntries(rawHash: string, entries: CacheEntry[]) {
 		const entriesToRemove = new Set<CacheEntry>();
 		for (const entry of entries) {
-			const fileName = this.hashesToFileName(
-				rawHash,
-				entry.depsHash,
-				entry.format,
-			);
-			if (entry.referencedBy.size === 0) {
-				await this.cache.deleteFile(fileName);
-				entriesToRemove.add(entry);
-				continue;
-			}
+			const fileName = this.getFileName(rawHash, entry);
 
 			if (
 				!(await this.cache.fileExists(fileName))
@@ -274,60 +216,40 @@ export default class ResultFileCache {
 		}
 	}
 
-	async getResultFileFromRawHash(
+	async getResultFile(
 		rawHash: string,
-		filePath: string,
-		format: ResultFileFormat,
-		resolveDeps?: () => Promise<string[]>,
-	): Promise<{ stem: string, data: CacheContent } | undefined> {
-		const cacheEntries = this.cacheMap.get(rawHash)?.filter((entry) => entry.format === format);
-		if (!cacheEntries?.length) return undefined;
+		sourcePath: string,
+		pipeline: CompilePipeline,
+		format: ResultFileFormat
+	): Promise<{ stem: string; data: CacheContent } | undefined> {
+		const entry = this.cacheMap
+			.get(rawHash)
+			?.find(
+				(entry) => this.isEntryEqual(entry, { sourcePath, pipeline, format })
+			);
 
-		// Safe fast case: only one possible result, and it has no deps.
-		if (
-			cacheEntries.length === 1 &&
-			cacheEntries[0].dependencies.length === 0
-		) {
-			cacheEntries[0].referencedBy.add(filePath);
-			return await this.getResultFileFromEntry(rawHash, cacheEntries[0]);
+		if (!entry) {
+			return undefined;
 		}
 
-		// Fast known case: this exact file already used one entry before.
-		const pathMatches = cacheEntries.filter((entry) =>
-			entry.referencedBy.has(filePath),
-		);
-
-		if (pathMatches.length === 1) {
-			return await this.getResultFileFromEntry(rawHash, pathMatches[0]);
+		if (!(await this.areDependenciesValid(entry.dependencies))) {
+			return undefined;
 		}
 
-		// Ambiguous / unknown case: now pay the cost of resolving deps.
-		if (!resolveDeps) return undefined;
-
-		const dependencyPaths = await resolveDeps();
-		const depsHash = getDependencyHash(dependencyPaths);
-
-		const exactEntry = cacheEntries.find(
-			(entry) => entry.depsHash === depsHash,
-		);
-
-		if (!exactEntry) return undefined;
-
-		exactEntry.referencedBy.add(filePath);
-		return await this.getResultFileFromEntry(rawHash, exactEntry);
+		return this.getResultFileFromEntry(rawHash, entry);
 	}
 
 	private async getResultFileFromEntry(
 		rawHash: string,
 		entry: CacheEntry,
 	) {
-		const stem = this.getFileStem(rawHash, entry.depsHash);
+		const stem = this.getFileStem(rawHash, entry);
 		const fileName = this.stemToFileName(stem, entry.format);
 		const data = await this.cache.getFile(fileName);
 
 		if (data === undefined) { return undefined; }
 		if (!this.isValidFileContent(data)) {
-			await this.removeResultFileFromCache(rawHash, entry.depsHash, entry.format);
+			await this.removeResultFileFromCache(rawHash, entry.sourcePath, entry.pipeline, entry.format);
 			console.error("Cache entry for", fileName, "is empty. Removed from cache.");
 			return undefined;
 		}
@@ -342,29 +264,18 @@ export default class ResultFileCache {
 	getAllReferencingFilePathsFromCache(): string[] {
 		return [
 			...new Set(
-				[...this.cacheMap.values()]
-					.map((cacheEntries) =>
-						cacheEntries.map((cacheEntry) => [
-							...cacheEntry.referencedBy,
-						]),
-					)
-					.flat()
-					.flat(),
+				Array.from(this.cacheMap.values())
+					.flatMap((cacheEntries) =>
+						cacheEntries.map((cacheEntry) => cacheEntry.sourcePath))
 			),
 		];
-	}
-
-	getCachedFilePathsForRawHash(rawHash: string): string[] {
-		const cacheEntries = this.cacheMap.get(rawHash);
-		return cacheEntries
-			? [...cacheEntries.flatMap((entry) => [...entry.referencedBy])]
-			: [];
 	}
 
 	private async cleanUpCache(): Promise<void> {
 		await this.cache.purgeInvalidCacheFiles();
 		await this.ensureCacheIndexMatchesStoredFiles();
 		await this.ensureCacheIndexMatchesVault();
+		await this.removeInvalidDependencyCacheEntries();
 		await this.saveCache();
 	}
 
@@ -376,15 +287,16 @@ export default class ResultFileCache {
 
 		for (const resultFile of storedFileNames) {
 			try {
-				const { rawHash, depsHash, format } = this.nameToHashes(resultFile);
-
+				const { stem, extension } = extractStemAndExtension(resultFile);
+				const { rawHash, contextHash } = splitCacheId(stem);
+				
 				const hasMatchingEntry =
 					this.cacheMap
 						.get(rawHash)
 						?.some(
 							(entry) =>
-								entry.depsHash === depsHash &&
-								entry.format === format,
+								entry.format === extension &&
+								getContextHash(entry.sourcePath, entry.pipeline) === contextHash
 						) ?? false;
 
 				if (!hasMatchingEntry) {
@@ -404,11 +316,7 @@ export default class ResultFileCache {
 
 		for (const [rawHash, entries] of this.cacheMap) {
 			const validEntries = entries.filter((entry) => {
-				const fileName = this.hashesToFileName(
-					rawHash,
-					entry.depsHash,
-					entry.format,
-				);
+				const fileName = this.getFileName(rawHash, entry);
 
 				return storedFileNames.has(fileName);
 			});
@@ -427,7 +335,7 @@ export default class ResultFileCache {
 
 	private async ensureCacheIndexMatchesVault() {
 		const filePathsToRemove: string[] = [];
-		// Find files that dont exsist anymaor if file dose exist, remove unused caches for it.
+		// Find files that dont exsist anymore if file dose exist, remove unused caches for it.
 		for (const filePath of this.getAllReferencingFilePathsFromCache()) {
 			const file = this.plugin.app.vault.getAbstractFileByPath(filePath);
 			if (!file) {
@@ -439,7 +347,7 @@ export default class ResultFileCache {
 					console.error(
 						`Error removing cache for file ${filePath}:`,
 						err,
-					);
+					); 
 				}
 			}
 		}
@@ -476,6 +384,28 @@ export default class ResultFileCache {
 		}
 	}
 
+	private async removeInvalidDependencyCacheEntries() {
+		const validatedDependencies = new Map<string, string | null>();
+
+		for (const [rawHash, entries] of this.cacheMap) {
+			for (const entry of entries) {
+				const areDepsValid = await this.areDependenciesValid(
+						entry.dependencies,
+						validatedDependencies,
+					);
+				if (!areDepsValid) {
+					
+					await this.removeResultFileFromCache(
+						rawHash,
+						entry.sourcePath,
+						entry.pipeline,
+						entry.format
+					);
+				}
+			}
+		}
+	}
+
 	private async getReferencesInFile(
 		file: TFile,
 	): Promise<Map<string, Set<ResultFileFormat>>> {
@@ -501,7 +431,7 @@ export default class ResultFileCache {
 
 		for (const [rawHash, entries] of this.cacheMap) {
 			for (const entry of entries) {
-				if (!entry.referencedBy.has(filePath)) {
+				if (entry.sourcePath !== filePath) {
 					continue;
 				}
 				addFormatReference(references, rawHash, entry.format);
@@ -519,26 +449,17 @@ export default class ResultFileCache {
 		const entries = this.cacheMap.get(rawHash);
 		if (!entries) return;
 
-		const entriesToRemove: CacheEntry[] = [];
-
-		for (const entry of entries) {
-			if (format !== undefined && entry.format !== format) {
-				continue;
-			}
-
-			if (!entry.referencedBy.delete(filePath)) {
-				continue;
-			}
-
-			if (entry.referencedBy.size === 0) {
-				entriesToRemove.push(entry);
-			}
-		}
+		const entriesToRemove = entries.filter(
+			(entry) =>
+				entry.sourcePath === filePath &&
+				(format === undefined || entry.format === format),
+		);
 
 		for (const entry of entriesToRemove) {
 			await this.removeResultFileFromCache(
 				rawHash,
-				entry.depsHash,
+				entry.sourcePath,
+				entry.pipeline,
 				entry.format,
 			);
 		}
@@ -546,10 +467,15 @@ export default class ResultFileCache {
 
 	async removeResultFileFromCache(
 		rawHash: string,
-		depsHash: string,
+		sourcePath: string,
+		pipeline: CompilePipeline,
 		format: ResultFileFormat,
 	): Promise<boolean> {
-		const fileName = this.hashesToFileName(rawHash, depsHash, format);
+		const fileName = this.stemToFileName(
+			getCacheId(rawHash, sourcePath, pipeline),
+			format,
+		);
+
 		const fileRemoved = await this.cache.deleteFile(fileName);
 
 		const entries = this.cacheMap.get(rawHash);
@@ -557,10 +483,12 @@ export default class ResultFileCache {
 			return fileRemoved;
 		}
 
-		const index = entries.findIndex(
-			(entry) =>
-				entry.depsHash === depsHash &&
-				entry.format === format,
+		const index = entries.findIndex((entry) =>
+			this.isEntryEqual(entry, {
+				sourcePath,
+				pipeline,
+				format,
+			})
 		);
 
 		if (index !== -1) {
@@ -592,42 +520,58 @@ export default class ResultFileCache {
 		await this.saveCache();
 	}
 
+	private async areDependenciesValid(
+		dependencies: Record<string, string>,
+		validatedDependencies?: Map<string, string | null>,
+	): Promise<boolean> {
+		for (const [path, cachedHash] of Object.entries(dependencies)) {
+			if (validatedDependencies?.has(path)) {
+				const currentHash = validatedDependencies.get(path);
+
+				if (currentHash === null || currentHash !== cachedHash) {
+					return false;
+				}
+
+				continue;
+			}
+
+			try {
+				const { content } = await resolveDependencyContent(
+					path,
+					this.plugin.app,
+				);
+
+				const currentHash = hashContent(content);
+				validatedDependencies?.set(path, currentHash);
+
+				if (currentHash !== cachedHash) {
+					return false;
+				}
+			} catch {
+				// Missing dependency, invalid code-block reference, etc.
+				validatedDependencies?.set(path, null);
+				return false;
+			}
+		}
+
+		return true;
+	}
+	
+
 	private stemToFileName(hash: string, format: ResultFileFormat): string {
 		return `${hash}.${format}`;
 	}
 
-	getFileStem(rawHash: string, deps: string | string[]): string {
-		const depsHash = Array.isArray(deps)
-			? getDependencyHash(deps)
-			: deps;
-		return `${rawHash}-${depsHash}`;
+	getFileStem(rawHash: string, entry: CacheEntry): string {
+		return getCacheId(
+			rawHash,
+			entry.sourcePath,
+			entry.pipeline
+		)
 	}
 
-	hashesToFileName(rawHash: string, depsHash: string, format: ResultFileFormat): string {
-		return this.stemToFileName(this.getFileStem(rawHash, depsHash), format);
-	}
-
-	stemToHashes(stem: string) {
-		if (!isValidFileStem(stem)) {
-			throw new Error(`Invalid file stem: ${stem}`);
-		}
-		const parts = stem.split('-');
-		if (parts.length !== 2) {
-			throw new Error(`Invalid file stem format: ${stem}`);
-		}
-		const [rawHash, depsHash] = parts;
-		return { rawHash, depsHash };
-	}
-
-	nameToHashes(fileName: string) {
-		const { stem, extension } = extractStemAndExtension(fileName);
-		if (extension !== 'svg' && extension !== 'pdf') {
-			throw new Error(`Unsupported cache format: ${extension}`);
-		}
-		return {
-			...this.stemToHashes(stem),
-			format: extension,
-		};
+	getFileName(rawHash: string, entry: CacheEntry): string {
+		return this.stemToFileName(this.getFileStem(rawHash, entry), entry.format);
 	}
 
 	getAbsolutePathFromStem(stem: string, format: ResultFileFormat): string {
@@ -656,6 +600,15 @@ export default class ResultFileCache {
 			return content.buffer.byteLength > 0;
 		}
 	}
+
+	private isEntryEqual(
+		a: CacheEntry, 
+		b: {sourcePath: string, pipeline: CompilePipeline, format: ResultFileFormat}
+	): boolean {
+		return a.sourcePath === b.sourcePath &&
+			a.pipeline === b.pipeline &&
+			a.format === b.format;
+	}
 }
 
 function addFormatReference(
@@ -671,4 +624,31 @@ function addFormatReference(
 	}
 
 	formats.add(format);
+}
+
+export function getCacheId(
+	rawHash: string,
+	sourcePath: string,
+	pipeline: CompilePipeline,
+): string {
+	return `${rawHash}-${getContextHash(sourcePath, pipeline)}`;
+}
+
+function getContextHash(sourcePath: string, pipeline: CompilePipeline): string {
+	return hashContent(
+		JSON.stringify([
+			normalizePath(sourcePath),
+			pipeline,
+		]),
+	);
+}
+
+export function splitCacheId(cacheId: string) {
+	const [rawHash, contextHash] = cacheId.split('-');
+
+	if (!rawHash || !contextHash) {
+		throw new Error(`Invalid cache id: ${cacheId}`);
+	}
+
+	return { rawHash, contextHash };
 }

@@ -12,12 +12,13 @@ import { TaskSectionInformation } from '../resolvers/taskSectionInformation';
 
 import { codeBlockToContent } from 'obsidian-dev-utils';
 import { sectionToTaskSectionInfo, taskSectionInfoToContent } from '../resolvers/sectionUtils';
-import { processTaskSource } from './latexTaskProcessor';
 import { hashLatexContent } from '../cache/compilerCache';
-import { ResultFileFormat, SOURCE_REVERIFICATION_TIME_MS } from 'src/settings/settings';
+import { CompilePipeline, ResultFileFormat, SOURCE_REVERIFICATION_TIME_MS } from 'src/settings/settings';
 import { LatexRenderChild } from './latexRenderChild';
 import { getLatexCodeBlockDefinition, LatexCodeBlockDefinition } from '../codeBlockTypes';
-import { LatexSourceType } from 'src/dependency/LatexDependency';
+import { LatexSourceType } from 'src/dependency/latexDependency';
+import { getCacheId } from '../cache/resultFileCache';
+import { LatexSourceProcessor } from 'src/dependency/latexSourceProcessor';
 
 /**
  * sets the section information for the task.
@@ -62,11 +63,6 @@ export function getEditorTextForPath(path: string, app: App): string | undefined
 	return undefined;
 }
 
-export enum LatexRenderMode {
-	SVG,
-	PDF,
-	TIKZJAX_SVG
-}
 
 export class LatexTask {
 	protected readonly plugin: LatexCompilerPlugin;
@@ -91,10 +87,6 @@ export class LatexTask {
 	private possibleNames: string[];
 	processed: boolean = false;
 	private processedContent: string;
-	/**
-	 * all of the paths of root dependencies that this task depends on. includeing auto use files.
-	 */
-	private dependencyPaths: string[] = [];
 
 	constructor(
 		plugin: LatexCompilerPlugin,
@@ -115,7 +107,7 @@ export class LatexTask {
 		this.setSectionInfos(sectionInfos);
 	}
 
-	get renderMode(): LatexRenderMode { return this.definition.renderMode; }
+	get compilePipeline(): CompilePipeline { return this.definition.compilePipeline; }
 	get sourceType(): LatexSourceType { return this.definition.sourceType; }
 	get resultFormat(): ResultFileFormat { return this.definition.resultFormat; }
 
@@ -292,32 +284,46 @@ export class LatexTask {
 	}
 
 	getStem() {
-		return this.plugin.latexRenderer.cache.resultFileCache.getFileStem(
+		return getCacheId(
 			this.rawHash,
-			this.getDependencyPaths(),
+			this.sourcePath,
+			this.compilePipeline,
 		);
 	}
-	
+
 	getProcessedContent(): string {
-		if (!this.processedContent) throw new Error('Processed content is not set. Call process() first.');
+		if (this.processedContent === undefined) throw new Error('Processed content is not set. Call process() first.');
 		return this.processedContent;
 	}
 
-	setProcessedContent(content: string) { 
-		this.processedContent = content; 
+	setProcessedContent(content: string) {
+		this.processedContent = content;
 		this.resolvedHash = hashLatexContent(this.processedContent);
 	}
-
-	setDependencyPaths(paths: string[]) { this.dependencyPaths = paths; }
-
-	getDependencyPaths(): string[] { return this.dependencyPaths; }
 
 	getPossibleNames() {
 		return this.possibleNames;
 	}
 
 	async process() {
-		return processTaskSource(this, this.plugin.latexRenderer.vfs, this.plugin);
+		if (this.definition.sourceType !== LatexSourceType.TikzCodeBlock) {
+			//fake it till you make it.
+			this.setProcessedContent(this.getContent());
+			this.processed = true;
+			return;
+		}
+
+		const processor = new LatexSourceProcessor(this.plugin.latexRenderer.vfs, this.plugin.app);
+
+		const result = await processor.parseFile(
+				this.getContent(),
+				this.sourcePath,
+				this.sourceType,
+			);
+
+		this.setProcessedContent(result.content);
+
+		this.processed = true;
 	}
 
 	getRenderData() {
@@ -326,15 +332,14 @@ export class LatexTask {
 			content: this.getProcessedContent(),
 			rawHash: this.rawHash,
 			sourcePath: this.sourcePath,
-			dependencyPaths: this.getDependencyPaths(),
 			stem: this.getStem(),
 			format: this.resultFormat,
+			compilePipeline: this.compilePipeline,
 		};
 	}
 
 	getDebugInfo() {
 		return {
-			vfsFils: this.plugin.latexRenderer.vfs.getClonedFiles(),
 			sourcePath: this.sourcePath,
 			content: this.content,
 			definition: this.definition,
@@ -347,7 +352,6 @@ export class LatexTask {
 				codeBlock: sec.codeBlock,
 			})),
 			lastSectionInfoVerificationTime: this.lastSectionInfoVerificationTime,
-			dependencyPaths: this.dependencyPaths,
 			processed: this.processed,
 			possibleNames: this.possibleNames,
 		};

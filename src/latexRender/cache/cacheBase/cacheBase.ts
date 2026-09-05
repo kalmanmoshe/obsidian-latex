@@ -11,24 +11,14 @@ import {
 	extractStemAndExtension,
 	isValidFileStem,
 } from 'src/latexRender/resolvers/paths';
+import { CacheFileType, getFileReadType } from 'src/latexRender/resolvers/extensions';
 
 export type CacheContent = string | Uint8Array;
-
-export enum CacheFileType {
-	Text,
-	Binary,
-}
-
-/**
- * Represents a mapping of file extensions to their corresponding cache file types.
- * The key is the file extension (e.g., "pdf"), and the value is the CacheFileType.
- */
-export type CacheFileExtensions = Map<string, CacheFileType>;
 
 export abstract class CacheBase {
 	constructor(
 		protected plugin: LatexCompilerPlugin,
-		protected cacheFileExtensions: CacheFileExtensions,
+		protected allowedExtensions?: Set<string>
 	) { }
 
 	/**
@@ -78,14 +68,7 @@ export abstract class CacheBase {
 	abstract deleteCache(): Promise<void>;
 
 	protected getFileType(fileName: string): CacheFileType {
-		const ext = fileName.split(".").pop()?.toLowerCase();
-		const type = ext ? this.cacheFileExtensions.get(ext) : undefined;
-
-		if (type === undefined) {
-			throw new Error(`Unknown cache file type: ${fileName}`);
-		}
-
-		return type;
+		return getFileReadType(fileName);
 	}
 
 	isValidFileName(fileName: any) {
@@ -111,7 +94,7 @@ export abstract class CacheBase {
 		) {
 			return false;
 		}
-		return this.cacheFileExtensions.has(extension)
+		return this.allowedExtensions ? this.allowedExtensions.has(extension) : true;
 	}
 
 	/**
@@ -137,7 +120,7 @@ export abstract class CacheBase {
 	ensureIsValidFileExtension(extension: string): string {
 		if (!this.isValidFileExtension(extension)) {
 			throw new Error(
-				`Invalid file extension: ${extension}. Valid extensions are: ${Array.from(this.cacheFileExtensions.keys()).join(', ')}`,
+				`Invalid file extension: ${extension}. Valid extensions are: ${Array.from(this.allowedExtensions || []).join(', ')}`,
 			);
 		}
 		return extension;

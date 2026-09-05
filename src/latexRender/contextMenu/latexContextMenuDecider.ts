@@ -2,11 +2,13 @@ import LatexCompilerPlugin from 'src/main';
 import { Menu, MarkdownView } from 'obsidian';
 import { LatexContextMenuPopulater } from './latexContextMenuPopulater';
 import { LatexRenderChild } from '../task/latexRenderChild';
+import { CompilePipeline } from 'src/settings/settings';
 
 type Pending = {
 	id: number;
 	renderChild: LatexRenderChild
 	filePath: string;
+	pipeline: CompilePipeline;
 	event: MouseEvent;
 	deadline: number;
 	timeoutId: number;
@@ -38,12 +40,18 @@ export class LatexContextMenuDecider {
 				window.clearTimeout(best.timeoutId);
 				this.pendings.delete(best.id);
 
-				this.decorateEditorMenu(menu, best.renderChild, best.filePath)
+				new LatexContextMenuPopulater(
+					this.plugin, 
+					menu, 
+					best.renderChild, 
+					best.filePath, 
+					best.pipeline
+				)
 			}),
 		);
 	}
 
-	add(renderChild: LatexRenderChild, filePath: string) {
+	add(renderChild: LatexRenderChild, filePath: string, compilePipeline: CompilePipeline): void {
 		this.plugin.registerDomEvent(
 			renderChild.containerEl,
 			'contextmenu',
@@ -70,6 +78,7 @@ export class LatexContextMenuDecider {
 					id,
 					renderChild,
 					filePath,
+					pipeline: compilePipeline,
 					event,
 					deadline,
 					handled: false,
@@ -81,7 +90,12 @@ export class LatexContextMenuDecider {
 					pending.handled = true;
 					this.pendings.delete(id);
 
-					this.openMenu(event, pending.renderChild, pending.filePath);
+					this.openMenu(
+						event, 
+						pending.renderChild, 
+						pending.filePath,
+						pending.pipeline
+					);
 				}, this.windowMs);
 
 				this.pendings.set(id, pending);
@@ -90,22 +104,21 @@ export class LatexContextMenuDecider {
 		);
 	}
 
-	private decorateEditorMenu(menu: Menu, renderChild: LatexRenderChild, filePath: string) {
-		new LatexContextMenuPopulater(this.plugin, menu, renderChild, filePath);
-	}
-
 	openMenu(
 		event: MouseEvent,
 		renderChild: LatexRenderChild,
-		filePath: string
+		filePath: string,
+		compilePipeline: CompilePipeline
 	): void {
 		try {
 			const menu = new Menu();
 
-			this.decorateEditorMenu(
-				menu,
-				renderChild,
-				filePath
+			new LatexContextMenuPopulater(
+				this.plugin, 
+				menu, 
+				renderChild, 
+				filePath, 
+				compilePipeline
 			);
 
 			menu.showAtMouseEvent(event);

@@ -1,5 +1,5 @@
 import { extractFileName } from 'src/latexRender/resolvers/paths';
-import { CacheBase, CacheContent, CacheFileType } from './cacheBase';
+import { CacheBase, CacheContent } from './cacheBase';
 
 export abstract class VirtualCacheBase extends CacheBase {
 	/**
@@ -13,10 +13,6 @@ export abstract class VirtualCacheBase extends CacheBase {
 	}
 
 	async getFileAsString(fileName: string): Promise<string | undefined> {
-		if (this.getFileType(fileName) !== CacheFileType.Text) {
-			throw new Error(`"${fileName}" is not a text cache file.`);
-		}
-
 		const content = this.cache.get(fileName);
 
 		if (content === undefined) return undefined;
@@ -29,10 +25,6 @@ export abstract class VirtualCacheBase extends CacheBase {
 	}
 
 	async getFileAsBinary(fileName: string): Promise<Uint8Array | undefined> {
-		if (this.getFileType(fileName) !== CacheFileType.Binary) {
-			throw new Error(`"${fileName}" is not a binary cache file.`);
-		}
-
 		const content = this.cache.get(fileName);
 
 		if (content === undefined) return undefined;

@@ -1,6 +1,5 @@
 import { String, Macro, Argument, Node, DependencyMacro } from './typs/astNodes';
 import { parse } from './autoParse/ast-types-pre';
-import { LatexDependency } from 'src/dependency/LatexDependency';
 import { verifyEnvironmentWrap } from './verifyEnvironmentWrap';
 
 //I need to Stop using the AST for inputs and only add and remove inputs through the dependencies.
@@ -57,17 +56,19 @@ export class LatexAbstractSyntaxTree {
 		return this.content.map((node) => node.toString()).join('');
 	}
 
-	addDependenciesToPreamble(dependencies: LatexDependency[]) {
+	addAutoUseDependenciesToPreamble(depPaths: string[]) {
+		if (depPaths.length === 0) return;
 		const macros: Macro[] = [];
-		for (const dependency of dependencies) {
-			const name = dependency.stem + '.' + dependency.extension;
+		
+		for (const depPath of depPaths) {
+			const texPath = depPath.startsWith('/') ? depPath : '/' + depPath;
 			macros.push(
-				new DependencyMacro('input', dependency.autoUse ?? false, undefined, [
-					new Argument('{', '}', [new String(name)]),
+				new DependencyMacro('input', true, undefined, [
+					new Argument('{', '}', [new String(texPath)]),
 				]),
 			);
 		}
-		const index = this.getAddInputFileIndex(dependencies.some((dep) => dep.autoUse));
+		const index = this.getAddInputFileIndex(true);
 
 		this.spliceContent(index, 0, ...macros);
 	}
@@ -118,12 +119,12 @@ export class LatexAbstractSyntaxTree {
 }
 
 const texSourceExtensions = [
-    'tex',
-    'latex',
-    'sty',
-    'cls',
+	'tex',
+	'latex',
+	'sty',
+	'cls',
 ];
 
 export function isTexSourceExtension(extension: string): boolean {
-    return texSourceExtensions.includes(extension.toLowerCase());
+	return texSourceExtensions.includes(extension.toLowerCase());
 }

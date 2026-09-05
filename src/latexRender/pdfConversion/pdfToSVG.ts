@@ -2,6 +2,7 @@ import LatexCompilerPlugin from 'src/main';
 import { optimizeSVG } from './optimizeSVG';
 import PdfToSvgWasm from '@pdf-to-svg-runtime';
 import { LatexRenderChild } from '../task/latexRenderChild';
+import { CompilePipeline } from 'src/settings/settings';
 
 export const LATEX_RENDER_ID_KEY = 'data-id';
 
@@ -98,7 +99,13 @@ function setSvgDataId(svg: string, id: string): string {
 }
 
 // Obsidian dose not allow directly inserting SVG into the DOM, so we need to parse it and insert it as a node.
-export function insertSvg(svgString: string, renderChild: LatexRenderChild, filePath: string, plugin: LatexCompilerPlugin): void {
+export function insertSvg(
+    svgString: string, 
+    renderChild: LatexRenderChild, 
+    filePath: string, 
+    compilePipeline: CompilePipeline,
+    plugin: LatexCompilerPlugin
+): void {
     const ownerDocument = renderChild.containerEl.ownerDocument;
     const ownerWindow = ownerDocument.defaultView;
 
@@ -124,7 +131,7 @@ export function insertSvg(svgString: string, renderChild: LatexRenderChild, file
     }
 
     renderChild.containerEl.replaceChildren(ownerDocument.adoptNode(svg));
-    plugin.menuDecider.add(renderChild, filePath)
+    plugin.menuDecider.add(renderChild, filePath, compilePipeline)
 }
 
 async function cropSvgByPixels(svgString: string): Promise<string> {

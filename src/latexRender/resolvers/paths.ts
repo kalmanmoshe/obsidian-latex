@@ -2,12 +2,13 @@ import { App, normalizePath, TAbstractFile, TFile, TFolder } from 'obsidian';
 import { getLatexTaskSectionInfosFromFile } from './taskSectionInformation';
 import { extractCodeBlockMetadata, extractCodeBlockName } from './latexSourceFromFile';
 import { codeBlockToContent } from 'obsidian-dev-utils';
-import { LatexSourceType } from 'src/dependency/LatexDependency';
+import { LatexSourceType } from 'src/dependency/latexDependency';
 import { getLatexCodeBlockDefinition } from '../codeBlockTypes';
 import { isTexSourceExtension } from 'src/ast/latexAbstractSyntaxTree';
 import { UserFacingPluginError } from '../errors/pluginErrors';
+import { TEXT_EXTENSIONS } from './extensions';
 
-export const CODE_BLOCK_NAME_SEPARATOR = '#';
+export const CODE_BLOCK_NAME_SEPARATOR = '::';
 const TRADITIONAL_PATH_SEPARATORS = ['/', '\\'];
 const PATH_SEPARATORS = [...TRADITIONAL_PATH_SEPARATORS, CODE_BLOCK_NAME_SEPARATOR];
 const PATH_SEPARATORS_REGEX = new RegExp(PATH_SEPARATORS.join('|'), 'g');
@@ -30,6 +31,8 @@ export function resolvePathRelToVault(path: string, currentPath: string, app: Ap
 		throw new UserFacingPluginError(
 			'Invalid code block name',
 			`"${remainingPath}" is not a valid LaTeX code block name.`,
+			undefined,
+			true
 		);
 	}
 
@@ -39,12 +42,14 @@ export function resolvePathRelToVault(path: string, currentPath: string, app: Ap
 	return absPath + CODE_BLOCK_NAME_SEPARATOR + codeBlockName;
 }
 
-export async function resolveDependencyContent(path: string, app: App): Promise<{ content: string, sourceType: LatexSourceType }> {
+export async function resolveDependencyContent(path: string, app: App): Promise<{ content: string | Uint8Array, sourceType: LatexSourceType }> {
 	const parts = path.split(CODE_BLOCK_NAME_SEPARATOR);
 	if (parts.length > 2 || parts.length === 0) {
 		throw new UserFacingPluginError(
 			'Invalid dependency path',
 			`"${path}" is not a valid dependency path. Use "${CODE_BLOCK_NAME_SEPARATOR}" only to separate a file path from a code block name.`,
+			undefined,
+			true
 		);
 	}
 	const filePath = parts.shift()!;
@@ -55,10 +60,12 @@ export async function resolveDependencyContent(path: string, app: App): Promise<
 			`Could not find the dependency file "${filePath}". Check that the path is correct and the file exists.`,
 		);
 	}
+	const extension = file.extension.toLowerCase();
+	const shouldReadAsText = TEXT_EXTENSIONS.has(extension.toLowerCase());
 
-	const fileText = await app.vault.read(file);
+	const fileContent = shouldReadAsText ? await app.vault.read(file) : new Uint8Array(await app.vault.readBinary(file));
 	if (parts.length === 0) return {
-		content: fileText,
+		content: fileContent,
 		sourceType: LatexSourceType.File
 	};
 
@@ -79,6 +86,8 @@ export async function resolveDependencyContent(path: string, app: App): Promise<
 		throw new UserFacingPluginError(
 			'Duplicate LaTeX code block name',
 			`More than one LaTeX code block named "${codeBlockStem}" was found in "${file.path}". Code block names used as dependencies must be unique.`,
+			undefined,
+			true
 		);
 	}
 
@@ -98,9 +107,9 @@ export async function resolveDependencyContent(path: string, app: App): Promise<
  * Code block / section references must be explicit using
  * `CODE_BLOCK_NAME_SEPARATOR`, for example:
  *
- * - `#blockName`
- * - `file.md#blockName`
- * - `../folder/file.md#blockName`
+ * - `::blockName`
+ * - `file.md::blockName`
+ * - `../folder/file.md::blockName`
  *
  * @param filePath Path to the target file, optionally followed by a code block name.
  * @param currentPath Path of the source file used as the relative starting point.
@@ -113,14 +122,19 @@ function findRelativeFile(filePath: string, currentPath: string, app: App) {
 		);
 	}
 
-	const start = app.vault.getAbstractFileByPath(currentPath);
-	if (!(start instanceof TFile)) {
-		throw new Error('Source file not found');
+	const isVaultRoot = currentPath === '' || currentPath === '/';
+
+	const start = isVaultRoot
+		? app.vault.getRoot()
+		: app.vault.getAbstractFileByPath(currentPath);
+
+	if (!start) {
+		throw new Error(`Source path not found: ${currentPath}`);
 	}
 
 	const [rawFilePath, remainingPath] = filePath.split(CODE_BLOCK_NAME_SEPARATOR, 2);
 
-	// "#block" means block inside the current file
+	// "::block" means block inside the current file
 	if (!rawFilePath) {
 		return {
 			file: start,
@@ -222,6 +236,7 @@ function resolveStartingFolder(
 					'Invalid dependency path',
 					`The dependency path "${filePath}" goes outside the vault.`,
 					`Reached the vault root while resolving "${filePath}" from "${start.path}".`,
+					true
 				);
 			}
 
@@ -261,6 +276,13 @@ export function extractStemAndExtension(path: string) {
 	const stem = parts.join('.');
 
 	return { stem, extension };
+}
+
+export function hasExtension(path: string): boolean {
+	const normalized = path.replaceAll('\\', '/');
+	const fileName = normalized.split('/').pop();
+
+	return !!fileName && fileName.includes('.');
 }
 
 /**

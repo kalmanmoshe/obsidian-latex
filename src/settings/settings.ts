@@ -4,6 +4,12 @@ export enum CompilerType {
 	PdfTeX = 'PdfTeX',
 	XeTeX = 'XeTeX',
 }
+
+export enum CompilePipeline {
+	Plain = 'plain',
+	Process = 'process',
+}
+
 /**
  * What to do when the content overflows the container.
  * "Downscale" - downscale the content.
@@ -18,45 +24,35 @@ export enum OverflowStrategy {
 export type ResultFileFormat = 'svg' | 'pdf';
 
 /**
+ * A record of cached dependencies, keyed by their resolved vault path. 
+ * The value is the hash of the dependency content at compile time.
+ */
+export type CachedDependencies = Record<string, string>;
+
+/**
  * Runtime representation of one cached compilation result.
  */
 export interface CacheEntry {
 	/** The stored output format. */
 	format: ResultFileFormat;
 
-	/** Hash of the resolved dependency state. */
-	depsHash: string;
+	/** Vault file containing the code block that produced this result. */
+	sourcePath: string;
 
-	/** Resolved vault paths used by this compilation. */
-	dependencies: string[];
+	/** Compilation/transformation pipeline used for this code block. */
+	pipeline: CompilePipeline;
 
-	/** Vault files currently referencing (they have a code block with a rawHash of this entry with the same format and depsHash) this result. */
-	referencedBy: Set<string>;
+	/** Dependency state observed during the successful compilation. */
+	dependencies: CachedDependencies;
 }
+
 
 export type CacheMap = Map<string, CacheEntry[]>;
 
 /**
- * Compact persisted representation:
- *
- * [
- *   format,
- *   dependency hash,
- *   dependency paths,
- *   referencing file paths
- * ]
- */
-export type CacheEntryJson = [
-	format: ResultFileFormat,
-	depsHash: string,
-	dependencies: string[],
-	referencedBy: string[],
-];
-
-/**
  * Raw source hash -> serialized result entries.
  */
-export type CacheJson = Record<string, CacheEntryJson[]>;
+export type CacheJson = Record<string, CacheEntry[]>;
 
 export interface PackageCacheData {
 	missingPackages: StringMap;
@@ -66,7 +62,6 @@ export interface PackageCacheData {
 }
 
 export interface LatexCompilerPluginSettings {
-	compilerVfsEnabled: boolean;
 	autoloadedVfsFilesDir: string;
 	virtualFilesFromCodeBlocks: boolean;
 
@@ -86,7 +81,6 @@ export interface LatexCompilerPluginSettings {
 }
 
 export const DEFAULT_SETTINGS: LatexCompilerPluginSettings = {
-	compilerVfsEnabled: false,
 	autoloadedVfsFilesDir: '',
 	virtualFilesFromCodeBlocks: false,
 	// style settings

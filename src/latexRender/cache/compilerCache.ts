@@ -10,6 +10,26 @@ export function hashString(input: string, length = 16): string {
 	return Md5.hashStr(input).slice(0, length);
 }
 
+export function hashContent(
+	input: string | Uint8Array,
+	length = 16,
+): string {
+	const hasher = new Md5();
+
+	if (typeof input === 'string') {
+		hasher.appendStr(input);
+	} else {
+		hasher.appendByteArray(input);
+	}
+
+	const hash = hasher.end();
+
+	if (typeof hash !== 'string') {
+		throw new Error('Failed to generate MD5 hash.');
+	}
+	return hash.slice(0, length);
+}
+
 export function getDependencyHash(dependencies: string[]): string {
 	if (dependencies.length === 0) {
 		return 'nodeps';

@@ -3,12 +3,14 @@ import LatexCompilerPlugin from 'src/main';
 import { LATEX_RENDER_ID_KEY } from './pdfToSVG';
 import { setIcon } from 'obsidian';
 import { LatexRenderChild } from '../task/latexRenderChild';
+import { CompilePipeline } from 'src/settings/settings';
 
 export async function insertPdf(
 	pdfData: Uint8Array,
 	renderChild: LatexRenderChild,
 	stem: string,
 	sourcePath: string,
+	compilePipeline: CompilePipeline,
 	plugin: LatexCompilerPlugin,
 ) {
 	const { attr, url } = await pdfToHtml(pdfData);
@@ -48,7 +50,7 @@ export async function insertPdf(
 
 		event.preventDefault();
 		event.stopPropagation();
-		plugin.menuDecider.openMenu(event, renderChild, sourcePath);
+		plugin.menuDecider.openMenu(event, renderChild, sourcePath, compilePipeline);
 	};
 
 	plugin.registerDomEvent(menuButton, 'click', openMenu);

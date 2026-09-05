@@ -1,5 +1,5 @@
 import LatexCompilerPlugin from 'src/main';
-import { CacheBase, CacheContent, CacheFileExtensions } from './cacheBase';
+import { CacheBase, CacheContent } from './cacheBase';
 import { normalizePath } from 'obsidian';
 import { mkdirRecursive } from '../compilerCache';
 
@@ -7,8 +7,8 @@ export abstract class PhysicalCacheBase extends CacheBase {
 	protected cacheFolderPath: string;
 	private readyPromise?: Promise<void>;
 
-	constructor(plugin: LatexCompilerPlugin, cacheFileExtensions: CacheFileExtensions) {
-		super(plugin, cacheFileExtensions);
+	constructor(plugin: LatexCompilerPlugin, allowedExtensions?: Set<string>) {
+		super(plugin, allowedExtensions);
 	}
 
 	private async ensureReady() {
