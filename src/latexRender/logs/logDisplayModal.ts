@@ -1,5 +1,9 @@
 import { App, Modal } from 'obsidian';
-import { ProcessedLog, File, ErrorLevel } from './latexLogParser';
+import { File } from './latexLogParser';
+import { CachedLogInfo } from '../cache/logCache';
+import { errorDiv, ErrorLevel, errorMessageDiv } from '../errors/errorDisplay';
+import { pluginErrorToErrorMessage } from '../errors/pluginErrors';
+import { logEntryToErrorMessage } from './humanReadableLogs';
 
 type LogTab = {
 	name: string;
@@ -7,11 +11,11 @@ type LogTab = {
 };
 
 export class LogDisplayModal extends Modal {
-	log: ProcessedLog;
+	logInfo: CachedLogInfo;
 
-	constructor(log: ProcessedLog, app: App) {
+	constructor(logInfo: CachedLogInfo, app: App) {
 		super(app);
-		this.log = log;
+		this.logInfo = logInfo;
 		this.modalEl.addClass('latex-compiler-log-modal');
 	}
 
@@ -22,22 +26,23 @@ export class LogDisplayModal extends Modal {
 		contentEl.createEl('h2', { text: 'LaTeX log' });
 
 		const tabs: LogTab[] = [];
+		const { log, userFacingErrors } = this.logInfo;
 
-		if (this.log.all.length > 0) {
+		if (log.all.length > 0 || userFacingErrors.length > 0) {
 			tabs.push({
 				name: 'Errors',
 				render: (container) => this.renderErrors(container),
 			});
 		}
 
-		if (this.log.files.length > 0) {
+		if (log.files.length > 0) {
 			tabs.push({
 				name: 'Files',
 				render: (container) => this.renderFiles(container),
 			});
 		}
 
-		if (this.log.raw?.trim()) {
+		if (log.raw?.trim()) {
 			tabs.push({
 				name: 'Raw',
 				render: (container) => this.renderRaw(container),
@@ -82,44 +87,30 @@ export class LogDisplayModal extends Modal {
 	}
 
 	private renderErrors(container: HTMLElement) {
-		const allErrors = this.log.all;
-		allErrors.sort((a, b) => {
-			const severity = {
-				[ErrorLevel.Error]: 0,
-				[ErrorLevel.Warning]: 1,
-				[ErrorLevel.Typesetting]: 2,
-			};
-			return severity[a.level] - severity[b.level];
-		});
-		allErrors.forEach((err) => {
-			const box = container.createDiv('latex-compiler-log-error-box ' + `level-${err.level}`);
+		for (const error of this.logInfo.userFacingErrors) {
+			container.appendChild(errorDiv(pluginErrorToErrorMessage(error)));
+		}
+		const severityOrder = {
+			[ErrorLevel.Error]: 0,
+			[ErrorLevel.Warning]: 1,
+			[ErrorLevel.Typesetting]: 2,
+		};
 
-			box.createDiv({
-				text: `${err.level.toUpperCase()}: ${err.message}`,
-				cls: 'latex-compiler-log-error-header',
-			});
+		const logEntries = [...this.logInfo.log.all]
+			.sort(
+				(a, b) =>
+					severityOrder[a.level] -
+					severityOrder[b.level],
+			);
 
-			if (err.file || err.line !== null) {
-				box.createDiv({
-					text: `↳ ${err.file ?? 'unknown file'}:${err.line ?? '?'}`,
-					cls: 'latex-compiler-log-error-location',
-				});
-			}
-
-			if (err.content) {
-				box.createEl('pre', {
-					text: err.content,
-					cls: 'latex-compiler-log-error-snippet',
-				});
-			}
-
-			if (err.cause) {
-				box.createDiv({
-					text: `Cause: ${err.cause}`,
-					cls: 'latex-compiler-log-error-cause',
-				});
-			}
-		});
+		for (const entry of logEntries) {
+			container.appendChild(
+				errorMessageDiv(
+					logEntryToErrorMessage(entry),
+					entry.level,
+				),
+			);
+		}
 	}
 
 	private renderFiles(container: HTMLElement) {
@@ -131,20 +122,38 @@ export class LogDisplayModal extends Modal {
 					cls: 'latex-compiler-log-file-details',
 				});
 				details.createEl('summary', {
-					text: file.path,
+					text: this.displayPath(file.path),
 					cls: 'latex-compiler-log-file-summary',
 				});
 				file.files.forEach((child) => renderTree(child, details, depth + 1));
 			} else {
 				// Just a line, no <details>
 				wrapper.createEl('div', {
-					text: file.path,
+					text: this.displayPath(file.path),
 					cls: 'latex-compiler-log-file-line',
 				});
 			}
 		};
 
-		this.log.files.forEach((file) => renderTree(file, container));
+		this.logInfo.log.files.forEach((file) => renderTree(file, container));
+	}
+
+	private displayPath(path: string): string {
+		let normalized = this.normalizeWorkerPath(path);
+
+		return this.logInfo.virtualToSource?.get(normalized) ?? normalized;
+	}
+
+	private normalizeWorkerPath(path: string): string {
+		if (path.startsWith('/work/')) {
+			return path.slice('/work/'.length);
+		}
+
+		if (path.startsWith('/tex/')) {
+			return path.slice('/tex/'.length);
+		}
+
+		return path;
 	}
 
 	private renderRaw(container: HTMLElement) {
@@ -155,7 +164,7 @@ export class LogDisplayModal extends Modal {
 		);
 
 		scrollContainer.createEl('pre', {
-			text: this.log.raw,
+			text: this.logInfo.log.raw,
 			cls: 'latex-compiler-log-raw-content',
 		});
 
@@ -166,7 +175,7 @@ export class LogDisplayModal extends Modal {
 
 		copyButton.addEventListener('click', () => {
 			navigator.clipboard
-				.writeText(this.log.raw)
+				.writeText(this.logInfo.log.raw)
 				.then(() => {
 					copyButton.textContent = 'Copied!';
 					window.setTimeout(() => (copyButton.textContent = 'Copy'), 1500);

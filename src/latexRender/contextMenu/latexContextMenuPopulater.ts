@@ -280,15 +280,15 @@ export class LatexContextMenuPopulater {
 
 	private async showLogs() {
 		void this.assignLatexContent();
-		let log = this.plugin.latexRenderer.cache.getLog(this.stem);
-		if (!log) {
+		let logInfo = this.plugin.latexRenderer.cache.getLog(this.stem);
+		if (!logInfo) {
 			await this.assignLatexContent();
-			log = await this.plugin.latexRenderer.cache.forceGetLog(this.stem, {
+			logInfo = await this.plugin.latexRenderer.cache.forceGetLog(this.stem, {
 				source: this.content,
 				sourcePath: this.sourcePath,
 			});
 		}
-		const modal = new LogDisplayModal(log, this.plugin.app);
+		const modal = new LogDisplayModal(logInfo, this.plugin.app);
 		modal.open();
 	}
 

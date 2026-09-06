@@ -1,3 +1,4 @@
+import { LatexRenderCompilationSession } from "../latexRenderCompilationSession";
 import { ErrorMessage } from "./errorDisplay";
 
 export class UserFacingPluginError extends Error {
@@ -13,7 +14,8 @@ export class UserFacingPluginError extends Error {
 
 export class LatexCompilationError extends Error {
 	constructor(
-		public readonly latexLog: string
+		public readonly latexLog: string,
+		public readonly session: LatexRenderCompilationSession,
 	) {
 		super('LaTeX compilation failed');
 		this.name = 'LatexCompilationError';

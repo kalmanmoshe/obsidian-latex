@@ -150,38 +150,6 @@ details summary {
 	border-left: 3px solid purple;
 }
 
-.latex-compiler-log-error-box {
-	padding: 8px;
-	margin: 6px 0;
-	background-color: var(--background-secondary);
-	border-radius: 6px;
-}
-
-.latex-compiler-log-error-header {
-	font-weight: bold;
-	font-size: 0.95em;
-	margin-bottom: 4px;
-}
-
-.latex-compiler-log-error-location {
-	color: var(--text-muted);
-	font-size: 0.85em;
-	margin-bottom: 4px;
-}
-
-.latex-compiler-log-error-snippet {
-	background: var(--background-modifier-hover);
-	padding: 4px;
-	border-radius: 4px;
-	font-family: var(--font-monospace);
-	white-space: pre-wrap;
-}
-
-.latex-compiler-log-error-cause {
-	font-style: italic;
-	color: var(--text-faint);
-}
-
 /* File Display Clean Style */
 .latex-compiler-log-file-summary {
 	font-family: var(--font-monospace);

@@ -1,3 +1,5 @@
+import { ErrorLevel } from "../errors/errorDisplay";
+
 const LOG_WRAP_LIMIT = 79;
 const LATEX_WARNING_REGEX = /^LaTeX(?:3| Font)? Warning: (.*)$/;
 const HBOX_WARNING_REGEX = /^(Over|Under)full \\(v|h)box/;
@@ -12,11 +14,6 @@ enum STATE {
 	NORMAL,
 	ERROR,
 }
-export enum ErrorLevel {
-	Error = 'error',
-	Warning = 'warning',
-	Typesetting = 'typesetting',
-}
 
 export interface CurrentError {
 	line: number | null;
@@ -27,6 +24,7 @@ export interface CurrentError {
 	raw: string;
 	cause?: string;
 }
+
 export interface File {
 	path: string;
 	files: File[];

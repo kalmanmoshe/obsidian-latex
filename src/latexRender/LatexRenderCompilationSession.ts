@@ -63,6 +63,15 @@ export class LatexRenderCompilationSession implements LatexCompilationSession {
         }));
     }
 
+    getVirtualPathMappings(): Map<string, string> {
+        return new Map(
+            this.resolutions.map((resolution) => [
+                resolution.virtualPath,
+                resolution.dependency.path,
+            ]),
+        );
+    }
+
     createContentHashRecord() {
         return this.resolutions.reduce((acc, res) => {
             //not sourcePath as the cache needs to resolve the actual content

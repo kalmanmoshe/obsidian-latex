@@ -5,6 +5,7 @@ import ResultFileCache from './resultFileCache';
 import { ProcessedLog } from '../logs/latexLogParser';
 import PackageCache from './packageCache';
 import LogCache from './logCache';
+import { LatexRenderCompilationSession } from '../latexRenderCompilationSession';
 
 export function hashString(input: string, length = 16): string {
 	return Md5.hashStr(input).slice(0, length);
@@ -102,8 +103,9 @@ export default class CompilerCache {
 	 * @param log The log object or string.
 	 * @param logCacheKey The key for the log in the cache.
 	 */
-	addLog(log: ProcessedLog | string, logCacheKey: string) {
-		this.logCache.addLog(log, logCacheKey);
+	addLog(
+		logCacheKey: string, log: ProcessedLog | string, session: LatexRenderCompilationSession) {
+		this.logCache.addLog(logCacheKey, log, session);
 	}
 
 	/**

@@ -16,7 +16,7 @@ import { LATEX_RENDER_ID_KEY, pdfToOptimizedSVG, insertSvg } from './pdfConversi
 import { CacheContent } from './cache/cacheBase/cacheBase';
 import { LatexRenderChild } from './task/latexRenderChild';
 import { LatexCodeBlockDefinition } from './codeBlockTypes';
-import { errorDiv, ErrorMessage } from './errors/errorDisplay';
+import { ErrorLevel, ErrorMessage, errorMessageDiv } from './errors/errorDisplay';
 import { LatexCompilationError, pluginErrorToErrorMessage, toErrorString, UserFacingPluginError } from './errors/pluginErrors';
 import { LatexRenderCompilationSession } from './latexRenderCompilationSession';
 import { getCacheId } from './cache/resultFileCache';
@@ -198,29 +198,44 @@ export class LatexRenderer {
 	async detachedProcessAndRender(task: LatexTask) {
 		if (!this.compiler?.isResponsive()) {
 			console.error('Compiler is unresponsive. Aborting task:', task.getDebugInfo());
-			return new CompileResult(
-				undefined,
-				CompileStatus.EngineCrashed,
-				'Compiler is unresponsive. Please restart the compiler.',
-			);
+			return {
+				result: new CompileResult(
+					undefined,
+					CompileStatus.EngineCrashed,
+					'Compiler is unresponsive. Please restart the compiler.',
+				),
+				compilationSession: undefined,
+			};
 		}
 		try {
 			await task.process();
 		} catch (err) {
 			console.error('Error processing task:', err, task.getDebugInfo());
 			const errorMessage = toErrorString(err);
-			return new CompileResult(undefined, CompileStatus.ProcessingError, errorMessage);
+			return {
+				result: new CompileResult(undefined, CompileStatus.ProcessingError, errorMessage),
+				compilationSession: undefined
+			};
 		}
 
 		try {
-			const { result } = await this.renderLatexToPDF(
+			const latexRenderResult = await this.renderLatexToPDF(
 				task.getProcessedContent(),
 				task.sourcePath
 			);
-			return result;
+			return latexRenderResult;
 		} catch (err) {
-			const errorText = err instanceof LatexCompilationError ? err.latexLog : toErrorString(err);
-			return new CompileResult(undefined, CompileStatus.CompileError, errorText);
+			let errorText, session: LatexRenderCompilationSession | undefined;
+			if (err instanceof LatexCompilationError) {
+				errorText = err.latexLog;
+				session = err.session;
+			} else {
+				errorText = toErrorString(err);
+			}
+			return {
+				result: new CompileResult(undefined, CompileStatus.CompileError, errorText),
+				compilationSession: session
+			};
 		}
 	}
 
@@ -270,13 +285,13 @@ export class LatexRenderer {
 
 		let processedError: ErrorMessage;
 		if (err instanceof LatexCompilationError) {
-			const processedLog: ProcessedLog = this.cache.getLog(cacheId) || parseLatexLog(err.latexLog);
+			const processedLog: ProcessedLog = this.cache.getLog(cacheId)?.log || parseLatexLog(err.latexLog);
 			processedError = refactorLogToErrorMessage(processedLog);
 		} else {
 			processedError = pluginErrorToErrorMessage(err)
 		}
 
-		const child = errorDiv(processedError);
+		const child = errorMessageDiv(processedError, ErrorLevel.Error);
 		child.setAttribute(LATEX_RENDER_ID_KEY, cacheId);
 		el.appendChild(child);
 		this.plugin.menuDecider.add(renderChild, sourcePath, pipeline)
@@ -336,7 +351,7 @@ export class LatexRenderer {
 		console.log('Compilation result:', result, compilationSession);
 
 		if (config.cacheId) {
-			this.cache.addLog(result.log, config.cacheId);
+			this.cache.addLog(config.cacheId, result.log, compilationSession);
 		}
 
 		if (config.fetchPkgData) {
@@ -344,7 +359,7 @@ export class LatexRenderer {
 		}
 
 		if (!result.isStatus(CompileStatus.Success)) {
-			throw new LatexCompilationError(result.log);
+			throw new LatexCompilationError(result.log, compilationSession);
 		}
 
 		return { result, compilationSession };

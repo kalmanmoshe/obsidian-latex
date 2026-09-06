@@ -191,7 +191,7 @@ class CompileTest {
 	): Promise<CompileAnalysisResult> {
 		const task = LatexTask.fromSectionInfos(this.plugin, file.path, [section]);
 		const compileResult = await this.plugin.latexRenderer.detachedProcessAndRender(task);
-		return { compileResult, task, section };
+		return { compileResult: compileResult.result, task, section };
 	}
 }
 
